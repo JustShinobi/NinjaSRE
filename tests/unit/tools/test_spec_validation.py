@@ -75,3 +75,101 @@ def test_browser_dry_run_validates_the_feature_without_starting_services(
         == 0
     )
     assert "would build, then run behaviour against mock" in capsys.readouterr().out
+
+
+# --- The staging backing: exposed on the CLI, and refuses what does not apply --
+
+
+def test_a_dry_run_against_staging_never_mentions_building(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Staging is announced as itself — nothing here is ever built."""
+    feature = tmp_path / "001-example"
+    feature.mkdir()
+    for name in ("spec.md", "plan.md", "tasks.md"):
+        (feature / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "browser",
+                "--feature",
+                str(feature),
+                "--backing",
+                "staging",
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "build" not in out, out
+    assert "staging" in out
+
+
+def test_a_scenario_other_than_the_default_is_refused_against_staging(
+    tmp_path: Path,
+) -> None:
+    """A data scenario is a `mock` concept; staging is one deployment, already seeded."""
+    feature = tmp_path / "001-example"
+    feature.mkdir()
+    for name in ("spec.md", "plan.md", "tasks.md"):
+        (feature / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    status = main(
+        [
+            "browser",
+            "--feature",
+            str(feature),
+            "--backing",
+            "staging",
+            "--scenario",
+            "degraded",
+        ]
+    )
+    assert status != 0
+
+
+def test_no_build_is_refused_against_staging_rather_than_ignored(tmp_path: Path) -> None:
+    """`--no-build` names a concept — reuse an existing build — staging has no build to reuse."""
+    feature = tmp_path / "001-example"
+    feature.mkdir()
+    for name in ("spec.md", "plan.md", "tasks.md"):
+        (feature / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    status = main(
+        [
+            "browser",
+            "--feature",
+            str(feature),
+            "--backing",
+            "staging",
+            "--no-build",
+        ]
+    )
+    assert status != 0
+
+
+def test_staging_never_calls_build_console_even_though_build_defaults_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default `build=True` never reaches a build step when the backing is staging."""
+    import tools.spec_validation as spec_validation
+
+    feature = tmp_path / "001-example"
+    feature.mkdir()
+    for name in ("spec.md", "plan.md", "tasks.md"):
+        (feature / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    def _must_not_build() -> int:
+        pytest.fail("build_console() was called for the staging backing")
+        return 1
+
+    def _fake_run_staging(**_kwargs: object) -> int:
+        return 0
+
+    monkeypatch.setattr(spec_validation, "build_console", _must_not_build)
+    monkeypatch.setattr(spec_validation, "run_staging", _fake_run_staging)
+
+    status = main(["browser", "--feature", str(feature), "--backing", "staging"])
+    assert status == 0

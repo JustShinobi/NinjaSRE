@@ -57,6 +57,12 @@
       "derives_from": "populated",
       "generated": true,
       "principal_role": "owner"
+    },
+    {
+      "name": "now-violations",
+      "description": "The populated deployment with one run and one incident carrying the five ways a 'Now' screen has been found to mislead a reader — a raw report standing in for a title, a hexadecimal id standing in for a name, two fallbacks in one line, a live control on a run the list already called done, and a chip that answers from a read that failed. Exists to give the transversal suite's bans on those screens a reproducible red, so their gate does not depend on a shared, changing staging environment ever being in the wrong state again.",
+      "derives_from": "populated",
+      "principal_role": "owner"
     }
   ]
 }

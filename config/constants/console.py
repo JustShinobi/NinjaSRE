@@ -38,6 +38,37 @@ NINJASRE_CONSOLE_API_URL_ENV: Final = "NINJASRE_CONSOLE_API_URL"
 #: this unset and the suite falls back to its own mock-plane value.
 NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV: Final = "NINJASRE_CONSOLE_E2E_CREDENTIAL"
 
+#: Where an already-running deployment answers, for the `staging` backing —
+#: the one browser backing that brings nothing up. Read from the environment;
+#: the address below is only the default a caller that names none gets.
+NINJASRE_STAGING_URL_ENV: Final = "NINJASRE_STAGING_URL"
+
+#: The address the `staging` backing points at when the operator does not
+#: name one explicitly.
+DEFAULT_STAGING_URL: Final = "https://stg-ninjasre.lan.kyo.ninja"
+
+#: The operator account the `staging` backing signs in as.
+NINJASRE_STAGING_USERNAME_ENV: Final = "NINJASRE_STAGING_USERNAME"
+
+#: The operator's own credential for that account. A password, not a session
+#: token — the `staging` backing exchanges it for one through the console's
+#: own sign-in route before anything reaches a browser. Read from the
+#: environment; never written down here, never logged, never a process
+#: argument.
+NINJASRE_STAGING_CREDENTIAL_ENV: Final = "NINJASRE_STAGING_CREDENTIAL"
+
+#: Where the `staging` backing writes its full-page captures, one per route
+#: swept, from the one run that produced them.
+NINJASRE_STAGING_EVIDENCE_DIR_ENV: Final = "NINJASRE_STAGING_EVIDENCE_DIR"
+
+#: The one spelling of the tag a Playwright test carries to declare itself
+#: safe to run against a shared, live environment — a read, or a proposal
+#: flow exercised without executing it, never a write and never anything
+#: destructive. Declared once, here, and read from here both by the suite
+#: that tags a test with it and by the harness that selects by it, so the two
+#: cannot drift into two spellings that between them select nothing.
+CONSOLE_STAGING_SAFE_TAG: Final = "@staging-safe"
+
 #: The path the built console is served under, for a deployment that puts it
 #: somewhere other than the root of its reverse proxy.
 NINJASRE_CONSOLE_BASE_PATH_ENV: Final = "NINJASRE_CONSOLE_BASE_PATH"
@@ -313,6 +344,7 @@ __all__ = [
     "CONSOLE_SIDEBAR_BREAKPOINT_PX",
     "CONSOLE_SIDEBAR_WIDTH_PX",
     "CONSOLE_SIGN_IN_PATH",
+    "CONSOLE_STAGING_SAFE_TAG",
     "CONSOLE_TOPBAR_HEIGHT_PX",
     "CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS",
     "NINJASRE_CONSOLE_CLOCK_ENV",
@@ -340,5 +372,10 @@ __all__ = [
     "NINJASRE_CONSOLE_TOOLCHAIN_ENV",
     "NINJASRE_NODE_MIRROR_ENV",
     "PLAYWRIGHT_BROWSERS_PATH_ENV",
+    "DEFAULT_STAGING_URL",
+    "NINJASRE_STAGING_CREDENTIAL_ENV",
+    "NINJASRE_STAGING_EVIDENCE_DIR_ENV",
+    "NINJASRE_STAGING_URL_ENV",
+    "NINJASRE_STAGING_USERNAME_ENV",
     "NODE_DIST_BASE_URL",
 ]
