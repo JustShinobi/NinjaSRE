@@ -197,23 +197,24 @@ interface Exception {
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
  *
- * The eight entries below are the five "Now" rules' own debt, each confirmed
+ * The seven entries below are the five "Now" rules' own debt, each confirmed
  * red against the dataset built to reproduce it before this line existed.
- * Seven were named ahead of time, from a diagnosis of the running deployment;
+ * Six were named ahead of time, from a diagnosis of the running deployment;
  * one (`/` + `markdown`) was not — the dashboard's own recent-activity
  * feed reads every run's raw summary with the identical, unfiltered
  * mechanism the runs list and the run detail screen already carried an
- * entry for, and the violating dataset that gives the other seven their red
+ * entry for, and the violating dataset that gives the other six their red
  * gives this one too, because it is the same defect, read a third time.
  *
- * `/incidents/{id}` carries neither `identifier-as-name` nor
- * `negative-assertion` any more: an opaque, short incident id decoded once
+ * `/incidents/{id}` carries none of `identifier-as-name`, `negative-assertion`
+ * or `two-placeholders` any more: an opaque, short incident id decoded once
  * at the edge replaced the composite, percent-encoded route parameter the
- * title used to fall back to, and a read that fails no longer renders a
- * chip that could assert anything about an investigation — there is
- * nothing left on the page for either rule to catch. Only `two-placeholders`
- * survives for this route, because it comes from the same failed read
- * emptying the whole subtitle, not from the identifier's shape.
+ * title used to fall back to; a read that fails no longer renders a chip
+ * that could assert anything about an investigation, so there is nothing
+ * left for that rule to catch either; and the subtitle — the whole reason
+ * `two-placeholders` survived the first two fixes — no longer renders at
+ * all once the read has failed, rather than repeating the same fallback
+ * word across the facts that read never answered.
  */
 const EXCEPTIONS: readonly Exception[] = [
   {
@@ -262,15 +263,6 @@ const EXCEPTIONS: readonly Exception[] = [
       'a run with no summary yet and no recorded finish shows the same ' +
       'fallback word in both its subject and its duration cell — a distinct ' +
       'word for "in progress" instead of the generic fallback for "unknown"',
-  },
-  {
-    path: '/incidents/{id}',
-    rule: 'two-placeholders',
-    reason:
-      'every subtitle slot but one falls back at once when the incident ' +
-      'detail read fails, because the same failure the identifier-as-name ' +
-      'and negative-assertion entries name empties the whole header — ' +
-      'removed by the fix to those two',
   },
   {
     path: '/runs/{id}',

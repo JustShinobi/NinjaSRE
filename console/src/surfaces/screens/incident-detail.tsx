@@ -303,21 +303,30 @@ export async function IncidentDetailScreen(
               : { title: investigationChip.title })}
           />
         </div>
-        <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
-          <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
-          {' · '}
-          <span data-testid="subtitle-source">{source}</span>
-          {' · '}
-          <span data-testid="subtitle-instant">
-            {message(locale, 'incident.subtitle.started', { when: opened.relative })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-zone">
-            {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
-        </p>
+        {readFailed ? null : (
+          // Every field here is derived from the incident this route could
+          // not read at all when `readFailed` — rendering it anyway would
+          // fall back to the same placeholder word on more than one slot at
+          // once, which reads as a description of an incident rather than
+          // as what it actually is: five facts nobody could learn. The
+          // title already says the read failed; a subtitle repeating that
+          // five different ways says nothing more.
+          <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
+            <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
+            {' · '}
+            <span data-testid="subtitle-source">{source}</span>
+            {' · '}
+            <span data-testid="subtitle-instant">
+              {message(locale, 'incident.subtitle.started', { when: opened.relative })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-zone">
+              {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

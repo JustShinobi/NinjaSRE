@@ -417,6 +417,14 @@ describe('a detail read that failed', () => {
     expect(states.filter((state) => state === 'empty')).toHaveLength(1);
   });
 
+  it('renders no subtitle at all, rather than the same fallback word on more than one of its five slots', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    expect(screen.queryByTestId('incident-subtitle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-rule')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-host')).not.toBeInTheDocument();
+  });
+
   it('shows the deployment’s own name in the document title instead of the identifier', async () => {
     // `generateMetadata` lives in the route file, not the screen, and reads
     // through the same `incidentDetailFor` — proved directly here rather
