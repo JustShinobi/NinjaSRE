@@ -669,6 +669,16 @@ async function openNowLabel(page: Page, label: string): Promise<void> {
   if (detail !== undefined) {
     await page.goto(detail.list);
     await page.getByTestId('row').first().locator('a').first().click();
+    // Wait for the list to be gone before anything reads the page.
+    //
+    // The click starts a client-side navigation, and every reader below counts
+    // rather than asserts — `locator.count()` has no auto-wait. Against a mock
+    // that answers instantly the detail screen is already there; against a real
+    // deployment it is not, and a rule that ran here would measure the *list*
+    // and find nothing to complain about. Passing because the page had not
+    // arrived yet is the one failure mode worse than failing.
+    await page.waitForURL((url) => !url.pathname.endsWith(detail.list));
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
     return;
   }
   await page.goto(label);
