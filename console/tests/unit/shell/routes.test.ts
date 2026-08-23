@@ -6,14 +6,14 @@ import {
   areaByPath,
   areaFor,
   groupsFor,
+  LEGACY_ROUTE_REDIRECTS,
+  legacyRouteTarget,
   NAV_GROUPS,
   SETTINGS_GROUPS,
   SETTINGS_PAGES,
-  SETTINGS_REDIRECTS,
   settingsGroupsFor,
   settingsPageByPath,
   settingsPageFor,
-  settingsRedirectTarget,
   trailFor,
   visibleAreas,
   visibleSettingsPages,
@@ -366,16 +366,18 @@ describe('the Settings subnav manifest', () => {
   });
 });
 
-describe('the redirect table from a retired route to its settings equivalent', () => {
+describe('the redirect table from a retired route to its live address', () => {
   it('carries at least one destination for every retired route the acceptance scenarios name', () => {
-    const from = new Set(SETTINGS_REDIRECTS.map((entry) => entry.from));
+    const from = new Set(LEGACY_ROUTE_REDIRECTS.map((entry) => entry.from));
     expect(from).toContain('/autonomy');
     expect(from).toContain('/administration');
     expect(from).toContain('/signals');
+    expect(from).toContain('/investigations');
+    expect(from).toContain('/setup');
   });
 
   it('sends every redirect to a page this console actually serves', () => {
-    for (const entry of SETTINGS_REDIRECTS) {
+    for (const entry of LEGACY_ROUTE_REDIRECTS) {
       expect(
         areaByPath(entry.to) ?? settingsPageByPath(entry.to),
         `${entry.from}${entry.tab === undefined ? '' : `?tab=${entry.tab}`}`,
@@ -384,25 +386,26 @@ describe('the redirect table from a retired route to its settings equivalent', (
   });
 
   it('resolves a bare old route to its new address', () => {
-    expect(settingsRedirectTarget('/autonomy', null)).toBe(
-      '/settings/autonomy-guardrails',
-    );
+    expect(legacyRouteTarget('/autonomy', null)).toBe('/settings/autonomy-guardrails');
   });
 
   it('resolves a query-of-tab variant to a different address than the bare route', () => {
-    expect(settingsRedirectTarget('/signals', null)).toBe('/settings/alert-intake');
-    expect(settingsRedirectTarget('/signals', 'destinations')).toBe(
+    expect(legacyRouteTarget('/signals', null)).toBe('/settings/alert-intake');
+    expect(legacyRouteTarget('/signals', 'destinations')).toBe(
       '/settings/schedules-destinations',
     );
-    expect(settingsRedirectTarget('/administration', 'audit')).toBe(
-      '/settings/audit-log',
-    );
-    expect(settingsRedirectTarget('/administration', 'people')).toBe(
+    expect(legacyRouteTarget('/administration', 'audit')).toBe('/settings/audit-log');
+    expect(legacyRouteTarget('/administration', 'people')).toBe(
       '/settings/members-roles',
     );
   });
 
+  it('resolves /investigations to /runs and /setup to /first-run — the names the sidebar and search already use', () => {
+    expect(legacyRouteTarget('/investigations', null)).toBe('/runs');
+    expect(legacyRouteTarget('/setup', null)).toBe('/first-run');
+  });
+
   it('answers nothing for a route the table does not retire', () => {
-    expect(settingsRedirectTarget('/incidents', null)).toBeUndefined();
+    expect(legacyRouteTarget('/incidents', null)).toBeUndefined();
   });
 });

@@ -667,35 +667,40 @@ export function settingsGroupsFor(viewer: Viewer): readonly SettingsPageGroup[] 
 }
 
 /**
- * One old address the hybrid navigation retires, and the new one it sends a
- * visitor to instead.
+ * One retired address, and the live one it sends a visitor to instead.
  *
- * `tab` absent is the entry `settingsRedirectTarget` falls back to when the
- * query names no tab this table recognises — the same address the retired
- * screen itself used to default to, so a visitor who bookmarked the bare
- * route or an unrecognised variant of it still lands somewhere true to what
- * they had.
+ * Not only Settings: the same shape and the same mechanism serve any old
+ * address whose name people kept using after the screen behind it moved —
+ * `/investigations` and `/setup` are the console's own vocabulary
+ * (`nav.decisions`'s neighbours, the setup wizard everybody calls "setup"),
+ * not screens that were ever under the Settings subnav.
+ *
+ * `tab` absent is the entry `legacyRouteTarget` falls back to when the query
+ * names no tab this table recognises — the same address the retired screen
+ * itself used to default to, so a visitor who bookmarked the bare route or
+ * an unrecognised variant of it still lands somewhere true to what they had.
  */
-export interface LegacySettingsRedirect {
+export interface LegacyRouteRedirect {
   readonly from: string;
   readonly tab?: string;
   readonly to: string;
 }
 
 /**
- * Every redirect the hybrid navigation ships with.
+ * Every redirect the console ships with, for a route it no longer serves.
  *
- * `/first-run` is not here: its redirect depends on whether the checklist is
- * complete, a fact this table cannot hold, so its own route file reads it
- * directly. `/configuration` is not here at all — it is the one address the
- * migration does not retire yet.
+ * `/first-run` is not here as a *source*: its own redirect (when the
+ * checklist is already complete) depends on deployment state this table
+ * cannot hold, so its own route file reads that directly. It is very much a
+ * *destination* here, for `/setup`. `/configuration` is not here at all — it
+ * is the one Settings address the migration does not retire yet.
  *
  * `/signals?tab=observation` is deliberately absent too: nothing in the nine
  * Settings pages replaces continuous observation, so that one variant keeps
  * rendering the screen it always has rather than redirecting to a page that
  * would say the wrong thing about why nothing is here.
  */
-export const SETTINGS_REDIRECTS: readonly LegacySettingsRedirect[] = [
+export const LEGACY_ROUTE_REDIRECTS: readonly LegacyRouteRedirect[] = [
   { from: '/autonomy', to: '/settings/autonomy-guardrails' },
   { from: '/administration', to: '/settings/members-roles' },
   { from: '/administration', tab: 'people', to: '/settings/members-roles' },
@@ -704,17 +709,20 @@ export const SETTINGS_REDIRECTS: readonly LegacySettingsRedirect[] = [
   { from: '/signals', tab: 'intake', to: '/settings/alert-intake' },
   { from: '/signals', tab: 'destinations', to: '/settings/schedules-destinations' },
   { from: '/signals', tab: 'schedules', to: '/settings/schedules-destinations' },
+  // The names the sidebar and the search palette already use for these two
+  // areas — `/investigations` for the runs list, `/setup` for the guided
+  // first run — answered "there is no such page" until this feature gave
+  // them the same retired-route mechanism every other renamed screen uses.
+  { from: '/investigations', to: '/runs' },
+  { from: '/setup', to: '/first-run' },
 ];
 
 /**
  * Where `path` (with `tab`, when the caller has one) redirects to, or
  * `undefined` when nothing retires it.
  */
-export function settingsRedirectTarget(
-  path: string,
-  tab: string | null,
-): string | undefined {
-  const candidates = SETTINGS_REDIRECTS.filter((entry) => entry.from === path);
+export function legacyRouteTarget(path: string, tab: string | null): string | undefined {
+  const candidates = LEGACY_ROUTE_REDIRECTS.filter((entry) => entry.from === path);
   if (tab !== null) {
     const named = candidates.find((entry) => entry.tab === tab);
     if (named !== undefined) return named.to;
