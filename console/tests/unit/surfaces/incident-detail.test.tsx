@@ -379,3 +379,119 @@ describe('what the proposed-action card is allowed to claim', () => {
     expect(screen.getByText('Nothing proposed yet')).toBeInTheDocument();
   });
 });
+
+describe('a detail read that failed', () => {
+  beforeEach(() => {
+    // No `/v1/incidents/...` entry at all: `serve()` answers 404 for it,
+    // exactly the shape a double-encoded or otherwise unresolvable
+    // identifier produces against a real gateway.
+    serve({ '/auth/me': PRINCIPAL });
+  });
+
+  it('says it could not read the incident, names no identifier, and renders no chip that could assert an absent investigation', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    const heading = screen.getByTestId('incident-title');
+    expect(heading).toHaveTextContent('This incident could not be read');
+    expect(heading).not.toHaveTextContent('inc-unreadable-01');
+
+    // Only the state chip renders — the investigation chip is not there to
+    // assert anything, absent rather than derived from a read that never
+    // answered.
+    const chips = screen.getAllByTestId('incident-chip');
+    expect(chips).toHaveLength(1);
+
+    const panels = screen.getAllByTestId('panel');
+    expect(panels).toHaveLength(3);
+    // Investigation and Evidence trail depend on the same failed read;
+    // Proposed action does not (it has nothing to attach to without a run,
+    // which a failed read also never named), so it renders empty rather
+    // than errored.
+    const states = panels.map((panel) => panel.getAttribute('data-state'));
+    expect(states.filter((state) => state === 'error')).toHaveLength(2);
+    expect(states.filter((state) => state === 'empty')).toHaveLength(1);
+  });
+
+  it('shows the deployment’s own name in the document title instead of the identifier', async () => {
+    // `generateMetadata` lives in the route file, not the screen, and reads
+    // through the same `incidentDetailFor` — proved directly here rather
+    // than through `IncidentDetailScreen`, which never calls it.
+    const { incidentDetailFor } = await import('@/surfaces/screens/incident-detail');
+    const PageModule = await import('@/app/(shell)/incidents/[incidentId]/page');
+
+    await expect(
+      incidentDetailFor('a-token', 'inc-unreadable-01'),
+    ).rejects.toBeInstanceOf(Error);
+
+    const metadata = await PageModule.generateMetadata({
+      params: Promise.resolve({ incidentId: 'inc-unreadable-02' }),
+    });
+
+    expect(metadata.title).toBe('HAL9000');
+    expect(metadata.title).not.toContain('inc-unreadable-02');
+  });
+});
+
+describe("the incident route file's own generateMetadata", () => {
+  it('names the incident when the read succeeds', async () => {
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-named-01': {
+        incident: { incident_id: 'inc-named-01', title: 'cedar is down' },
+        subjects: [],
+        observations: [],
+        timeline: [],
+        actions: [],
+        investigation: null,
+      },
+    });
+    const PageModule = await import('@/app/(shell)/incidents/[incidentId]/page');
+
+    const metadata = await PageModule.generateMetadata({
+      params: Promise.resolve({ incidentId: 'inc-named-01' }),
+    });
+
+    expect(metadata.title).toBe('cedar is down · HAL9000');
+  });
+});
+
+describe('an incident whose investigation delivered a report', () => {
+  it('shows the finished chip once a report_delivered entry lands on the timeline', async () => {
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-finished-01': {
+        incident: {
+          incident_id: 'inc-finished-01',
+          title: 'backup job re-enabled',
+          summary: 'the disabled backup job was found and re-enabled',
+          state: 'resolved',
+          severity: 'high',
+          origin: 'detector',
+          detector: 'backup-job-disabled',
+          subjects: [],
+          opened_at: '2026-08-07T06:00:00+00:00',
+          closed_at: null,
+          run_id: 'run-finished-1',
+        },
+        subjects: [],
+        observations: [],
+        timeline: [
+          {
+            at: '2026-08-07T06:00:05+00:00',
+            kind: 'report_delivered',
+            actor: 'system:observation',
+            cause: 'report delivered',
+            detail: '#incidents',
+          },
+        ],
+        actions: [],
+        investigation: { step_count: 1, duration_ms: 3000, cost: 0.2 },
+      },
+    });
+
+    await renderIncident('inc-finished-01');
+
+    const chips = screen.getAllByTestId('incident-chip');
+    expect(chips[1]).toHaveTextContent('Investigation finished');
+  });
+});
