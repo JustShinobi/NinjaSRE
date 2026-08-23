@@ -59,6 +59,7 @@ def _to_run(row: models.AgentRun) -> AgentRun:
         runtime=row.runtime,
         model_id=row.model_id,
         summary=row.summary,
+        headline=row.headline,
         metadata=dict(row.run_metadata),
     )
 
@@ -134,6 +135,7 @@ class PostgresRunTraceStore(TenantBound):
             runtime=run.runtime,
             model_id=run.model_id,
             summary=run.summary,
+            headline=run.headline,
             run_metadata=check_payload(run.metadata, kind="agent run metadata"),
         )
         self.session.add(row)
@@ -148,6 +150,7 @@ class PostgresRunTraceStore(TenantBound):
         status: RunStatus,
         finished_at: datetime,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
         """Close ``run_id`` with a terminal status and return the stored run."""
         row = await self._require_run(run_id)
@@ -155,6 +158,8 @@ class PostgresRunTraceStore(TenantBound):
         row.finished_at = finished_at
         if summary is not None:
             row.summary = summary
+        if headline is not None:
+            row.headline = headline
         await self.session.flush()
         return _to_run(row)
 

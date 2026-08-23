@@ -272,6 +272,11 @@ class AgentRun(Base):
     runtime: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     model_id: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: One sentence naming the run, apart from the document ``summary`` holds.
+    #: ``NOT NULL DEFAULT ''`` — a run from before this column existed reads
+    #: as an empty headline, which the read path synthesises one for rather
+    #: than treating as a stored fact.
+    headline: Mapped[str] = mapped_column(Text, nullable=False, default="")
     run_metadata: Mapped[dict[str, Any]] = _json()
 
 

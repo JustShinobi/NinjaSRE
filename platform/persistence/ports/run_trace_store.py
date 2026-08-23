@@ -72,6 +72,11 @@ class AgentRun:
     runtime: str | None = None
     model_id: str | None = None
     summary: str | None = None
+    #: One sentence naming the run, apart from the document ``summary``
+    #: holds. Empty for a run that has not concluded yet, or one recorded
+    #: before this field existed — a reader synthesises a headline for
+    #: either case rather than treating the empty string as the run's name.
+    headline: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -174,8 +179,13 @@ class RunTraceStore(Protocol):
         status: RunStatus,
         finished_at: datetime,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
         """Close ``run_id`` with a terminal status and return the stored run.
+
+        ``headline`` is left unchanged when ``None`` — the same convention
+        ``summary`` already uses — so a caller that only has one of the two
+        to report does not overwrite the other with emptiness.
 
         Raises ``RecordNotFound`` when the run does not exist in this tenant.
         """

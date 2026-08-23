@@ -41,6 +41,7 @@ class FakeRunTraceStore:
         status: RunStatus,
         finished_at: datetime,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
         """Close ``run_id`` with a terminal status and return the stored run."""
         run = self._require_run(run_id)
@@ -49,6 +50,7 @@ class FakeRunTraceStore:
             status=status,
             finished_at=finished_at,
             summary=summary if summary is not None else run.summary,
+            headline=headline if headline is not None else run.headline,
         )
         self.state.runs[run_id] = stored
         return stored

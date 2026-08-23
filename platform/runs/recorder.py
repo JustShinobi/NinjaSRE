@@ -242,14 +242,21 @@ class RunRecorder:
         *,
         status: RunStatus,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
-        """Close ``run_id`` and return the stored run."""
+        """Close ``run_id`` and return the stored run.
+
+        ``headline`` goes through the same guardrail redaction as
+        ``summary`` — a sentence the model wrote is exactly as capable of
+        carrying a secret as the document it summarises.
+        """
         finished = self.clock()
         closed = await self.store.complete_run(
             run_id,
             status=status,
             finished_at=finished,
             summary=self._redact(summary) if summary is not None else None,
+            headline=self._redact(headline) if headline is not None else None,
         )
         await self.record_event(
             run_id,
@@ -316,6 +323,7 @@ class RunRecorder:
             runtime=closed.runtime,
             model_id=closed.model_id,
             summary=closed.summary,
+            headline=closed.headline,
             metadata=metadata,
         )
 
