@@ -181,10 +181,28 @@ def _with_investigator_on_gemini(record: CapturedRecord) -> CapturedRecord:
     return record.with_body(body)
 
 
+def _incident_by_run(estate_records: Sequence[CapturedRecord]) -> dict[str, str]:
+    """Return the incident each run is attached to, by run id.
+
+    Read from the "incidents" record the estate half already serves — the
+    only place this dataset states which incident a run belongs to — never
+    recomputed or duplicated here.
+    """
+    for record in estate_records:
+        if record.slug == "incidents":
+            return {
+                str(incident["run_id"]): str(incident["incident_id"])
+                for incident in record.body["incidents"]
+                if incident.get("run_id")
+            }
+    return {}
+
+
 def populated_records() -> tuple[CapturedRecord, ...]:
     """Return every record of the full deployment, both halves, before the pipeline."""
     reading = profile.cluster_reading()
-    base = served.served_records(role="owner")
+    estate_records = estate(reading)
+    base = served.served_records(role="owner", incident_by_run=_incident_by_run(estate_records))
     # The organisation root's own effective configuration, overlaid rather than
     # duplicated: `served.config_records()` already emits exactly one record
     # for this `(slug, node_id)` pair, and a second one under the same key
@@ -216,7 +234,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
     )
     return (
         *records,
-        *estate(reading),
+        *estate_records,
         *project(reading),
         *stream_records(),
         *_write_responses(),

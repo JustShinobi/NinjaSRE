@@ -6,14 +6,16 @@
       },
       "body": {
         "finished_at": "2026-08-05T11:33:00+00:00",
-        "headline": "Guest disk usage hit its own volume ceiling",
+        "headline": "alert investigation",
         "incident_id": "",
         "report": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
         "run_id": "run-0001",
         "started_at": "2026-08-05T11:19:00+00:00",
         "status": "succeeded",
         "summary": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
-        "touched_resources": [],
+        "touched_resources": [
+          "proxmox:container/hal9000/110"
+        ],
         "trigger": "alert"
       },
       "contract_version": "1.0.0",
@@ -33,7 +35,7 @@
       },
       "body": {
         "finished_at": "2026-08-06T09:12:00+00:00",
-        "headline": "Cluster quorum has no margin left",
+        "headline": "schedule investigation",
         "incident_id": "",
         "report": "Quorum has no margin: two of two required votes, and the device in the membership view carries none.",
         "run_id": "run-0002",
@@ -60,7 +62,7 @@
       },
       "body": {
         "finished_at": null,
-        "headline": "",
+        "headline": "alert investigation",
         "incident_id": "",
         "report": "",
         "run_id": "run-0003",
@@ -87,7 +89,7 @@
       },
       "body": {
         "finished_at": "2026-08-04T06:09:00+00:00",
-        "headline": "Investigation could not reach the metrics agent",
+        "headline": "manual investigation",
         "incident_id": "",
         "report": "The investigation could not reach the metrics agent; it is one of the failed units on the primary.",
         "run_id": "run-0004",
@@ -114,8 +116,8 @@
       },
       "body": {
         "finished_at": null,
-        "headline": "A remediation is proposed and awaiting approval",
-        "incident_id": "",
+        "headline": "alert investigation",
+        "incident_id": "inc-0001",
         "report": "A remediation is proposed and is waiting for a decision.",
         "run_id": "run-0005",
         "started_at": "2026-08-07T11:38:00+00:00",
@@ -141,7 +143,7 @@
       },
       "body": {
         "finished_at": "2026-08-02T11:02:00+00:00",
-        "headline": "Cancelled after the operator found the cause by hand",
+        "headline": "manual investigation",
         "incident_id": "",
         "report": "Cancelled by the operator after the cause was identified by hand.",
         "run_id": "run-0006",

@@ -52,6 +52,9 @@ from platform.credentials.schemas import CredentialField
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
 from platform.identity.permissions import Permission, Role, permissions_for
+from platform.persistence.ports.run_trace_store import ToolCallRecord
+from platform.runs.headline import synthesize_headline
+from platform.runs.replay import touched_resources_of
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -603,12 +606,64 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
 }
 
 
-def runs_records() -> tuple[CapturedRecord, ...]:
+def _run_calls(run_id: str) -> tuple[ToolCallRecord, ...]:
+    """Return every call ``run_id`` made, in the shape ``touched_resources_of`` reads.
+
+    ``ToolCallRecord.arguments`` is the whole recorded call body — the same
+    ``arguments``/``result`` envelope a call in ``_TURNS`` is already written
+    in — so this wraps what is already there rather than reshaping it.
+    """
+    return tuple(
+        ToolCallRecord(
+            call_id=str(call["call_id"]),
+            run_id=run_id,
+            turn_id=str(turn["turn_id"]),
+            tool_name=str(call["name"]),
+            arguments=call,
+        )
+        for turn in _TURNS.get(run_id, ())
+        for call in turn.get("calls", ())
+    )
+
+
+def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> dict[str, Any]:
+    """Return ``run`` in the shape the console's investigation summary answers in.
+
+    Field for field what ``gateway.http.routes.investigations.summary_of`` and
+    ``linked_summary`` compute from a stored run — imported rather than
+    reimplemented, so a headline synthesised here and one a live deployment
+    synthesises are never two different sentences for the same run:
+
+    - ``headline`` is synthesised the same way a stored run with none gets
+      one — never read from ``summary``, which is the document it has to
+      stay distinct from.
+    - ``report`` is that document, unaltered.
+    - ``touched_resources`` comes from what this run's own calls were
+      actually made with, never from a declared subject.
+    - ``incident_id`` is read back from the same incident this run is
+      attached to in the estate half of this dataset — the one place that
+      link is recorded — never invented here.
+    """
+    identifier = str(run["run_id"])
+    trigger = str(run.get("trigger") or "")
+    objective = f"{trigger} investigation" if trigger else ""
+    return {
+        **run,
+        "headline": synthesize_headline(objective=objective),
+        "report": str(run.get("summary") or ""),
+        "incident_id": incident_by_run.get(identifier, ""),
+        "touched_resources": list(touched_resources_of(_run_calls(identifier))),
+    }
+
+
+def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[CapturedRecord, ...]:
     """Return the run list, each run's detail, its transcript and its replay."""
-    records: list[CapturedRecord] = [_record("runs", {}, {"runs": list(RUNS)})]
-    for run in RUNS:
+    linked = incident_by_run or {}
+    details = tuple(_run_detail(run, linked) for run in RUNS)
+    records: list[CapturedRecord] = [_record("runs", {}, {"runs": list(details)})]
+    for run, detail in zip(RUNS, details):
         identifier = str(run["run_id"])
-        records.append(_record("run-detail", {"run_id": identifier}, dict(run)))
+        records.append(_record("run-detail", {"run_id": identifier}, detail))
         turns = list(_TURNS.get(identifier, ()))
         records.append(
             _record("run-threads", {"run_id": identifier}, {"run_id": identifier, "turns": turns})
@@ -623,6 +678,11 @@ def runs_records() -> tuple[CapturedRecord, ...]:
                     "total_cost": round(0.031 * (len(turns) + 1), 4),
                     "total_tokens": 1840 * (len(turns) + 1),
                     "is_interrupted": run["status"] == "cancelled",
+                    # No turn in this dataset has ever recorded a cost, so by
+                    # the same definition ``ReplayedRun.unpriced_turn_count``
+                    # uses — turns whose cost was never recorded — every turn
+                    # here counts as one.
+                    "unpriced_turns": len(turns),
                 },
             )
         )
@@ -3076,11 +3136,13 @@ def agent_records() -> tuple[CapturedRecord, ...]:
     return tuple(records)
 
 
-def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
+def served_records(
+    *, role: str = "owner", incident_by_run: Mapping[str, str] | None = None
+) -> tuple[CapturedRecord, ...]:
     """Return every record the gateway half of the dataset holds."""
     return (
         *agent_records(),
-        *runs_records(),
+        *runs_records(incident_by_run=incident_by_run),
         *interaction_records(),
         *proposal_records(),
         *memory_records(),

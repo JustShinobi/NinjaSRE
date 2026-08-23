@@ -46,8 +46,8 @@ from alembic import op
 
 from platform.persistence.ports.incident_store import public_incident_id
 
-revision = "0015_incident_public_id"
-down_revision = "0014_timeline_evidence"
+revision = "0017_incident_public_id"
+down_revision = "0016_incident_run_ids_index"
 branch_labels = None
 depends_on = None
 

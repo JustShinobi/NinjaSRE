@@ -20,11 +20,8 @@
                 "status": "succeeded"
               }
             ],
-            "completion_tokens": 0,
-            "cost": null,
             "index": 0,
             "model": "operator-configured",
-            "prompt_tokens": 0,
             "selection_rationale": "storage pressure is a first-party domain",
             "turn_id": "turn-0001-1"
           },
@@ -131,26 +128,20 @@
                 "status": "succeeded"
               }
             ],
-            "completion_tokens": 0,
-            "cost": null,
             "index": 1,
             "model": "operator-configured",
-            "prompt_tokens": 0,
             "selection_rationale": "the datastore reading disagrees with the volume reading",
             "turn_id": "turn-0001-2"
           },
           {
             "calls": [],
-            "completion_tokens": 0,
-            "cost": null,
             "index": 2,
             "model": "operator-configured",
-            "prompt_tokens": 0,
             "selection_rationale": "enough evidence to conclude",
             "turn_id": "turn-0001-3"
           }
         ],
-        "unpriced_turns": 0
+        "unpriced_turns": 3
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -206,11 +197,8 @@
                 "status": "succeeded"
               }
             ],
-            "completion_tokens": 0,
-            "cost": null,
             "index": 0,
             "model": "operator-configured",
-            "prompt_tokens": 0,
             "selection_rationale": "the alert names a unit, so start at the node",
             "turn_id": "turn-0003-1"
           },
@@ -224,16 +212,13 @@
                 "status": "running"
               }
             ],
-            "completion_tokens": 0,
-            "cost": null,
             "index": 1,
             "model": "operator-configured",
-            "prompt_tokens": 0,
             "selection_rationale": "one of the failed units is the hardening script",
             "turn_id": "turn-0003-2"
           }
         ],
-        "unpriced_turns": 0
+        "unpriced_turns": 2
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
