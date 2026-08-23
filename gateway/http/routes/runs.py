@@ -29,10 +29,10 @@ class RunReplayView(BaseModel):
     run_id: str
     turns: list[ThreadTurnView]
     #: The sum of the turns that carried a recorded cost. Read this with
-    #: ``unpriced_turns`` — on its own it is a floor, not a total (FR-018).
+    #: ``unpriced_turns`` — on its own it is a floor, not a total.
     total_cost: float
     #: How many turns carried no recorded cost, because their provider
-    #: published none. Never folded into ``total_cost`` as zero (FR-019).
+    #: published none. Never folded into ``total_cost`` as zero.
     unpriced_turns: int
     total_tokens: int
     is_interrupted: bool

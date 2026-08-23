@@ -39,7 +39,7 @@ def test_investigator_of_attaches_somewhere_to_write_when_given_a_store() -> Non
 
 
 def test_a_deployment_naming_no_investigator_still_has_no_recorder_and_no_error() -> None:
-    """FR-047: nothing named, still comes up, and it is honestly composed-nothing."""
+    """Nothing named, still comes up, and it is honestly composed-nothing."""
     runner = investigator_of(
         _NAMES_NONE, store=FakePersistence(), guardrails=GuardrailEngine(), broker=RunEventBroker()
     )

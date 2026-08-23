@@ -39,7 +39,7 @@ from platform.runs.stream import RunEventBroker
 def _status_of(*, denied: bool, outcome: InvocationOutcome) -> ToolCallStatus:
     """Return the stored status for one call, denial taking precedence.
 
-    A denial is neither an absence nor a plain failure (FR-005): it is its
+    A denial is neither an absence nor a plain failure: it is its
     own status, so a reviewer reading the trace can tell "the model tried
     and a policy said no" from "the model tried and it broke".
     """

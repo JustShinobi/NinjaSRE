@@ -48,7 +48,7 @@ class ThreadTurnView(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     #: ``None`` when the provider publishes no price for this turn — never a
-    #: fabricated ``0.0`` standing in for "unknown" (FR-017).
+    #: fabricated ``0.0`` standing in for "unknown".
     cost: float | None = None
     selection_rationale: str = ""
     calls: list[ThreadCallView]

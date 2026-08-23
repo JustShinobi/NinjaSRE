@@ -53,7 +53,7 @@ _MARKER_LINE = re.compile(
 
 #: The fallback sentence when even the subject is empty — an operator-started
 #: run with no objective at all is not a case this feature invents evidence
-#: for, but it must still hand back a non-empty string (FR-032).
+#: for, but it must still hand back a non-empty string.
 _NO_SUBJECT_HEADLINE = "Investigation with no declared subject"
 
 #: How a headline synthesised from an alert reads.

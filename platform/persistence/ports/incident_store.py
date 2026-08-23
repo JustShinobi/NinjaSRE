@@ -418,7 +418,7 @@ class IncidentStore(Protocol):
 
         A direct lookup, not a page of ``query`` a caller filters by hand —
         that is exactly the reachability a run's own detail view must not
-        depend on (FR-039).
+        depend on.
         """
 
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:

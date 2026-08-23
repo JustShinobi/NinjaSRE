@@ -124,7 +124,7 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
     finally:
         # Extracted from what the model wrote when it followed the delivery
         # prompt's instruction; synthesised from the run's own subject —
-        # never from ``summary`` — when it did not (FR-028 through FR-030).
+        # never from ``summary`` — when it did not.
         headline = headline_for(
             summary,
             alert_name=request.alert_labels.get("alertname", ""),

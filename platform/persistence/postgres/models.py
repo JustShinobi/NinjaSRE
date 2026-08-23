@@ -938,7 +938,7 @@ class IncidentRow(Base):
         # Containment ("does this incident's run_ids array hold this run"),
         # the same reasoning as ``episodes.components`` above: a btree cannot
         # answer it, and a run's own incident is read on every run detail
-        # view, not swept for with a paginated incident query (FR-039).
+        # view, not swept for with a paginated incident query.
         Index("ix_incidents_run_ids", "run_ids", postgresql_using="gin"),
     )
 

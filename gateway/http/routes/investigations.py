@@ -42,7 +42,7 @@ class InvestigationSummary(BaseModel):
     finished_at: str | None = None
     #: One sentence naming the run — stored, or synthesised from the run's
     #: own record when none was ever stored. Never empty for a run that
-    #: exists (FR-032).
+    #: exists.
     headline: str = ""
     #: The document the model wrote, in full, unaltered. What ``summary``
     #: held alone before this feature.
@@ -102,11 +102,10 @@ def summary_of(run: AgentRun) -> InvestigationSummary:
 async def linked_summary(run: AgentRun, uow: Any) -> InvestigationSummary:
     """Return ``run``'s summary, plus its incident and the resources it touched.
 
-    The extra two lookups a single-run read pays for and a list never does
-    (FR-039's own trade-off): the incident by a direct, indexed lookup —
-    never a paginated scan — and the resources from what this run's own
-    calls were actually made with, never from an alert's declared subjects
-    (FR-038).
+    The extra two lookups a single-run read pays for and a list never does:
+    the incident by a direct, indexed lookup — never a paginated scan — and
+    the resources from what this run's own calls were actually made with,
+    never from an alert's declared subjects.
     """
     incident = await uow.incidents.find_by_run(run.run_id)
     calls = await uow.run_traces.tool_calls_for_run(run.run_id)

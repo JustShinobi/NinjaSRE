@@ -264,9 +264,9 @@ def _names(value: Any) -> tuple[str, ...]:
 def _optional_cost(value: Any) -> float | None:
     """Return a turn's recorded cost, or ``None`` when the key was never written.
 
-    The key is absent, not ``0.0``, for a turn the recorder could not price
-    (FR-017) — coercing a missing key to zero here would be the exact
-    fabrication the write side refuses to produce.
+    The key is absent, not ``0.0``, for a turn the recorder could not price —
+    coercing a missing key to zero here would be the exact fabrication the
+    write side refuses to produce.
     """
     return None if value is None else float(value)
 
@@ -274,7 +274,7 @@ def _optional_cost(value: Any) -> float | None:
 def touched_resources_of(calls: Sequence[ToolCallRecord]) -> tuple[str, ...]:
     """Return the resources ``calls`` named, derived from what was recorded.
 
-    Never from the alert's declared subjects (FR-038) — only from the
+    Never from the alert's declared subjects — only from the
     arguments a call was actually made with, read the same way ``replay_trace``
     already unwraps them. A capability whose schema uses a name outside
     ``_RESOURCE_ARGUMENT_KEYS`` contributes nothing; the list is a known,
