@@ -2987,6 +2987,10 @@
             "title": "Origin",
             "type": "string"
           },
+          "public_id": {
+            "title": "Public Id",
+            "type": "string"
+          },
           "run_id": {
             "anyOf": [
               {
@@ -3039,6 +3043,7 @@
         },
         "required": [
           "incident_id",
+          "public_id",
           "title",
           "summary",
           "state",
