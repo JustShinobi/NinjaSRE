@@ -28,7 +28,11 @@ from platform.persistence.ports import (
     TimelineEntry,
     TimelineKind,
 )
-from platform.persistence.ports.incident_store import incident_key, timeline_key
+from platform.persistence.ports.incident_store import (
+    incident_key,
+    public_incident_id,
+    timeline_key,
+)
 
 pytestmark = pytest.mark.contract
 
@@ -44,8 +48,9 @@ def incident(
     closed: float | None = None,
 ) -> Incident:
     """Return one incident as the lifecycle would construct it."""
+    internal_id = incident_key(correlation_key, at(minutes))
     return Incident(
-        incident_id=incident_key(correlation_key, at(minutes)),
+        incident_id=internal_id,
         correlation_key=correlation_key,
         title="Datastore near full",
         summary="store-cove is 95.65% full",
@@ -65,6 +70,7 @@ def incident(
         ),
         closed_at=None if closed is None else at(closed),
         team_node_id=team_node_id,
+        public_id=public_incident_id(internal_id),
     )
 
 
@@ -108,6 +114,7 @@ def test_an_incident_with_nothing_to_point_at_cannot_be_constructed() -> None:
             state=IncidentState.OPEN,
             opened_at=at(),
             subjects=(),
+            public_id=public_incident_id("i-1"),
         )
 
 
@@ -124,6 +131,7 @@ def test_an_incident_without_a_correlation_key_cannot_be_constructed() -> None:
             state=IncidentState.OPEN,
             opened_at=at(),
             subjects=(IncidentSubject(resource_id="r"),),
+            public_id=public_incident_id("i-1"),
         )
 
 
@@ -424,3 +432,48 @@ async def test_one_tenants_incidents_are_invisible_from_another(
         assert await other.incidents.get(stored.incident_id) is None
         assert await other.incidents.timeline(stored.incident_id) == ()
         assert await other.incidents.purge(before=at(100)) == 0
+
+
+# --- Public address lookup ----------------------------------------------------------
+#
+# The forward direction (internal key to public address) is a pure function,
+# proved without a database in `test_incident_public_id.py`. What only a store
+# can prove is the *lookup*: given the public address alone, is the row it
+# names the same row `get` returns for the internal key — in both backends,
+# because a lookup that agreed with itself in memory and disagreed in
+# PostgreSQL would make the console and a real deployment resolve different
+# incidents for the same address.
+
+
+async def test_get_by_public_id_returns_the_same_incident_get_does(
+    gateway: PersistenceGateway,
+) -> None:
+    stored = incident()
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(stored)
+
+        by_internal_key = await uow.incidents.get(stored.incident_id)
+        by_public_address = await uow.incidents.get_by_public_id(stored.public_id)
+
+    assert by_internal_key is not None
+    assert by_public_address is not None
+    assert by_public_address.incident_id == by_internal_key.incident_id
+    assert by_public_address.public_id == stored.public_id
+
+
+async def test_get_by_public_id_of_an_address_nothing_carries_is_none(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        assert await uow.incidents.get_by_public_id("inc_0000000000000000") is None
+
+
+async def test_get_by_public_id_does_not_cross_a_tenant_boundary(
+    gateway: PersistenceGateway,
+) -> None:
+    stored = incident()
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(stored)
+
+    async with gateway.begin(TenantScope(org_id="globex")) as other:
+        assert await other.incidents.get_by_public_id(stored.public_id) is None

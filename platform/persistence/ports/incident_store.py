@@ -34,6 +34,7 @@ firing of a condition correlate rather than open a second incident.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -218,6 +219,11 @@ class Incident:
     self_resolved: bool = False
     #: The suppression rule or maintenance window that covered it, if any.
     suppressed_by: str = ""
+    #: The short, URL-safe address this incident is reached by — see
+    #: ``public_incident_id``. Keyword-only and without a default: every
+    #: caller that constructs an ``Incident`` decides it deliberately, the
+    #: same way ``incident_id`` itself is never left to a default.
+    public_id: str = field(kw_only=True)
 
     def __post_init__(self) -> None:
         if not self.correlation_key:
@@ -230,6 +236,12 @@ class Incident:
             raise ValueError(
                 "An incident needs to name what raised it: a detector, an alert source, "
                 "or a person."
+            )
+        if not self.public_id:
+            raise ValueError(
+                "An incident needs a public address. It is what a screen may show and a "
+                "person may copy; leaving it empty is how the internal key ends up in a "
+                "URL again."
             )
         if not self.subjects:
             raise ValueError(
@@ -314,6 +326,46 @@ def incident_key(correlation_key: str, opened_at: datetime) -> str:
     from being written into last week's history.
     """
     return _bounded(correlation_key, f"@{opened_at.isoformat()}")
+
+
+#: The prefix marking one of this store's short, public addresses — what lets
+#: the edge tell an incident's address from a run's own (thirty-two lowercase
+#: hex characters, no prefix) by shape alone, without a database round trip.
+INCIDENT_PUBLIC_ID_PREFIX: Final = "inc_"
+
+#: The public address's own grammar: the prefix, then exactly
+#: ``_KEY_DIGEST_CHARS`` lowercase hexadecimal digits. Compiled once — every
+#: dynamic route the console serves is checked against this at the edge.
+_PUBLIC_ID_PATTERN: Final = re.compile(
+    rf"^{re.escape(INCIDENT_PUBLIC_ID_PREFIX)}[0-9a-f]{{{_KEY_DIGEST_CHARS}}}$"
+)
+
+
+def public_incident_id(incident_id: str) -> str:
+    """Return the short, URL-safe address this incident is reached by.
+
+    Derived rather than random: a digest of ``incident_id``, at the same
+    width ``_bounded`` above already uses and for the same reason — sixteen
+    hex characters is sixty-four bits, enough that two colliding is not a
+    thing that happens, short enough to stay short. Derived rather than
+    sorted means a migration backfilling an old row and the code raising a
+    new one land on the same value for the same internal key without either
+    one inventing one; a random identifier would leave every row written
+    before the code that generates it ran with no address until something
+    assigned it one.
+    """
+    digest = hashlib.sha256(incident_id.encode()).hexdigest()[:_KEY_DIGEST_CHARS]
+    return f"{INCIDENT_PUBLIC_ID_PREFIX}{digest}"
+
+
+def is_public_incident_id(value: str) -> bool:
+    """Return whether ``value`` has the public address's own shape.
+
+    Used at the edge to decide, by grammar alone, whether a route parameter
+    resolves through the public-address column or the primary key — a shape
+    decision instead of two lookups tried in sequence for every request.
+    """
+    return _PUBLIC_ID_PATTERN.fullmatch(value) is not None
 
 
 def timeline_key(incident_id: str, kind: TimelineKind, at: datetime) -> str:
@@ -404,6 +456,13 @@ class IncidentStore(Protocol):
     async def get(self, incident_id: str) -> Incident | None:
         """Return the incident with ``incident_id``, or ``None``."""
 
+    async def get_by_public_id(self, public_id: str) -> Incident | None:
+        """Return the incident whose public address is ``public_id``, or ``None``.
+
+        An indexed lookup, the same shape as ``get`` and just as cheap —
+        never a scan recomputing every incident's digest to find a match.
+        """
+
     async def open_for(self, correlation_key: str) -> Incident | None:
         """Return the *live* incident for ``correlation_key``, or ``None``.
 
@@ -449,6 +508,7 @@ class IncidentStore(Protocol):
 
 
 __all__ = [
+    "INCIDENT_PUBLIC_ID_PREFIX",
     "SYSTEM_ACTOR",
     "Incident",
     "IncidentOrigin",
@@ -461,6 +521,8 @@ __all__ = [
     "check_incident_limit",
     "check_timeline_limit",
     "incident_key",
+    "is_public_incident_id",
     "matches",
+    "public_incident_id",
     "timeline_key",
 ]

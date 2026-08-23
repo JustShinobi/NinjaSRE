@@ -930,10 +930,19 @@ class IncidentRow(Base):
         Index("ix_incidents_state", "org_id", "state"),
         Index("ix_incidents_team", "org_id", "team_node_id"),
         Index("ix_incidents_age", "closed_at"),
+        # Unique per organisation, not globally: what makes a collision a
+        # failed write rather than "opened the wrong incident" is that no two
+        # rows of the same tenant may share an address, and a sixty-four-bit
+        # digest makes that failure arithmetically negligible in the first
+        # place.
+        Index("ix_incidents_public_id", "org_id", "public_id", unique=True),
     )
 
     org_id: Mapped[str] = _org()
     incident_id: Mapped[str] = _id()
+    #: The short, URL-safe address this incident is reached by — see
+    #: ``platform.persistence.ports.incident_store.public_incident_id``.
+    public_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
     correlation_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
