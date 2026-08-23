@@ -40,9 +40,11 @@ from gateway.http.services import InvestigationStart
 from gateway.http.state import GatewayState
 from gateway.runtime import investigator as module
 from gateway.runtime.investigator import ReActInvestigationRunner
+from platform.guardrails.engine import GuardrailEngine
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.remediation.models import RemediationAction, SubTargetResult
+from platform.runs.stream import RunEventBroker
 
 pytestmark = pytest.mark.unit
 
@@ -160,6 +162,7 @@ async def _offered(
     llm = _SilentLLM()
     held = store if store is not None else FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=registry)  # type: ignore[arg-type]
+    runner.attach_recording(gateway=held, guardrails=GuardrailEngine(), broker=RunEventBroker())
     state = GatewayState(gateway=held, tokens=TokenService(gateway=held), investigator=runner)
     if desk:
         composed = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
@@ -225,14 +228,24 @@ async def test_a_capability_needing_an_unconnected_integration_is_not_offered(
     )
 
 
-async def test_a_team_with_nothing_connected_is_offered_nothing_that_needs_one(
+async def test_a_team_with_nothing_connected_never_reaches_the_model(
     plane: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Narrowing to nothing ends the run rather than offering an empty turn."""
     _connected(monkeypatch)
+    llm = _SilentLLM()
+    store = FakePersistence()
+    runner = ReActInvestigationRunner(llm=llm, registry=_catalogue(PROMETHEUS_READ, LOKI_READ))  # type: ignore[arg-type]
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
+    state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
 
-    offered = await _offered(_catalogue(PROMETHEUS_READ, LOKI_READ), desk=True)
+    await runner.investigate(_start())
 
-    assert offered == () or set(offered).isdisjoint({PROMETHEUS_READ, LOKI_READ})
+    assert llm.requests == [], (
+        "a turn was sent for a team that can run nothing. Every capability on it "
+        "would report itself unavailable by name."
+    )
 
 
 def _ranks_first(registry: Registry, *, alert_source: str, objective: str) -> str:
@@ -274,6 +287,7 @@ async def test_the_cut_at_the_ceiling_happens_after_both_filters(
     llm = _SilentLLM()
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=registry)  # type: ignore[arg-type]
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
     assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
     await runner.investigate(
@@ -307,6 +321,7 @@ async def test_a_team_with_no_integrations_is_told_what_to_connect(
     llm = _SilentLLM()
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=_catalogue(PROMETHEUS_READ, LOKI_READ))  # type: ignore[arg-type]
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
     assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
 
@@ -330,6 +345,7 @@ async def test_the_alert_source_is_suggested_first(
     llm = _SilentLLM()
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=_catalogue(PROMETHEUS_READ, LOKI_READ))  # type: ignore[arg-type]
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
     assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
 

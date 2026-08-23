@@ -460,7 +460,13 @@ class ReActInvestigationRunner:
         swallowed.
         """
         if self._recording is None:
-            return ConfiguredIntegrations(sandbox_profiles=(resolve_profile().value,))
+            # No persistence handle, so there is no configuration tree to ask.
+            # That is not the same fact as "this team has connected nothing",
+            # and reading it as the strict one would leave a deployment that
+            # composed no store able to run nothing at all — a behaviour change
+            # for every caller that composed nothing, which is meant to behave
+            # exactly as it did.
+            return _EVERYTHING_AVAILABLE
         try:
             return await team_availability(
                 self._recording.gateway,
@@ -499,6 +505,30 @@ class ReActInvestigationRunner:
             session_id=request.run_id,
             context=dict(request.context),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _NothingNarrows:
+    """Availability for a runner with no configuration tree to consult.
+
+    Says yes to everything, which is what the selection did before a team
+    narrowing existed. A runner with no persistence handle cannot ask which
+    integrations a team has; answering "none" would be inventing a reading
+    rather than admitting there is none.
+    """
+
+    def is_available(self, name: str) -> bool:
+        """Return ``True``: nothing here knows enough to exclude anything."""
+        del name
+        return True
+
+    def unmet(self, requirements: Any) -> tuple[str, ...]:
+        """Return no unmet requirements."""
+        del requirements
+        return ()
+
+
+_EVERYTHING_AVAILABLE = _NothingNarrows()
 
 
 @dataclass(frozen=True, slots=True)
