@@ -257,8 +257,9 @@ describe('an indicator of whether the agent itself is working', () => {
         figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
     );
     expect(successRate).toBeDefined();
-    // 2 succeeded of 4 settled runs in the populated dataset.
-    expect(successRate?.textContent).toContain('50');
+    // 4 succeeded (by role — "succeeded" and "completed" are one outcome
+    // under two spellings) of 7 settled runs in the populated dataset.
+    expect(successRate?.textContent).toContain('57');
   });
 });
 

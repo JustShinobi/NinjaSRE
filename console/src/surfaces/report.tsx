@@ -59,6 +59,24 @@ function isAllowedHref(href: string): boolean {
  * none of them do or a closing marker never arrives. An unterminated `**` is
  * therefore literal asterisks, not a guess at what the author meant.
  */
+/**
+ * The index of the `)` that closes the `(` at `openIndex`, honouring
+ * parentheses nested inside — a href like `javascript:alert(1)` closes its
+ * own paren before the link's does, and the first unmatched `indexOf(')')`
+ * would stop there instead. `-1` when the source runs out first.
+ */
+function matchingParen(source: string, openIndex: number): number {
+  let depth = 0;
+  for (let index = openIndex; index < source.length; index += 1) {
+    if (source[index] === '(') depth += 1;
+    else if (source[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
 function parseInline(source: string): Inline[] {
   const nodes: Inline[] = [];
   let cursor = 0;
@@ -108,7 +126,7 @@ function parseInline(source: string): Inline[] {
     if (ch === '!' && source[cursor + 1] === '[') {
       const closeBracket = source.indexOf(']', cursor + 2);
       if (closeBracket !== -1 && source[closeBracket + 1] === '(') {
-        const closeParen = source.indexOf(')', closeBracket + 2);
+        const closeParen = matchingParen(source, closeBracket + 1);
         if (closeParen !== -1) {
           flush();
           nodes.push({ kind: 'image', alt: source.slice(cursor + 2, closeBracket) });
@@ -121,7 +139,7 @@ function parseInline(source: string): Inline[] {
     if (ch === '[') {
       const closeBracket = source.indexOf(']', cursor + 1);
       if (closeBracket !== -1 && source[closeBracket + 1] === '(') {
-        const closeParen = source.indexOf(')', closeBracket + 2);
+        const closeParen = matchingParen(source, closeBracket + 1);
         if (closeParen !== -1) {
           const label = source.slice(cursor + 1, closeBracket);
           const href = source.slice(closeBracket + 2, closeParen);
