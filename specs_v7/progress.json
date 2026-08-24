@@ -345,5 +345,27 @@
       "Duas falhas herdadas do master, ambas consertadas pela raiz: o anonimizador comia a documentacao do Proxmox por causa de um exemplo de PEM, e um teste passou a ler o livro de verificacoes como a rota real le, em vez de largar o argumento removido."
     ],
     "achado_de_ferramenta": "console/.toolchain/tree-writing-suite.lock guarda um PID e nao confere se ele ainda vive. Toda corrida interrompida deixa a sua, e a proxima recusa-se a rodar citando um processo morto. Bloqueou o portao quatro vezes ate eu remover o arquivo a mao."
+  },
+  "deploy_final_2026-08-24": {
+    "comando": "make deploy-stg, sem COMPONENTS= — como a T003 da 080 exigia",
+    "exit": 0,
+    "componentes": [
+      "app",
+      "web",
+      "proxy"
+    ],
+    "argo": "Synced/Healthy, gitops 83d7ef9b8bde",
+    "confirmado_separadamente": {
+      "a_interface_responde": "GET / -> 307 para /sign-in em 0.03s",
+      "a_sessao_abre": "POST /api/session devolve token",
+      "proxmox": "verify/report ok=True — 'Proxmox accepted the token.'",
+      "estate": "100 recursos presentes, sobreviveram ao deploy"
+    },
+    "o_bloqueio_que_ele_revelou": "O manifesto declarava quatro componentes e o cluster roda tres. O quarto, 'console', e a mesma roda que o 'app' iniciada noutro ponto de entrada — uma segunda copia inteira da aplicacao, nao um front-end — e a copia que este cluster rodava tinha derivado 18 horas enquanto o 'web' apontava para ela. Retirado do manifesto de staging, com a compensacao nomeada no lugar: trafego de navegador e de agente passam a dividir um gateway.",
+    "a_correcao_da_070_provada_em_producao": {
+      "antes": "declarar um pin errado deixava as chamadas passando ate reiniciar o processo",
+      "agora": "pin errado -> ok=False imediatamente, nomeando os dois fingerprints; pin correto -> ok=True imediatamente",
+      "sem_reiniciar_nada": true
+    }
   }
 }
