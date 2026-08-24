@@ -24,6 +24,7 @@ from platform.credentials.proxy.audit import ResolutionAuditor
 from platform.credentials.proxy.engine import ProxyEngine
 from platform.credentials.proxy.rate_limit import TenantRateLimiter
 from platform.credentials.proxy.resolution import CredentialResolver
+from platform.credentials.proxy.trust import TrustRegistry
 from platform.persistence.ports.transaction import PersistenceGateway
 from platform.persistence.postgres.gateway import PostgresPersistence
 from platform.startup.validation import validate_proxy
@@ -36,12 +37,19 @@ def build_proxy_engine(gateway: PersistenceGateway) -> ProxyEngine:
     this alongside the application and the two must share a connection pool
     rather than opening a second one against the same database.
     """
+    # One registry, handed to both readers. The sender applies it at the
+    # handshake and the engine records which anchor was in force; two registries
+    # would be two answers, and the day they drifted an audit line would name an
+    # anchor the connection did not use. Empty at construction and filled by the
+    # cycle that reads the configuration tree, exactly as the allow-list is.
+    trust = TrustRegistry()
     return ProxyEngine(
         resolver=CredentialResolver(gateway=gateway, schemas=credential_schemas()),
         rules=injection_rules(),
-        sender=HttpOutboundSender(),
+        sender=HttpOutboundSender(trust=trust),
         auditor=ResolutionAuditor(gateway=gateway),
         limiter=TenantRateLimiter(),
+        trust=trust,
     )
 
 

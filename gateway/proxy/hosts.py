@@ -28,7 +28,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
+from platform.config_service.schema.integrations import CertificateTrustSettings
 from platform.credentials.proxy.injection import InjectionRule, InjectionRuleRegistry
+from platform.credentials.proxy.trust import CertificateTrust, TrustAnchor, TrustRegistry
 from platform.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -93,6 +95,65 @@ def hosts_from_configuration(
     return found
 
 
+def trust_from_configuration(
+    entries: Iterable[Mapping[str, Any]],
+) -> tuple[CertificateTrust, ...]:
+    """Return what each active integration accepts from its endpoint's certificate.
+
+    Read from the same entries the hosts come from, in the same pass, because
+    two truths derived from one document by two readers is how they come to
+    disagree about the same address.
+
+    An entry that declared nothing contributes nothing: the registry's own
+    fallback is the system trust store, so the safe default costs no row. An
+    entry with no address contributes nothing either — a declaration that names
+    no address authorises no address, which is what makes moving the address
+    invalidate the decision taken for the one before it.
+
+    A declaration that does not parse is dropped with a line naming the
+    integration, and the rest are kept. One malformed entry costing every other
+    integration its declaration would turn a typo into a deployment-wide
+    downgrade nobody chose.
+    """
+    found: list[CertificateTrust] = []
+    for entry in entries:
+        name = str(entry.get("name", ""))
+        if not name or not bool(entry.get("enabled", True)):
+            continue
+        address = str(entry.get("base_url", "")).strip()
+        declared = entry.get("trust")
+        if not address or not isinstance(declared, Mapping) or not declared:
+            continue
+        try:
+            trust = CertificateTrustSettings.model_validate(dict(declared)).declaration(address)
+        except ValueError as refused:
+            logger.warning("proxy.trust_declaration_refused", integration=name, error=str(refused))
+            continue
+        if trust.anchor is TrustAnchor.SYSTEM_TRUST_STORE:
+            continue
+        found.append(trust)
+    return tuple(found)
+
+
+def refresh_configured_trust(
+    trust: TrustRegistry, declarations: Iterable[CertificateTrust]
+) -> TrustRegistry:
+    """Rebuild what the egress trusts from ``declarations``, discarding what it held.
+
+    Rebuild rather than widen, for the reason the allow-list rebuild gives: a
+    declaration an operator removed has to stop applying at the next cycle, and
+    a registry that had only ever been added to cannot express that. A trust
+    decision that outlived the decision to take it is the same failure as a
+    permission that did.
+    """
+    before = trust.hosts()
+    trust.replace_all(declarations)
+    after = trust.hosts()
+    if before != after:
+        logger.info("proxy.trust_rebuilt", addresses=sorted(after))
+    return trust
+
+
 def refresh_configured_hosts(
     rules: InjectionRuleRegistry,
     *,
@@ -143,5 +204,7 @@ __all__ = [
     "bridge_hosts",
     "hosts_from_configuration",
     "refresh_configured_hosts",
+    "refresh_configured_trust",
+    "trust_from_configuration",
     "with_configured_hosts",
 ]
