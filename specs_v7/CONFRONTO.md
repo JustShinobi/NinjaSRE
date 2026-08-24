@@ -283,3 +283,84 @@ O que foi medido lá até agora, nas telas de lista, foi uma página que não
 consultou o produto. Isso alcança o checkpoint do laço mínimo declarado para o
 fim do slot seguinte, que exige um alerta real virando investigação legível no
 ambiente real — com listas congeladas, esse checkpoint não tem como passar.
+
+---
+
+# Quem constrói isso em produção? — a coluna da onda
+
+> **Como esta tabela foi preenchida.** Cada `file:line` foi obtido **lendo o
+> código da árvore mergeada**, nesta sessão, e não copiado dos `controle.md`.
+> Isso não é zelo: três `file:line` que os controles das features 040 e 070
+> declararam já estavam **defasados** quando esta tabela foi escrita —
+> `compose_remediation` migrou de `lifespan.py:92` (declarado pela 040) para
+> `:98` e depois para `:105`, e `compose_control_plane` de `:98` (declarado
+> pela 070) para `:100`, porque cada merge do slot seguinte empurrou as linhas.
+> Um `file:line` copiado de um relatório envelhece; um lido, não.
+>
+> **Uma célula que aponta um teste é pior que uma célula vazia**, porque parece
+> resposta. Um mecanismo cuja única construção é de teste aparece aqui
+> declarado **dormente**, com a referência do que o ligaria.
+
+| Mecanismo | Onda | Quem o constrói no caminho de serving |
+|---|---|---|
+| **Gravador de trace da investigação** | 001 | `gateway/http/asgi.py:172` `investigator_of`, que chama `runner.attach_recording(...)` em `asgi.py:211`. Ponto **único**: os dois chamadores são as duas roots reais — `gateway/http/asgi.py:240` (boot, dentro de `build_deployment`) e `gateway/http/runtime.py:64` (`recompose_investigator`, chamado de `gateway/http/lifespan.py:81` quando a configuração muda) |
+| **Manchete extraída no fechamento real** | 001 | `gateway/http/orchestration.py:128` `headline_for(...)`, dentro do `finally` que abre em `:124` — cobre concluído, cancelado e falho; o valor é gravado em `:139` |
+| **Endereço público do incidente** | 020 | `platform/incidents/lifecycle.py:105` — `public_id=public_incident_id(new_incident_id)`, derivado no instante em que o incidente abre |
+| **Decodificação única na borda** | 020 | `console/src/shell/route-params.ts:26` `routeParam`, aplicada nas rotas dinâmicas reais do console |
+| **Prontidão do provedor, uma fonte só** | 030 | `platform/startup/checklist.py:254` `readiness_of(*, configured, checked)` — a **mesma** função que `gateway/http/routes/providers.py:293` usa para montar a linha da listagem. Uma função, dois consumidores; não duas implementações que combinaram de concordar |
+| **Chave do modelo vinda do cofre, não do ambiente** | 030 | `gateway/http/provider_credentials.py` `compose_provider_credentials`, chamado em `gateway/http/lifespan.py:74`. Substitui o `EnvironmentCredentialResolver` que `core.llm` traz por padrão; o ambiente continua embaixo, como segunda escolha |
+| **Renderizador do relato** | 010 | `console/src/surfaces/report.tsx`, montado por `console/src/surfaces/screens/run-detail.tsx:226` e reaproveitado por `console/src/surfaces/integration-panel.tsx:591` |
+| **Balcão de remediação** | 040 | `gateway/http/remediation.py:172` `compose_remediation`, chamado em **`gateway/http/lifespan.py:105`** — depois do acesso a integrações, das credenciais de provedor, da recomposição do runner e do plano de controle |
+| **Portão de remediação, por investigação** | 040 | `gateway/http/remediation.py:130` `RemediationGate(...)` dentro de `RemediationDesk.gate_for`; registrado no laço em **`gateway/runtime/investigator.py:375`** (`.register(hooks)`). O balcão chega ao runner por `gateway/http/remediation.py:248` (`attach_remediation`) |
+| **Portão de autonomia, na hora da decisão** | 040 | `gateway/http/remediation.py:287` `service.gate(policies)` → `:241` (`autonomy_of=`) → `:137` (`resolve_autonomy=`). Resolvido **no instante em que uma escrita é decidida**, não no boot — um portão construído no boot carregaria a postura de quando o processo subiu |
+| **Resolvedor de integrações do time** | 040 | `gateway/runtime/investigator.py:419` — `TeamCatalogueResolver(self.registry).for_availability(...)`, na seleção de ferramentas de cada run |
+| **Vínculo do plano de controle** | 070 | `gateway/http/control_plane.py:64` `compose_control_plane`, chamado em **`gateway/http/lifespan.py:100`** — **antes** de `compose_remediation` (`:105`), porque o balcão pergunta se existe um plano antes de compor. O vínculo em si é `gateway/http/control_plane.py:116` `control_plane.bind(bound)` |
+| **Confiança de certificado até o egress do proxy** | 070 | Um `TrustRegistry` construído em `gateway/proxy/composition.py:45` e entregue ao remetente (`:49`) **e** ao motor (`:52`) — um só, porque dois registros seriam duas respostas. A leitura da configuração é `gateway/proxy/hosts.py:98` `trust_from_configuration` e `:138` `refresh_configured_trust`, aplicadas no arranque e no ciclo por `gateway/proxy/__main__.py:66` `_configured_egress` (chamado em `:142` e `:193`) |
+| **A pinagem, no instante antes do primeiro byte** | 070 | `gateway/proxy/sender.py:172` `_PinCheckingConnection`, com a verificação dentro de `connect()` em `:182`. É o último instante antes de `request()` escrever — uma checagem em volta da resposta já teria mandado a credencial para quem atendeu. O único construtor de contexto que pode não verificar é `gateway/proxy/sender.py:124` `context_for_trust`, e isso está travado por `tests/architecture/test_one_place_can_stop_verifying.py` |
+| **Primeiro administrador** | 050 | `platform/identity/enrolment.py` `enrol_local_administrator`, com **dois** chamadores de produção: `surfaces/cli/commands/setup.py:306` `admin` (o comando canônico) e `platform/startup/bootstrap.py:357`, dentro de `establish_durable_credential` (`:315`) — a troca da credencial de bootstrap |
+| **Orientação de campo do catálogo** | 060 | `gateway/http/routes/integrations.py:494` — `where_to_get_it=entry.profile.where_to_get_it` na view do catálogo; a documentação de cada pacote é servida por `GET /{name}/docs` (`:429`) |
+| **Coletor de evidência da demo** | 080 | **Não é mecanismo de produto e não tem composition root**: é ferramenta de repositório (`tools/demo_evidence/`), invocada por uma pessoa, e nenhum tier a importa |
+
+## Declarados dormentes — e o que os ligaria
+
+| Mecanismo | Estado | O que o ligaria |
+|---|---|---|
+| **Pipeline por estágios** (`build_pipeline`) | **DORMENTE.** Nenhum chamador de serving | `core/pipeline/build.py:70` declara isso de si mesmo e **nomeia o chamador real que existe**: o harness que roda o corpus de cenários (`:90`). O caminho de serving constrói o laço diretamente. Ligá-lo é dar ao harness a opção de dirigir o investigador de serving, ou dar ao serving a opção de usar o pipeline — trabalho com dono fora desta onda |
+| **`DecisionWaiter`** (espera de decisão dentro do laço) | **DORMENTE, por decisão do plano.** O portão compõe com `waiter=None`, e executar é sempre uma segunda entrada | Implementar o esperador. Está dito no módulo, não escondido. Enquanto não existir, a aprovação é o que ela deveria ser de qualquer forma: uma pessoa, numa segunda requisição |
+| **Leitura de sinal na hora da execução** | **DORMENTE, com a razão medida.** `gateway/http/remediation.py:322` `_UnreadSignals` declara não ler nada e registra `remediation.signals_unread` por ação | Uma fonte de métricas viva. O gravador de obrigações pede a leitura de dentro da própria unidade de trabalho, então uma implementação sobre o `PersistenceGateway` reentra numa transação já aberta — contra a persistência em memória isso é *deadlock*, medido |
+
+## Backlog anterior → destino, item por item
+
+Nenhum item sem destino. Cada linha diz o que fecha o item, ou por que ele
+continua no arquivo novo. **Onde a evidência é de ambiente, ela é do
+orquestrador e está marcada como tal** — quem escreveu esta tabela não alcança
+cluster nem banco.
+
+| Item do backlog anterior | Destino | Evidência |
+|---|---|---|
+| **A deployment should produce its own first administrator** | **Fechado** — 050 | `surfaces/cli/commands/setup.py:306` `admin`; `platform/identity/enrolment.py::enrol_local_administrator` com dois chamadores de produção; o convite do boot nomeia o comando |
+| **A deployment cannot hold two service accounts** | **Fechado** — 050 | `platform/persistence/postgres/models.py:173` — `email_folded: Mapped[str \| None]`, e o comentário em `:160-165` explica por que o índice único ordinário basta: o PostgreSQL nunca trata dois `NULL` como colisão |
+| **The screen has room the packages have not filled** | **Fechado** — 060 | Medido nesta sessão: `uv run python -m tools.verify_integrations` → **"15 integration(s) at full parity, every permission probed"** |
+| **Four seams between what is configured and what runs** | **Três fechados, um declarado dormente** — 040 e 030 | (1) estreitamento por integrações configuradas e (2) `TeamCatalogueResolver` instanciado: `gateway/runtime/investigator.py:419`; (3) pipeline: **declarado dormente** nomeando o harness (`core/pipeline/build.py:70,90`), que é o que a regra nova aceita como resposta; (4) chave do modelo: **fechada** por `compose_provider_credentials` em `gateway/http/lifespan.py:74` |
+| **A vendor with a self-signed certificate cannot be connected** | **Fechado** — 070 | O vocabulário desceu para o tier do proxy (`platform/credentials/proxy/trust.py`), a aplicação está no egress (`gateway/proxy/sender.py:182`), e a recusa tem três frases distintas com o fingerprint observado |
+| **The alert router had no way to reach this deployment, twice over** | **Metade de produto fechada; a metade operacional continua** | A parte de produto — o webhook e o intake — está de pé. Os contêineres de monitoração apontando para um resolvedor morto **não são código deste repositório**: continuam no backlog novo, e a evidência de fechamento é do orquestrador |
+| **Two seams the deep verify opened rather than closed** | **Um fechado, um continua** | Fechado: a recusa de credencial em HTTP claro ganhou frase própria (`CredentialWouldCrossInClear`, 060). **Continua, e foi medido nesta sessão**: `gateway/http/integration_access.py:64` liga `team_id=CREDENTIAL_ORG_WIDE_TEAM` para as ferramentas, e `gateway/http/routes/integrations.py:650` passa `_team_of(auth)` para a verificação profunda — os dois lados ainda resolvem diferente |
+| **An investigation that ran leaves the run detail empty** | **Fechado** — 001 e 010 | O gravador é anexado em `gateway/http/asgi.py:211` por `investigator_of`; provado no ambiente real (5 turnos, 4 chamadas, 1 evidência, vinte minutos depois do deploy) |
+| **The half of the product that acts is not composed** | **Fechado** — 040 e 070 | `gateway/http/lifespan.py:100` e `:105`: o plano de controle é vinculado e o balcão compõe. Uma das duas linhas — `remediation.desk_composed` ou `remediation.desk_skipped` com a lista `missing` — sempre aparece depois do boot |
+| **The Infisical operator in the cluster cannot authenticate** | **Operacional, fora deste repositório** | Continua no backlog novo. Evidência de fechamento é do orquestrador |
+| **The model gateway needs a key that exists nowhere** | **Operacional, fora deste repositório** | Continua no backlog novo. Evidência de fechamento é do orquestrador |
+
+## A demo, e o que ela ainda deve
+
+O roteiro de leitura, o roteiro do laço inteiro, o gabarito de evidência e o
+coletor estão em `specs_v7/080-incidente-fecha-o-laco/`. A evidência
+consolidada vive em
+`specs_v7/080-incidente-fecha-o-laco/evidence/EVIDENCIA.md`.
+
+**Veredito da demo: não executado.** Todo campo do gabarito está em branco, e
+isso é o estado honesto: quem escreveu os roteiros roda em worktree isolada e
+não alcança cluster, banco nem Alertmanager. O gabarito aterrissou **antes** da
+execução, que é a única ordem em que ele prova alguma coisa.
+
+O que ainda falta medir, comando por comando, está na seção final de
+`specs_v7/080-incidente-fecha-o-laco/controle.md`.
