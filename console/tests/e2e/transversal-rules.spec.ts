@@ -868,7 +868,9 @@ test.describe('afirmação negativa: nothing here answers from a read that faile
 
     const failedPanel = page.locator('[data-testid="panel"][data-state="error"]');
     const dependencyFailed = (await failedPanel.count()) > 0;
-    expect(dependencyFailed, `${label}: the forced-failure address did not fail`).toBe(true);
+    expect(dependencyFailed, `${label}: the forced-failure address did not fail`).toBe(
+      true,
+    );
     // The investigation chip: the second of the two chips this header
     // draws next to the incident's own title.
     const chips = page.getByTestId('incident-chip');

@@ -117,9 +117,10 @@ test.describe('a provider has one state, not two', () => {
       const providerId = await investigatorProviderId(page);
       const onModels = await modelsProvidersWord(page);
       const onFirstRun = await firstRunWord(page, providerId);
-      expect(onFirstRun, 'first-run and models-providers disagree about the same provider').toBe(
-        onModels,
-      );
+      expect(
+        onFirstRun,
+        'first-run and models-providers disagree about the same provider',
+      ).toBe(onModels);
     },
   );
 
@@ -132,7 +133,10 @@ test.describe('a provider has one state, not two', () => {
       // Only meaningful when the dataset's own investigator provider is
       // itself recorded as verified — otherwise this is not the situation
       // this claim is about.
-      test.skip(onModels !== 'verified', 'the fixtures investigator provider is not verified');
+      test.skip(
+        onModels !== 'verified',
+        'the fixtures investigator provider is not verified',
+      );
       expect(await firstRunWord(page, providerId)).toBe('verified');
     },
   );
@@ -142,7 +146,9 @@ test.describe('a provider has one state, not two', () => {
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await page.goto('/first-run');
-      const row = page.locator('[data-testid="verify-row"][data-verdict="unchecked"]').first();
+      const row = page
+        .locator('[data-testid="verify-row"][data-verdict="unchecked"]')
+        .first();
       test.skip(
         (await row.count()) === 0,
         'no unverified, stored provider exists in this dataset',
@@ -166,8 +172,12 @@ test.describe('a provider has one state, not two', () => {
         if (verdict !== 'failed') continue;
         const chip = row.getByTestId('status-chip');
         const status = await chip.getAttribute('data-credential-status');
-        expect(status, 'a failed check is drawn as stored or verified').not.toBe('stored');
-        expect(status, 'a failed check is drawn as stored or verified').not.toBe('verified');
+        expect(status, 'a failed check is drawn as stored or verified').not.toBe(
+          'stored',
+        );
+        expect(status, 'a failed check is drawn as stored or verified').not.toBe(
+          'verified',
+        );
       }
     },
   );
@@ -180,7 +190,10 @@ test.describe('a provider has one state, not two', () => {
       const row = page.locator('[data-testid="verify-row"]').filter({
         has: page.locator('[data-credential-status="not_connected"]'),
       });
-      test.skip((await row.count()) === 0, 'every provider in this dataset holds a credential');
+      test.skip(
+        (await row.count()) === 0,
+        'every provider in this dataset holds a credential',
+      );
       await expect(row.first().getByTestId('status-chip')).toHaveAttribute(
         'data-credential-status',
         'not_connected',
@@ -227,12 +240,20 @@ test.describe('empty screens name their own cause', () => {
       // The populated dataset carries at least one completed investigation
       // (the checklist's own fifth step reads done against it) — the
       // precondition every one of this block's screens is read under.
-      for (const route of ['/decisions', '/knowledge', '/signals', '/topology', '/memory']) {
+      for (const route of [
+        '/decisions',
+        '/knowledge',
+        '/signals',
+        '/topology',
+        '/memory',
+      ]) {
         await page.goto(route);
         await expect(
           page.locator('body'),
           `${route} still names setup as the reason it is empty`,
-        ).not.toContainText(/step\(s\) are outstanding, and investigations cannot run/i);
+        ).not.toContainText(
+          /step\(s\) are outstanding, and investigations cannot run/i,
+        );
       }
     },
   );
@@ -293,7 +314,9 @@ test.describe('the investigation chip on an incident whose detail read failed', 
   // to fail, reused rather than re-invented.
   const UNREADABLE_INCIDENT = '/incidents/inc_0000000000000000';
 
-  test('the chip reads Unknown rather than being absent or asserting None', async ({ page }) => {
+  test('the chip reads Unknown rather than being absent or asserting None', async ({
+    page,
+  }) => {
     await page.goto(UNREADABLE_INCIDENT);
     const chips = page.getByTestId('incident-chip');
     const count = await chips.count();
@@ -323,7 +346,9 @@ test.describe('the investigation chip on an incident whose detail read failed', 
       const tooltip = (await chip.getAttribute('title')) ?? '';
       if (inline || /incident/i.test(tooltip)) namesDependency = true;
     }
-    expect(namesDependency, 'no Unknown chip names the dependency that failed').toBe(true);
+    expect(namesDependency, 'no Unknown chip names the dependency that failed').toBe(
+      true,
+    );
   });
 });
 
@@ -345,19 +370,24 @@ test.describe('no panel in error state asserts a negative', () => {
     }
   }
 
-  test(
-    'sweeping every panel in error state on the incident detail of a read that failed',
-    async ({ page }) => {
-      await page.goto('/incidents/inc_0000000000000000');
-      await errorPanelsAssertNothingNegative(page);
-    },
-  );
+  test('sweeping every panel in error state on the incident detail of a read that failed', async ({
+    page,
+  }) => {
+    await page.goto('/incidents/inc_0000000000000000');
+    await errorPanelsAssertNothingNegative(page);
+  });
 
   test(
     "sweeping every panel in error state on whatever this dataset's own screens show",
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
-      for (const route of ['/incidents', '/runs', '/decisions', '/knowledge', '/signals']) {
+      for (const route of [
+        '/incidents',
+        '/runs',
+        '/decisions',
+        '/knowledge',
+        '/signals',
+      ]) {
         await page.goto(route);
         await errorPanelsAssertNothingNegative(page);
       }
@@ -382,34 +412,47 @@ const BACKING_URL = process.env.NINJASRE_CONSOLE_BACKING_URL;
  */
 function backingUrl(): string {
   if (BACKING_URL === undefined) {
-    throw new Error("NINJASRE_CONSOLE_BACKING_URL is not set; this block should have been skipped");
+    throw new Error(
+      'NINJASRE_CONSOLE_BACKING_URL is not set; this block should have been skipped',
+    );
   }
   return BACKING_URL;
 }
 
 test.describe('a list load reaches the backing, not a cache that never did', () => {
-  test.skip(BACKING_URL === undefined, "requires the mock backing's own request counter");
+  test.skip(
+    BACKING_URL === undefined,
+    "requires the mock backing's own request counter",
+  );
 
   async function countFor(page: Page, route: string): Promise<number> {
     const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
-    const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
+    const body = (await response.json()) as {
+      readonly counts: Readonly<Record<string, number>>;
+    };
     return body.counts[`GET ${route}`] ?? 0;
   }
 
-  test('loading /incidents emits at least one request to the gateway', async ({ page }) => {
+  test('loading /incidents emits at least one request to the gateway', async ({
+    page,
+  }) => {
     const before = await countFor(page, '/v1/incidents');
     await page.goto('/incidents', { waitUntil: 'networkidle' });
     const after = await countFor(page, '/v1/incidents');
-    expect(after, 'the load of /incidents produced no request to the gateway').toBeGreaterThan(
-      before,
-    );
+    expect(
+      after,
+      'the load of /incidents produced no request to the gateway',
+    ).toBeGreaterThan(before);
   });
 
   test('loading /runs emits at least one request to the gateway', async ({ page }) => {
     const before = await countFor(page, '/v1/runs');
     await page.goto('/runs', { waitUntil: 'networkidle' });
     const after = await countFor(page, '/v1/runs');
-    expect(after, 'the load of /runs produced no request to the gateway').toBeGreaterThan(before);
+    expect(
+      after,
+      'the load of /runs produced no request to the gateway',
+    ).toBeGreaterThan(before);
   });
 
   /**
@@ -420,7 +463,9 @@ test.describe('a list load reaches the backing, not a cache that never did', () 
    */
   async function detailRequestTotal(page: Page): Promise<number> {
     const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
-    const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
+    const body = (await response.json()) as {
+      readonly counts: Readonly<Record<string, number>>;
+    };
     return Object.entries(body.counts)
       .filter(([key]) => key.startsWith('GET /v1/incidents/'))
       .reduce((sum, [, value]) => sum + value, 0);
@@ -436,9 +481,10 @@ test.describe('a list load reaches the backing, not a cache that never did', () 
     await row.locator('a').first().click();
     await page.waitForLoadState('networkidle');
     const after = await detailRequestTotal(page);
-    expect(after, 'no request for an incident detail reached the gateway').toBeGreaterThan(
-      before,
-    );
+    expect(
+      after,
+      'no request for an incident detail reached the gateway',
+    ).toBeGreaterThan(before);
   });
 });
 
@@ -457,15 +503,22 @@ test.describe('a fact written after the first load appears in one reload', () =>
   test('a second, immediate reload of /incidents reaches the backing again rather than reusing the first answer', async ({
     page,
   }) => {
-    test.skip(BACKING_URL === undefined, "requires the mock backing's own request counter");
+    test.skip(
+      BACKING_URL === undefined,
+      "requires the mock backing's own request counter",
+    );
     const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
-    const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
+    const body = (await response.json()) as {
+      readonly counts: Readonly<Record<string, number>>;
+    };
     const before = body.counts['GET /v1/incidents'] ?? 0;
 
     await page.goto('/incidents', { waitUntil: 'networkidle' });
     await page.reload({ waitUntil: 'networkidle' });
 
-    const afterResponse = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
+    const afterResponse = await page.request.get(
+      `${backingUrl()}/__mockplane__/requests`,
+    );
     const afterBody = (await afterResponse.json()) as {
       readonly counts: Readonly<Record<string, number>>;
     };
@@ -494,8 +547,10 @@ test.describe('setup progress is one count, cited the same everywhere', () => {
       );
       const headerText = (await headerHero.textContent()) ?? '';
       const headerMatch = /(\d+)\s*(?:of|\/)\s*(\d+)/.exec(headerText);
-      expect(headerMatch, `the first-run hero carries no total/pending pair: ${headerText}`).not
-        .toBeNull();
+      expect(
+        headerMatch,
+        `the first-run hero carries no total/pending pair: ${headerText}`,
+      ).not.toBeNull();
 
       await page.goto('/');
       const dashboardHero = page.getByTestId('setup-hero-progress');

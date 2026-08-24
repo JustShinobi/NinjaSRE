@@ -138,6 +138,8 @@ describe('negativeAssertionAfterFailedRead', () => {
   });
 
   it('still accuses a specific, positive claim made over the same failed read', () => {
-    expect(negativeAssertionAfterFailedRead(true, 'Investigation finished')).not.toBeNull();
+    expect(
+      negativeAssertionAfterFailedRead(true, 'Investigation finished'),
+    ).not.toBeNull();
   });
 });
