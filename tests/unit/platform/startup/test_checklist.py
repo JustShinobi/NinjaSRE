@@ -17,6 +17,7 @@ from config.constants.first_run import (
     GUIDED_INVESTIGATION_TRIGGER,
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_FAILING,
     SETUP_READINESS_VERIFIED,
     SETUP_STATE_BLOCKED,
     SETUP_STATE_DONE,
@@ -28,7 +29,6 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
     SETUP_STEP_ORDER,
 )
-from core.llm.verification import ModelVerdict
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.schemas import (
     CredentialField,
@@ -41,6 +41,11 @@ from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
 from platform.persistence.ports.transaction import TenantScope
+from platform.persistence.ports.verification_ledger import (
+    VerificationOutcome,
+    VerificationRecord,
+    VerificationSubject,
+)
 from platform.startup.bootstrap import bring_up, establish_durable_credential
 from platform.startup.checklist import (
     build_checklist,
@@ -51,6 +56,7 @@ from platform.startup.checklist import (
 pytestmark = pytest.mark.unit
 
 SCOPE = TenantScope(org_id=DEFAULT_ORGANISATION_ID)
+CHECKED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -81,6 +87,40 @@ async def _store_credential(gateway: FakePersistence, integration: str) -> None:
     schema = CredentialSchema(integration=integration, fields=(CredentialField(name="api_key"),))
     vault = Vault(gateway=gateway, schemas=CredentialSchemaRegistry.from_schemas(schema))
     await vault.store(SCOPE, CredentialHandle.for_organisation(integration), {"api_key": "stored"})
+
+
+def _passed(
+    subject: str,
+    *,
+    kind: VerificationSubject = VerificationSubject.MODEL_PROVIDER,
+    **fields: object,
+) -> VerificationRecord:
+    """Return the recorded verdict a passing check of ``subject`` would leave."""
+    return VerificationRecord(
+        subject=subject,
+        kind=kind,
+        outcome=VerificationOutcome.PASSED,
+        checked_at=CHECKED_AT,
+        **fields,  # type: ignore[arg-type]
+    )
+
+
+def _failed(
+    subject: str,
+    *,
+    kind: VerificationSubject = VerificationSubject.MODEL_PROVIDER,
+    detail: str = "it did not answer",
+    **fields: object,
+) -> VerificationRecord:
+    """Return the recorded verdict a failing check of ``subject`` would leave."""
+    return VerificationRecord(
+        subject=subject,
+        kind=kind,
+        outcome=VerificationOutcome.FAILED,
+        checked_at=CHECKED_AT,
+        detail=detail,
+        **fields,  # type: ignore[arg-type]
+    )
 
 
 # --- Shape ----------------------------------------------------------------------
@@ -146,44 +186,31 @@ async def test_the_bootstrap_principal_alone_does_not_complete_the_credential_st
     assert _step(checklist, SETUP_STEP_DURABLE_CREDENTIAL).state != SETUP_STATE_DONE
 
 
-async def test_the_provider_step_asks_the_endpoint_rather_than_reading_a_setting(
+async def test_the_provider_step_reads_the_recorded_check_rather_than_asking_the_endpoint(
     store: FakePersistence,
 ) -> None:
-    """FR-012, and FR-006's half of it: the verification proves tool calling."""
-    asked: list[str] = []
-
-    async def verify() -> ModelVerdict:
-        asked.append("verified")
-        return ModelVerdict(
-            provider_id="local",
-            model_id="tiny-1b",
-            satisfied=False,
-            limitation="tiny-1b did not call the tool it was given",
-            remedy="choose a model that supports tool calling",
-        )
-
+    """FR-001, FR-004: verifying a provider makes a real call against the
+    operator's endpoint, and the checklist may not spend that on a render — it
+    reads what the last recorded check already found instead."""
     checklist = await build_checklist(
-        store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        provider_checks={
+            "local": _failed("local", detail="tiny-1b did not call the tool it was given")
+        },
     )
 
-    assert asked == ["verified"]
     step = _step(checklist, SETUP_STEP_MODEL_PROVIDER)
     assert step.state != SETUP_STATE_DONE
+    assert step.readiness == SETUP_READINESS_FAILING
     assert "did not call the tool" in step.detail
-    assert "tool calling" in step.action
 
 
 async def test_a_verified_provider_completes_its_step(store: FakePersistence) -> None:
-    async def verify() -> ModelVerdict:
-        return ModelVerdict(
-            provider_id="local",
-            model_id="qwen2.5:32b",
-            satisfied=True,
-            summary_line="qwen2.5:32b on local calls tools and returns structure",
-        )
-
     checklist = await build_checklist(
-        store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        provider_checks={"local": _passed("local", model_id="qwen2.5:32b")},
     )
 
     assert _step(checklist, SETUP_STEP_MODEL_PROVIDER).state == SETUP_STATE_DONE
@@ -222,41 +249,71 @@ async def test_a_stored_provider_credential_nobody_verified_is_its_own_state(
 async def test_a_verified_provider_reads_as_ready(store: FakePersistence) -> None:
     await _store_credential(store, "anthropic")
 
-    async def verify() -> ModelVerdict:
-        return ModelVerdict(
-            provider_id="anthropic",
-            model_id="claude-sonnet-5",
-            satisfied=True,
-            summary_line="claude-sonnet-5 on anthropic calls tools and returns structure",
-        )
-
     checklist = await build_checklist(
-        store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        provider_checks={"anthropic": _passed("anthropic", model_id="claude-sonnet-5")},
     )
 
     assert checklist.provider_readiness == SETUP_READINESS_VERIFIED
     assert _step(checklist, SETUP_STEP_MODEL_PROVIDER).readiness == SETUP_READINESS_VERIFIED
 
 
-async def test_the_three_provider_states_are_distinguishable_in_the_record(
+async def test_a_provider_whose_last_check_failed_is_never_reported_as_configured(
+    store: FakePersistence,
+) -> None:
+    """FR-006: a broken key must not read the same as an unchecked one."""
+    await _store_credential(store, "anthropic")
+
+    checklist = await build_checklist(
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        provider_checks={"anthropic": _failed("anthropic")},
+    )
+
+    assert checklist.provider_readiness == SETUP_READINESS_FAILING
+    step = _step(checklist, SETUP_STEP_MODEL_PROVIDER)
+    assert step.readiness == SETUP_READINESS_FAILING
+    assert step.state != SETUP_STATE_DONE
+
+
+async def test_the_four_provider_states_are_distinguishable_in_the_record(
     store: FakePersistence,
 ) -> None:
     """The document a console and ``doctor`` both branch on carries the distinction."""
     absent = (await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)).to_record()
     await _store_credential(store, "anthropic")
     configured = (await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)).to_record()
-
-    async def verify() -> ModelVerdict:
-        return ModelVerdict(provider_id="anthropic", model_id="m", satisfied=True)
-
+    failing = (
+        await build_checklist(
+            store,
+            organisation_id=DEFAULT_ORGANISATION_ID,
+            provider_checks={"anthropic": _failed("anthropic")},
+        )
+    ).to_record()
     ready = (
-        await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify)
+        await build_checklist(
+            store,
+            organisation_id=DEFAULT_ORGANISATION_ID,
+            provider_checks={"anthropic": _passed("anthropic", model_id="m")},
+        )
     ).to_record()
 
     assert absent["provider"] == SETUP_READINESS_ABSENT
     assert configured["provider"] == SETUP_READINESS_CONFIGURED
+    assert failing["provider"] == SETUP_READINESS_FAILING
     assert ready["provider"] == SETUP_READINESS_VERIFIED
-    assert len({absent["provider"], configured["provider"], ready["provider"]}) == 3
+    assert (
+        len(
+            {
+                absent["provider"],
+                configured["provider"],
+                failing["provider"],
+                ready["provider"],
+            }
+        )
+        == 4
+    )
 
 
 # --- Which integrations are where -----------------------------------------------
@@ -293,19 +350,37 @@ async def test_an_integration_with_a_credential_reads_as_configured(
 async def test_an_integration_a_live_run_reached_reads_as_verified(
     store: FakePersistence,
 ) -> None:
-    """Verified means something answered, which only a live run can establish."""
+    """Verified means something answered, which only a recorded check can establish."""
     await _store_credential(store, "datadog")
 
     checklist = await build_checklist(
         store,
         organisation_id=DEFAULT_ORGANISATION_ID,
         integrations=("datadog", "kubernetes"),
-        verified_integrations=("datadog",),
+        integration_checks={"datadog": _passed("datadog", kind=VerificationSubject.INTEGRATION)},
     )
 
     assert {entry.name: entry.readiness for entry in checklist.integrations} == {
         "datadog": SETUP_READINESS_VERIFIED,
         "kubernetes": SETUP_READINESS_ABSENT,
+    }
+
+
+async def test_an_integration_whose_last_check_failed_reads_as_failing_not_configured(
+    store: FakePersistence,
+) -> None:
+    """FR-007: the same distinction the provider step draws, for an integration."""
+    await _store_credential(store, "datadog")
+
+    checklist = await build_checklist(
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        integrations=("datadog",),
+        integration_checks={"datadog": _failed("datadog", kind=VerificationSubject.INTEGRATION)},
+    )
+
+    assert {entry.name: entry.readiness for entry in checklist.integrations} == {
+        "datadog": SETUP_READINESS_FAILING,
     }
 
 
@@ -424,9 +499,6 @@ async def test_a_finished_deployment_reports_the_checklist_complete(
             )
         )
 
-    async def verify() -> ModelVerdict:
-        return ModelVerdict(provider_id="local", model_id="m", satisfied=True, summary_line="fine")
-
     # A composed runtime is part of being finished now, and deliberately so:
     # this deployment has an account, a verified provider, an estate and a
     # completed run, and without something to run investigations in it still
@@ -436,7 +508,7 @@ async def test_a_finished_deployment_reports_the_checklist_complete(
     checklist = await build_checklist(
         store,
         organisation_id=DEFAULT_ORGANISATION_ID,
-        verify_model=verify,
+        provider_checks={"local": _passed("local", model_id="m")},
         runtime_composed=True,
     )
 

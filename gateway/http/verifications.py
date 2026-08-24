@@ -129,7 +129,10 @@ async def recorded_checks(
 
 
 async def integration_health(
-    gateway: PersistenceGateway, scope: TenantScope
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+    *,
+    held: dict[str, VerificationRecord] | None = None,
 ) -> HealthLedger | None:
     """Return the catalogue's health ledger, populated from what has been checked.
 
@@ -137,8 +140,14 @@ async def integration_health(
     reads as "every entry is ``unknown``" — and an empty ledger and a missing one
     would otherwise be two ways of saying the same thing with one of them
     requiring an argument to be built.
+
+    ``held`` lets a caller that already read the ledger for another reason —
+    the checklist route reads it again for the provider's own record — hand
+    the integration rows over rather than paying for the same read twice.
+    Read fresh when omitted, which is every caller but that one.
     """
-    held = await recorded_checks(gateway, scope, kind=VerificationSubject.INTEGRATION)
+    if held is None:
+        held = await recorded_checks(gateway, scope, kind=VerificationSubject.INTEGRATION)
     if not held:
         return None
 
