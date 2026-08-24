@@ -73,13 +73,15 @@ export default async function SignIn({
           {message(locale, REASON_MESSAGE[reason])}
         </p>
       ) : null}
-      <NoAdministratorNotice
-        command={availability.command}
-        labels={{
-          title: message(locale, 'noAdministrator.title'),
-          body: message(locale, 'noAdministrator.body'),
-        }}
-      />
+      {availability.command ? (
+        <NoAdministratorNotice
+          command={availability.command}
+          labels={{
+            title: message(locale, 'noAdministrator.title'),
+            body: message(locale, 'noAdministrator.body'),
+          }}
+        />
+      ) : null}
       <form
         method="post"
         action="/api/session"

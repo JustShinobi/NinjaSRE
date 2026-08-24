@@ -418,13 +418,15 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
 
-      <NoAdministratorNotice
-        command={availability.command}
-        labels={{
-          title: message(locale, 'noAdministrator.title'),
-          body: message(locale, 'noAdministrator.body'),
-        }}
-      />
+      {availability.command ? (
+        <NoAdministratorNotice
+          command={availability.command}
+          labels={{
+            title: message(locale, 'noAdministrator.title'),
+            body: message(locale, 'noAdministrator.body'),
+          }}
+        />
+      ) : null}
 
       {/* Position, step name and what is left, on the one line: the position
           is which of the seven wizard screens this is; the pending count
