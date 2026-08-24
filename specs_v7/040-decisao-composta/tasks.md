@@ -358,13 +358,27 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
 - [ ] S01 Depois do ciclo de deploy do slot, disparar uma investigação real e
       conferir, com credencial de operador, que a lista de aprovações do
       gateway traz a proposta com o plano de reversão junto.
+      → **A investigação real rodou** (demo de 2026-08-24, incidente
+      `inc_05328c58ca88676b`) e a lista de aprovações está vazia. Não há
+      proposta para trazer: ver S02. A metade desta alegação que dependia do
+      portão — que a proposta, quando existir, viaje com seu plano de reversão —
+      continua provada só pelos testes, não contra o ambiente.
 - [ ] S02 Contar no banco de staging: pedidos de aprovação de remediação maior
       que zero; planos de reversão maior que zero, com ao menos um
       correspondendo a um daqueles pedidos.
-- [ ] S03 Contar no banco de staging: pedidos de remediação em estado diferente
+      → **Medido, e o resultado é zero em ambos** — mas não por falta de
+      execução. A demo de 2026-08-24 rodou uma investigação real sobre um
+      incidente real e ela não propôs nada, porque o catálogo inteiro tem três
+      capacidades de escrita e as três são aviso: nenhuma atua sobre
+      infraestrutura. Esta contagem não pode passar de zero enquanto isso for
+      verdade, e a decisão é de escopo de produto, não desta feature.
+- [x] S03 Contar no banco de staging: pedidos de remediação em estado diferente
       de pendente igual a **zero**, e resultados de remediação igual a
       **zero**. Um valor diferente de zero em qualquer um dos dois é defeito,
       não progresso: nada aprova nem executa sozinho no ambiente compartilhado.
+      → Medido em 2026-08-24, depois da demo que rodou uma investigação real
+      contra o hipervisor: `approvals` fora de pendente = 0, `remediation_outcomes`
+      = 0. Nada aprovou nem executou sozinho.
 
 ## Dependencies
 

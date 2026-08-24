@@ -293,8 +293,14 @@ partida, não a autoridade.
       seção de documentação não viola nenhum ban — em particular o de markdown
       cru impresso como texto, que esta feature acrescenta uma superfície nova
       para violar.
-- [ ] T054 Rodar as suítes unitárias do console e a suíte Python inteira, e
+- [x] T054 Rodar as suítes unitárias do console e a suíte Python inteira, e
       confirmar verde.
+      → Rodadas em 2026-08-24 pelo orquestrador, com a máquina vazia: console
+      170 arquivos / 2802 testes, todos passando, cobertura de ramos 90,08%;
+      Python ~12.800 testes em toda a árvore, zero falhas. O agente desta
+      feature não conseguiu concluí-las porque cinco agentes disputavam três
+      CPUs e a cobertura estourava por contenção — o que ele registrou
+      corretamente como contenção, não como regressão.
 - [x] T055 Depois do merge do slot e do deploy de staging feito pelo orquestrador,
       rodar contra `https://stg-ninjasre.lan.kyo.ninja` as alegações marcadas como
       seguras, abrindo `grafana`, `prometheus` e `proxmox`, e guardar screenshot
@@ -304,6 +310,13 @@ partida, não a autoridade.
       alvo que passava continua passando; a verificação de integrações reporta as
       15 em paridade e nenhum campo sem orientação. Qualquer diferença é explicada
       ou corrigida, nunca omitida.
+      → **A metade verificável passou; a comparação não pode acontecer.** O
+      portão rodou verde alvo por alvo em 2026-08-24 e a verificação de
+      integrações reporta as 15 em paridade sem campo sem orientação. O que
+      falta é o outro lado da comparação: o log de T001 não existe e não pode
+      mais existir, porque a árvore intacta que ele mediria já não existe. Fica
+      aberta por honestidade — a alegação é sobre uma diferença, e uma diferença
+      precisa de dois termos.
 - [x] T057 Conferir que o `console/package.json` declara exatamente um
       renderizador de markdown, o mesmo que a Fase 0 registrou.
 - [x] T058 Conferir que nenhum arquivo committed desta feature cita identificador

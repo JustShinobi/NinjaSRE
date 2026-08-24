@@ -473,4 +473,10 @@ arquivo custam mais do que economizam.
 - [x] Os dois arquivos de teste unitário existentes foram **estendidos**; nenhum
       caso foi duplicado.
 - [ ] `make verify` verde, comparado contra o log da linha de base.
+      → Verde, medido peça a peça em 2026-08-24 com a máquina vazia: ~12.800
+      testes Python, 2802 do console a 90,08% de cobertura de ramos, 355 de
+      navegador, e todos os alvos estáticos. A comparação é que não pode
+      acontecer: o log da linha de base nunca foi guardado e a árvore que ele
+      mediria já não existe. Fica aberta porque a alegação é sobre uma
+      diferença, e uma diferença precisa de dois termos.
 - [x] O bloco de coordenação do slot foi entregue no relatório final.
