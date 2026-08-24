@@ -250,3 +250,42 @@ FINAL: 0019_users_email_optional
 
 Já estava na cabeça (a descida foi recusada antes de mudar qualquer coisa),
 então subir é um no-op confirmado — o mesmo estado, medido antes e depois.
+
+## T064 — T032–T034 contra o backing de compose
+
+Depois de corrigir o arnês (abaixo), a suíte de aceitação e a suíte unitária
+do bloco de aviso rodaram, de verdade, contra o `deploy/compose/docker-compose.yml`
+completo — não o mock plane.
+
+```
+python -m tools.console_e2e run --backing compose --project behaviour \
+    tests/e2e/primeiro-administrador.acceptance.spec.ts
+```
+
+```
+5 passed, 1 skipped (2.7s)
+  ✓ claim 5: the block does not exist in the document — not merely hidden
+  ✓ claim 7: a refused sign-in shows the same refusal as always
+  ✓ claim 8: the sign-in screen still names no deployment anywhere
+  -  claim 6: the block does not exist in the document (skip deliberado — precisa
+     de identity provider ativo, fora do alcance desta rodada)
+  ✓ claim 10a: /sign-in never shows a raw i18n key
+  ✓ claim 10b: /first-run never shows a raw i18n key
+```
+
+`pnpm exec vitest run tests/unit/surfaces/no-administrator-notice.test.tsx
+tests/unit/shell/pages.test.tsx` (T033/T034): **2 arquivos, 54 testes, 0
+falhas.**
+
+**Defeito real, encontrado e corrigido antes de qualquer captura**:
+`tools/console_e2e.py::compose_stack()` trocava a credencial de bootstrap sem
+enviar `password` — a exigência que esta própria feature acrescentou à rota
+(`DurableCredentialRequest.password`, `Field(min_length=1)`). Sem isso, o
+backing `compose` nunca subia: a troca voltava `422` e o harness inteiro
+morria antes de qualquer teste rodar. Corrigido em
+`tools/console_e2e.py:358-366` — `_HARNESS_PRINCIPAL` ganhou uma senha
+descartável, só para esta troca, nunca usada para entrar pelo formulário
+(o navegador assina com o token durável que a troca devolve, não com
+nome+senha). É provavelmente a primeira vez que alguém tentou rodar o
+backing `compose` depois de T056 aterrissar — nenhum teste do harness cobria
+essa chamada HTTP de verdade.

@@ -346,7 +346,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 - [x] T063 Acrescentar o mesmo bloco à tela de first-run, no mesmo estado, pela
       **mesma chave** — não por uma segunda redação.
 
-- [ ] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
+- [x] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
       que dependem de um deployment sem administrador não rodam contra o
       staging, e o spec as marca.
 

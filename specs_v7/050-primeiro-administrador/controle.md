@@ -116,9 +116,27 @@ rota de disponibilidade, nunca escrito no console.
    para `console/tests/first-day/primeiro-administrador.acceptance.spec.ts`
    e provadas verdes contra o cenário `first-run`, pelo caminho que este
    próprio item já apontava como uma das duas saídas.
-2. **Prova no caminho de serving via compose real (T066-T071)** — ainda não
-   tentada. Fora do escopo desta atualização, que tratou apenas do gate
-   automatizado (mock plane); segue pendente de um agente com esse recorte.
+2. ~~**Prova no caminho de serving via compose real (T066-T071)** — ainda não
+   tentada.~~ **FEITO** — ver `evidence/serving-path.md`. Deployment limpo por
+   compose, sem conta de ambiente: o boot nomeia o comando, `ninjasre setup
+   admin --name admin` cria o administrador numa sessão real de terminal
+   (sem eco), e o nome/passphrase escolhidos são aceitos por
+   `POST /auth/sign-in` (200, token real) no mesmo deployment — a prova de
+   sessão que este stack de compose pode dar, já que o container `console`
+   deste `docker-compose.yml` serve a API uma segunda vez, não o SPA
+   (lacuna pré-existente, nomeada em `evidence/serving-path.md`, não desta
+   feature). Repetir o mesmo comando recusa nomeando a rotação; um segundo
+   `service_account` sem e-mail coexiste com o de bootstrap (a colisão que
+   esta feature corrigiu, provada contra Postgres real); ativar o identity
+   provider recusa o comando local nomeando `POST /auth/break-glass` e a
+   rota de disponibilidade para de nomear o comando, sem apagar o
+   administrador que já existia; a descida da migração recusa nomeando os
+   dois principals que a impedem. T064 também fechado nesta rodada: T032
+   (5/6, 1 skip deliberado) e T033-T034 (54/54) verdes contra o backing
+   `compose` de verdade — depois de corrigir um defeito real no arnês
+   (`tools/console_e2e.py` trocava a credencial de bootstrap sem `password`,
+   que esta própria feature tornou obrigatório; o backing `compose` não
+   subia até isso ser corrigido).
 3. **`config/constants/__init__.py`** — 6 nomes novos do slot não replicados
    no re-export agregado (~2000 linhas, sem teste que exija a réplica).
 4. **`make verify` completo** — ver "Atualização" abaixo pelo resultado real,
