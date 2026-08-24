@@ -55,6 +55,11 @@ cinco ondas com o harness verde.
       um documento: turnos, chamadas, evidência e eventos de trace, no total e
       para os runs completed da última hora. É o "antes" que a evidência de
       fechamento compara.
+      **Não feito — motivo em `controle.md`, seção "Reconfronto (2026-08-24)":
+      exige credencial direta de Postgres de staging, que nenhuma sessão deste
+      slot recebeu (só credencial HTTP da aplicação), e a janela do "antes" já
+      fechou porque o deploy deste slot já está vivo em staging. Reconfirmado
+      em duas sessões independentes; não é falta de tentativa.**
 
 ## Phase 1: Gates primeiro, confirmados vermelhos
 

@@ -82,7 +82,10 @@ no harness.
 
 1. **Contagens de partida do banco (o "antes") nunca foram capturadas** desta
    worktree, que não alcançava o banco. O "antes" usado acima é o do diagnóstico
-   da onda, não uma medição desta feature. O "depois" é medido.
+   da onda, não uma medição desta feature. O "depois" é medido. Ver "Reconfronto
+   (2026-08-24)" abaixo: uma sessão seguinte, com alcance HTTP a staging,
+   reconfirmou que a lacuna é estrutural (sem credencial de banco, e a janela
+   do "antes" já fechada) e não uma limitação só daquela worktree.
 2. **Migração contra PostgreSQL real**: o implementer não a exercitou (sem
    Docker no ambiente dele). O verificador independente **fechou esta lacuna**:
    rodou a cadeia inteira contra PostgreSQL 16 com pgvector e AGE, subindo até
@@ -108,6 +111,85 @@ ambas descendendo do mesmo pai — histórico ramificado, duas cabeças, e nada
 conseguia migrar. A do outro lado foi re-parenteada; a cadeia voltou a ser
 linear. Um número de revisão é recurso de escrita única entre features
 paralelas, e o protocolo do slot não previa isso.
+
+## Reconfronto (2026-08-24) — a única tarefa não marcada
+
+`tasks.md` chegou a esta rodada com 53 de 54 tarefas marcadas — a auditoria
+desta sessão é sobre a única que não está, **T003**: "Registrar as contagens
+de partida direto do banco de staging, não de um documento: turnos, chamadas,
+evidência e eventos de trace, no total e para os runs completed da última
+hora. É o 'antes' que a evidência de fechamento compara." A caixa continua
+vazia porque a tarefa continua genuinamente não feita — não por falta de
+tentativa desta vez.
+
+**As 53 peças marcadas FEITO foram reamostradas contra o código atual nesta
+sessão, não aceitas do relatório anterior.** `RunRecorder.record_turn`
+(`platform/runs/recorder.py:332-368`) confirma, lendo o corpo da função, que a
+chave de custo só entra no `usage` quando `turn.cost is not None`
+(linhas 349-350) — nunca um `0.0` de substituição. `synthesize_headline`
+(`platform/runs/headline.py:106-127`) confirma pela própria assinatura
+(`*, alert_name: str = "", resource: str = "", objective: str = ""`) que não
+existe parâmetro por onde um documento chegaria. `ReplayedRun.total_cost` e
+`.unpriced_turn_count` (`platform/runs/replay.py:144-156`) confirmam a soma
+parcial e a contagem de turnos sem preço. `touched_resources_of`
+(`platform/runs/replay.py:274-293`) confirma que a lista vem dos argumentos
+gravados nas chamadas, nunca dos sujeitos declarados no alerta.
+`gateway/runtime/recording.py` confirmado ausente da árvore (`test -f`
+retorna código de saída de "não existe"). As migrações `0015_run_headline` e
+`0016_incident_run_ids_index` confirmadas presentes, com a cadeia
+`0013 → 0014 → 0015 → 0016` linear (um `revision`/`down_revision` por
+arquivo, sem ramificação). O contrato
+(`gateway/http/routes/investigations.py:46,49,53`) confirmado com `headline`,
+`report` e `summary` como três campos distintos, o último documentado como
+substituído. As suítes `tests/architecture/test_serving_composes_the_recorder.py`
+e `tests/architecture/test_one_alert_receipt_writer.py`,
+`tests/unit/gateway/runtime/test_investigation_trace_recording.py` (8 testes),
+`tests/contract/runs/` (15 testes, as quatro suítes de contrato) e
+`tests/unit/platform/runs/{test_headline,test_replay,test_recorder}.py`
+(35 testes) rodaram limpas, isoladas do resto da árvore para evitar uma
+colisão de nome de módulo `conftest` entre `tests/unit/platform/runs/` e
+`tests/contract/runs/` que só aparece quando os dois são passados juntos numa
+única invocação do pytest — artefato de invocação, não do código; cada
+diretório roda limpo sozinho, e é assim que a suíte completa também os separa.
+Nenhuma das 53 peças foi encontrada regredida.
+
+**T003, resolução definitiva: continua sem poder ser feita, por duas razões
+que se somam, nenhuma das duas contornável por mais uma tentativa.**
+
+1. **Acesso.** A tarefa pede uma consulta direta ao Postgres de staging
+   (`ninjasre-stg-db`, `10.20.20.54` — os nomes de tabela e o `org_id`/`run_id`
+   estão na seção "Evidência exigida" da spec). Esta sessão recebeu apenas
+   credenciais HTTP da aplicação (`NINJASRE_STAGING_URL`,
+   `NINJASRE_STAGING_USERNAME`, `NINJASRE_STAGING_CREDENTIAL`, em `.env`,
+   confirmadas por leitura dos nomes das variáveis, não dos valores) — nenhuma
+   credencial de banco. A própria spec nomeia esse acesso como do
+   **orquestrador**, no ciclo que "roda ao fim do slot": "o orquestrador faz o
+   deploy, dispara uma investigação a partir de um alerta real do
+   Alertmanager, e coleta a evidência" — a leitura direta ao banco nunca foi
+   uma tarefa de sessão de implementer nem de verificador, mesmo uma com
+   alcance de rede até o staging (confirmado: `GET /health` no staging responde
+   200 depois de redirecionar para `/sign-in`, ou seja, o staging está de pé e
+   alcançável — só não pelo caminho que T003 pede).
+2. **Janela fechada.** Mesmo com acesso ao banco, o "antes" que T003 pede já
+   não existe para ser lido. As migrações `0014 → 0015 → 0016` já estão vivas
+   em staging e o recorder já vinha gravando havia mais de um dia quando esta
+   sessão começou — a própria seção "Evidência em staging" acima mede um run
+   específico saindo de zero para `run_turns=5, tool_calls=4, evidence=1`, num
+   deploy que já aconteceu. Rodar a consulta agora devolveria o total de
+   **hoje**, não o total de antes do deploy; rotular isso de "antes" seria uma
+   evidência fabricada — exatamente o que esta feature existe para recusar em
+   outro contexto (o custo ausente que não pode virar zero).
+
+Não há tarefa de código para fechar essa lacuna: não é um defeito de
+implementação, é uma medição cuja janela passou antes que qualquer sessão com
+alcance a staging existisse. **Decisão que cabe a um humano ou ao
+orquestrador**: aceitar o "antes" já registrado na própria spec (seção "Onde o
+produto está hoje": 37 investigações `completed`, `run_turns=0`,
+`tool_calls=0`, `evidence=0`, `trace_events=73`, verificado em 2026-08-23
+contra o staging real) como o "antes" válido — é uma medição direta de banco,
+só que feita um dia antes de T003 ter sido escrita como tarefa própria, e
+nenhuma sessão futura terá como refazê-la de um jeito mais direto sem
+credencial de banco.
 
 ## Reconciliação de `tasks.md`
 
