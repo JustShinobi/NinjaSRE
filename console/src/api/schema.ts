@@ -4099,6 +4099,8 @@ export interface components {
              * @default first administrator
              */
             name: string;
+            /** Password */
+            password: string;
             /** User Id */
             user_id: string;
         };

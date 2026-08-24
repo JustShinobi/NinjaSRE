@@ -92,6 +92,14 @@ class DurableCredentialRequest(BaseModel):
     user_id: str
     email: str
     display_name: str
+    #: The passphrase this administrator will sign in with afterwards.
+    #:
+    #: It arrives in the body while the bootstrap credential deliberately does
+    #: not, and the asymmetry is the point: the bootstrap credential is read
+    #: from the host because presenting it in a request would let a caller name
+    #: somebody else's. This one is the caller's own, being set for the first
+    #: time, and there is nowhere else it could come from.
+    password: str
     name: str = "first administrator"
 
 
@@ -259,6 +267,7 @@ async def durable_credential(
         user_id=body.user_id,
         email=body.email,
         display_name=body.display_name,
+        password=body.password,
         name=body.name,
     )
     return DurableCredentialView(**issued.to_record())

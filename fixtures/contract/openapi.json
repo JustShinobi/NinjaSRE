@@ -2216,6 +2216,10 @@
             "title": "Name",
             "type": "string"
           },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
           "user_id": {
             "title": "User Id",
             "type": "string"
@@ -2224,7 +2228,8 @@
         "required": [
           "user_id",
           "email",
-          "display_name"
+          "display_name",
+          "password"
         ],
         "title": "DurableCredentialRequest",
         "type": "object"
