@@ -1362,6 +1362,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.panel.docs.toggle': 'Ler a documentação do pacote',
   'catalogue.integrations.panel.docs.unreadable':
     'A documentação deste fornecedor não pôde ser lida.',
+  // Mais de um time detém credencial para este fornecedor. O processo não
+  // escolhe um em silêncio: ele cai para o handle da organização, e esta é
+  // a frase que diz que essa decisão foi tomada.
+  'catalogue.integrations.panel.credentialTeamAmbiguous':
+    'Mais de um time detém credencial para este fornecedor. As investigações usam a credencial da organização até isso ser resolvido.',
   // --- Painel de uma integração conectada: estado e ações, nunca um formulário vazio ---
   'catalogue.integrations.panel.storedInVault':
     'Esta credencial está guardada no vault.',

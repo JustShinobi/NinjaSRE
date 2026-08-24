@@ -407,3 +407,59 @@ borda (proxy reverso / CDN) na frente do console em staging que ignora o
 `Cache-Control: no-store` que a aplicação já envia; **não verificado, precisa
 do orquestrador** (`curl -I` direto no pod vs. através do que serve o
 domínio público).
+
+---
+
+## Fechamento — Fases 2b e 3 (sessão separada, worktree própria)
+
+As duas fases que faltavam para a feature (e a onda) fecharem. Ledger
+completo e as contagens exatas estão no relatório desta sessão; aqui vai o
+essencial verificado contra o código.
+
+**Fase 2b — vocabulário de estado de run tem um dono.** `tools/
+check_run_status_vocabulary.py` lê `platform.persistence.ports.
+run_trace_store.RunStatus` como dado (nunca lista literal), varre
+`fixtures/scenarios/**/{runs,run-detail}.json` e o `RUN_STATUSES` do
+console, reprova nas duas direções. Vermelho real capturado antes de
+qualquer conserto: **19 violações** (6 no console, 13 nas fixtures — 7
+`succeeded`, 3 `awaiting_approval`, 3 `partial`; este terceiro é achado além
+do que o plano nomeou nominalmente). Descoberta que mudou o método: as
+fixtures de `populated` não são hand-authored — são geradas por `python -m
+tools.mockplane build` a partir de `tools/mockplane/dataset/served.py`, e a
+migração correta editou a fonte e rodou o build, não o JSON à mão.
+`now-violations/runs.json` é a exceção real (não está em `BUILT_SCENARIOS`).
+`tools/mockplane/dataset/scale.py` também migrado (`_STATUSES` derivado do
+enum, não mantido à parte). Console (`console/src/design/status.ts`) purgado
+para bater exatamente com os seis valores da store; `succeeded` sobrevive
+só na tabela de apresentação compartilhada, porque `ToolCallStatus.
+SUCCEEDED` é um fato diferente com a mesma palavra. 9 baselines visuais
+recapturadas deliberadamente (a galeria, `run-detail`, `runs`); 7 outras que
+divergiam eram drift pré-existente de outra feature, não tocadas. Gate
+final: exit 0.
+
+**Fase 3 — uma resolução de handle, três chamadores.** Achado de partida:
+T014/T015/T016 estavam marcadas feitas em `tasks.md` sem existir na árvore
+— refeitas do zero. `gateway/http/credential_handles.py::
+resolve_credential_handle(gateway, scope, *, integration, preferred_team=None)`
+é o caminho único: com `preferred_team` (rotas HTTP autenticadas) devolve o
+time do chamador sem tocar o vault — o mesmo que `auth.team_node_id or
+CREDENTIAL_ORG_WIDE_TEAM` já fazia, agora num só lugar; sem `preferred_team`
+(composição, sem chamador) descobre no vault quem detém a credencial
+(metadados via `Vault.list`, nunca `.reveal()`) e resolve por handle único,
+ausência, ou ambiguidade registrada (log + `IntegrationView.
+credential_team_ambiguous`, visível no painel do console). Três chamadores
+religados: `compose_integration_access` (o time do processo inteiro, via
+`resolve_process_credential_team`, porque `IntegrationAccess.team_id` é um
+campo só para todo o processo — decisão de engenharia registrada, já que
+restruturá-lo tocaria ~193 módulos de ferramenta), `compose_provider_
+credentials` (por provider, em vez de um lease em lote com time fixo), e as
+rotas de `integrations.py`/`providers.py` (a mesma pergunta, pelo mesmo
+caminho, em vez da expressão repetida). `make check-credentials` continua
+limpo — nada aqui lê valor de credencial.
+
+Gates finais: `tests/unit/gateway/http/` 589/589; `python -m tools.
+console_gate test` 2771/2771 com branches em 90.01%; `make check-imports` 7/7;
+`ruff`/`mypy` limpos nos arquivos tocados.
+
+`tasks.md` desta feature: 69/69 tarefas marcadas, verificadas contra o
+código.

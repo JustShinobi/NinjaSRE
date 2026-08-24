@@ -84,41 +84,62 @@ describe('the status mapping', () => {
 
   it('settles every terminal word the declared list carries', () => {
     expect(RUN_STATUSES.filter((status) => isSettled(status))).toEqual([
-      'succeeded',
       'completed',
-      'partial',
-      'failed',
       'cancelled',
+      'failed',
+      'interrupted',
     ]);
   });
 
-  // The runtime's own enumeration — `RunStatus` in the runtime port the
-  // gateway drives an investigation through — enunciated here as data rather
-  // than imported: the console boundary forbids reaching into any Python
-  // package, this file included, so the fact this test holds the console to
-  // has to be a literal a reader can check against that enumeration by eye.
-  const RUNTIME_STATUS_WORDS = ['completed', 'partial', 'cancelled', 'failed'] as const;
-  const RUNTIME_TERMINAL_WORDS = RUNTIME_STATUS_WORDS;
+  // The persistence store's own enumeration — `RunStatus` in
+  // `platform/persistence/ports/run_trace_store.py`, served verbatim by the
+  // gateway — enunciated here as data rather than imported: the console
+  // boundary forbids reaching into any Python package, this file included,
+  // so the fact this test holds the console to has to be a literal a reader
+  // can check against that enumeration by eye. `tools/
+  // check_run_status_vocabulary.py` is what actually keeps the two files
+  // honest against each other; this test is the console's own half of that
+  // property, exercised without a subprocess.
+  const STORE_STATUS_WORDS = [
+    'running',
+    'suspended',
+    'completed',
+    'cancelled',
+    'failed',
+    'interrupted',
+  ] as const;
 
-  it('names every status word the runtime actually emits on a finish', () => {
-    for (const status of RUNTIME_STATUS_WORDS) {
+  it('declares exactly the store’s own run status words, no more and no fewer', () => {
+    expect([...RUN_STATUSES].sort()).toEqual([...STORE_STATUS_WORDS].sort());
+  });
+
+  it('names every status word the store actually emits for a run', () => {
+    for (const status of STORE_STATUS_WORDS) {
       expect(RUN_STATUSES, status).toContain(status);
       expect(statusPresentation(status).known, status).toBe(true);
     }
   });
 
-  it('treats every one of the runtime’s own terminal words as settled', () => {
-    for (const status of RUNTIME_TERMINAL_WORDS) {
+  it('treats a clean finish, a cancellation, a failure and an interruption as settled', () => {
+    for (const status of ['completed', 'cancelled', 'failed', 'interrupted']) {
       expect(isSettled(status), status).toBe(true);
       expect(isLiveRun(status), status).toBe(false);
     }
   });
 
-  it('treats an in-flight word as live, never as settled', () => {
-    for (const status of ['queued', 'running', 'waiting']) {
-      expect(isLiveRun(status), status).toBe(true);
-      expect(isSettled(status), status).toBe(false);
-    }
+  it('treats an in-flight run as live, never as settled', () => {
+    expect(isLiveRun('running')).toBe(true);
+    expect(isSettled('running')).toBe(false);
+  });
+
+  it('treats a run paused on a human decision as neither live nor settled', () => {
+    // The same shape of decision `awaiting_approval` used to get: a run
+    // waiting on a person is not "still working" — nothing is calling a
+    // tool — and it is not "settled" either, because a decision can still
+    // reopen it. It gets the open-interaction panel, not a stop button and
+    // not a terminal chip.
+    expect(isLiveRun('suspended')).toBe(false);
+    expect(isSettled('suspended')).toBe(false);
   });
 
   it('treats a status neither list has ever heard of as neither live nor settled', () => {

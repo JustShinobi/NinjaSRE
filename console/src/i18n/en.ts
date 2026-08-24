@@ -1618,6 +1618,11 @@ export const EN = {
   'catalogue.integrations.panel.docs.toggle': 'Read the package documentation',
   'catalogue.integrations.panel.docs.unreadable':
     "This vendor's own documentation could not be read.",
+  // More than one team holds a credential for this vendor. The process does
+  // not choose one in silence: it falls back to the organisation-wide
+  // handle, and this is what says that decision was made.
+  'catalogue.integrations.panel.credentialTeamAmbiguous':
+    'More than one team holds a credential for this vendor. Investigations use the organisation-wide credential until this is resolved.',
   // --- A connected integration's panel: state and actions, not an empty form ------
   'catalogue.integrations.panel.storedInVault':
     'This credential is stored in the vault.',

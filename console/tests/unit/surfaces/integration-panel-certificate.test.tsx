@@ -102,6 +102,7 @@ const LABELS: IntegrationPanelLabels = {
     unverifiedReasonLabel: 'Why',
     unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
   },
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function connected(): IntegrationPanelItem {
@@ -114,6 +115,7 @@ function connected(): IntegrationPanelItem {
     docsReadable: false,
     health: 'degraded',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'api_token',

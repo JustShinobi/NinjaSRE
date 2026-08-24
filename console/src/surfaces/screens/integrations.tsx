@@ -118,6 +118,8 @@ interface CatalogueItem {
   readonly summary: string;
   readonly health: string;
   readonly healthDetail: string;
+  /** Set when more than one team holds a credential for this integration. */
+  readonly credentialTeamAmbiguous: boolean;
   readonly fields: readonly CredentialFieldSpec[];
   readonly capabilities: readonly string[];
   readonly permissions: readonly PermissionSpec[];
@@ -220,6 +222,7 @@ function itemOf(record: unknown): CatalogueItem {
     summary: text(record, 'summary'),
     health: text(record, 'health'),
     healthDetail: text(record, 'health_detail'),
+    credentialTeamAmbiguous: flag(record, 'credential_team_ambiguous'),
     fields: fieldsOf(record),
     capabilities: strings(record, 'capabilities'),
     permissions: permissionsOf(record),
@@ -511,6 +514,7 @@ export async function IntegrationsScreen(
                   summary: panelItem.summary,
                   health: panelItem.health,
                   healthDetail: panelItem.healthDetail,
+                  credentialTeamAmbiguous: panelItem.credentialTeamAmbiguous,
                   fields: panelItem.fields,
                   permissions: panelItem.permissions,
                   // The estate's own discovery, never a vendor's default port
@@ -564,6 +568,10 @@ export async function IntegrationsScreen(
             connectedByAddress: message(
               locale,
               'catalogue.integrations.panel.connectedByAddress',
+            ),
+            credentialTeamAmbiguous: message(
+              locale,
+              'catalogue.integrations.panel.credentialTeamAmbiguous',
             ),
             testAgain: message(locale, 'catalogue.integrations.panel.testAgain'),
             replaceCredential: message(

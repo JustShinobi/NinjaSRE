@@ -41,11 +41,11 @@ from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import (
-    CREDENTIAL_ORG_WIDE_TEAM,
     INTEGRATION_TRUST_AUDIT_ACTION,
     INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
 )
 from gateway.http.configured import configured_integrations
+from gateway.http.credential_handles import credential_team_holders, resolve_credential_handle
 from gateway.http.credential_schemas import schema_for
 from gateway.http.credential_state import credential_detail, effective_credential_state
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
@@ -250,6 +250,11 @@ class IntegrationView(BaseModel):
     #: credential never disagree about where it comes from. Empty where a
     #: vendor has not declared one.
     where_to_get_it: str = ""
+    #: Set when more than one team holds a credential for this integration.
+    #: The process resolves the ambiguity to the organisation-wide handle
+    #: rather than choosing a team in silence — this is what tells an
+    #: operator that decision was made, and for which vendor.
+    credential_team_ambiguous: bool = False
 
 
 class IntegrationList(BaseModel):
@@ -410,6 +415,11 @@ async def list_integrations(
     )
     suggested = await _suggestions(state, auth, entries)
     ordered = sorted(entries, key=lambda entry: (entry.name not in suggested, entry.name))
+    # One listing for the whole organisation, not one per row: which teams
+    # hold a credential for which integration is exactly what deciding this
+    # ambiguity needs, and reading it once here is what keeps a catalogue of
+    # dozens of vendors from taking a vault round trip per row.
+    team_holders = await credential_team_holders(state.gateway, auth.scope)
     return IntegrationList(
         known_gaps=[
             KnownGapView(
@@ -422,7 +432,14 @@ async def list_integrations(
             )
             for record in (gap.to_record() for gap in gaps())
         ],
-        integrations=[_integration_view(entry, suggested.get(entry.name)) for entry in ordered],
+        integrations=[
+            _integration_view(
+                entry,
+                suggested.get(entry.name),
+                credential_team_ambiguous=len(team_holders.get(entry.name, ())) > 1,
+            )
+            for entry in ordered
+        ],
     )
 
 
@@ -472,7 +489,9 @@ async def integration_docs(
     return IntegrationDocsView(name=found.name, display_name=found.display_name, markdown=markdown)
 
 
-def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationView:
+def _integration_view(
+    entry: Any, suggested: Suggestion | None, *, credential_team_ambiguous: bool = False
+) -> IntegrationView:
     """Return one catalogue entry as the view a console renders."""
     direction, intake_path = _direction(entry.name)
     return IntegrationView(
@@ -492,6 +511,7 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
         direction=direction,
         intake_path=intake_path,
         where_to_get_it=entry.profile.where_to_get_it,
+        credential_team_ambiguous=credential_team_ambiguous,
         suggested=(
             None
             if suggested is None
@@ -506,15 +526,22 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
     )
 
 
-def _team_of(auth: AuthenticatedRequest) -> str:
+async def _team_of(state: GatewayState, auth: AuthenticatedRequest, name: str) -> str:
     """Return the credential-handle team this request writes and reads under.
 
-    An organisation-scoped token has no team, and a handle needs one: the vault
-    spells the organisation-wide owner as a literal rather than as an empty
-    string, because ``datadog/`` and ``datadog`` would otherwise be two
-    spellings of one handle.
+    The caller's own team, resolved through the one path verification and
+    tool binding now share (``resolve_credential_handle``) instead of the
+    expression repeated at every route that needed it. An organisation-scoped
+    token has no team, and a handle needs one: the vault spells the
+    organisation-wide owner as a literal rather than as an empty string,
+    because ``datadog/`` and ``datadog`` would otherwise be two spellings of
+    one handle — the fast path this call takes, with the caller's team named,
+    reproduces exactly that, without a vault read.
     """
-    return auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
+    resolved = await resolve_credential_handle(
+        state.gateway, auth.scope, integration=name, preferred_team=auth.team_node_id
+    )
+    return resolved.team_id
 
 
 def _affected_kinds(name: str) -> tuple[VerificationSubject, ...]:
@@ -565,7 +592,9 @@ async def verify_integration(
     schemas = CredentialSchemaRegistry.from_schemas(schema)
     vault = Vault(gateway=state.gateway, schemas=schemas)
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
+    report = await health.report(
+        auth.scope, integrations=(name,), team_id=await _team_of(state, auth, name)
+    )
     entry = report.entries[0]
     # A vendor that ships no authentication is configured by its address, and
     # the vault's "nothing is stored" is a true answer to a question nobody
@@ -587,7 +616,7 @@ async def verify_integration(
         passed=resolved.usable,
         detail=credential_detail(resolved, address_only=resolved is not entry.state),
         checked_by=auth.principal_id,
-        team_node_id=_team_of(auth),
+        team_node_id=await _team_of(state, auth, name),
     )
     return IntegrationVerification(integration=name, state=resolved.value, usable=resolved.usable)
 
@@ -647,7 +676,7 @@ async def verify_integration_deeply(
             f"which are wired at composition rather than guessed here. The credential "
             f"state itself is answered by POST /v1/integrations/{name}/verify."
         )
-    report = await state.deep_verifier(name, _team_of(auth))
+    report = await state.deep_verifier(name, await _team_of(state, auth, name))
     if report is None:
         raise not_found(
             f"{name!r} has no verifier that produces a report. Its credential state is "
@@ -666,7 +695,7 @@ async def verify_integration_deeply(
         passed=bool(report.get("ok")),
         detail=_report_detail(report),
         checked_by=auth.principal_id,
-        team_node_id=_team_of(auth),
+        team_node_id=await _team_of(state, auth, name),
     )
     return IntegrationVerificationReport(integration=name, report=dict(report))
 
@@ -723,7 +752,7 @@ async def store_credential(
         gateway=state.gateway,
         schemas=CredentialSchemaRegistry.from_schemas(stored_schema),
     )
-    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    handle = CredentialHandle(integration=name, team_id=await _team_of(state, auth, name))
     version = ADDRESS_ONLY_VERSION
     if secrets:
         try:
@@ -784,7 +813,9 @@ async def store_credential(
         await compose_provider_credentials(state, org_id=auth.scope.org_id)
 
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
+    report = await health.report(
+        auth.scope, integrations=(name,), team_id=await _team_of(state, auth, name)
+    )
     entry = report.entries[0]
     # Named for what it is rather than `state`, which on this route is the
     # deployment's own. The same rule the verify route applies, from the same
@@ -937,7 +968,7 @@ async def delete_credential(
         gateway=state.gateway,
         schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
     )
-    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    handle = CredentialHandle(integration=name, team_id=await _team_of(state, auth, name))
     removed = await vault.delete(auth.scope, handle)
 
     await AuditRecorder(gateway=state.gateway).record(

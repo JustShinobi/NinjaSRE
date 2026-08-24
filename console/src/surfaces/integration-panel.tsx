@@ -73,6 +73,13 @@ export interface IntegrationPanelItem {
   readonly summary: string;
   readonly health: string;
   readonly healthDetail: string;
+  /**
+   * Set when more than one team holds a credential for this integration.
+   * The process resolves the ambiguity to the organisation-wide handle
+   * rather than choosing a team in silence — this is what says that
+   * decision was made, and for this vendor specifically.
+   */
+  readonly credentialTeamAmbiguous: boolean;
   readonly fields: readonly CredentialFieldSpec[];
   readonly permissions: readonly PermissionSpec[];
   /**
@@ -193,6 +200,8 @@ export interface IntegrationPanelLabels {
   /** Shown in place of the document when this deployment could not read it. */
   readonly docsUnreadable: string;
   readonly trust: TrustFormLabels;
+  /** Said when more than one team holds a credential for this integration. */
+  readonly credentialTeamAmbiguous: string;
 }
 
 export interface IntegrationPanelProps {
@@ -496,6 +505,15 @@ export function IntegrationPanel({
               {item.healthDetail}
             </p>
           )}
+          {item.credentialTeamAmbiguous ? (
+            <p
+              role="status"
+              className="text-meta text-warning"
+              data-testid="panel-credential-team-ambiguous"
+            >
+              {labels.credentialTeamAmbiguous}
+            </p>
+          ) : null}
           {item.permissions.length === 0 ? null : (
             <div className="flex flex-col gap-2" data-testid="required-permissions">
               <h3 className="text-micro uppercase tracking-wide text-muted">

@@ -264,10 +264,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   // about whether the product itself is doing its job — the fact the reference
   // design leads with and this page, until now, never asked.
   const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
-  // By role rather than by the literal word "succeeded", so a runtime that
-  // finishes cleanly under either of its two spellings — the older one the
-  // fixtures still carry, and the one it actually emits — counts toward the
-  // same figure instead of quietly dragging it down.
+  // By role rather than by the literal word "completed": the persistence
+  // store is the only source of a run's status and it never writes
+  // "succeeded", but the shared presentation table still resolves that word
+  // to the same success role a tool call's own outcome needs it for — so a
+  // clean finish counts toward this figure under either spelling, rather
+  // than a future drift between the two silently dragging it down.
   const succeededRuns = settledRuns.filter(
     (record) => roleFor(text(record, 'status')) === 'success',
   );

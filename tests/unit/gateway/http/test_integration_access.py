@@ -19,12 +19,27 @@ from __future__ import annotations
 import pytest
 
 from gateway.http.integration_access import compose_integration_access
+from platform.persistence.fakes.gateway import FakePersistence
 
 pytestmark = pytest.mark.unit
 
 
 class _State:
-    pass
+    def __init__(self) -> None:
+        self.gateway = FakePersistence()
+
+
+async def _with_organisation(org_id: str) -> _State:
+    """Return a state whose fake gateway already holds ``org_id``.
+
+    ``compose_integration_access`` now asks the vault which team holds a
+    credential for the catalogue, and a gateway with no organisation raises
+    on the first read — every test in this module composes for ``acme``.
+    """
+    state = _State()
+    async with state.gateway.begin_system() as system:
+        await system.orgs.create_organisation(org_id, org_id)
+    return state
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +55,7 @@ async def test_a_deployment_with_a_proxy_binds_access_for_every_vendor_tool() ->
     from integrations._base import access
 
     composed = await compose_integration_access(
-        _State(), org_id="acme", proxy_url="https://proxy.internal"
+        await _with_organisation("acme"), org_id="acme", proxy_url="https://proxy.internal"
     )
 
     assert composed is not None
@@ -51,7 +66,7 @@ async def test_the_binding_carries_the_organisation_and_a_team() -> None:
     """The proxy resolves a credential per tenant, so a blank one resolves to
     nothing — which the binding itself refuses to be constructed with."""
     composed = await compose_integration_access(
-        _State(), org_id="acme", proxy_url="https://proxy.internal"
+        await _with_organisation("acme"), org_id="acme", proxy_url="https://proxy.internal"
     )
 
     assert composed is not None
@@ -65,7 +80,9 @@ async def test_a_deployment_with_no_proxy_binds_nothing() -> None:
     answering as though the vendor had nothing to report."""
     from integrations._base import access
 
-    composed = await compose_integration_access(_State(), org_id="acme", proxy_url="")
+    composed = await compose_integration_access(
+        await _with_organisation("acme"), org_id="acme", proxy_url=""
+    )
 
     assert composed is None
     assert access.current() is None
@@ -75,7 +92,7 @@ async def test_the_binding_holds_no_credential() -> None:
     """It carries a transport and two identifiers, all three safe in a prompt.
     The proxy on the far side is what turns them into an authenticated call."""
     composed = await compose_integration_access(
-        _State(), org_id="acme", proxy_url="https://proxy.internal"
+        await _with_organisation("acme"), org_id="acme", proxy_url="https://proxy.internal"
     )
 
     assert composed is not None
@@ -90,7 +107,9 @@ async def test_a_tool_can_build_its_client_once_access_is_bound() -> None:
     from integrations._base import access
     from integrations.grafana.client import GrafanaClient
 
-    await compose_integration_access(_State(), org_id="acme", proxy_url="https://proxy.internal")
+    await compose_integration_access(
+        await _with_organisation("acme"), org_id="acme", proxy_url="https://proxy.internal"
+    )
     bound = access.current()
 
     assert bound is not None

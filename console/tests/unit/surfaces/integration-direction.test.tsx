@@ -82,6 +82,7 @@ const LABELS: IntegrationPanelLabels = {
     unverifiedReasonLabel: 'Why',
     unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
   },
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -92,6 +93,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     summary: 'What is firing, grouped and silenced.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'endpoint',

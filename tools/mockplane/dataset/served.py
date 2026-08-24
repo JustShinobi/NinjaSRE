@@ -368,7 +368,7 @@ REPLAYED_ACTIONS: Final[tuple[Mapping[str, Any], ...]] = (
 RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     {
         "run_id": "run-0001",
-        "status": "succeeded",
+        "status": "completed",
         "trigger": "alert",
         "started_at": at(days=2, minutes=41),
         "finished_at": at(days=2, minutes=27),
@@ -377,7 +377,7 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
     {
         "run_id": "run-0002",
-        "status": "succeeded",
+        "status": "completed",
         "trigger": "schedule",
         "started_at": at(days=1, hours=3),
         "finished_at": at(days=1, hours=2, minutes=48),
@@ -403,7 +403,11 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
     {
         "run_id": "run-0005",
-        "status": "awaiting_approval",
+        # Paused on a human decision, not finished — the store's own word for
+        # exactly that (`core/agent/session.py::SessionStatus.SUSPENDED`'s own
+        # docstring: "the state a run sits in while a human..."). `finished_at`
+        # stays `None` for the same reason: nothing about this run has ended.
+        "status": "suspended",
         "trigger": "alert",
         "started_at": at(minutes=22),
         "finished_at": None,
@@ -424,9 +428,9 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     # about this.
     {
         "run_id": "run-0101",
-        # The word the product's own runtime emits on an ordinary finish —
-        # distinct from the six runs above, which still carry the older
-        # "succeeded" this dataset kept so as not to move their baselines.
+        # The word the persistence store actually serves for an ordinary
+        # finish — the same word every run above now carries too, since the
+        # store never wrote the runtime's own spelling in the first place.
         "status": "completed",
         "trigger": "alert",
         "started_at": at(days=1, hours=6, minutes=10),
@@ -468,7 +472,15 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
     {
         "run_id": "run-0102",
-        "status": "partial",
+        # Degraded on the runtime's own account — the evidence gathered is
+        # intact and the answer is whatever could be said from it — but the
+        # persistence store has no third word for that nuance at the run's
+        # own status field: `gateway/http/orchestration.py::_drive` writes
+        # `COMPLETED` whether the investigator's own report is confident or
+        # not, so this fixture serves the same word the deployment does. The
+        # degradation is still legible in the summary below, which is where
+        # the store actually carries it.
+        "status": "completed",
         "trigger": "schedule",
         "started_at": at(days=6, hours=2),
         "finished_at": at(days=6, hours=1, minutes=44),

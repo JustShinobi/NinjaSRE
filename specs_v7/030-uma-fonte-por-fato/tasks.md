@@ -218,14 +218,14 @@ motivo. Nada de implementação começou.
 Esta fase é gate-primeiro, migração-depois, purga por último. Uma migração
 validada só depois do fato não distingue "migrei certo" de "o gate não olha".
 
-- [ ] T060 Registrar o estado de partida a partir da **árvore**, não de um
+- [x] T060 Registrar o estado de partida a partir da **árvore**, não de um
       documento: todo valor de estado de run que qualquer fixture serve, o
       vocabulário que o console declara, e a enumeração que o gateway serve
       verbatim. Os três conjuntos, escritos lado a lado em
       `evidence/run-status-before.md`. É o "antes" contra o qual a migração é
       medida, e é o que impede a correção de mirar na enumeração errada.
 
-- [ ] T061 Escrever `tools/check_run_status_vocabulary.py`: lê a enumeração do
+- [x] T061 Escrever `tools/check_run_status_vocabulary.py`: lê a enumeração do
       domínio **como dado** — nunca uma lista literal repetida no próprio check,
       que seria mais um vocabulário —, coleta todo estado de run servido por
       fixture e o declarado pelo console, e reprova nomeando arquivo e valor.
@@ -233,42 +233,42 @@ validada só depois do fato não distingue "migrei certo" de "o gate não olha".
       menos é run real caindo no fallback. Confirmar **vermelho** hoje, colando
       a saída com os valores que ele acusa.
 
-- [ ] T062 Pendurar o check em `make verify`, na família dos que não precisam de
+- [x] T062 Pendurar o check em `make verify`, na família dos que não precisam de
       build nem de infraestrutura, e escrever o teste de arquitetura que o
       exercita — inclusive o caso negativo: uma fixture com valor inventado
       reprova, e o gate diz qual.
 
-- [ ] T063 Migrar as fixtures de run para os valores do domínio, arquivo por
+- [x] T063 Migrar as fixtures de run para os valores do domínio, arquivo por
       arquivo, escolhendo para cada uma o estado que descreve a **situação que
       ela já retratava** — não o que faz a suíte passar. As duas ocorrências de
       `succeeded` e a de `awaiting_approval` em `runs.json` e `run-detail.json`
       são o núcleo; `run-stream.json`, `run-threads.json`, `run-replay.json` e
       `incident-live/run-stream.json` entram na mesma varredura.
 
-- [ ] T064 **Não tocar em nenhum estado de tool call.** A enumeração de tool
+- [x] T064 **Não tocar em nenhum estado de tool call.** A enumeração de tool
       call tem `succeeded` de verdade, e é de lá que a fixture tomou a palavra
       emprestada. Conferir, arquivo por arquivo, que cada `succeeded` alterado
       era de um run — e registrar quantos eram de tool call e ficaram.
 
-- [ ] T065 Tirar os estados do gerador de dados em escala do plano de mock da
+- [x] T065 Tirar os estados do gerador de dados em escala do plano de mock da
       mesma enumeração, em vez da lista própria que ele mantém.
 
-- [ ] T066 Purgar do vocabulário do console os valores que o gateway não serve,
+- [x] T066 Purgar do vocabulário do console os valores que o gateway não serve,
       e acrescentar os que ele serve e faltam. **Só depois de T063 e T065** —
       purgar antes derruba as fixtures que ainda usam o valor, e o vermelho
       resultante mede a ordem das tarefas em vez do produto.
 
-- [ ] T067 Recapturar, uma a uma, as baselines visuais que a migração moveu.
+- [x] T067 Recapturar, uma a uma, as baselines visuais que a migração moveu.
       Cada recaptura é um passo deliberado e revisável no diff. **Nenhuma
       baseline é apagada para o gate passar, e nenhuma é substituída por captura
       fabricada** — se uma tela deixou de existir, isso é um achado a reportar,
       não uma captura a inventar.
 
-- [ ] T068 Confirmar o check de T061 aprovando, e confirmar que ele volta a
+- [x] T068 Confirmar o check de T061 aprovando, e confirmar que ele volta a
       reprovar se um valor inventado for reintroduzido — testado reintroduzindo
       um e desfazendo.
 
-- [ ] T069 Registrar, para o relatório final, quais estados do domínio **nenhuma
+- [x] T069 Registrar, para o relatório final, quais estados do domínio **nenhuma
       fixture exercita**. É lacuna de cobertura a nomear, nunca valor a
       fabricar.
 
@@ -279,34 +279,34 @@ produto não fala. `make verify` verde.
 
 ## Phase 3: Uma resolução de handle, três chamadores
 
-- [ ] T028 Criar `gateway/http/credential_handles.py` com a função que responde
+- [x] T028 Criar `gateway/http/credential_handles.py` com a função que responde
       **qual handle** uma integração resolve: o time que detém a credencial,
       descoberto por leitura de metadado do vault; o handle org-wide quando
       ninguém a detém por time; e o handle org-wide, com a ambiguidade
       registrada nomeando a integração, quando mais de um time a detém. Nada
       aqui lê valor de credencial.
 
-- [ ] T029 Em `gateway/http/integration_access.py`, ligar o binding de
+- [x] T029 Em `gateway/http/integration_access.py`, ligar o binding de
       ferramentas pelo handle que a nova função resolve, em vez do literal
       org-wide. **Tarefa de composição**: fecha com a evidência de serving.
 
-- [ ] T030 Em `gateway/http/provider_credentials.py`, tirar o lease de provider
+- [x] T030 Em `gateway/http/provider_credentials.py`, tirar o lease de provider
       pelo handle que a nova função resolve. **Tarefa de composição**: fecha com
       a evidência de serving.
 
-- [ ] T031 Em `gateway/http/routes/integrations.py` e
+- [x] T031 Em `gateway/http/routes/integrations.py` e
       `gateway/http/routes/providers.py`, passar a resolver o handle pela mesma
       função, em vez de repetir a expressão do time do caller em cada rota.
 
-- [ ] T032 Registrar, por provider, de onde a credencial veio — vault ou
+- [x] T032 Registrar, por provider, de onde a credencial veio — vault ou
       ambiente — e sob qual time, na linha de log que a composição já emite.
       Nomes apenas. É o que torna a alegação auditável sem revelar segredo.
 
-- [ ] T033 Expor a ambiguidade de time na superfície que mostra a integração:
+- [x] T033 Expor a ambiguidade de time na superfície que mostra a integração:
       mais de um time detém credencial para ela, dito em uma frase, com as
       chaves de mensagem em en e pt-BR.
 
-- [ ] T034 Confirmar T014, T015 e T016 verdes, e confirmar que o gate que reprova
+- [x] T034 Confirmar T014, T015 e T016 verdes, e confirmar que o gate que reprova
       leitura direta de credencial fora do pacote de proxy continua passando sem
       exceção nova.
 

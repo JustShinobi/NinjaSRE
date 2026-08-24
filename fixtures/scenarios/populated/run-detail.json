@@ -11,7 +11,7 @@
         "report": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
         "run_id": "run-0001",
         "started_at": "2026-08-05T11:19:00+00:00",
-        "status": "succeeded",
+        "status": "completed",
         "summary": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
         "touched_resources": [
           "proxmox:container/hal9000/110"
@@ -40,7 +40,7 @@
         "report": "Quorum has no margin: two of two required votes, and the device in the membership view carries none.",
         "run_id": "run-0002",
         "started_at": "2026-08-06T09:00:00+00:00",
-        "status": "succeeded",
+        "status": "completed",
         "summary": "Quorum has no margin: two of two required votes, and the device in the membership view carries none.",
         "touched_resources": [],
         "trigger": "schedule"
@@ -121,7 +121,7 @@
         "report": "A remediation is proposed and is waiting for a decision.",
         "run_id": "run-0005",
         "started_at": "2026-08-07T11:38:00+00:00",
-        "status": "awaiting_approval",
+        "status": "suspended",
         "summary": "A remediation is proposed and is waiting for a decision.",
         "touched_resources": [
           "proxmox:container/hal9000/110",
@@ -205,7 +205,7 @@
         "report": "Memory pressure on the platform node exhausted the shared connection pool. The evidence gathered so far points at a slow leak in one long-running worker; the investigation could not confirm which one before its own budget ran out.",
         "run_id": "run-0102",
         "started_at": "2026-08-01T10:00:00+00:00",
-        "status": "partial",
+        "status": "completed",
         "summary": "Memory pressure on the platform node exhausted the shared connection pool. The evidence gathered so far points at a slow leak in one long-running worker; the investigation could not confirm which one before its own budget ran out.",
         "touched_resources": [],
         "trigger": "schedule"

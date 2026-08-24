@@ -71,6 +71,44 @@ async function dashboardWithRaisedFailure(): Promise<void> {
   render(await DashboardScreen(await surfaceContext({})));
 }
 
+/** Render the dashboard with a run list every one of which settled clean. */
+async function dashboardWithNothingButCleanFinishes(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURES_BASE).pathname;
+    if (path === '/v1/runs') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            runs: [
+              {
+                run_id: 'run-clean-1',
+                status: 'completed',
+                trigger: 'alert',
+                started_at: '2026-08-07T10:00:00.000Z',
+                finished_at: '2026-08-07T10:01:00.000Z',
+                summary: 'Nothing was wrong; the alert cleared on its own.',
+              },
+              {
+                run_id: 'run-clean-2',
+                status: 'completed',
+                trigger: 'manual',
+                started_at: '2026-08-07T09:00:00.000Z',
+                finished_at: '2026-08-07T09:01:00.000Z',
+                summary: 'A second investigation, also concluded cleanly.',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
 /** Render the populated dashboard with a deliberately mixed health summary. */
 async function dashboardWithHealthSummary(summary: unknown): Promise<void> {
   serveScenario('populated');
@@ -257,9 +295,44 @@ describe('an indicator of whether the agent itself is working', () => {
         figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
     );
     expect(successRate).toBeDefined();
-    // 4 succeeded (by role — "succeeded" and "completed" are one outcome
-    // under two spellings) of 7 settled runs in the populated dataset.
-    expect(successRate?.textContent).toContain('57');
+    // 5 succeeded (by role) of 7 settled runs in the populated dataset. The
+    // degraded run (run-0102) counts here too: the persistence store has no
+    // status word of its own for "finished, but the answer came from
+    // incomplete evidence" — it writes `completed` the same as a clean
+    // finish — so the run status this figure reads from carries no signal
+    // to withhold it on.
+    expect(successRate?.textContent).toContain('71');
+  });
+
+  it('shows no rate at all when nothing has settled yet', async () => {
+    // A deployment with no runs is where this page starts, not an edge case
+    // to tolerate — dividing zero by zero is not "0%", it is a figure with
+    // nothing behind it, and the em dash says so instead of a false number.
+    await dashboard('empty');
+
+    const figures = screen.getAllByTestId('figure');
+    const successRate = figures.find(
+      (figure) =>
+        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
+    );
+    expect(successRate).toBeDefined();
+    expect(successRate?.textContent).toContain('—');
+    expect(successRate?.getAttribute('href')).toBe('/runs');
+  });
+
+  it('sends the drill-down at /runs, not /runs?status=failed, when nothing failed', async () => {
+    // The failed-only filter is a shortcut to the runs that need attention.
+    // A deployment with none owes the operator the ordinary list, not a
+    // filtered one that would show nothing.
+    await dashboardWithNothingButCleanFinishes();
+
+    const figures = screen.getAllByTestId('figure');
+    const successRate = figures.find(
+      (figure) =>
+        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
+    );
+    expect(successRate?.textContent).toContain('100');
+    expect(successRate?.getAttribute('href')).toBe('/runs');
   });
 });
 

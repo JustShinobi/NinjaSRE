@@ -34,6 +34,7 @@ const FINGERPRINT_B =
 
 const LABELS: IntegrationPanelLabels = {
   close: 'Close',
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
   credential: {
     submit: 'Save and test',
     sending: 'Saving and testing…',
@@ -93,6 +94,7 @@ const LABELS: IntegrationPanelLabels = {
 function connected(): IntegrationPanelItem {
   return {
     name: 'proxmox',
+    credentialTeamAmbiguous: false,
     displayName: 'Proxmox VE',
     categoryLabel: 'Virtualisation',
     summary: 'Nodes, guests and datastores.',

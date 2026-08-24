@@ -35,10 +35,13 @@ from core.llm.credentials import (
     CredentialResolver,
     EnvironmentCredentialResolver,
     ProviderCredentials,
+    StaticCredentialResolver,
 )
 from core.llm.factory import reset_factory
+from gateway.http.credential_handles import resolve_credential_handle
 from gateway.http.credential_schemas import schema_for
-from platform.credentials.proxy.llm import provider_lease
+from platform.credentials.errors import CredentialNotConfigured
+from platform.credentials.handles import CredentialHandle
 from platform.credentials.proxy.resolution import CredentialResolver as VaultCredentialResolver
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.observability.logging import get_logger
@@ -78,27 +81,62 @@ def _schemas() -> CredentialSchemaRegistry:
 async def compose_provider_credentials(state: Any, *, org_id: str) -> None:
     """Point the model factory at this organisation's stored provider keys.
 
-    A failure to read the vault leaves the environment resolver in place and
-    says so. Refusing to boot over it would take away the console somebody would
-    fix the vault from, and the deployment that names its key in a manifest is
-    unaffected either way.
+    Each provider is leased by the handle it actually resolves to
+    (``resolve_credential_handle``), not the organisation-wide handle
+    unconditionally. A key an operator wrote under their own team's handle
+    used to verify green and then be invisible to every investigation,
+    because the boot-time lease never asked the vault which team held it —
+    it only ever asked for the organisation's. A failure to read the vault
+    leaves the environment resolver in place and says so. Refusing to boot
+    over it would take away the console somebody would fix the vault from,
+    and the deployment that names its key in a manifest is unaffected
+    either way.
     """
+    scope = TenantScope(org_id=org_id)
+    resolver = VaultCredentialResolver(gateway=state.gateway, schemas=_schemas())
+
+    leased: dict[str, dict[str, str]] = {}
+    origin_team: dict[str, str] = {}
     try:
-        lease = await provider_lease(
-            VaultCredentialResolver(gateway=state.gateway, schemas=_schemas()),
-            TenantScope(org_id=org_id),
-        )
+        for provider_id in SUPPORTED_PROVIDERS:
+            resolved = await resolve_credential_handle(
+                state.gateway, scope, integration=provider_id
+            )
+            if resolved.is_ambiguous:
+                logger.warning(
+                    "providers.lease_team_ambiguous",
+                    provider_id=provider_id,
+                    teams=list(resolved.ambiguous_teams),
+                )
+            handle = CredentialHandle(integration=provider_id, team_id=resolved.team_id)
+            try:
+                found = await resolver.resolve(scope, handle)
+            except CredentialNotConfigured:
+                continue
+            leased[provider_id] = dict(found.values)
+            origin_team[provider_id] = resolved.team_id
     except Exception as unreadable:  # noqa: BLE001 — the environment still answers
         logger.warning("providers.lease_unavailable", error=str(unreadable))
         return
 
-    held = [provider for provider in SUPPORTED_PROVIDERS if lease.resolve(provider).names]
+    environment = EnvironmentCredentialResolver()
     reset_factory(
-        credentials=VaultFirstCredentials(vault=lease, environment=EnvironmentCredentialResolver())
+        credentials=VaultFirstCredentials(
+            vault=StaticCredentialResolver(leased), environment=environment
+        )
     )
-    # The provider names, never a value. Which providers this deployment holds a
-    # key for is the fact an operator reading a boot log is looking for.
-    logger.info("providers.credentials_composed", providers=sorted(held))
+
+    # Names and origins only, never a value: which provider this deployment
+    # holds a key for, and where it came from — the vault, under which team,
+    # or the environment — is the fact an operator reading a boot log is
+    # looking for.
+    origins: dict[str, str] = {
+        provider_id: f"vault:{team_id}" for provider_id, team_id in origin_team.items()
+    }
+    for provider_id in SUPPORTED_PROVIDERS:
+        if provider_id not in origins and environment.resolve(provider_id).names:
+            origins[provider_id] = "environment"
+    logger.info("providers.credentials_composed", origins=origins)
 
 
 __all__ = ["VaultFirstCredentials", "compose_provider_credentials"]

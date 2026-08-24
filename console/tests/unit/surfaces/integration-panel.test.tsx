@@ -89,6 +89,7 @@ const LABELS: IntegrationPanelLabels = {
     unverifiedReasonLabel: 'Why',
     unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
   },
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -99,6 +100,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     summary: 'What is firing, grouped and silenced.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'token',
@@ -302,6 +304,44 @@ describe('a connected integration: state and actions, not an empty form', () => 
     expect(screen.getByTestId('credential')).toBeInTheDocument();
     expect(screen.queryByTestId('credential-connected')).toBeNull();
     expect(screen.queryByRole('button', { name: /^Disconnect/ })).toBeNull();
+  });
+});
+
+describe('more than one team holding this integration’s credential', () => {
+  it('says so, when the resolution found two teams', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ credentialTeamAmbiguous: true })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('panel-credential-team-ambiguous')).toHaveTextContent(
+      LABELS.credentialTeamAmbiguous,
+    );
+  });
+
+  it('says nothing at all when only one team, or none, holds it', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ credentialTeamAmbiguous: false })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('panel-credential-team-ambiguous')).toBeNull();
   });
 });
 

@@ -41,6 +41,7 @@ function panelItem(): IntegrationPanelItem {
     summary: 'Dashboards, folders, and the annotation timeline.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'token',
@@ -137,6 +138,8 @@ describe('the same phrase reaches both screens that ask for a credential', () =>
             unverifiedReasonLabel: 'Why',
             unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
           },
+          credentialTeamAmbiguous:
+            'More than one team holds a credential for this vendor.',
         }}
       />,
     );
