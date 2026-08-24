@@ -34,7 +34,11 @@ type Inline =
   | { readonly kind: 'strong'; readonly children: readonly Inline[] }
   | { readonly kind: 'em'; readonly children: readonly Inline[] }
   | { readonly kind: 'code'; readonly value: string }
-  | { readonly kind: 'link'; readonly href: string; readonly children: readonly Inline[] }
+  | {
+      readonly kind: 'link';
+      readonly href: string;
+      readonly children: readonly Inline[];
+    }
   | { readonly kind: 'image'; readonly alt: string };
 
 /** The only schemes a link in a report may navigate to. */
@@ -107,7 +111,10 @@ function parseInline(source: string): Inline[] {
       const end = source.indexOf(marker, cursor + 2);
       if (end !== -1 && end > cursor + 2) {
         flush();
-        nodes.push({ kind: 'strong', children: parseInline(source.slice(cursor + 2, end)) });
+        nodes.push({
+          kind: 'strong',
+          children: parseInline(source.slice(cursor + 2, end)),
+        });
         cursor = end + 2;
         continue;
       }
@@ -117,7 +124,10 @@ function parseInline(source: string): Inline[] {
       const end = source.indexOf(ch, cursor + 1);
       if (end !== -1 && end > cursor + 1) {
         flush();
-        nodes.push({ kind: 'em', children: parseInline(source.slice(cursor + 1, end)) });
+        nodes.push({
+          kind: 'em',
+          children: parseInline(source.slice(cursor + 1, end)),
+        });
         cursor = end + 1;
         continue;
       }
@@ -169,9 +179,17 @@ function parseInline(source: string): Inline[] {
 // --- The block tree -----------------------------------------------------------
 
 type Block =
-  | { readonly kind: 'heading'; readonly level: 1 | 2 | 3 | 4 | 5 | 6; readonly inline: Inline[] }
+  | {
+      readonly kind: 'heading';
+      readonly level: 1 | 2 | 3 | 4 | 5 | 6;
+      readonly inline: Inline[];
+    }
   | { readonly kind: 'paragraph'; readonly inline: Inline[] }
-  | { readonly kind: 'list'; readonly ordered: boolean; readonly items: readonly Inline[][] }
+  | {
+      readonly kind: 'list';
+      readonly ordered: boolean;
+      readonly items: readonly Inline[][];
+    }
   | {
       readonly kind: 'table';
       readonly header: readonly Inline[][];
@@ -249,7 +267,11 @@ function parseBlocks(source: string): Block[] {
       const header = splitTableRow(line);
       index += 2;
       const rows: Inline[][][] = [];
-      while (index < lines.length && (lines[index] ?? '').includes('|') && (lines[index] ?? '').trim() !== '') {
+      while (
+        index < lines.length &&
+        (lines[index] ?? '').includes('|') &&
+        (lines[index] ?? '').trim() !== ''
+      ) {
         rows.push(splitTableRow(lines[index] ?? ''));
         index += 1;
       }
@@ -264,7 +286,10 @@ function parseBlocks(source: string): Block[] {
         quoteLines.push(captured?.[1] ?? '');
         index += 1;
       }
-      blocks.push({ kind: 'blockquote', inline: parseInline(quoteLines.join(' ').trim()) });
+      blocks.push({
+        kind: 'blockquote',
+        inline: parseInline(quoteLines.join(' ').trim()),
+      });
       continue;
     }
 
@@ -295,7 +320,10 @@ function parseBlocks(source: string): Block[] {
       paragraphLines.push(lines[index] ?? '');
       index += 1;
     }
-    blocks.push({ kind: 'paragraph', inline: parseInline(paragraphLines.join(' ').trim()) });
+    blocks.push({
+      kind: 'paragraph',
+      inline: parseInline(paragraphLines.join(' ').trim()),
+    });
   }
   return blocks;
 }
@@ -327,7 +355,10 @@ function renderInline(nodes: readonly Inline[], keyPrefix: string): ReactNode {
         return <em key={key}>{renderInline(node.children, key)}</em>;
       case 'code':
         return (
-          <code key={key} className="rounded-1 bg-surface-sunken px-1 font-mono text-meta">
+          <code
+            key={key}
+            className="rounded-1 bg-surface-sunken px-1 font-mono text-meta"
+          >
             {node.value}
           </code>
         );
@@ -354,7 +385,8 @@ function renderInline(nodes: readonly Inline[], keyPrefix: string): ReactNode {
 function renderBlock(block: Block, key: string): ReactNode {
   switch (block.kind) {
     case 'heading': {
-      const Heading = `h${String(block.level)}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+      const Heading = `h${String(block.level)}` as
+        'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
       return (
         <Heading key={key} className={HEADING_CLASS[block.level]}>
           {renderInline(block.inline, key)}
@@ -372,10 +404,14 @@ function renderBlock(block: Block, key: string): ReactNode {
       return (
         <List
           key={key}
-          className={block.ordered ? 'list-decimal pl-5 text-small' : 'list-disc pl-5 text-small'}
+          className={
+            block.ordered ? 'list-decimal pl-5 text-small' : 'list-disc pl-5 text-small'
+          }
         >
           {block.items.map((item, index) => (
-            <li key={`${key}-${String(index)}`}>{renderInline(item, `${key}-${String(index)}`)}</li>
+            <li key={`${key}-${String(index)}`}>
+              {renderInline(item, `${key}-${String(index)}`)}
+            </li>
           ))}
         </List>
       );
@@ -401,8 +437,14 @@ function renderBlock(block: Block, key: string): ReactNode {
               {block.rows.map((row, rowIndex) => (
                 <tr key={`${key}-r-${String(rowIndex)}`}>
                   {row.map((cell, cellIndex) => (
-                    <td key={`${key}-r-${String(rowIndex)}-${String(cellIndex)}`} className="py-1 pr-3">
-                      {renderInline(cell, `${key}-r-${String(rowIndex)}-${String(cellIndex)}`)}
+                    <td
+                      key={`${key}-r-${String(rowIndex)}-${String(cellIndex)}`}
+                      className="py-1 pr-3"
+                    >
+                      {renderInline(
+                        cell,
+                        `${key}-r-${String(rowIndex)}-${String(cellIndex)}`,
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -413,7 +455,10 @@ function renderBlock(block: Block, key: string): ReactNode {
       );
     case 'code':
       return (
-        <div key={key} className="w-full overflow-x-auto rounded-2 bg-surface-sunken p-3">
+        <div
+          key={key}
+          className="w-full overflow-x-auto rounded-2 bg-surface-sunken p-3"
+        >
           <pre className="text-meta font-mono whitespace-pre">{block.text}</pre>
         </div>
       );
@@ -450,7 +495,10 @@ export interface ReportProps {
 export function Report({ text }: ReportProps): ReactNode {
   const blocks = parseBlocks(text);
   return (
-    <div data-testid="report" className="flex max-h-prose flex-col gap-3 overflow-y-auto">
+    <div
+      data-testid="report"
+      className="flex max-h-prose flex-col gap-3 overflow-y-auto"
+    >
       {blocks.map((block, index) => renderBlock(block, `block-${String(index)}`))}
     </div>
   );

@@ -43,7 +43,12 @@ export type RunStatus = (typeof RUN_STATUSES)[number];
  * waiting on a person, which is as much "not finished" as one still taking
  * tool calls.
  */
-const LIVE_RUN_STATUSES: readonly string[] = ['queued', 'running', 'waiting', 'awaiting_approval'];
+const LIVE_RUN_STATUSES: readonly string[] = [
+  'queued',
+  'running',
+  'waiting',
+  'awaiting_approval',
+];
 
 /** Every word that means a run has finished and will not change again. */
 const SETTLED_RUN_STATUSES: readonly string[] = [

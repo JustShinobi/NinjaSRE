@@ -227,7 +227,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       id: `run-${id}`,
       kind: 'run',
       kindLabel: message(locale, 'runs.list.title'),
-      outcome: FAILED.has(status) ? 'danger' : roleFor(status) === 'success' ? 'success' : 'info',
+      outcome: FAILED.has(status)
+        ? 'danger'
+        : roleFor(status) === 'success'
+          ? 'success'
+          : 'info',
       title: subjectOf(record, locale).text,
       detail: said.technical === '' ? status : said.action,
       href: `/runs/${id}`,

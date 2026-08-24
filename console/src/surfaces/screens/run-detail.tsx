@@ -496,7 +496,9 @@ export async function RunDetailScreen(
                 ? 'error'
                 : stateOf(detail, linksEmpty && !failedBeforeStart)
             }
-            dependency={linksReadFailed ? dependencyOf(incidents) : dependencyOf(detail)}
+            dependency={
+              linksReadFailed ? dependencyOf(incidents) : dependencyOf(detail)
+            }
             labels={panelLabels(locale, message(locale, 'run.links.title'))}
             empty={{
               heading: message(locale, 'run.links.empty.heading'),
