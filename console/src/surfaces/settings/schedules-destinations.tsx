@@ -9,6 +9,7 @@ import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { AdvancedConfigSection } from '../advanced-config-section';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel, type PanelEmpty } from '../panel';
 import {
@@ -290,7 +291,7 @@ async function destinationsSection(context: SurfaceContext): Promise<ReactNode> 
     panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
     readSetupState(credential),
   ]);
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
 
   const destinationRows = list(dataOf(destinations), 'destinations');
   const ledger = rowsOf(dataOf(deliveries));

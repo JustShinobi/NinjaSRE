@@ -159,7 +159,14 @@ describe('an empty queue that says why', () => {
       '/v1/approvals': { approvals: [] },
       '/v1/setup/checklist': {
         complete: false,
-        steps: [{ name: 'model-provider', state: 'ready' }],
+        steps: [
+          { name: 'model-provider', state: 'ready' },
+          {
+            name: 'first-investigation',
+            state: 'blocked',
+            title: 'Run your first investigation',
+          },
+        ],
       },
       '/v1/config': EMPTY_TREE,
       '/v1/config/org-northwind': {

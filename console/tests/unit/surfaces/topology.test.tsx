@@ -46,15 +46,20 @@ const PRINCIPAL = {
   impersonated_by: null,
 };
 
-/** A checklist that still has outstanding steps: no provider stored. */
+/** A checklist that still has outstanding steps: no provider stored, and no
+ * investigation has completed — the step this screen's own cause depends on. */
 const SETUP_INCOMPLETE = {
   complete: false,
   provider: 'absent',
   integrations: [],
-  // At least one step not done, so the count this deployment reports is
-  // actually outstanding — an empty array is not a shape the real checklist
-  // route ever answers with.
-  steps: [{ name: 'model-provider', state: 'ready' }],
+  steps: [
+    { name: 'model-provider', state: 'ready' },
+    {
+      name: 'first-investigation',
+      state: 'blocked',
+      title: 'Run your first investigation',
+    },
+  ],
 };
 
 /** A checklist with nothing left to do. */
@@ -144,7 +149,8 @@ describe('no topology recorded for this node', () => {
 
     const [panel] = panels();
     expect(panel).toHaveTextContent(/still being set up/);
-    expect(panel).toHaveTextContent(/investigations cannot run until they are done/);
+    expect(panel).toHaveTextContent('Run your first investigation');
+    expect(panel).not.toHaveTextContent(/cannot run until/i);
     expect(panel).not.toHaveTextContent(
       'The graph is built from what investigations observe',
     );

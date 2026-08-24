@@ -10,6 +10,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { AdvancedConfigSection } from '../advanced-config-section';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -86,7 +87,7 @@ export async function DocumentsTab(context: SurfaceContext): Promise<ReactNode> 
     ),
     readSetupState(credential),
   ]);
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
   const records = list(dataOf(documents), 'documents');
 
   function kindOf(record: unknown): string {

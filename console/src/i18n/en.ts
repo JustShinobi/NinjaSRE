@@ -795,7 +795,7 @@ export const EN = {
   // is that "nothing is wrong" and "nothing is watching" must stop rendering
   // identically, because they are opposite situations.
   'empty.cause.setup':
-    'Nothing has happened here yet because this deployment is still being set up — {count} step(s) are outstanding, and investigations cannot run until they are done.',
+    'Nothing has happened here yet because this deployment is still being set up — the next step is "{step}".',
   'empty.cause.setup.action': 'Finish setting up',
   'empty.cause.watching':
     'No detector is switched on, so nothing is being watched and nothing will open by itself.',

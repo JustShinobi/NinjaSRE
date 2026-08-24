@@ -607,7 +607,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':
-    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
+    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — o próximo passo é "{step}".',
   'empty.cause.setup.action': 'Terminar a configuração',
   'empty.cause.watching':
     'Nenhum detector está ligado, portanto nada está sendo observado e nada se abrirá sozinho.',

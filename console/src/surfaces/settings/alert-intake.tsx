@@ -16,6 +16,7 @@ import {
 } from '../advanced-config-section';
 import { CopyAction, CopyValue } from '../screens/data-copy';
 import { emptyBecause, readSetupState, setupCause, type Cause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { DeliveryToken } from '../ingress';
 import { panelLabels } from '../labels';
@@ -871,7 +872,7 @@ export async function AlertIntakeScreen(context: SurfaceContext): Promise<ReactN
         setup={setup}
         requested={requestedSetupReturn(search.get('return'))}
       />
-      {await content(context, setupCause(locale, setup))}
+      {await content(context, setupCause(locale, setup, INVESTIGATION_STEP))}
     </>
   );
 }
