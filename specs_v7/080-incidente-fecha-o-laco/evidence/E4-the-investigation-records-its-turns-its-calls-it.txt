@@ -1,0 +1,132 @@
+# E4 — the investigation records its turns, its calls, its evidence and its cost
+# collected at 2026-08-24T08:35:49.064035+00:00
+# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+
+## turns — the run recorded turns, read back from the store rather than the process
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS run_turns
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+ run_turns 
+-----------
+         5
+(1 row)
+
+
+--- end of output ---
+
+
+## tool-calls — the run recorded the capability calls it made
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS tool_calls
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+ tool_calls 
+------------
+          4
+(1 row)
+
+
+--- end of output ---
+
+
+## evidence — the run recorded the observations it cited
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS evidence_rows
+FROM evidence
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+ evidence_rows 
+---------------
+             0
+(1 row)
+
+
+--- end of output ---
+
+
+## trace-events — the run's own log exists beside the counts above
+## before the wave: 73 for the whole instance, across 37 completed runs
+
+SELECT count(*) AS trace_events
+FROM trace_events
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+ trace_events 
+--------------
+           12
+(1 row)
+
+
+--- end of output ---
+
+
+## cost-per-turn — cost is recorded turn by turn, and an unpriced turn is empty rather than nought
+## before the wave: no turn was recorded at all, so no cost could be
+
+-- An unpriced turn carries an empty usage document rather than a zero.
+-- The difference is the whole point of reading this turn by turn.
+SELECT "index",
+       started_at,
+       finished_at,
+       usage
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341'
+ORDER BY "index";
+
+--- output ---
+ index |          started_at           |          finished_at          |                                                 usage                                                  
+-------+-------------------------------+-------------------------------+--------------------------------------------------------------------------------------------------------
+     1 | 2026-08-24 08:33:35.393403+00 | 2026-08-24 08:33:42.921586+00 | {"model": "gemini-flash-latest", "duration_ms": 7528, "prompt_tokens": 4924, "completion_tokens": 12}
+     2 | 2026-08-24 08:33:42.972326+00 | 2026-08-24 08:33:44.67368+00  | {"model": "gemini-flash-latest", "duration_ms": 1701, "prompt_tokens": 8659, "completion_tokens": 28}
+     3 | 2026-08-24 08:33:44.709258+00 | 2026-08-24 08:33:48.303571+00 | {"model": "gemini-flash-latest", "duration_ms": 3594, "prompt_tokens": 9012, "completion_tokens": 24}
+     4 | 2026-08-24 08:33:48.329015+00 | 2026-08-24 08:33:51.811266+00 | {"model": "gemini-flash-latest", "duration_ms": 3482, "prompt_tokens": 9217, "completion_tokens": 24}
+     5 | 2026-08-24 08:33:51.845811+00 | 2026-08-24 08:34:00.088676+00 | {"model": "gemini-flash-latest", "duration_ms": 8242, "prompt_tokens": 5023, "completion_tokens": 303}
+(5 rows)
+
+
+--- end of output ---
+
+
+## what-each-call-returned — each call carries what it returned, in the order it was recorded
+## before the wave: no row
+
+-- Ordered by the sequence the recorder assigned, not by time. Two calls in one
+-- concurrent batch routinely share a microsecond.
+SELECT recorded_seq,
+       tool_name,
+       status,
+       started_at,
+       finished_at,
+       error
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341'
+ORDER BY recorded_seq;
+
+--- output ---
+ recorded_seq |        tool_name         |  status   | started_at | finished_at |                                                                                        error                                                                                        
+--------------+--------------------------+-----------+------------+-------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            0 | prometheus_active_alerts | succeeded |            |             | 
+            1 | query_service_topology   | failed    |            |             | Service topology is not configured for this deployment. Continue the investigation without it, and do not treat the absence of dependencies as evidence that this service has none.
+            2 | logs_for_resource        | failed    |            |             | this deployment has no log source configured, so nothing was read. An absence from a system nobody pointed at is not evidence that the resource was quiet.
+            3 | search_knowledge_base    | failed    |            |             | The knowledge base is not configured for this deployment, so no runbook or procedure could be consulted. Treat this as no documentation being reachable, not as none existing.
+(4 rows)
+
+
+--- end of output ---
+

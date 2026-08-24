@@ -1,0 +1,55 @@
+# E5 — the sentence naming the run is not the document
+# collected at 2026-08-24T08:35:49.064035+00:00
+# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+
+## sentence-and-document — the sentence does not open with markdown syntax, and the document still does
+## before the wave: every recent summary opened with ###, and no separate sentence existed
+
+-- The proof is that the first column does not open with markdown syntax while
+-- the second still does. One sentence, one document, two fields.
+SELECT headline,
+       left(summary, 120) AS summary_opens_with,
+       status,
+       finished_at
+FROM agent_runs
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+                                           headline                                            |         summary_opens_with         |  status   |          finished_at          
+-----------------------------------------------------------------------------------------------+------------------------------------+-----------+-------------------------------
+ Blackbox HTTP probes to homepage.lan.kyo.ninja are failing with probe success returning zero. | ### Investigation Report          +| completed | 2026-08-24 08:34:00.108103+00
+                                                                                               |                                   +|           | 
+                                                                                               | #### Findings & Observations      +|           | 
+                                                                                               | 1. **Blackbox Probe Failure**:    +|           | 
+                                                                                               |    - Prometheus active alert inspe |           | 
+(1 row)
+
+
+--- end of output ---
+
+
+## headline-coverage — how much of this deployment's history predates the sentence column; a run backfilled with an empty one is the case the read path has to synthesise a name for, and the likeliest reason a screen rule holds against a fixture and fails against real history
+## before the wave: every run, because the column did not exist
+
+-- How many runs carry a sentence of their own, and how many were written before
+-- the column existed. A run backfilled with an empty sentence is the one case
+-- where the read path has to synthesise a name, and it is the likeliest reason
+-- for a screen rule to hold against a fixture and fail against real history.
+SELECT count(*) AS runs,
+       count(*) FILTER (WHERE headline = '') AS without_a_sentence,
+       count(*) FILTER (WHERE summary LIKE '#%') AS document_opens_with_syntax,
+       min(started_at) AS oldest,
+       max(started_at) AS newest
+FROM agent_runs
+WHERE org_id = 'default';
+
+--- output ---
+ runs | without_a_sentence | document_opens_with_syntax |            oldest             |            newest             
+------+--------------------+----------------------------+-------------------------------+-------------------------------
+  210 |                145 |                        180 | 2026-08-22 11:42:33.090252+00 | 2026-08-24 08:34:00.659119+00
+(1 row)
+
+
+--- end of output ---
+

@@ -364,3 +364,84 @@ execução, que é a única ordem em que ele prova alguma coisa.
 
 O que ainda falta medir, comando por comando, está na seção final de
 `specs_v7/080-incidente-fecha-o-laco/controle.md`.
+
+---
+
+## S2 a S5 — as sete features restantes · 2026-08-24
+
+Escrito depois do fato, e a demora é ela mesma um achado: este arquivo parou no
+S1 enquanto a onda avançava até o fim, e uma auditoria independente teve de
+usar os `controle.md`, o `tasks.md` e o código como fonte porque os dois
+documentos "de verdade" da onda estavam desatualizados. Um confronto escrito
+tarde é melhor que nenhum e pior que um escrito no fechamento de cada slot.
+
+### O placar
+
+| | início | fim |
+|---|---|---|
+| Entradas de allowlist transversal | 10 | **0** |
+| Integrações em paridade total | 15 declaradas, 28 e 29 campos vazios | **15/15, campos completos** |
+| `run_turns` / `tool_calls` / `evidence` | 0 / 0 / 0, com 37 investigações | **gravando** |
+| Cabeças de migração | 1 | 1, agora com 19 revisões |
+
+### O que cada feature provou
+
+| Feature | O que fechou | Quem constrói em produção |
+|---|---|---|
+| Leitura do relato | Manchete é sentença, documento é documento, transcript e custo reais | O console consome `headline`/`report`; o renderizador é um só, sanitizado |
+| Identidade endereçável | Endereço curto e opaco, decodificado uma vez na borda | Derivado ao abrir o incidente; backfill por migração |
+| Uma fonte por fato | Prontidão do provedor lida do ledger de verificação; causa de vazio por tela | A listagem e o checklist calculam pela mesma função — não podem discordar |
+| Decisão composta | Os dois portões construídos na composition root | `RemediationDesk.gate_for`, com dois chamadores reais |
+| Primeiro administrador | Caminhos de credencial de 0 para 3 sem ler código-fonte | `ninjasre setup admin`, e a troca da credencial de boot |
+| Catálogo | `min_scope` 21/21 secretos, `guide_url` 40/40, docs servido por rota | O gate reprova campo sem guia, nomeando vendor e campo |
+| Confiança de certificado | Fingerprint pinado até o egress; três mensagens distintas; formulário com portão de permissão | Recusa dentro do `connect()`, antes de um byte — não é hook, então não falha aberta |
+| Incidente fecha o laço | Coletor de 23 consultas e três runbooks | Instrumento, não afirmação: a demo é executada, não descrita |
+
+### O laço, medido no ambiente real
+
+O coletor rodou contra o banco de staging: **23 consultas, zero falhas**.
+
+- **Lê**: a investigação grava — `run_turns = 5` onde a linha de base da onda
+  era zero em 37 investigações concluídas. A manchete é uma sentença limpa
+  onde todo resumo recente abria com `###`.
+- **Age**: as estações de proposta e de execução devolvem **zero linhas**. Não
+  é defeito e está gravado como o "antes" correto: a metade que age só se
+  exercita quando um alerta pede ação ou quando alguém roda a demo.
+
+### O defeito que um sinal verde escondia
+
+O deployment esteve em `CrashLoopBackOff` por treze reinícios enquanto o Argo
+reportava `Synced/Healthy` — porque `Synced` diz que o cluster é o que o Git
+pediu, não que a aplicação subiu. O pod anterior ao merge continuava servindo,
+então tudo parecia bem.
+
+A causa: uma migração escreve `NULL` numa coluna que ainda é `NOT NULL`, com o
+`alter` **depois** do `update` em vez de antes. Só falha onde existe ao menos
+uma linha com o valor vazio — o banco real tem exatamente uma, e o banco de
+teste não tinha nenhuma. O erro no log é o destravamento seguinte, não a causa.
+
+**Três medições desta onda mediram o alvo errado**: o log de um pod que não era
+o certo, um `tee` que mascarou o código de saída de um gate, e o `Synced` acima.
+As três produziram um número verde sobre a coisa errada. A pergunta que passa a
+ser obrigatória antes de registrar qualquer medição: **de qual processo veio
+este número?**
+
+### O que fica aberto, nomeado
+
+- **A demo não foi executada.** Runbooks, coletor e gabarito estão de pé; as
+  estações de ação esperam a execução com um humano no meio.
+- Baselines visuais das telas reformadas: recapturar e aceitar é revisão
+  humana.
+- Prova contra um stack de compose real, para o primeiro administrador.
+- O seam de credencial de time segue aberto: as ferramentas resolvem org-wide
+  enquanto a verificação profunda já recebe o time do chamador.
+- Um envelope de erro que os couriers antigos não leem — o servidor responde
+  `{"error":{"message":…}}` e eles procuram `detail`, então mostram refusal sem
+  a frase.
+
+### Quem constrói isso em produção?
+
+A coluna que a auditoria de regras exigiu, respondida por feature na tabela
+acima. Onde a resposta honesta era "ninguém ainda", ela foi escrita assim: o
+pipeline por estágios declara-se dormente **nomeando o que o ligaria**, em vez
+de fingir que está composto.

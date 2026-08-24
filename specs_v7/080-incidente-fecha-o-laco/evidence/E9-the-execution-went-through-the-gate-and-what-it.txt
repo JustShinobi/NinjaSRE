@@ -1,0 +1,29 @@
+# E9 — the execution went through the gate, and what it produced was recorded
+# collected at 2026-08-24T08:35:49.064035+00:00
+# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+
+## outcome — the execution produced a recorded outcome for this resource — a named failure is an outcome, a silent one is not
+## before the wave: no row
+## NOT COLLECTED: this query needs --resource, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## episode — what a later investigation would be told about this one
+## before the wave: no row for a run
+
+SELECT episode_id,
+       title,
+       outcome,
+       occurred_at,
+       components
+FROM episodes
+WHERE org_id = 'default'
+  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+
+--- output ---
+ episode_id | title | outcome | occurred_at | components 
+------------+-------+---------+-------------+------------
+(0 rows)
+
+
+--- end of output ---
+
