@@ -34,6 +34,7 @@ memory for the run's identity.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -52,7 +53,7 @@ from core.capability.ports import ConfiguredIntegrations, IntegrationAvailabilit
 from core.capability.registered import RegisteredTool
 from core.llm.types import LLMClient
 from core.pipeline.build import investigation_hooks
-from core.pipeline.ports import IncidentSignals
+from core.pipeline.ports import IncidentSignals, RankedCapability
 from core.pipeline.stages.resolve_integrations import zero_integration_outcome
 from core.state.catalogue import ResolvedCapabilities
 from core.state.types import InvestigationOutcome
@@ -221,7 +222,9 @@ class ReActInvestigationRunner:
         if selection.outcome is not None:
             return _outcome_summary(selection.outcome)
 
-        loop = self._build_runtime(request, messages=queue, tools=selection.tools)
+        loop = self._build_runtime(
+            request, messages=queue, tools=selection.tools, rationale=selection.rationale
+        )
         live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
         self._live[request.run_id] = live
 
@@ -364,6 +367,7 @@ class ReActInvestigationRunner:
         *,
         messages: MessageQueue,
         tools: tuple[RegisteredTool, ...],
+        rationale: str = "",
     ) -> ReActLoop:
         """Return the canonical loop, carrying at most the tools the model may hold."""
         hooks = investigation_hooks(recorder=self._recording_hook_for(request))
@@ -373,7 +377,13 @@ class ReActInvestigationRunner:
             # that decides whether a tool call may happen at all, which is why
             # a write cannot reach a capability body by any other route.
             self._remediation.gate_for(self._run_context(request)).register(hooks)
-        return ReActLoop(llm=self.llm, tools=tools, hooks=hooks, messages=messages)
+        return ReActLoop(
+            llm=self.llm,
+            tools=tools,
+            hooks=hooks,
+            messages=messages,
+            selection_rationale=rationale,
+        )
 
     def _recording_hook_for(self, request: InvestigationStart) -> RunTraceRecordingHook | None:
         """Return this investigation's own recording hook, or ``None`` when unattached.
@@ -443,13 +453,20 @@ class ReActInvestigationRunner:
         )
 
         selected: list[RegisteredTool] = []
+        cut: list[str] = []
         for entry in ranked:
-            if len(selected) >= MAX_AGENT_TOOL_SCHEMAS:
-                break
             found = offered.get(entry.name)
-            if found is not None:
-                selected.append(found)
-        return _Selection(tools=tuple(selected), outcome=None)
+            if found is None:
+                continue
+            if len(selected) >= MAX_AGENT_TOOL_SCHEMAS:
+                cut.append(f"{entry.name} ({entry.score:.3g})")
+                continue
+            selected.append(found)
+        return _Selection(
+            tools=tuple(selected),
+            outcome=None,
+            rationale=_selection_rationale(ranked, chosen=selected, cut=cut),
+        )
 
     async def _availability(self, request: InvestigationStart) -> IntegrationAvailability:
         """Return what this run's team has, reading silence as the strictest posture.
@@ -542,6 +559,43 @@ class _Selection:
 
     tools: tuple[RegisteredTool, ...]
     outcome: InvestigationOutcome | None
+    #: Why these were the ones on offer, in the scorer's own words, plus what
+    #: the ceiling cut. Carried rather than logged: an operator asking why a
+    #: capability was missing from a run is asking about that run, and a line
+    #: in a process log has already scrolled past by the time they ask.
+    rationale: str = ""
+
+
+def _selection_rationale(
+    ranked: Sequence[RankedCapability],
+    *,
+    chosen: Sequence[RegisteredTool],
+    cut: Sequence[str],
+) -> str:
+    """Return why these capabilities were offered and what the ceiling cut.
+
+    Both halves, because only together do they answer the question an operator
+    actually arrives with. "These were offered" does not distinguish a
+    capability that scored badly from one that scored well and lost to the
+    ceiling, and those have opposite fixes: the first is a declaration whose
+    use cases do not describe the incident, the second is a budget too small
+    for a deployment this well connected.
+
+    Scores are the scorer's own, not a re-derivation. A rationale computed a
+    second way is a second opinion, and the day the two disagree the record
+    stops being evidence.
+    """
+    by_name = {entry.name: entry for entry in ranked}
+    lines = [f"ranked {len(ranked)}, offered {len(chosen)}, cut by the ceiling {len(cut)}"]
+    for registered in chosen:
+        entry = by_name.get(registered.name)
+        if entry is None:
+            continue
+        why = "; ".join(entry.rationale) if entry.rationale else "no term matched"
+        lines.append(f"+ {registered.name} ({entry.score:.3g}): {why}")
+    if cut:
+        lines.append("cut by the ceiling, highest first: " + ", ".join(cut))
+    return "\n".join(lines)
 
 
 def _uncarried(found: RegisteredTool) -> ExcludedCapability:

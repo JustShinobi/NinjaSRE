@@ -365,3 +365,60 @@ async def test_the_alert_source_is_suggested_first(
     assert lowered.index("loki") < (
         lowered.index("prometheus") if "prometheus" in lowered else len(lowered)
     ), f"the outcome suggested an integration before the one matching the alert source: {summary!r}"
+
+
+async def test_the_selection_says_why_these_capabilities_were_the_ones_on_offer(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A run must be able to answer why a capability was missing from it.
+
+    Recording what was offered cannot distinguish "it scored badly" from "it
+    scored well and lost to the ceiling", and those have opposite fixes: one is
+    a declaration whose use cases do not describe the incident, the other is a
+    budget too small for a deployment this well connected.
+
+    Measured against a real deployment before this was wired: the field meant to
+    carry this held the model's own message text, so it read empty on every turn
+    that only emitted tool calls and read like a report on the turn that wrote
+    prose. An operator opening it to ask why an action was absent found either
+    nothing, or the answer to a question they had not asked.
+
+    That the recorder stores this field rather than the model's text is the
+    sibling of this test, in `tests/unit/platform/runs/test_recording.py`. This
+    one is about the half above it: that a selection produces the sentence at
+    all, and that it names both what survived and what the ceiling took.
+
+    The ceiling is lowered to one so both halves fit in a small case.
+    """
+    _connected(monkeypatch, "loki", "prometheus")
+    monkeypatch.setattr(module, "MAX_AGENT_TOOL_SCHEMAS", 1)
+
+    runner = ReActInvestigationRunner(
+        llm=_SilentLLM(),  # type: ignore[arg-type]
+        registry=_catalogue(PROMETHEUS_READ, LOKI_READ),
+    )
+    selection = await runner._select_tools(  # noqa: SLF001
+        InvestigationStart(
+            run_id="run-rationale",
+            objective="prometheus is reporting checkout saturating its replicas",
+            team_node_id=TEAM,
+            principal_id="ana",
+            org_id=ORG,
+            alert_source="prometheus",
+        ),
+        handoff=runner._handoff_for(  # noqa: SLF001
+            InvestigationStart(
+                run_id="run-rationale",
+                objective="x",
+                team_node_id=TEAM,
+                principal_id="ana",
+                org_id=ORG,
+            )
+        ),
+    )
+
+    assert selection.rationale, "the selection carries no reason for what it offered"
+    assert "offered 1" in selection.rationale, selection.rationale
+    assert "cut by the ceiling" in selection.rationale, (
+        f"a capability lost to the ceiling and the record does not say so: {selection.rationale!r}"
+    )

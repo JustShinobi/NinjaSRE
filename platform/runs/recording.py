@@ -149,7 +149,7 @@ class RunTraceRecordingHook:
             completion_tokens=tokens.output_tokens if tokens is not None else 0,
             cost=usage.cost_usd if usage is not None else None,
             duration_ms=int(turn.duration_seconds * 1_000),
-            selection_rationale=turn.rationale,
+            selection_rationale=turn.selection_rationale,
             offered_capabilities=turn.offered_capabilities,
             started_at=turn.started_at,
             finished_at=finished_at,

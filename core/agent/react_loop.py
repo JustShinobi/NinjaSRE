@@ -124,6 +124,7 @@ class ReActLoop:
         limits: ModelLimits = UNMEASURED_LIMITS,
         clock: Callable[[], float] = time.monotonic,
         session_ids: Callable[[], str] | None = None,
+        selection_rationale: str = "",
     ) -> None:
         # The cap is on what a turn carries, so the two schemas the loop adds
         # for itself count against it. Checking only the selected capabilities
@@ -139,6 +140,10 @@ class ReActLoop:
             )
 
         self._llm = llm
+        # Held rather than derived: the loop cannot recompute why it was handed
+        # these schemas, and a turn recorded without it cannot tell a capability
+        # that scored badly from one the ceiling cut.
+        self._selection_rationale = selection_rationale
         self._tools = {registered.name: registered for registered in tools}
         if handoff_channel is not None:
             asking = handoff_tool(handoff_channel)
@@ -790,6 +795,7 @@ class ReActLoop:
             duration_seconds=self._clock() - started,
             offered_capabilities=offered,
             rationale=result.text,
+            selection_rationale=self._selection_rationale,
             provider_id=result.provider_id,
             model_id=result.model_id,
             finish_reason=result.finish_reason,

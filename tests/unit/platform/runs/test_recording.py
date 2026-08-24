@@ -52,7 +52,10 @@ class TestTheAdapterWritesATurn:
             offered_capabilities=("kubernetes.list_pods", "loki.query"),
             provider_id="anthropic",
             model_id="claude-opus-5",
-            rationale="the alert names a Kubernetes workload",
+            # A selection rationale, which is what its own wording always was.
+            # It sat in `rationale` because the field that means this did not
+            # exist yet, and the seam below carried it as if the two were one.
+            selection_rationale="the alert names a Kubernetes workload",
             duration_seconds=1.8,
             usage=UsageRecord(
                 provider_id="anthropic",
@@ -287,3 +290,35 @@ class TestAWriteFailureDoesNotInterruptTheInvestigation:
         assert len(failures) == 1
         assert failures[0].hook == "run_trace_recorder"
         assert "unreachable" in failures[0].error
+
+
+def test_the_recorded_selection_rationale_is_the_selection_s_and_not_the_model_s_text(
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+) -> None:
+    """Two different facts must not travel on one wire.
+
+    The recorder documents ``selection_rationale`` as the half of a turn nobody
+    can reconstruct: *why those capabilities were the ones on offer*. The loop's
+    own ``rationale`` is a different fact — what the model said while it worked —
+    and it is useful in its own right.
+
+    Wiring the second into the first is not merely a wrong label. It makes the
+    field read empty on every turn that only emitted tool calls, and read like a
+    report on the turn that wrote prose, so an operator who opens it to ask why
+    a capability was missing finds either nothing or the answer to a question
+    they did not ask. Measured on a real investigation against staging: empty,
+    empty, empty, empty, then the whole summary.
+    """
+    hook = RunTraceRecordingHook(gateway=gateway, scope=scope, run_id="run-1")
+    turn = Turn(
+        index=1,
+        offered_capabilities=("prometheus_active_alerts",),
+        rationale="I will check the firing alerts first.",
+        selection_rationale="prometheus_active_alerts: alert source 'alertmanager' matches",
+    )
+
+    recorded = hook._recorded_turn(turn)  # noqa: SLF001
+
+    assert recorded.selection_rationale.startswith("prometheus_active_alerts:")
+    assert "firing alerts first" not in recorded.selection_rationale
