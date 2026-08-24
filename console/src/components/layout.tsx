@@ -37,21 +37,35 @@ export function PageHeader({
   icon,
   actions,
 }: PageHeaderProps): ReactNode {
+  // Stacks below the small breakpoint. Side by side, the actions take whatever
+  // they need and the title gets the remainder, which at 320px was narrower
+  // than the word "Resources" — so the page's own name broke across two lines
+  // beside a block of statistics. Above the breakpoint nothing moves: the
+  // actions go back to the right, where they were.
   return (
-    <header className="flex items-start gap-3 mb-5">
+    <header className="flex flex-col sm:flex-row items-start gap-3 mb-5">
       {icon === undefined ? null : (
         <span className="flex items-center justify-center size-6 rounded-3 bg-accent-bg text-accent shrink-0">
           {icon}
         </span>
       )}
       <div className="min-w-0">
-        <h1 className="text-title truncate" title={titleTooltip}>
+        {/*
+          Wraps rather than clips. `truncate` here put an ellipsis through the
+          page's own name at 320px — "Resourc…" — and the only way back to the
+          full string was the tooltip, which `titleTooltip` deliberately leaves
+          unset for an ordinary title and which a touch device has no way to
+          open at all. A clipped label in a table cell is a trade; a clipped
+          page name is a screen that will not say where it is. Two lines of
+          heading cost less than that.
+        */}
+        <h1 className="text-title break-words" title={titleTooltip}>
           {title}
         </h1>
         <p className="text-meta text-muted">{context}</p>
       </div>
       {actions === undefined ? null : (
-        <div className="ml-auto flex gap-2">{actions}</div>
+        <div className="sm:ml-auto flex gap-2">{actions}</div>
       )}
     </header>
   );
