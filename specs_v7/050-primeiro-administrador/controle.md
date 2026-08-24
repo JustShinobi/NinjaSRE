@@ -110,23 +110,149 @@ rota de disponibilidade, nunca escrito no console.
 
 ## O que fica pendente, nomeado, não escondido
 
-1. **4 das 10 alegações normativas do acceptance spec continuam vermelhas**
-   (claims 1, 2, 3, 9 — a tela nomeia o comando). Motivo real, não falta de
-   implementação: nenhum cenário de mock comitado nem um `compose up` simples
-   alcançam o estado `unclaimed` hoje. A leitura acontece num Server
-   Component (não intercepta via `page.route()` — mesma limitação que
-   `030-uma-fonte-por-fato` documentou para a lista de incidentes). Dois
-   caminhos para fechar: estender `tools/mockplane/dataset/served.py` com
-   este endpoint no cenário `first-day` (gerado, não editado à mão), ou rodar
-   `--backing compose` com um `docker compose up` genuinamente limpo.
-2. **Prova no caminho de serving via compose real (T066-T071)** — não
-   tentada por tempo. Docker e Docker Compose v2 confirmados disponíveis
-   nesta sandbox.
+1. ~~4 das 10 alegações normativas do acceptance spec continuam vermelhas~~
+   **RESOLVIDO** — ver "Atualização — o mock plane passa a servir o fato"
+   abaixo. As claims 1, 2, 3 e 9 (mais a 4, que já passava) foram movidas
+   para `console/tests/first-day/primeiro-administrador.acceptance.spec.ts`
+   e provadas verdes contra o cenário `first-run`, pelo caminho que este
+   próprio item já apontava como uma das duas saídas.
+2. **Prova no caminho de serving via compose real (T066-T071)** — ainda não
+   tentada. Fora do escopo desta atualização, que tratou apenas do gate
+   automatizado (mock plane); segue pendente de um agente com esse recorte.
 3. **`config/constants/__init__.py`** — 6 nomes novos do slot não replicados
    no re-export agregado (~2000 linhas, sem teste que exija a réplica).
-4. **`make verify` completo** — não rodado (é o gate do orquestrador). Rodei
-   591+38+84+25+29 testes Python narrow (todos os arquivos tocados, mais a
-   suíte de regressão de identity/startup/cli/gateway inteira), 3 testes
-   Vitest, ruff e mypy em cada arquivo tocado — todos limpos.
+4. **`make verify` completo** — ver "Atualização" abaixo pelo resultado real,
+   lido do próprio comando.
 5. **Chaves i18n da seção 5** — aplicar em `console/src/i18n/en.ts` e
    `pt-BR.ts` (arquivos de escrita única do slot, não tocados por mim).
+
+---
+
+## Atualização — o mock plane passa a servir o fato, claims 1-4 e 9 fecham verdes
+
+**Ponto de partida**: `console/tests/e2e/primeiro-administrador.acceptance.spec.ts`
+era o único bloco vermelho de `make verify` na árvore — 2796 testes Python,
+170 testes unitários de console e 334/338 e2e passando; os quatro
+vermelhos eram exatamente as claims 1, 2, 3 e 9, pelo motivo que o próprio
+cabeçalho do arquivo já documentava: `GET /v1/setup/local-administrator`
+não existia em nenhum cenário do mock (404 em todos), então
+`localAdministratorAvailability()` sempre devolvia `command: ''` e o aviso
+nunca renderizava.
+
+**Vermelho confirmado antes de tocar em código** (mock plane isolado por
+`git stash`, harness `tools.console_e2e run --project behaviour
+tests/e2e/primeiro-administrador.acceptance.spec.ts`):
+
+```
+GET /v1/setup/local-administrator HTTP/1.1" 404
+✘ claim 1: shows an identifiable warning block (6.3s) — toBeVisible timeout, elemento ausente
+✘ claim 2: the block contains the command... (5.9s) — toBeVisible timeout, elemento ausente
+✘ claim 3: the block sits above the form... (30.3s) — Test timeout, elemento nunca aparece
+✘ claim 9: shows the same command... (30.2s) — Test timeout, elemento nunca aparece
+4 failed, 1 skipped, 6 passed
+```
+
+**O que mudou** (mock plane, nunca o produto — o backend e o console já
+serviam/liam a rota corretamente):
+
+1. `tools/mockplane/endpoints.py:434-439` — registra
+   `GET /v1/setup/local-administrator` (slug `local-administrator`) na
+   tabela de endpoints do mock. Sem isso o roteador nem tentava casar a
+   rota.
+2. `tools/mockplane/dataset/served.py:2861-2879` — nova
+   `local_administrator_record(*, unclaimed: bool = False)`, mesma forma de
+   `checklist_record`: `unclaimed=True` devolve
+   `{"state": "unclaimed", "command": LOCAL_ADMIN_SETUP_COMMAND}`;
+   `unclaimed=False` devolve `{"state": "administered", "command": ""}`.
+   Chamada de `setup_records()` (`served.py:2882`, sem argumento — o
+   deployment completo já tem dono).
+3. `tools/mockplane/dataset/build.py:274` — `empty_records()` ganha
+   `"local-administrator": {"state": "administered", "command": ""}`: um
+   deployment vazio já tem o operador assinado, não é "unclaimed".
+4. `tools/mockplane/dataset/build.py:599` — `first_run_records()` sobrescreve
+   para `served.local_administrator_record(unclaimed=True).body`. É o único
+   cenário comitado que ninguém abriu o sign-in local — o mesmo que já
+   alimenta o projeto `first-day` (`FIRST_DAY_SCENARIO = "first-run"`,
+   `tools/console_gate.py:63`).
+5. Fixtures regeneradas por `python -m tools.mockplane build` (gerador,
+   nunca editado à mão): `fixtures/scenarios/{populated,empty,first-run}/local-administrator.json`
+   novos. `restricted`, `incident-live`, `audit-flooded`, `degraded` e
+   `now-violations` **não precisaram de arquivo próprio** — todos
+   `derives_from: "populated"` no `fixtures/manifest.json` e herdam
+   `administered` na carga, confirmado por leitura direta
+   (`scenarios.load(nome).all_records()` para os sete nomes).
+
+**Onde as claims moraram** — a mesma forma que `first-day` e
+`010-provider-out-of-the-box.acceptance.spec.ts` já usam, não uma terceira:
+um mock serve um cenário só, e o cenário do projeto `behaviour`
+(`populated`) precisa continuar `administered` porque as claims 5, 7, 8 e
+10 dependem disso. As claims 1-4 e 9 foram movidas para
+`console/tests/first-day/primeiro-administrador.acceptance.spec.ts` (novo
+arquivo, mesmas asserções, byte a byte — nenhum `expect` foi tocado),
+rodando contra o projeto `first-day` / cenário `first-run`. O arquivo em
+`tests/e2e/` manteve as claims 5, 6 (skip), 7, 8, 10a e 10b, com o cabeçalho
+reescrito para descrever a divisão em vez de descrever um vermelho esperado
+que deixou de existir.
+
+**Verde confirmado, pela razão certa** (o aviso aparece porque o fato diz
+`unclaimed`, nunca por asserção afrouxada — nenhum `expect` foi alterado
+neste arquivo em nenhuma das duas metades):
+
+- `tools.console_e2e run --project first-day --scenario first-run
+  tests/first-day/primeiro-administrador.acceptance.spec.ts` → **5 passed**
+  (claims 1, 2, 3, 4, 9), `GET /v1/setup/local-administrator` → `200`
+  `{"state":"unclaimed","command":"ninjasre setup admin --name admin"}`.
+- `tools.console_e2e run --project first-day --scenario first-run` (as
+  quatro suítes do projeto inteiro, para provar que o cenário `first-run`
+  virar `unclaimed` não quebrou nada que já existia nele) → **20 passed**,
+  0 failed.
+- `tools.console_e2e run --project behaviour
+  tests/e2e/primeiro-administrador.acceptance.spec.ts` → **5 passed, 1
+  skipped** (claim 6, deliberado — precisa de identity provider ativo, fora
+  do alcance do mock e do compose simples, como o próprio teste documenta).
+  `GET /v1/setup/local-administrator` → `200`
+  `{"state":"administered","command":""}`.
+- `tools.console_e2e run --project behaviour` (as **333** especificações do
+  projeto inteiro, para provar que registrar a rota nova não mudou nada em
+  nenhuma outra tela) → **333 passed, 26 skipped, 0 failed** (6.6min).
+- `tools.console_gate typecheck` → limpo. `tools.console_gate lint` → limpo.
+- `pytest tests/contract/fixtures/ tests/unit/tools/mockplane/` (302 casos,
+  a suíte de contrato do dataset e o mock plane) → **301 passed, 1 failed**
+  — o `1 failed` é a descoberta abaixo, preexistente, nada relacionado a
+  este endpoint.
+
+**Descoberta, fora do escopo desta feature, nomeada e não escondida**: rodar
+o gerador (necessário para o próprio endpoint novo) expõe que
+`fixtures/scenarios/populated/capabilities.json` e
+`.../integration-docs.json` já divergiam do que `python -m tools.mockplane
+build` produz, **antes** de qualquer mudança minha (reproduzido com os três
+arquivos Python desta feature em `git stash`, zero mudança de código,
+mesma divergência). Raiz:
+
+- `capabilities.json`: o domínio do servidor de protocolo em
+  `served.py`'s `CAPABILITIES_SECTION` é `rushes.example.invalid`; o
+  comitado ainda tem `kelp.example.invalid` — alguém trocou a constante sem
+  regenerar.
+- `integration-docs.json`: `integrations/proxmox/docs.md` foi editado pelo
+  commit `4e77c80` ("docs(proxmox): document the configuration path for
+  certificate trust") depois da última regeneração
+  (`fixtures/scenarios/populated/integration-docs.json` está em `c3f5f90`,
+  anterior). O texto novo do doc nomeia `pve01.lan`/`pve02.lan` como
+  exemplo de endereço de nó — parecem hostnames internos reais, não
+  `*.example.invalid` fictício — e o scanner de identificadores do
+  pipeline de anonimização redige o campo inteiro para `"[removed]"` ao
+  regenerar. Comitar essa regeneração destruiria a documentação real do
+  Proxmox no mock por um motivo que não é meu para decidir (o hostname em
+  `docs.md`, não o gerador). **Não toquei em nenhum dos dois arquivos** —
+  regenerei, conferi que a única causa é essa, e reverti (`git checkout --`)
+  antes de commitar, deixando só os três `local-administrator.json` novos.
+  `tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed`
+  continua vermelho por essa razão, independente desta feature — não é
+  chaseável por ela.
+
+**`make verify`, exit code lido do próprio comando**:
+
+MAKE_VERIFY_RESULT_PLACEHOLDER
+
+**T075**: marcada apenas quando a linha acima confirmar `exit 0`, ou deixada
+sem marcar com a causa exata nomeada — nunca por inferência.
