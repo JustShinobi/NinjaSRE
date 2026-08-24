@@ -397,6 +397,13 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0004",
         "status": "failed",
         "trigger": "manual",
+        # Declared rather than synthesised. A run triggered by hand has whatever
+        # objective the operator typed, and this dataset has no such field — so
+        # the synthesiser would fall back to the trigger word and put "manual
+        # investigation" where a sentence belongs, which is the exact shape this
+        # wave spent itself removing from every screen. What a real run of this
+        # kind carries is a sentence a model wrote, so that is what is declared.
+        "headline": "The metrics agent on the primary never answered, so nothing was read",
         "started_at": at(days=3, hours=6),
         "finished_at": at(days=3, hours=5, minutes=51),
         "summary": "The investigation could not reach the metrics agent; it is one of the "
@@ -418,6 +425,7 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0006",
         "status": "cancelled",
         "trigger": "manual",
+        "headline": "An operator found the cause by hand and stopped the investigation",
         "started_at": at(days=5, hours=1),
         "finished_at": at(days=5, minutes=58),
         "summary": "Cancelled by the operator after the cause was identified by hand.",

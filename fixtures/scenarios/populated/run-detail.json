@@ -89,7 +89,7 @@
       },
       "body": {
         "finished_at": "2026-08-04T06:09:00+00:00",
-        "headline": "manual investigation",
+        "headline": "The metrics agent on the primary never answered, so nothing was read",
         "incident_id": "",
         "report": "The investigation could not reach the metrics agent; it is one of the failed units on the primary.",
         "run_id": "run-0004",
@@ -146,7 +146,7 @@
       },
       "body": {
         "finished_at": "2026-08-02T11:02:00+00:00",
-        "headline": "manual investigation",
+        "headline": "An operator found the cause by hand and stopped the investigation",
         "incident_id": "",
         "report": "Cancelled by the operator after the cause was identified by hand.",
         "run_id": "run-0006",
