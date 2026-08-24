@@ -40,7 +40,12 @@ from platform.persistence.ports.estate_repository import (
     ResourceReference,
     SweepRecord,
 )
-from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
+from platform.persistence.ports.identity_repository import (
+    ApiToken,
+    LocalSignInOpening,
+    RoleBinding,
+    User,
+)
 from platform.persistence.ports.incident_store import Incident, TimelineEntry
 from platform.persistence.ports.knowledge_store import KnowledgeChunk, KnowledgeDocument
 from platform.persistence.ports.remediation_ledger import RecurringProblem, RemediationOutcome
@@ -180,6 +185,9 @@ class TenantState:
 
     config_nodes: dict[str, ConfigNode] = field(default_factory=dict)
     users: dict[str, User] = field(default_factory=dict)
+    #: The one fact deciding whether this tenant's local sign-in exists.
+    #: ``None`` until a caller deliberately opens it; never rewritten after.
+    local_sign_in_opening: LocalSignInOpening | None = None
     tokens: dict[str, ApiToken] = field(default_factory=dict)
     role_bindings: dict[str, RoleBinding] = field(default_factory=dict)
     audit_events: dict[str, AuditEvent] = field(default_factory=dict)
