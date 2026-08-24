@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
+from config.constants.security import PROXY_TRUST_REFRESH_PATH
 from platform.credentials.proxy.errors import (
     CertificateNameMismatch,
     CertificatePinBroken,
@@ -446,3 +447,147 @@ async def test_an_address_that_does_not_answer_is_still_unreachable_not_untruste
 
     assert "certificate" not in str(refused.value).lower()
     assert refused.value.reason is ProxyErrorReason.UPSTREAM_UNREACHABLE
+
+
+# -- a declaration through the endpoint governs the very next call, no restart --
+#
+# What staging measured: a fingerprint pinned through the trust endpoint left
+# the very next call answering exactly as it had before, in both directions —
+# a bad pin kept succeeding and a good one kept failing — until the proxy
+# process was recomposed from nothing. The registry mutation itself has never
+# been the gap (the pin-holds tests above mutate one directly and the very
+# next ``send`` already honours it); the gap is that nothing between "the
+# endpoint accepted the write" and "the sender's next handshake" ever told the
+# registry to look again. These tests drive that seam — the proxy's own
+# on-demand refresh route — rather than the registry, so a regression that
+# reintroduces the gap (wiring the route to nothing, or back to a value frozen
+# at composition) fails here even though ``TrustRegistry.replace_all`` still
+# works perfectly on its own.
+
+
+def _minimal_engine(*, sender: object, trust: TrustRegistry) -> object:
+    """Return a real ``ProxyEngine`` sharing ``trust`` with ``sender``.
+
+    Resolver, rules and auditor are real, empty, and unexercised: nothing
+    below calls ``forward`` — only the ASGI refresh route and ``sender``
+    itself are under test, so nothing here needs a credential or a rule to
+    route through.
+    """
+    from platform.credentials.proxy.audit import ResolutionAuditor
+    from platform.credentials.proxy.engine import ProxyEngine
+    from platform.credentials.proxy.injection import InjectionRuleRegistry
+    from platform.credentials.proxy.rate_limit import TenantRateLimiter
+    from platform.credentials.proxy.resolution import CredentialResolver
+    from platform.credentials.schemas import CredentialSchemaRegistry
+    from platform.persistence.fakes import FakePersistence
+
+    gateway = FakePersistence()
+    return ProxyEngine(
+        resolver=CredentialResolver(gateway=gateway, schemas=CredentialSchemaRegistry()),
+        rules=InjectionRuleRegistry(),
+        sender=sender,
+        auditor=ResolutionAuditor(gateway=gateway),
+        limiter=TenantRateLimiter(),
+        trust=trust,
+    )
+
+
+async def _post(app: object, path: str) -> int:
+    """POST ``path`` against the ASGI callable ``app``, and return the status."""
+    status: dict[str, int] = {}
+
+    async def receive() -> dict[str, object]:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: dict[str, object]) -> None:
+        if message["type"] == "http.response.start":
+            status["code"] = message["status"]  # type: ignore[assignment]
+
+    await app({"type": "http", "method": "POST", "path": path}, receive, send)  # type: ignore[operator]
+    return status["code"]
+
+
+async def test_a_declaration_reaching_the_refresh_route_governs_the_very_next_call(
+    named_node: Endpoint,
+) -> None:
+    """The endpoint's own promise: no restart, no wait for the periodic cycle.
+
+    ``source`` stands in for the configuration tree a write lands in — a
+    mutable list this test controls directly, exercising exactly the seam the
+    fix adds without needing a database. What the seam decides does not
+    depend on that stand-in: the sender is real and the handshake is a live
+    one against ``named_node``.
+    """
+    from gateway.proxy.sender import HttpOutboundSender
+    from platform.credentials.proxy.app import create_proxy_app
+
+    registry = TrustRegistry()
+    source: list[CertificateTrust] = []
+    sender = HttpOutboundSender(trust=registry)
+    app = create_proxy_app(_minimal_engine(sender=sender, trust=registry))
+
+    async def refresh() -> None:
+        registry.replace_all(tuple(source))
+
+    app.set_trust_refresh(refresh)
+
+    with pytest.raises(CertificateUntrusted):
+        await sender.send(_request(named_node), timeout_seconds=5)
+
+    source.append(CertificateTrust.pinned(named_node.fingerprint).for_addresses(named_node.host))
+    assert await _post(app, PROXY_TRUST_REFRESH_PATH) == 200
+
+    answer = await sender.send(_request(named_node), timeout_seconds=5)
+    assert answer.status_code == 200
+
+
+async def test_a_refresh_request_against_an_app_with_no_hook_wired_is_refused_by_name() -> None:
+    """A composition nobody gave a live source refuses the request, and does not no-op it.
+
+    Answering 200 for a refresh that never ran would be a code path that
+    reaches nothing and reports success anyway — the manufactured-evidence
+    failure one layer up. A caller must be able to tell "refreshed" from
+    "nothing here knows how" from the status alone.
+    """
+    from gateway.proxy.sender import HttpOutboundSender
+    from platform.credentials.proxy.app import create_proxy_app
+
+    registry = TrustRegistry()
+    sender = HttpOutboundSender(trust=registry)
+    app = create_proxy_app(_minimal_engine(sender=sender, trust=registry))
+    # Deliberately no app.set_trust_refresh(...) call.
+
+    assert await _post(app, PROXY_TRUST_REFRESH_PATH) == 404
+
+
+async def test_an_address_nobody_declared_still_refuses_after_a_refresh(
+    named_node: Endpoint,
+) -> None:
+    """The refresh route re-reads what was declared — it grants nothing beyond that.
+
+    ``named_node.host`` is deliberately not the address the declaration below
+    names: both fixtures in this file answer on the loopback, so a genuinely
+    different real server is not available here, and scoping the declaration
+    to an address that is not the one under test proves the same point a
+    second real server would — the refresh route is a trigger for the read
+    the timer already runs, never a second, looser way to decide trust for an
+    address the declaration did not name.
+    """
+    from gateway.proxy.sender import HttpOutboundSender
+    from platform.credentials.proxy.app import create_proxy_app
+
+    registry = TrustRegistry()
+    source = [
+        CertificateTrust.pinned(named_node.fingerprint).for_addresses("a-different-node.example")
+    ]
+    sender = HttpOutboundSender(trust=registry)
+    app = create_proxy_app(_minimal_engine(sender=sender, trust=registry))
+
+    async def refresh() -> None:
+        registry.replace_all(tuple(source))
+
+    app.set_trust_refresh(refresh)
+    assert await _post(app, PROXY_TRUST_REFRESH_PATH) == 200
+
+    with pytest.raises(CertificateUntrusted):
+        await sender.send(_request(named_node), timeout_seconds=5)
