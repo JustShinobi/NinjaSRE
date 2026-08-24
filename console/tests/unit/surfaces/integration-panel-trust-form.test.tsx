@@ -211,6 +211,15 @@ describe('the fields, through the panel’s own controls — no new component, n
 
     expect(screen.getByTestId('trust-submit')).toBeDisabled();
   });
+
+  it('does not let whitespace in the reason field stand in for a written one', () => {
+    vi.stubGlobal('fetch', routed({})[0]);
+    renderPanel(true);
+
+    fireEvent.change(screen.getByLabelText('Why'), { target: { value: '   ' } });
+
+    expect(screen.getByTestId('trust-submit')).toBeDisabled();
+  });
 });
 
 describe('what a declaration sends', () => {
