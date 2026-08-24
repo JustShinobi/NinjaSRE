@@ -264,3 +264,61 @@ nada**:
 
 Antes, as duas transições exigiam um `rollout restart`. É a única estação da
 demo cujo achado já está fechado e reverificado no ambiente real.
+
+## T014 — o webhook recusa o que não se autentica
+
+A metade que faltava. A aceitação já estava provada (`202`, na linha do tempo
+acima); a recusa não tinha sido sondada, e um verificador recusou creditar a
+tarefa por isso — corretamente, porque metade de uma alegação não é a alegação.
+
+Duas sondas contra `POST /webhooks/alertmanager` em staging, com corpo de
+alerta válido:
+
+| o que foi enviado | resposta |
+|---|---|
+| sem cabeçalho `Authorization` | **401** |
+| `Authorization: Bearer` com token inventado | **401** |
+
+Corpo, idêntico nos dois:
+
+    {"error":{"type":"unverified",
+              "message":"this alertmanager webhook did not verify against any
+                         configured route"}}
+
+**A mensagem não distingue credencial ausente de credencial errada, e isso é
+correto.** Uma mensagem diferente para cada caso diria a quem sonda qual das
+duas coisas acertou, que é um oráculo.
+
+Conferido depois: nenhum incidente foi aberto no intervalo das sondas. A recusa
+é recusa, não um `401` decorativo sobre uma escrita que aconteceu assim mesmo.
+
+## O portão visual, depois da revisão das baselines
+
+O `test_the_untouched_baselines_still_match` que bloqueava o T002 **passa
+agora**. Catorze baselines divergiam; seis foram revisadas imagem a imagem e as
+diferenças rastreadas até a causa, duas regressões reais foram encontradas e
+consertadas nesse exame, e oito foram aceitas depois disso.
+
+    make console-visual   exit 0   — 33 passed
+    make console-e2e      exit 0   — 335 (behaviour) + 20 (first-day)
+
+As duas regressões que a revisão pegou, e que nenhum portão pegaria:
+
+1. **Uma manchete virou rótulo.** Duas linhas do painel "16 items need you"
+   mostravam `manual investigation` no lugar de uma frase, porque o sintetizador
+   monta o objetivo a partir do gatilho quando a entrada não declara manchete, e
+   um run disparado à mão carrega o objetivo que o operador escreveu — campo que
+   este dataset não tem. Identificador onde vai frase é exatamente o que esta
+   onda existe para remover.
+
+2. **O nome da página truncava a 320px.** `Resources` virava `Resourc…`, sem
+   nenhuma forma de ler o resto: o tooltip é deixado sem valor de propósito para
+   um título comum, e um aparelho de toque não abre tooltip. Abaixo disso, as
+   ações ficavam ao lado do título em qualquer largura, sobrando ao nome menos
+   espaço que a própria palavra. O cabeçalho passou a empilhar abaixo da quebra
+   e está inalterado acima dela.
+
+Um defeito mais antigo foi encontrado no mesmo exame e **não** foi consertado:
+a 320px a tabela de recursos ainda desenha sete colunas, com os rótulos do
+cabeçalho sobrepostos em "RESOURKINDZONE" e cada célula cortada a uma letra e
+reticências. É anterior a esta onda e não é o que estas baselines tratam.
