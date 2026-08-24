@@ -252,7 +252,53 @@ mesma divergência). Raiz:
 
 **`make verify`, exit code lido do próprio comando**:
 
-MAKE_VERIFY_RESULT_PLACEHOLDER
+Primeira rodada completa, log inteiro capturado, exit code lido do
+arquivo (nunca do resumo do wrapper — a ferramenta de background relatou
+"exit code 0" porque a cadeia `make verify > log 2>&1; echo
+"MAKE_VERIFY_EXIT_CODE=$?" >> log` sempre termina no `echo`, que sempre
+sai 0; o valor real está dentro do log, capturado por `$?` logo depois do
+`make verify`):
+
+```
+MAKE_VERIFY_EXIT_CODE=2
+```
+
+Tudo antes de `console-check` passou (ruff check, ruff format, mypy sobre
+1323 arquivos, `lint-imports` — 7 contratos, 0 quebrados —, os oito
+`check_*.py`, `verify_integrations` — 15 integrações em paridade —,
+`generate_integration_docs --check`, `generate_env_example.py --check`,
+`check_docs_drift`, `test_doc_examples` — 29 exemplos). Dentro de
+`console-check` (`tools.console_gate all`): `prettier`, `eslint` +
+`check-css-literals`, `tsc --noEmit` passaram; a falha real:
+
+```
+❯ tests/unit/surfaces/role-matrix.test.tsx (7 tests | 1 failed) 14794ms
+    × viewer: no control it cannot use is anywhere on any screen 5560ms
+console gate: test failed — unit tests and coverage — see the output above
+make: *** [Makefile:294: console-check] Error 1
+```
+
+**Não é desta feature, e a evidência é direta, não inferida.** Vitest só
+enxerga `tests/unit/**` (`console/vitest.config.ts:31`) — nenhum arquivo
+que esta atualização tocou (`tests/e2e/`, `tests/first-day/`) está nesse
+escopo, e nenhum arquivo em `console/src/` foi tocado. A falha é
+`Error: Test timed out in 5000ms` — um timeout fixo, não uma asserção. Ao
+rodar `role-matrix.test.tsx` isolado, duas vezes, a máquina mostrava
+`load average` de 14-16 (confirmado por `uptime`, várias outras
+worktrees rodando `next build`/`vitest`/`console_gate.py` ao mesmo
+tempo) e swap ativo (2.4Gi de 6Gi); a segunda rodada isolada registrou a
+fase de `import` sozinha levando **89.56s** — não é o teste que está
+lento, é a máquina. As duas rodadas isoladas falharam em subconjuntos
+diferentes (`viewer`+`owner` na primeira, só `viewer` na segunda), o
+padrão de um timeout por contenção, não de uma asserção quebrada de
+verdade. `git log -- console/tests/unit/surfaces/role-matrix.test.tsx`
+mostra o último commit como `b7003f1 fix(console): restore the surfaces
+and fixtures the delivery commit truncated` — território que já teve
+turbulência recente e não relacionada a esta feature.
+
+Segunda rodada, só do gate de console (`make console-check`, que cobre
+tudo que `console-check` cobre dentro de `make verify`, sem repetir a
+metade Python que já tinha passado): RESULTADO_RETRY_PLACEHOLDER
 
 **T075**: marcada apenas quando a linha acima confirmar `exit 0`, ou deixada
 sem marcar com a causa exata nomeada — nunca por inferência.
