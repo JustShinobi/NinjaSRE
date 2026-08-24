@@ -795,7 +795,7 @@ export const EN = {
   // is that "nothing is wrong" and "nothing is watching" must stop rendering
   // identically, because they are opposite situations.
   'empty.cause.setup':
-    'Nothing has happened here yet because this deployment is still being set up — {count} step(s) are outstanding, and investigations cannot run until they are done.',
+    'Nothing has happened here yet because this deployment is still being set up — the next step is "{step}".',
   'empty.cause.setup.action': 'Finish setting up',
   'empty.cause.watching':
     'No detector is switched on, so nothing is being watched and nothing will open by itself.',
@@ -846,6 +846,12 @@ export const EN = {
   'incident.chip.state.resolved': 'Resolved',
   'incident.chip.state.suppressed': 'Suppressed',
   'incident.chip.state.closedWithoutAction': 'Closed without action',
+  // Distinct from every named state above: this incident's own detail failed
+  // to load, so its state was never learned — never the same chip as `.open`,
+  // which is a claim about the incident rather than an admission the read
+  // never answered.
+  'incident.chip.state.unknown': 'Unknown',
+  'incident.chip.state.unknown.explain': 'This incident could not be read, so its state could not be told.',
   // Whether an investigation has run against this incident at all, and
   // whether it has delivered its report — read from the timeline itself
   // rather than from a run status this route does not carry.

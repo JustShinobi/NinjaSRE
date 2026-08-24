@@ -66,6 +66,7 @@ from platform.persistence.ports.verification_ledger import (
     VerificationRecord,
     VerificationSubject,
 )
+from platform.startup.checklist import readiness_of
 
 router = APIRouter(prefix="/v1/providers", tags=["providers"])
 
@@ -108,6 +109,11 @@ class ProviderView(BaseModel):
     local: bool
     configured: bool
     verified: bool
+    #: The same four-word vocabulary the setup checklist reports for this
+    #: provider, derived from the same verification record — never a second
+    #: opinion computed from `configured`/`verified` alone, which cannot
+    #: distinguish "nobody has checked" from "the last check failed".
+    readiness: str
     default_model: str
     detail: str = ""
 
@@ -284,6 +290,7 @@ def _view(
         local=onboarding.local,
         configured=configured,
         verified=checked is not None and checked.verified,
+        readiness=readiness_of(configured=configured, checked=checked),
         default_model=onboarding.default_model,
         detail=_detail(configured=configured, checked=checked),
     )

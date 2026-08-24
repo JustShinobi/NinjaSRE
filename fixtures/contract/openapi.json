@@ -5370,6 +5370,10 @@
             "title": "Provider Id",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "verified": {
             "title": "Verified",
             "type": "boolean"
@@ -5386,6 +5390,7 @@
           "local",
           "configured",
           "verified",
+          "readiness",
           "default_model",
           "fields",
           "models",
@@ -5487,6 +5492,10 @@
             "title": "Provider Id",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "verified": {
             "title": "Verified",
             "type": "boolean"
@@ -5498,6 +5507,7 @@
           "local",
           "configured",
           "verified",
+          "readiness",
           "default_model"
         ],
         "title": "ProviderView",
@@ -15223,7 +15233,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.\n\nThe provider's own readiness is read the same way, from the same ledger,\nby the same helper `/v1/providers` already reads it with — this is the\nfix for the checklist and the listing disagreeing about the same\nprovider: one document, read twice rather than derived twice.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {

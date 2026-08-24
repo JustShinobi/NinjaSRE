@@ -42,6 +42,7 @@
           "claude-haiku-4-5"
         ],
         "provider_id": "anthropic",
+        "readiness": "verified",
         "verified": true,
         "where_to_get_it": "console.anthropic.com, under API keys."
       },
@@ -113,6 +114,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "aws_bedrock",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "IAM, or an existing named profile in your AWS configuration."
       },
@@ -176,6 +178,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "azure_openai",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "The Azure portal, on the resource's Keys and Endpoint blade."
       },
@@ -247,6 +250,7 @@
           "gemini-2.5-flash"
         ],
         "provider_id": "google_gemini",
+        "readiness": "verified",
         "verified": true,
         "where_to_get_it": "aistudio.google.com, under API keys."
       },
@@ -302,6 +306,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "google_vertex_ai",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "The Google Cloud console, under IAM and admin."
       },
@@ -349,6 +354,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "nvidia_nim",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "build.nvidia.com, or your own NIM deployment."
       },
@@ -388,6 +394,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "ollama",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "Your own machine. Nothing to obtain."
       },
@@ -452,6 +459,7 @@
           "o4"
         ],
         "provider_id": "openai",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "platform.openai.com, under API keys."
       },
@@ -499,6 +507,7 @@
         "model_capabilities": [],
         "models": [],
         "provider_id": "openrouter",
+        "readiness": "absent",
         "verified": false,
         "where_to_get_it": "openrouter.ai, under keys."
       },

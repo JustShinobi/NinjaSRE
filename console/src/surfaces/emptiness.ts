@@ -1,6 +1,6 @@
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
-import { outstanding, readSetup, type DeploymentSetup } from './first-run/plan';
+import { readSetup, type DeploymentSetup } from './first-run/plan';
 import type { PanelEmpty } from './panel';
 import { authorised, dataOf, field, optionalRead, read } from './read';
 
@@ -36,18 +36,27 @@ export interface Cause {
 }
 
 /**
- * The cause an unfinished setup puts on every screen downstream of it.
+ * The cause an unfinished setup puts on the one screen that names its own
+ * dependency, or ``null`` once that specific step is done.
  *
- * ``null`` once the checklist is complete. Downstream is most of the console:
- * incidents come from detectors, the graph and the episodes come from
- * investigations, and none of those can happen before the deployment can
- * investigate at all.
+ * ``dependsOn`` is a checklist step name — the one the calling screen is
+ * actually downstream of, never "however many steps are still outstanding
+ * somewhere". A deployment with three steps left elsewhere and this one done
+ * is a deployment this screen has nothing to blame the setup for: the count
+ * used to say so anyway, which is the false causality this function exists
+ * to stop asserting. `null` when the deployment does not declare a step by
+ * that name at all — an unknown dependency is a caller's defect, not a
+ * reason to guess at a sentence.
  */
-export function setupCause(locale: Locale, setup: DeploymentSetup): Cause | null {
-  const left = outstanding(setup);
-  if (left === 0) return null;
+export function setupCause(
+  locale: Locale,
+  setup: DeploymentSetup,
+  dependsOn: string,
+): Cause | null {
+  const step = setup.steps.find((entry) => entry.name === dependsOn);
+  if (step === undefined || step.state === 'done') return null;
   return {
-    body: message(locale, 'empty.cause.setup', { count: String(left) }),
+    body: message(locale, 'empty.cause.setup', { step: step.title ?? '' }),
     actionLabel: message(locale, 'empty.cause.setup.action'),
     href: resolveCta({ route: '/first-run' }).href,
   };

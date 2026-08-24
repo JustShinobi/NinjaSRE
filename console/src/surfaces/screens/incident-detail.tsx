@@ -23,6 +23,7 @@ import {
   read,
   stateOf,
   text,
+  valueOf,
 } from '../read';
 import { IncidentDecisionControls } from './incident-decision-controls';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
@@ -189,12 +190,24 @@ export async function IncidentDetailScreen(
     : text(incident, 'title') || none;
   const trail = trailFor(areaFor('incidents'), [{ label: title }]);
 
-  const incidentState = text(incident, 'state');
-  const incidentPresented = statusPresentation(incidentState);
-  const incidentStateLabel = message(
-    locale,
-    INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
-  );
+  // Derived from the read's own outcome rather than from the body: `text()`
+  // on a failed read's `undefined` incident returns `''`, which is not a key
+  // `INCIDENT_STATE_LABEL` has — and falling back on an unmatched key would
+  // assert `open`, a claim about the incident, over a read that never
+  // answered one. `unknown` says that plainly instead, the same distinction
+  // `existenceOf` draws for the investigation chip beside this one.
+  const incidentStateRead = valueOf(detail, text(incident, 'state'));
+  const incidentPresented =
+    incidentStateRead.kind === 'unknown'
+      ? { role: 'neutral' as SemanticRole, shape: 'dash' as Shape }
+      : statusPresentation(incidentStateRead.value);
+  const incidentStateLabel =
+    incidentStateRead.kind === 'unknown'
+      ? message(locale, 'incident.chip.state.unknown')
+      : message(
+          locale,
+          INCIDENT_STATE_LABEL[incidentStateRead.value] ?? 'incident.chip.state.open',
+        );
 
   // Four states, derived from the read's own outcome rather than from its
   // body: `unknown` when the read itself failed — naming the dependency
@@ -292,6 +305,9 @@ export async function IncidentDetailScreen(
             role={incidentPresented.role}
             shape={incidentPresented.shape}
             label={incidentStateLabel}
+            {...(incidentStateRead.kind === 'unknown'
+              ? { title: message(locale, 'incident.chip.state.unknown.explain') }
+              : {})}
           />
           <ResolvedChip
             testId="incident-chip"

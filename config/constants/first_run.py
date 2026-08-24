@@ -192,11 +192,18 @@ SETUP_STATES: Final[tuple[str, ...]] = (SETUP_STATE_DONE, SETUP_STATE_READY, SET
 SETUP_READINESS_ABSENT: Final = "absent"
 SETUP_READINESS_CONFIGURED: Final = "configured"
 SETUP_READINESS_VERIFIED: Final = "verified"
+#: The last recorded check of this thing did not pass. Distinct from
+#: ``configured``, which also covers "nobody has checked it yet" — those are
+#: different facts with opposite next actions, and collapsing a known-broken
+#: credential into the same word as an unchecked one is the state a wrong key
+#: sits in until an incident finds it.
+SETUP_READINESS_FAILING: Final = "failing"
 
 SETUP_READINESS: Final[tuple[str, ...]] = (
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
     SETUP_READINESS_VERIFIED,
+    SETUP_READINESS_FAILING,
 )
 
 # --- What a check concluded, and about what ------------------------------------
@@ -319,6 +326,7 @@ __all__ = [
     "SETUP_READINESS",
     "SETUP_READINESS_ABSENT",
     "SETUP_READINESS_CONFIGURED",
+    "SETUP_READINESS_FAILING",
     "SETUP_READINESS_VERIFIED",
     "SETUP_STATES",
     "SETUP_STATE_BLOCKED",

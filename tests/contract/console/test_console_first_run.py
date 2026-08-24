@@ -30,7 +30,7 @@ import pytest
 from config.constants.first_run import (
     SETUP_READINESS,
     SETUP_READINESS_ABSENT,
-    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
     SETUP_STATES,
     SETUP_STEP_FIRST_INVESTIGATION,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
@@ -110,11 +110,11 @@ def test_the_cli_and_the_console_read_one_checklist(
     # no longer where a fresh deployment leaves it.
     assert after["provider"] != before["provider"]
     assert after["provider"] != "absent"
-    # And it moved to the *middle* value rather than to the last one, because
-    # the route composes no live verifier. A stored key that nobody has checked
-    # from this process is exactly the state the three-word vocabulary exists
-    # for, and the console has to show it as such rather than as finished.
-    assert after["provider"] == SETUP_READINESS_CONFIGURED
+    # And it moved all the way to verified, because ``onboard`` verified the
+    # provider for real — the route reads that same recorded check rather
+    # than deriving readiness from the credential's mere presence, which is
+    # what would have stalled this at the middle value forever.
+    assert after["provider"] == SETUP_READINESS_VERIFIED
 
     # Every field the console's reader takes out of this document is here. A
     # console reading a key the route stopped sending would derive step one

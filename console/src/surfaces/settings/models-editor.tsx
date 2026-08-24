@@ -45,6 +45,14 @@ export interface ProviderOption {
   readonly displayName: string;
   readonly configured: boolean;
   readonly verified: boolean;
+  /**
+   * The same four-word vocabulary the setup checklist reports for this
+   * provider — `absent` / `configured` / `verified` / `failing` — read
+   * directly rather than re-derived from `configured`/`verified` alone,
+   * which cannot tell "nobody has checked" apart from "the last check
+   * failed".
+   */
+  readonly readiness: string;
   /** The gateway's own four-state sentence: nothing stored, stored and unchecked, working, or broken. */
   readonly detail: string;
   readonly models: readonly ModelOption[];
@@ -202,18 +210,14 @@ function RoleControls({
   dynamicSource,
 }: RoleControlsProps): ReactNode {
   const active = providers.find((each) => each.providerId === provider);
-  // A raw spelling `credentialStatus` does not recognise, deliberately: its
-  // own alias table maps the legacy `HealthStatus` word `'unknown'` onto the
-  // canonical `'stored'`, which is the wrong badge for "no provider is
-  // selected" — the console's own state, not a fact the deployment reported.
-  const canonical =
-    active === undefined
-      ? 'no-provider-selected'
-      : active.configured
-        ? active.verified
-          ? 'healthy'
-          : 'configured'
-        : 'unconfigured';
+  // `active.readiness` carries the checklist's own four-word vocabulary
+  // directly — `StatusChip` maps it onto the canonical credential word the
+  // same way it would map `verified`/`configured`/`absent`/`failing` from
+  // any other surface, so this and the setup checklist cannot disagree about
+  // the same provider. "no-provider-selected" is deliberately not one of the
+  // five canonical words — it is this console's own state, not a fact the
+  // deployment reported — so it reads as the honest "unknown" fallback.
+  const canonical = active === undefined ? 'no-provider-selected' : active.readiness;
   const blocked = active !== undefined && !active.configured;
   // The dynamic listing only replaces the registry's own list once it has
   // actually answered with a recognised source — an unmocked or still-loading
@@ -543,8 +547,10 @@ export function ModelsEditor({
   const listingLoading = listingBusy.has(investigatorProvider);
 
   // The chip mirrors a live check when one exists; otherwise it falls back to
-  // what was last recorded — "verified"/"configured"/"unconfigured" via the
-  // same canonical mapping every other credential chip in this console uses.
+  // the provider's own recorded readiness — the same word the setup
+  // checklist reports for it, read directly rather than re-derived from the
+  // two booleans, which cannot tell "nobody has checked" apart from "the
+  // last check failed".
   const failingCheck = verifyResult?.checks.find((check) => check.status === 'failed');
   const degradedCheck = verifyResult?.checks.find(
     (check) => check.status === 'degraded',
@@ -554,11 +560,7 @@ export function ModelsEditor({
     verifyResult === null
       ? activeInvestigatorProvider === undefined
         ? 'no-provider-selected'
-        : activeInvestigatorProvider.configured
-          ? activeInvestigatorProvider.verified
-            ? 'verified'
-            : 'stored'
-          : 'not_connected'
+        : activeInvestigatorProvider.readiness
       : failingCheck !== undefined
         ? 'failing'
         : degradedCheck !== undefined

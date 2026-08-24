@@ -11,6 +11,7 @@ import {
   panelRead,
   readProjectedPanel,
   stateOf,
+  valueOf,
 } from '@/surfaces/read';
 import { RowList } from '@/surfaces/rows';
 import { DEFAULT_VIEW_STATE } from '@/surfaces/url-state';
@@ -346,6 +347,37 @@ describe('what a panel does with a refusal', () => {
 
     expect(existenceOf(ready, true).kind).toBe('present');
     expect(existenceOf(ready, false).kind).toBe('absent');
+  });
+
+  it('reads a value as unknown, naming the dependency, when its own read failed', async () => {
+    const failed = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.reject(new ApiError(502, 'no')),
+    );
+
+    // The caller would have picked this out of an `undefined` body with
+    // `text()`, which reads as the empty string — exactly the value a real,
+    // successful read could also produce, which is why this cannot be told
+    // apart from the read's own outcome.
+    const read = valueOf(failed, '');
+
+    expect(read.kind).toBe('unknown');
+    expect(read.kind === 'unknown' ? read.dependency : '').toBe(
+      '/v1/incidents/{incident_id}',
+    );
+  });
+
+  it('reads the value once the read actually succeeded, even when it is empty', async () => {
+    const ready = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.resolve({}),
+    );
+
+    const empty = valueOf(ready, '');
+    const named = valueOf(ready, 'open');
+
+    expect(empty.kind).toBe('known');
+    expect(empty.kind === 'known' ? empty.value : undefined).toBe('');
+    expect(named.kind).toBe('known');
+    expect(named.kind === 'known' ? named.value : undefined).toBe('open');
   });
 
   it('lets a defect in the console reach the route’s own boundary', async () => {

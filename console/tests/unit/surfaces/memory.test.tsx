@@ -98,14 +98,14 @@ describe('a deployment where no investigation has ever ended', () => {
       screen.getByText(/A strategy is synthesised once enough episodes agree/),
     ).toBeInTheDocument();
 
-    // And it closes with the real, local reason and a way out.
+    // And it closes with the real, local reason and a way out — naming the
+    // step this screen's own cause depends on (the mock plane's own title
+    // for it, "Watch it look") rather than a bare count.
     expect(
       screen.getByText(/this deployment is still being set up/),
     ).toBeInTheDocument();
-    // Four of the deployment's own five checklist steps — the same
-    // `setup.steps` the checklist panel and the dashboard's setup card both
-    // read the pending count from, so this is one derivation rather than two.
-    expect(screen.getByText(/4 step\(s\) are outstanding/)).toBeInTheDocument();
+    expect(screen.getByText(/Watch it look/)).toBeInTheDocument();
+    expect(screen.queryByText(/cannot run until/i)).toBeNull();
 
     const link = screen.getByTestId('way-back');
     expect(link).toHaveAttribute('href', '/first-run');

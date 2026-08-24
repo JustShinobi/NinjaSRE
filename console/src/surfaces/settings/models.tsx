@@ -152,6 +152,7 @@ export async function ModelsSettingsScreen(
       displayName: text(detail, 'display_name'),
       configured: field(detail, 'configured') === true,
       verified: field(detail, 'verified') === true,
+      readiness: text(detail, 'readiness'),
       detail: text(detail, 'detail'),
       models: modelsOf(detail),
     }),

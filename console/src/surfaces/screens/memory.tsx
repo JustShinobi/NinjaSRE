@@ -4,6 +4,7 @@ import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
 import { readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel, type PanelEmpty } from '../panel';
@@ -120,7 +121,7 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   // The corpus itself, not the current filter: choosing an outcome nothing
   // matches is a normal empty panel, not the deployment-wide story below.
   const corpusEmpty = episodes.status === 'ready' && records.length === 0;
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
 
   // The mechanism for both stays — an episode comes from an investigation that
   // ended, a strategy from episodes that agree — and, when the setup is why

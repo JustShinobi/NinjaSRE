@@ -607,7 +607,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':
-    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
+    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — o próximo passo é "{step}".',
   'empty.cause.setup.action': 'Terminar a configuração',
   'empty.cause.watching':
     'Nenhum detector está ligado, portanto nada está sendo observado e nada se abrirá sozinho.',
@@ -655,6 +655,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.chip.state.resolved': 'Resolvido',
   'incident.chip.state.suppressed': 'Suprimido',
   'incident.chip.state.closedWithoutAction': 'Encerrado sem ação',
+  'incident.chip.state.unknown': 'Desconhecido',
+  'incident.chip.state.unknown.explain':
+    'Não foi possível ler este incidente, então também não foi possível saber o seu estado.',
   'incident.chip.investigation.none': 'Sem investigação',
   'incident.chip.investigation.running': 'Investigação em andamento',
   'incident.chip.investigation.finished': 'Investigação concluída',

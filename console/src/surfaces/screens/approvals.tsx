@@ -6,6 +6,7 @@ import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 import { DecisionControls } from '../decision';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ProposalCard, type ProposalRow } from '../proposal';
@@ -169,7 +170,7 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
   // the side-effect level it is gated above, and whether that is this
   // deployment's own choice or the level nobody has moved off yet.
   const setup = await readSetupState(credential);
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
 
   let emptyBody = message(locale, 'approvals.empty.body');
   if (cause === null && pending.length === 0) {

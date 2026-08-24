@@ -14,6 +14,7 @@ import {
   setupCause,
   watchingCause,
 } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -141,7 +142,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   // done. Unknown coverage (the detector read failed) asserts neither.
   const cause = firstCause(
     liveDetectors === null ? null : watchingCause(locale, liveDetectors),
-    setupCause(locale, setup),
+    setupCause(locale, setup, INVESTIGATION_STEP),
   );
 
   const filtered = records.filter((record) =>

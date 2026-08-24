@@ -5,6 +5,7 @@ import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ProposalReview } from '../proposal-review';
@@ -88,7 +89,7 @@ export async function ProposalsTab(context: SurfaceContext): Promise<ReactNode> 
   // change here") is the true and useful sentence, and it is the one
   // `knowledge.proposals.empty.body` already carries.
   const setup = await readSetupState(credential);
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
   const empty = emptyBecause(
     {
       heading: message(locale, 'proposals.empty.heading'),

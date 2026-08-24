@@ -161,6 +161,34 @@ export function existenceOf(data: PanelData<unknown>, present: boolean): Existen
   return present ? { kind: 'present' } : { kind: 'absent' };
 }
 
+/**
+ * A value read from inside `data`, distinguishing "this is what it said" from
+ * "the read that would carry it failed" — `existenceOf`'s own shape, for a
+ * leaf that is a word rather than a presence.
+ *
+ * `text()` on a failed read's `undefined` body returns `''`, which is
+ * indistinguishable from a field that is genuinely blank. A status map keyed
+ * on that empty string and falling back to a default then asserts whatever
+ * the default happens to be — a positive claim over a read that never
+ * answered — which is the same mistake `existenceOf` exists to stop, one
+ * level up from a yes/no fact to a word chosen from several.
+ */
+export type Read<T> =
+  | { readonly kind: 'unknown'; readonly dependency: string }
+  | { readonly kind: 'known'; readonly value: T };
+
+/**
+ * `value`, or the dependency's name when the read that would carry it failed.
+ *
+ * `value`, mirroring `existenceOf`'s own second parameter: the caller has
+ * already picked the field out of the body, because only the caller knows
+ * which one and how to read it.
+ */
+export function valueOf<T>(data: PanelData<unknown>, value: T): Read<T> {
+  if (data.status === 'error') return { kind: 'unknown', dependency: data.dependency };
+  return { kind: 'known', value };
+}
+
 // --- Picking fields out of a payload ---------------------------------------------
 
 /** One field of `record`, whatever it turns out to be. */

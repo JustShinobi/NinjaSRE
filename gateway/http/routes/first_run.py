@@ -25,9 +25,9 @@ from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.runtime import runtime_composed
 from gateway.http.state import GatewayState
-from gateway.http.verifications import integration_health
+from gateway.http.verifications import integration_health, recorded_checks
 from integrations._catalogue.discovery import catalogue
-from integrations._catalogue.entry import HealthStatus
+from platform.persistence.ports.verification_ledger import VerificationSubject
 from platform.startup.bootstrap import establish_durable_credential, read_credential
 from platform.startup.checklist import build_checklist
 from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
@@ -130,16 +130,27 @@ async def checklist(
     the recorded checks found, so "verified" means something answered rather than
     that a credential is present — and it means that on the next request too,
     which is the whole reason the answer is written down.
+
+    The provider's own readiness is read the same way, from the same ledger,
+    by the same helper `/v1/providers` already reads it with — this is the
+    fix for the checklist and the listing disagreeing about the same
+    provider: one document, read twice rather than derived twice.
     """
-    ledger = await integration_health(state.gateway, auth.scope)
+    integration_checks = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.INTEGRATION
+    )
+    provider_checks = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.MODEL_PROVIDER
+    )
+    ledger = await integration_health(state.gateway, auth.scope, held=integration_checks)
     entries = catalogue(health=ledger)
     declared = tuple(entry.name for entry in entries)
-    reached = tuple(entry.name for entry in entries if entry.health is HealthStatus.HEALTHY)
     built = await build_checklist(
         state.gateway,
         organisation_id=auth.scope.org_id,
         integrations=declared,
-        verified_integrations=reached,
+        provider_checks=provider_checks,
+        integration_checks=integration_checks,
         runtime_composed=runtime_composed(state),
     )
     record = built.to_record()
