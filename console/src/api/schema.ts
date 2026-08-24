@@ -486,12 +486,12 @@ export interface paths {
          * Decide Approval
          * @description Approve or reject an approval request, in the caller's name.
          *
-         *     Approving records the decision, the decider and the instant, and nothing
-         *     else: this route never invokes the capability the approval names. The
-         *     store itself refuses to record an approval with no rollback plan stored
-         *     against it, so the guarantee that a change above read is undoable does not
-         *     depend on this handler getting an order right — there is no order to get
-         *     wrong, because nothing here writes a plan, only reads one already there.
+         *     Approving records the decision, the decider and the instant, and then —
+         *     when the change is a remediation and this deployment composed a desk —
+         *     carries the action out through the gate. The store refuses to record an
+         *     approval with no rollback plan stored against it, so the undo is already
+         *     there before anything runs; the recording happens first for the reason the
+         *     module docstring gives.
          *
          *     Rejecting without a reason is refused before either store is touched. The
          *     console's own control disables the reject button until a reason is typed;

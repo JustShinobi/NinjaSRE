@@ -30,6 +30,7 @@ from gateway.http.integration_access import compose_integration_access
 from gateway.http.log_sources import compose_log_sources
 from gateway.http.node_access import compose_node_access
 from gateway.http.provider_credentials import compose_provider_credentials
+from gateway.http.remediation import compose_remediation
 from gateway.http.runtime import recompose_investigator
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
@@ -81,6 +82,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # control that turns "nobody has checked this" into a measurement, and
         # without this line the route behind it refuses on every deployment.
         compose_deep_verifier(state)
+        # The half of the product that acts. Composed here and not earlier for
+        # three reasons in order: the executor reaches a control plane through
+        # the proxy the first line above binds, it calls a model through the
+        # keys the second publishes, and it is handed to the runner — which the
+        # line above has just replaced, so composing before it would install the
+        # desk on the object that was thrown away and leave the loop that
+        # actually runs with none.
+        await compose_remediation(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,

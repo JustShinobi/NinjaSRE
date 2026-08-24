@@ -12,6 +12,9 @@ The composition root wires them::
     resolver = TeamCatalogueResolver(build_registry())
     ranker = CatalogueRanker()
 
+The serving path builds both — the resolver through ``for_availability``,
+because it holds a request rather than a pipeline state.
+
 Substituting either is how an ablation is run. Putting the substitution here
 rather than inside a stage is what makes "the plan contributed this much" a
 measurement rather than an argument.
@@ -81,7 +84,19 @@ class TeamCatalogueResolver:
 
     async def resolve(self, state: AgentState) -> ResolvedCatalogue:
         """Return what the team on ``state`` can run, with the exclusions."""
-        return resolve_for(self.registry, self.availability(state))
+        return self.for_availability(self.availability(state))
+
+    def for_availability(self, availability: IntegrationAvailability) -> ResolvedCatalogue:
+        """Return what a team with ``availability`` can run, with the exclusions.
+
+        The entry for a caller that has the availability already and holds no
+        pipeline state — the path that serves a request holds a request. It is
+        the same resolution ``resolve`` performs, called from one place rather
+        than written twice: two implementations would be two answers to "what
+        can this team run", and the day they drifted a screen would count one
+        number while an investigation was handed another.
+        """
+        return resolve_for(self.registry, availability)
 
     def availability(self, state: AgentState) -> IntegrationAvailability:
         """Return what this run's team has configured."""
