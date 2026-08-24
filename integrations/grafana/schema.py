@@ -34,6 +34,7 @@ SCHEMA: Final = credential_schema(
         "Where your Grafana answers, scheme and port included — "
         "http://grafana.example.com:3000. The same address you sign in at.",
         label="Grafana address",
+        guide_url="https://grafana.com/docs/grafana/latest/setup-grafana/",
     ),
     secret(
         "token",
@@ -44,7 +45,10 @@ SCHEMA: Final = credential_schema(
         guide_url="https://grafana.com/docs/grafana/latest/administration/service-accounts/",
     ),
     public(
-        "org", "Grafana organisation id, when the stack has more than one", label="Organisation ID"
+        "org",
+        "Grafana organisation id, when the stack has more than one",
+        label="Organisation ID",
+        guide_url="https://grafana.com/docs/grafana/latest/administration/organization-management/",
     ),
 )
 

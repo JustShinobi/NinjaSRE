@@ -36,6 +36,7 @@ SCHEMA: Final = credential_schema(
         "yours is, so until it is declared every call goes to the documented "
         "placeholder.",
         label="Alertmanager address",
+        guide_url="https://prometheus.io/docs/alerting/latest/alertmanager/",
     ),
     secret(
         "token",
@@ -46,6 +47,7 @@ SCHEMA: Final = credential_schema(
         required=False,
         label="Bearer token",
         min_scope="whatever your reverse proxy or ingress accepts",
+        guide_url="https://prometheus.io/docs/guides/basic-auth/",
     ),
 )
 

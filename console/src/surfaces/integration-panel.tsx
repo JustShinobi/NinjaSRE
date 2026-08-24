@@ -93,6 +93,13 @@ export interface IntegrationPanelItem {
   readonly direction: string;
   /** Where this vendor posts, when it posts. Empty for an outbound-only vendor. */
   readonly intakePath: string;
+  /**
+   * Where an operator obtains this vendor's credential, in one sentence.
+   * Read from the vendor's own declaration, the same one the guided first
+   * run shows for the same vendor — never a copy, so the two screens can
+   * never disagree about it. Empty where a vendor has not declared one.
+   */
+  readonly whereToGetIt: string;
 }
 
 export interface IntegrationPanelLabels {
@@ -383,6 +390,7 @@ export function IntegrationPanel({
                   <CredentialField
                     integration={item.name}
                     fields={item.fields}
+                    whereToGetIt={item.whereToGetIt}
                     labels={labels.credential}
                     onStored={(name) => {
                       setReplacing(false);

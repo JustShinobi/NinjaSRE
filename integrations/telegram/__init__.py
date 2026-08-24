@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Telegram",
     category=IntegrationCategory.COMMUNICATION,
     summary="A Telegram chat used as an alerting channel: what has arrived recently, and a finding delivered into it.",
+    where_to_get_it=(
+        "Message @BotFather on Telegram and use /mybots → API Token to read out the bot "
+        "token it issued."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

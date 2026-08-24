@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="OpenObserve",
     category=IntegrationCategory.LOG_STORE,
     summary="SQL search over OpenObserve streams, counted by field before any record is read, for the estates that chose it for its storage cost.",
+    where_to_get_it=(
+        "OpenObserve → Settings → Users issues the email and password pair; the "
+        "organisation name is shown on that same screen."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

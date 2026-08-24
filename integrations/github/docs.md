@@ -4,11 +4,18 @@ What landed in a repository and when: the commits on its default branch and the 
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Only for GitHub Enterprise Server — https://github.acme.example/api/v3 | no | no |
-| `token` | GitHub token — a fine-grained personal access token or an app installation token | yes | yes |
-| `owner` | Default organisation or user the repositories belong to | no | no |
+| `endpoint` | Only for GitHub Enterprise Server — https://github.acme.example/api/v3 | — | [About GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@latest/admin/overview/about-github-enterprise-server) |
+| `token` | GitHub token — a fine-grained personal access token or an app installation token | Repository permissions: Contents (read-only) and Pull requests (read-only) | [Managing personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) |
+| `owner` | Default organisation or user the repositories belong to | — | [About organizations](https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/about-organizations) |
+
+Sources: all three from GitHub's own documentation, current as of this feature.
 
 ```bash
 ninjasre integrations setup github

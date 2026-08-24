@@ -36,6 +36,7 @@ SCHEMA: Final = credential_schema(
         "yours is, so until it is declared every query goes to the documented "
         "placeholder.",
         label="Prometheus address",
+        guide_url="https://prometheus.io/docs/prometheus/latest/querying/api/",
     ),
     secret(
         "token",
@@ -46,6 +47,7 @@ SCHEMA: Final = credential_schema(
         required=False,
         label="Bearer token",
         min_scope="whatever your reverse proxy or ingress accepts",
+        guide_url="https://prometheus.io/docs/guides/basic-auth/",
     ),
 )
 

@@ -2020,6 +2020,7 @@ def _catalogue_integration_record(entry: CatalogueEntry) -> dict[str, Any]:
                 strict=True,
             )
         ),
+        "where_to_get_it": entry.profile.where_to_get_it,
     }
 
 

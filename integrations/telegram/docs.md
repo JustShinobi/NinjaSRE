@@ -4,9 +4,17 @@ A Telegram chat used as an alerting channel: what has arrived recently, and a fi
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `token` | Telegram bot token, as BotFather issued it | yes | yes |
+| `token` | Telegram bot token, as BotFather issued it | this token does not carry scope — treat it as full access | [Telegram Bot API](https://core.telegram.org/bots) |
+
+Source: Telegram's own Bot API documentation. A bot token has no scope system
+— it can do everything the Bot API allows that bot to do.
 
 ```bash
 ninjasre integrations setup telegram

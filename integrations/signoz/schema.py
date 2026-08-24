@@ -35,12 +35,15 @@ SCHEMA: Final = credential_schema(
         "http://signoz.example.com:8080. The address the UI is served at, not the "
         "OTLP collector's.",
         label="SigNoz address",
+        guide_url="https://signoz.io/docs/",
     ),
     secret(
         "api_key",
         "SigNoz API key for the workspace holding this service's telemetry",
         min_length=8,
         label="API key",
+        min_scope="this token does not carry scope — treat it as full access",
+        guide_url="https://signoz.io/docs/",
     ),
 )
 

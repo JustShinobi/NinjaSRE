@@ -31,6 +31,10 @@ SCHEMA: Final = credential_schema(
         "Redis Cloud account key",
         min_length=8,
         label="Account key",
+        # The account key only identifies the account; Redis Cloud's own
+        # permission model lives on the secret key's associated user, which is
+        # why that field below carries the real scope and this one does not.
+        min_scope="this token does not carry scope — treat it as full access",
         guide_url="https://redis.io/docs/latest/operate/rc/api/get-started/",
     ),
     secret(
@@ -39,6 +43,7 @@ SCHEMA: Final = credential_schema(
         min_length=8,
         label="Secret key",
         min_scope="subscriptions:read",
+        guide_url="https://redis.io/docs/latest/operate/rc/api/get-started/",
     ),
 )
 

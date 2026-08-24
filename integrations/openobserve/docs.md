@@ -4,12 +4,23 @@ SQL search over OpenObserve streams, counted by field before any record is read,
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your OpenObserve answers, scheme and port included | no | yes |
-| `username` | OpenObserve user email | yes | yes |
-| `password` | That user's password or token | yes | yes |
-| `organisation` | OpenObserve organisation | no | yes |
+| `endpoint` | Where your OpenObserve answers, scheme and port included | — | [OpenObserve docs](https://openobserve.ai/docs/) |
+| `username` | OpenObserve user email | `streams:read` | [OpenObserve docs](https://openobserve.ai/docs/) |
+| `password` | That user's password or token | `streams:read` | [OpenObserve docs](https://openobserve.ai/docs/) |
+| `organisation` | OpenObserve organisation | — | [OpenObserve docs](https://openobserve.ai/docs/) |
+
+Sources: OpenObserve's own documentation site; it has no stable deep link per
+field, so all four point at the same entry point rather than at a guessed
+anchor. `username` and `password` are Basic Auth, checked as one pair — the
+account they identify together is what carries `streams:read`, not either
+field alone.
 
 The endpoint goes to the configuration tree rather than the vault — it is not
 part of the credential, and it is where the credential proxy reads its egress

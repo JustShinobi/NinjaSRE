@@ -58,6 +58,10 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    where_to_get_it=(
+        "Create a service account and bind it to a role granting get/list on events, "
+        "deployments, and replica sets, then read out its token."
+    ),
 )
 
 __all__ = [

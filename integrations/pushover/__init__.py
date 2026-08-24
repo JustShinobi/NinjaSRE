@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Pushover",
     category=IntegrationCategory.COMMUNICATION,
     summary="Pushover as a last-resort notification path: which delivery groups exist, and a finding pushed to a responder's device.",
+    where_to_get_it=(
+        "Create an application at pushover.net → Your Applications for the API token, "
+        "and copy the user or group key from your own Pushover account page."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

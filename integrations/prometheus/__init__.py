@@ -36,6 +36,11 @@ PROFILE: Final = IntegrationProfile(
     display_name="Prometheus",
     category=IntegrationCategory.METRICS_STORE,
     summary="PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it.",
+    where_to_get_it=(
+        "Prometheus ships no authentication of its own; the token here, if any, is "
+        "whatever your reverse proxy, ingress, or Grafana Cloud access policy in front "
+        "of it accepts."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

@@ -93,6 +93,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     discoveredAddress: '',
     direction: 'outbound',
     intakePath: '',
+    whereToGetIt: '',
     ...overrides,
   };
 }
@@ -280,6 +281,46 @@ describe('a connected integration: state and actions, not an empty form', () => 
     expect(screen.getByTestId('credential')).toBeInTheDocument();
     expect(screen.queryByTestId('credential-connected')).toBeNull();
     expect(screen.queryByRole('button', { name: /^Disconnect/ })).toBeNull();
+  });
+});
+
+describe('where to obtain the credential', () => {
+  it('shows the vendor-declared phrase when the vendor declares one', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({
+          whereToGetIt: 'Ask your platform team for the shared bearer token.',
+        })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('where-to-get-it')).toHaveTextContent(
+      'Ask your platform team for the shared bearer token.',
+    );
+  });
+
+  it('renders no line at all when the vendor declares no phrase', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ whereToGetIt: '' })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('where-to-get-it')).toBeNull();
   });
 });
 

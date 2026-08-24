@@ -773,6 +773,7 @@ describe('connecting integrations', () => {
         { name: 'api_token', label: 'Token', help: '', secret: true, required: true },
       ],
       configured: false,
+      whereToGetIt: "Create a service account token from the vendor's own console.",
     },
     {
       name: 'chat',
@@ -845,6 +846,28 @@ describe('connecting integrations', () => {
     render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
 
     expect(screen.getByText('all optional')).toBeInTheDocument();
+  });
+
+  it("shows an offer's declared where-to-get-it phrase beside its form", () => {
+    const { container } = render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
+
+    const metricsStore = container.querySelector('[data-integration="metrics-store"]');
+    expect(metricsStore).not.toBeNull();
+    expect(
+      within(metricsStore as HTMLElement).getByTestId('where-to-get-it'),
+    ).toHaveTextContent(
+      "Create a service account token from the vendor's own console.",
+    );
+  });
+
+  it('renders no where-to-get-it line for an offer with no declared phrase', () => {
+    const { container } = render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
+
+    const ticketing = container.querySelector('[data-integration="ticketing"]');
+    expect(ticketing).not.toBeNull();
+    expect(
+      within(ticketing as HTMLElement).queryByTestId('where-to-get-it'),
+    ).toBeNull();
   });
 
   it('says so when a search matches nothing, rather than showing an empty list', async () => {

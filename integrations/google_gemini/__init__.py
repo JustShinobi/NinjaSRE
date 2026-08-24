@@ -55,6 +55,10 @@ PROFILE: Final = IntegrationProfile(
     ),
     regions=REGIONS,
     permissions=PERMISSIONS,
+    where_to_get_it=(
+        "Create an API key in Google AI Studio, in the project you want billed for the "
+        "calls this deployment makes."
+    ),
 )
 
 __all__ = [

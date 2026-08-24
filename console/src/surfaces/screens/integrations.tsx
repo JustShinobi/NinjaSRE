@@ -125,6 +125,8 @@ interface CatalogueItem {
   readonly direction: string;
   /** Where it posts, when it posts. Empty for an outbound-only vendor. */
   readonly intakePath: string;
+  /** Where an operator obtains this vendor's credential, in one sentence. */
+  readonly whereToGetIt: string;
   readonly suggested?: {
     readonly address: string;
     readonly fromResource: string;
@@ -157,7 +159,11 @@ function fieldsOf(record: unknown): readonly CredentialFieldSpec[] {
 /**
  * The vendor permissions this integration's capabilities need, whole — read
  * from the catalogue's own declared permission entries rather than the
- * per-field `min_scope` a schema mostly leaves blank.
+ * per-field `min_scope`. The two answer different questions: `min_scope` is
+ * the least one field's own value needs, declared on the field; this is
+ * everything the vendor's capabilities as a whole require, with where an
+ * operator grants it — and it exists even for a field whose `min_scope` is
+ * blank because the field is not secret at all.
  */
 function permissionsOf(record: unknown): readonly PermissionSpec[] {
   return list(record, 'permissions').map((declared) => ({
@@ -219,6 +225,7 @@ function itemOf(record: unknown): CatalogueItem {
     permissions: permissionsOf(record),
     direction: text(record, 'direction'),
     intakePath: text(record, 'intake_path'),
+    whereToGetIt: text(record, 'where_to_get_it'),
     ...(suggested === undefined ? {} : { suggested }),
   };
 }
@@ -496,6 +503,7 @@ export async function IntegrationsScreen(
                   discoveredAddress: panelItem.suggested?.address ?? '',
                   direction: panelItem.direction,
                   intakePath: panelItem.intakePath,
+                  whereToGetIt: panelItem.whereToGetIt,
                 }
           }
           closeHref={closeHref}

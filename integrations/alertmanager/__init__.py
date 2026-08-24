@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Alertmanager",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="What Prometheus Alertmanager is currently holding: which alerts are firing, how they are grouped, and which are silenced rather than resolved.",
+    where_to_get_it=(
+        "Alertmanager ships no authentication of its own; the token here, if any, is "
+        "whatever your reverse proxy or ingress in front of it accepts."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

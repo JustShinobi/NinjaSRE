@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="SigNoz",
     category=IntegrationCategory.TRACING,
     summary="SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration.",
+    where_to_get_it=(
+        "SigNoz → Settings → API keys issues a workspace API key; self-hosted SigNoz is "
+        "reached at the address its query service answers on."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

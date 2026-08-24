@@ -63,7 +63,7 @@ from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.state import GatewayState
 from gateway.http.verifications import forget_check, integration_health, record_check
 from gateway.webhooks.router import PROFILES as WEBHOOK_PROFILES
-from integrations._catalogue.discovery import catalogue
+from integrations._catalogue.discovery import catalogue, entry
 from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
@@ -244,6 +244,12 @@ class IntegrationView(BaseModel):
     #: Set when the estate holds something this vendor plainly runs on. Absent
     #: otherwise, and absent is the ordinary case.
     suggested: SuggestionView | None = None
+    #: One sentence naming where an operator obtains this vendor's credential,
+    #: read from the vendor's own profile. The same declaration the guided
+    #: first run reads for the same vendor, so the two screens that ask for a
+    #: credential never disagree about where it comes from. Empty where a
+    #: vendor has not declared one.
+    where_to_get_it: str = ""
 
 
 class IntegrationList(BaseModel):
@@ -254,6 +260,27 @@ class IntegrationList(BaseModel):
     #: read to answer, and an operator who has to know to ask a second time
     #: discovers the absence by not finding it.
     known_gaps: list[KnownGapView] = Field(default_factory=list)
+
+
+class IntegrationDocsView(BaseModel):
+    """One vendor package's own documentation, as its ``docs.md`` reads.
+
+    ``markdown`` is the file's text, unmodified — the console renders it with
+    the markdown reader it already has rather than this route parsing
+    anything. ``readable`` is false in exactly one situation: the vendor is
+    installed and its parity report resolved a ``docs.md`` path, but the file
+    at that path could not actually be read. That is never "no such vendor" —
+    a name outside the catalogue is a 404, not a row here — and it is never
+    "this vendor has no documentation", because every embedded vendor is
+    required to ship one. It is this deployment's own build failing to carry
+    a file its source tree has, which is exactly the failure the console has
+    to say plainly rather than reporting as if the document never existed.
+    """
+
+    name: str
+    display_name: str
+    markdown: str
+    readable: bool = True
 
 
 class IntegrationVerification(BaseModel):
@@ -399,6 +426,52 @@ async def list_integrations(
     )
 
 
+@router.get("/{name}/docs", response_model=IntegrationDocsView)
+async def integration_docs(
+    name: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> IntegrationDocsView:
+    """Return one embedded vendor's own package documentation.
+
+    Takes the same authorisation every other route on this router does, even
+    though it reads nothing tenant-scoped: the permission check is what
+    ``authorized`` performs against the route table, and a route mounted
+    without it would be reachable by anyone who could reach this deployment
+    at all.
+
+    ``name`` is resolved against the installed catalogue and never used to
+    build a filesystem path directly: the path this reads comes from the same
+    parity report that already walked the package tree to confirm ``docs.md``
+    is there, so a name that is not an installed vendor never reaches a disk
+    access at all — it is a 404 before that.
+    """
+    del state, auth  # required for the permission check; this route reads no tenant data
+    try:
+        found = entry(name)
+    except LookupError as unknown:
+        raise not_found(str(unknown)) from unknown
+
+    docs_path = found.parity.docs_path
+    if docs_path is None:
+        # Installed, but this deployment's own build did not carry the file
+        # the source tree declares. A read failure, not an absence — see
+        # IntegrationDocsView's own docstring for why the two must not be
+        # collapsed into one signal.
+        return IntegrationDocsView(
+            name=found.name, display_name=found.display_name, markdown="", readable=False
+        )
+
+    try:
+        markdown = docs_path.read_text(encoding="utf-8")
+    except OSError:
+        return IntegrationDocsView(
+            name=found.name, display_name=found.display_name, markdown="", readable=False
+        )
+
+    return IntegrationDocsView(name=found.name, display_name=found.display_name, markdown=markdown)
+
+
 def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationView:
     """Return one catalogue entry as the view a console renders."""
     direction, intake_path = _direction(entry.name)
@@ -418,6 +491,7 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
         missing_artefacts=[artefact.value for artefact in entry.parity.missing],
         direction=direction,
         intake_path=intake_path,
+        where_to_get_it=entry.profile.where_to_get_it,
         suggested=(
             None
             if suggested is None

@@ -31,6 +31,9 @@ SCHEMA: Final = credential_schema(
         "Telegram bot token, as BotFather issued it",
         min_length=8,
         label="Bot token",
+        # Telegram bot tokens have no scope system: a bot token can do
+        # everything the Bot API lets that bot do, full stop.
+        min_scope="this token does not carry scope — treat it as full access",
         guide_url="https://core.telegram.org/bots",
     ),
 )

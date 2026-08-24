@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Grafana",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="What Grafana knows about a stack: which dashboards and folders exist, and the annotation timeline of deploys, alert state changes, and anything else a human marked.",
+    where_to_get_it=(
+        "Create a service account token from Grafana's own Administration → Service "
+        "accounts screen, with the Viewer role."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
