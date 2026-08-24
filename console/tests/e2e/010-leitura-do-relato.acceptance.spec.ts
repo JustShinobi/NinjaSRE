@@ -67,9 +67,16 @@ function rowFor(page: Page, runId: string) {
   return page.locator(`[data-testid="row"][data-row="${runId}"]`);
 }
 
-/** The SUBJECT cell of the row for `runId` — the column labelled "Subject". */
+/**
+ * The SUBJECT cell's own visible text, for the row addressed by `runId`.
+ *
+ * Scoped to the truncating `<span>` inside the cell's link rather than the
+ * `<td>` as a whole: the first cell of a row also carries a screen-reader-only
+ * "Open" label after it, and `td.textContent()` would fold that word onto the
+ * end of the run's name.
+ */
 function subjectCellFor(page: Page, runId: string) {
-  return rowFor(page, runId).locator('td[data-label="Subject"]');
+  return rowFor(page, runId).locator('td[data-label="Subject"] a > span.truncate');
 }
 
 test.describe('(a) the name of a run is a sentence, everywhere it is shown', () => {
@@ -293,7 +300,9 @@ test.describe('(e) the transcript and the cost panel report what the record hold
       .filter({ hasText: 'Cost and tokens' })
       .first();
     await expect(cost).not.toContainText('No cost recorded');
-    await expect(cost.getByTestId('usage-by-turn').locator('tbody tr')).toHaveCount(2);
+    // `usage-by-turn` is the <tbody> itself — its rows are direct children,
+    // not a second, nested tbody.
+    await expect(cost.getByTestId('usage-by-turn').locator('tr')).toHaveCount(2);
   });
 
   test('a run with no turn at all still says cost was never recorded — the sentence still exists for when it is true', async ({

@@ -39,11 +39,16 @@ export const RUN_STATUSES = [
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 /**
- * Every word that means a run is still doing something — including one
- * waiting on a person, which is as much "not finished" as one still taking
- * tool calls.
+ * Every word that means a run is still doing something — still taking tool
+ * calls, on its own.
+ *
+ * `awaiting_approval` is deliberately absent. A run in that state has
+ * stopped calling tools and is paused on a person's decision, which is
+ * neither "still working" nor "settled and will not change again" — it is
+ * its own third thing, surfaced by the open-interaction panel rather than by
+ * a live transcript stream watching for tool calls that are not coming.
  */
-const LIVE_RUN_STATUSES: readonly string[] = ['queued', 'running', 'waiting', 'awaiting_approval'];
+const LIVE_RUN_STATUSES: readonly string[] = ['queued', 'running', 'waiting'];
 
 /** Every word that means a run has finished and will not change again. */
 const SETTLED_RUN_STATUSES: readonly string[] = [
