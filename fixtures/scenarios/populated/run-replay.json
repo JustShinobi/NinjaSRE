@@ -7,8 +7,8 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0001",
-        "total_cost": 0.124,
-        "total_tokens": 7360,
+        "total_cost": 0.0,
+        "total_tokens": 0,
         "turns": [
           {
             "calls": [
@@ -161,8 +161,8 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0002",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
+        "total_cost": 0,
+        "total_tokens": 0,
         "turns": [],
         "unpriced_turns": 0
       },
@@ -184,8 +184,8 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0003",
-        "total_cost": 0.093,
-        "total_tokens": 5520,
+        "total_cost": 0.0,
+        "total_tokens": 0,
         "turns": [
           {
             "calls": [
@@ -238,8 +238,8 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0004",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
+        "total_cost": 0,
+        "total_tokens": 0,
         "turns": [],
         "unpriced_turns": 0
       },
@@ -261,10 +261,67 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0005",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
-        "turns": [],
-        "unpriced_turns": 0
+        "total_cost": 0.0091,
+        "total_tokens": 760,
+        "turns": [
+          {
+            "calls": [
+              {
+                "arguments": {
+                  "resource": "proxmox:container/hal9000/110"
+                },
+                "call_id": "call-0005-1",
+                "duration_ms": 205,
+                "error": null,
+                "name": "estate.backup_job_status",
+                "status": "succeeded"
+              },
+              {
+                "arguments": {
+                  "resource_id": "ct-101"
+                },
+                "call_id": "call-0005-2",
+                "duration_ms": 179,
+                "error": null,
+                "name": "estate.backup_job_status",
+                "status": "succeeded"
+              }
+            ],
+            "completion_tokens": 148,
+            "cost": 0.0091,
+            "index": 0,
+            "model": "operator-configured",
+            "prompt_tokens": 612,
+            "selection_rationale": "the disabled job's own state names the subject to check first",
+            "turn_id": "turn-0005-1"
+          },
+          {
+            "calls": [
+              {
+                "call_id": "call-0005-3",
+                "duration_ms": 91,
+                "error": null,
+                "name": "knowledge.search",
+                "status": "succeeded"
+              },
+              {
+                "arguments": {
+                  "resource": "proxmox:container/hal9000/110"
+                },
+                "call_id": "call-0005-4",
+                "duration_ms": 133,
+                "error": null,
+                "name": "estate.backup_schedule",
+                "status": "succeeded"
+              }
+            ],
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "both subjects share one disabled job; read the schedule that disabled it",
+            "turn_id": "turn-0005-2"
+          }
+        ],
+        "unpriced_turns": 1
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -284,8 +341,77 @@
       "body": {
         "is_interrupted": true,
         "run_id": "run-0006",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
+        "total_cost": 0,
+        "total_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0101"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0101",
+        "total_cost": 0,
+        "total_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0102"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0102",
+        "total_cost": 0,
+        "total_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0103"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0103",
+        "total_cost": 0,
+        "total_tokens": 0,
         "turns": [],
         "unpriced_turns": 0
       },
