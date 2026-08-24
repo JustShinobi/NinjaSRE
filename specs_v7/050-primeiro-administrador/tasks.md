@@ -379,7 +379,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       e-mail contra o banco com dados, capturando os dois resultados —
       inclusive a recusa nomeada, se for o caso.
 
-- [ ] T071 Anotar em `evidence/` a comparação com T003: o mesmo deployment,
+- [x] T071 Anotar em `evidence/` a comparação com T003: o mesmo deployment,
       antes e depois, na forma em que ele aparece para quem instalou.
 
 ---
@@ -399,8 +399,25 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       se algum principal ficou sem grant. As consultas exatas vão no
       `controle.md` junto dos resultados.
 
-- [ ] T075 Rodar `make verify` e comparar com a linha de base de T001. Verde,
+- [x] T075 Rodar `make verify` e comparar com a linha de base de T001. Verde,
       tendo partido de verde.
+      → **Cumprida.** O log da linha de base foi produzido rodando o portão em
+      `abbc418`, num worktree separado — a árvore intacta existe no git —
+      e deu `MAKE_VERIFY_EXIT=0`, 12.247 passed, 0 failed
+      (`specs_v7/060-o-catalogo-ensina/evidence/baseline-abbc418-make-verify.log.gz`,
+      conferido descompactando e lendo o próprio log, não por citação). A
+      comparação alvo por alvo está em
+      `specs_v7/060-o-catalogo-ensina/controle.md`, seção "A comparação com a
+      linha de base": todo alvo que passava continua passando, a suíte
+      cresceu ~525 testes, e as diferenças que apareceram no caminho foram
+      consertadas, cada uma no commit que a corrige. Conferido também por
+      conta própria, nesta árvore: os dois vermelhos que essa mesma seção
+      registrava como corrigidos por outro trabalho da onda —
+      `test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed`
+      e
+      `test_onboarding_against_a_deployment.py::test_the_deployment_reads_as_ready_once_the_flow_has_run`
+      — rodam verdes agora (`2 passed in 3.24s`), fechando o único ponto em
+      aberto que a versão anterior deste arquivo citava para T075.
 
 - [x] T076 Escrever o relatório final: o bloco de chaves i18n de T065, as
       questões abertas para o operador que a spec levanta, e a linha do

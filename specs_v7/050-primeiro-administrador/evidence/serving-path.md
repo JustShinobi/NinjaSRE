@@ -289,3 +289,35 @@ descartável, só para esta troca, nunca usada para entrar pelo formulário
 nome+senha). É provavelmente a primeira vez que alguém tentou rodar o
 backing `compose` depois de T056 aterrissar — nenhum teste do harness cobria
 essa chamada HTTP de verdade.
+
+## T071 — a comparação com T003
+
+**O que existe de T003, e o que não existe.** Não há transcrição bruta de
+T003 commitada em `evidence/` — a tarefa já estava marcada `[x]` em
+`tasks.md` quando esta rodada começou, e nem um arquivo nem uma mensagem de
+commit desta feature nomeia seu conteúdo literal. O que existe, comitado e
+citável, é o registro em prosa: `specs_v7/050-primeiro-administrador/spec.md`
+("O problema, em uma frase") e a seção ANTES/DEPOIS de
+`specs_v7/050-primeiro-administrador/controle.md` (linhas 14-41). É contra
+esse registro, não contra um log que não sobrou, que a comparação abaixo é
+feita — nomeado, não escondido.
+
+**O mesmo deployment, mesma receita** (`docker compose up`, sem
+`NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH`, sem seed):
+
+| | Antes (registrado em `spec.md`/`controle.md`) | Depois (`evidence/t066-*`, este deployment) |
+|---|---|---|
+| O que o terminal diz no primeiro start | Nada que ensine o caminho — exige ler código-fonte para achar `NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH` e `hash_local_password` | Nomeia um comando único e completo: `ninjasre setup admin --name admin` (`evidence/t066-clean-boot.log`) |
+| A afirmação sobre a credencial impressa | "Sign in with this credential" — falsa: a troca produz um token, o formulário quer nome+senha | "It does not sign you in by itself" — a mesma credencial, a afirmação corrigida (mesmo log) |
+| Tentar entrar pelo formulário | Toda combinação é recusada, porque nenhuma é a certa (nenhum caminho leva a uma sessão) | O comando nomeado cria um administrador; nome e passphrase escolhidos são aceitos por `POST /auth/sign-in` — sessão real estabelecida (`evidence/t066-setup-admin-session.log` + `t066` acima) |
+| Segundo service account sem e-mail | Morre em `UniqueViolationError` cru (registrado em `controle.md`) | Criado com sucesso, confirmado contra o Postgres real (T068 acima) |
+
+**O que esta rodada não recapturou**: uma tentativa de sign-in *recusada* no
+estado limpo (antes de criar o administrador) — o terminal desta sessão foi
+direto do boot para o comando nomeado. O comportamento em si não mudou e não
+precisa de nova captura para ser verdade: um deployment sem conta de
+ambiente e sem abertura recusa toda tentativa com a mesma recusa única,
+guardado por `tests/unit/platform/identity/test_local_accounts.py`
+(T005/T008/T009, vermelho→verde antes desta rodada, revalidado como parte
+de `make verify` — ver T075) — a mesma invariante que o "antes" desta
+tabela descreve, agora com um caminho que sai dela.
