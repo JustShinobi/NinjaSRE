@@ -432,6 +432,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/setup/local-administrator",
+        slug="local-administrator",
+        source=_GATEWAY,
+        summary="whether this deployment has a local administrator yet, and the command that gives it one",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/providers",
         slug="providers",
         source=_GATEWAY,

@@ -268,6 +268,10 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "impersonating": False,
             "impersonated_by": None,
         },
+        # This principal already signed in as the owner — an empty deployment
+        # is dataless, not unclaimed. `first_run_records` is the one scenario
+        # that patches this back to `unclaimed`.
+        "local-administrator": {"state": "administered", "command": ""},
         "runs": {"runs": []},
         "approvals": {"approvals": []},
         "proposals": {
@@ -589,6 +593,10 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                 ("proxmox", SETUP_READINESS_VERIFIED),
             ),
         ).body,
+        # The one scenario this dataset builds where nobody has opened local
+        # sign-in yet — the sign-in and first-run screens' own "no
+        # administrator" notice has nothing to render against otherwise.
+        "local-administrator": served.local_administrator_record(unclaimed=True).body,
     }
     return tuple(
         record.with_body(replacements[record.slug]) if record.slug in replacements else record

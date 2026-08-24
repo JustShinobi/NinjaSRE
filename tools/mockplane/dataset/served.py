@@ -21,6 +21,7 @@ from typing import Any, Final
 
 from config.constants.config_service import MODEL_ROLES
 from config.constants.first_run import (
+    LOCAL_ADMIN_SETUP_COMMAND,
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
     SETUP_READINESS_VERIFIED,
@@ -2857,6 +2858,27 @@ def empty_transit_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+def local_administrator_record(*, unclaimed: bool = False) -> CapturedRecord:
+    """Return the ternary fact the sign-in and first-run screens read.
+
+    Mirrors the gateway's own ``LocalAdministratorAvailabilityView``:
+    ``unclaimed`` for a deployment nobody has opened local sign-in on yet
+    (with the CLI invitation attached, the same constant the boot
+    announcement prints), ``administered`` for one that already has an
+    owner — from the environment or a deliberate enrolment, this dataset
+    does not distinguish which. No scenario this module builds configures
+    an identity provider, so the gateway's third state is never returned
+    here.
+    """
+    if unclaimed:
+        return _record(
+            "local-administrator",
+            {},
+            {"state": "unclaimed", "command": LOCAL_ADMIN_SETUP_COMMAND},
+        )
+    return _record("local-administrator", {}, {"state": "administered", "command": ""})
+
+
 def setup_records() -> tuple[CapturedRecord, ...]:
     """Return what the full deployment says about its own setup: finished."""
     return (
@@ -2873,6 +2895,10 @@ def setup_records() -> tuple[CapturedRecord, ...]:
             investigated=True,
             integrations=_INTEGRATION_READINESS,
         ),
+        # This deployment already has an owner — the whole rest of this
+        # dataset is one operating mid-flight, and only `first_run_records`
+        # patches this back to `unclaimed`.
+        local_administrator_record(),
     )
 
 
@@ -3420,6 +3446,7 @@ __all__ = [
     "role_records",
     "integration_records",
     "interaction_records",
+    "local_administrator_record",
     "proposal_records",
     "memory_records",
     "platform_records",
