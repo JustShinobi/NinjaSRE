@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from gateway.http.credential_handles import resolve_process_credential_team
 from gateway.http.integration_endpoints import configured_endpoints
 from integrations._base import access
 from integrations._base.access import IntegrationAccess
@@ -48,25 +48,41 @@ async def compose_integration_access(
 ) -> IntegrationAccess | None:
     """Bind this process's vendor access, or bind nothing and say why.
 
-    The organisation's own handle rather than a team's: a tool called by an
-    investigation acts for the deployment, and the credential a team-less token
-    wrote went to the organisation-wide handle. Asking for a blank team would
-    build a handle the grammar refuses and be turned away at the proxy.
+    The team is the one that holds a credential for something in the
+    catalogue, discovered from the vault (``resolve_process_credential_team``)
+    rather than assumed to be the organisation's. A tool called by an
+    investigation acts for the deployment and has no caller of its own to ask,
+    which is exactly the shape that function exists for; the organisation-wide
+    handle is still where it lands when nobody holds anything by team, or when
+    more than one team does — never a handle the grammar would refuse.
     """
     if not proxy_url.strip():
         logger.info("integrations.access_skipped", reason="no credential proxy is configured")
         access.bind(None)
         return None
 
+    resolved = await resolve_process_credential_team(state.gateway, TenantScope(org_id=org_id))
+    if resolved.is_ambiguous:
+        logger.warning(
+            "integrations.access_team_ambiguous",
+            org_id=org_id,
+            teams=list(resolved.ambiguous_teams),
+        )
+
     bound = IntegrationAccess(
         transport=HttpProxyTransport(base_url=proxy_url.strip()),
         org_id=org_id,
-        team_id=CREDENTIAL_ORG_WIDE_TEAM,
+        team_id=resolved.team_id,
         endpoints=await _endpoints(state, org_id=org_id),
     )
     access.bind(bound)
     state.integration_access = bound
-    logger.info("integrations.access_composed", org_id=org_id, endpoints=sorted(bound.endpoints))
+    logger.info(
+        "integrations.access_composed",
+        org_id=org_id,
+        team_id=bound.team_id,
+        endpoints=sorted(bound.endpoints),
+    )
     return bound
 
 

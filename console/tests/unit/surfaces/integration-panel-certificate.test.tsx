@@ -86,6 +86,7 @@ const LABELS: IntegrationPanelLabels = {
   docsHeading: 'Documentation',
   docsToggle: 'Show the vendor guide',
   docsUnreadable: 'This deployment could not read the guide.',
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function connected(): IntegrationPanelItem {
@@ -98,6 +99,7 @@ function connected(): IntegrationPanelItem {
     docsReadable: false,
     health: 'degraded',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'api_token',

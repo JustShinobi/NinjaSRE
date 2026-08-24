@@ -66,6 +66,7 @@ const LABELS: IntegrationPanelLabels = {
   docsHeading: 'Package documentation',
   docsToggle: 'Read the package documentation',
   docsUnreadable: "This vendor's own documentation could not be read.",
+  credentialTeamAmbiguous: "More than one team holds a credential for this vendor.",
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -76,6 +77,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     summary: 'What is firing, grouped and silenced.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'endpoint',
