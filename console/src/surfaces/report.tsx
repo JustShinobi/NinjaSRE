@@ -159,7 +159,7 @@ function parseInline(source: string): Inline[] {
       }
     }
 
-    buffer += ch;
+    buffer += ch ?? '';
     cursor += 1;
   }
   flush();
@@ -419,7 +419,10 @@ function renderBlock(block: Block, key: string): ReactNode {
       );
     case 'blockquote':
       return (
-        <blockquote key={key} className="border-l-2 border-border pl-3 text-small text-muted">
+        <blockquote
+          key={key}
+          className="edge border-border border-y-0 border-r-0 pl-3 text-small text-muted"
+        >
           {renderInline(block.inline, key)}
         </blockquote>
       );
