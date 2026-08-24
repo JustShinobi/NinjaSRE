@@ -362,7 +362,19 @@ async def test_the_availability_route_needs_no_credential_at_all(
 async def test_a_fresh_deployment_is_unclaimed(client: AsyncClient, availability_org: str) -> None:
     response = await client.get("/v1/setup/local-administrator")
 
-    assert response.json() == {"state": "unclaimed"}
+    body = response.json()
+    assert body["state"] == "unclaimed"
+
+
+async def test_the_unclaimed_response_names_the_setup_command(
+    client: AsyncClient, availability_org: str
+) -> None:
+    """T053: the console and the boot announcement read the same text."""
+    from config.constants.first_run import LOCAL_ADMIN_SETUP_COMMAND
+
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert response.json()["command"] == LOCAL_ADMIN_SETUP_COMMAND
 
 
 async def test_a_deployment_with_an_opening_reads_administered(
@@ -377,7 +389,7 @@ async def test_a_deployment_with_an_opening_reads_administered(
 
     response = await client.get("/v1/setup/local-administrator")
 
-    assert response.json() == {"state": "administered"}
+    assert response.json()["state"] == "administered"
 
 
 async def test_a_deployment_with_an_active_identity_provider_reads_identity_provider(
@@ -397,16 +409,21 @@ async def test_a_deployment_with_an_active_identity_provider_reads_identity_prov
 
     response = await client.get("/v1/setup/local-administrator")
 
-    assert response.json() == {"state": "identity_provider"}
+    assert response.json()["state"] == "identity_provider"
 
 
 async def test_the_availability_response_names_no_deployment_detail(
     deployment: Deployment, client: AsyncClient, availability_org: str
 ) -> None:
-    """FR-076: no name, no version, no organisation, no count of anything."""
+    """FR-076: no name, no version, no organisation, no count of anything.
+
+    ``command`` is the one other field, and it is a fixed constant — the same
+    string on every deployment, naming nothing about this one.
+    """
     response = await client.get("/v1/setup/local-administrator")
 
-    assert set(response.json().keys()) == {"state"}
+    assert set(response.json().keys()) == {"state", "command"}
+    assert ORG not in response.json()["command"]
 
 
 async def test_an_environment_configured_account_also_reads_administered(
@@ -437,4 +454,4 @@ async def test_an_environment_configured_account_also_reads_administered(
     ) as http:
         response = await http.get("/v1/setup/local-administrator")
 
-    assert response.json() == {"state": "administered"}
+    assert response.json()["state"] == "administered"

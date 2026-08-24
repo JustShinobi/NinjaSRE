@@ -4939,15 +4939,27 @@ export interface components {
          * LocalAdministratorAvailabilityView
          * @description The one fact the sign-in and first-run screens need before anybody is signed in.
          *
-         *     Ternary, and nothing else: no deployment name, no version, no
+         *     Ternary, and nothing else deployment-specific: no name, no version, no
          *     organisation, no count of anything. ``state`` is one of ``"unclaimed"``
          *     (no local administrator and no identity provider — the CLI's own
          *     command is the way in), ``"administered"`` (a local administrator
          *     already exists, whether from the environment or a deliberate
          *     enrolment), or ``"identity_provider"`` (this deployment's identity
          *     provider is its way in).
+         *
+         *     ``command`` carries the CLI invitation exactly when it is relevant —
+         *     ``state == "unclaimed"`` — and is empty otherwise. It is a fixed
+         *     constant, the same string on every deployment, read from the one place
+         *     that also writes it into the boot announcement: naming nothing about
+         *     *this* deployment is what keeps it inside FR-076's boundary despite
+         *     being served unauthenticated.
          */
         LocalAdministratorAvailabilityView: {
+            /**
+             * Command
+             * @default
+             */
+            command: string;
             /** State */
             state: string;
         };

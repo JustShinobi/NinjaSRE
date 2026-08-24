@@ -4096,8 +4096,13 @@
         "type": "object"
       },
       "LocalAdministratorAvailabilityView": {
-        "description": "The one fact the sign-in and first-run screens need before anybody is signed in.\n\nTernary, and nothing else: no deployment name, no version, no\norganisation, no count of anything. ``state`` is one of ``\"unclaimed\"``\n(no local administrator and no identity provider — the CLI's own\ncommand is the way in), ``\"administered\"`` (a local administrator\nalready exists, whether from the environment or a deliberate\nenrolment), or ``\"identity_provider\"`` (this deployment's identity\nprovider is its way in).",
+        "description": "The one fact the sign-in and first-run screens need before anybody is signed in.\n\nTernary, and nothing else deployment-specific: no name, no version, no\norganisation, no count of anything. ``state`` is one of ``\"unclaimed\"``\n(no local administrator and no identity provider — the CLI's own\ncommand is the way in), ``\"administered\"`` (a local administrator\nalready exists, whether from the environment or a deliberate\nenrolment), or ``\"identity_provider\"`` (this deployment's identity\nprovider is its way in).\n\n``command`` carries the CLI invitation exactly when it is relevant —\n``state == \"unclaimed\"`` — and is empty otherwise. It is a fixed\nconstant, the same string on every deployment, read from the one place\nthat also writes it into the boot announcement: naming nothing about\n*this* deployment is what keeps it inside FR-076's boundary despite\nbeing served unauthenticated.",
         "properties": {
+          "command": {
+            "default": "",
+            "title": "Command",
+            "type": "string"
+          },
           "state": {
             "title": "State",
             "type": "string"

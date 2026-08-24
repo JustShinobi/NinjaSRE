@@ -21,6 +21,7 @@ import os
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.first_run import LOCAL_ADMIN_SETUP_COMMAND
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.runtime import runtime_composed
@@ -306,16 +307,24 @@ async def disable_demo(state: GatewayState = Depends(get_state)) -> DemoRemovalV
 class LocalAdministratorAvailabilityView(BaseModel):
     """The one fact the sign-in and first-run screens need before anybody is signed in.
 
-    Ternary, and nothing else: no deployment name, no version, no
+    Ternary, and nothing else deployment-specific: no name, no version, no
     organisation, no count of anything. ``state`` is one of ``"unclaimed"``
     (no local administrator and no identity provider — the CLI's own
     command is the way in), ``"administered"`` (a local administrator
     already exists, whether from the environment or a deliberate
     enrolment), or ``"identity_provider"`` (this deployment's identity
     provider is its way in).
+
+    ``command`` carries the CLI invitation exactly when it is relevant —
+    ``state == "unclaimed"`` — and is empty otherwise. It is a fixed
+    constant, the same string on every deployment, read from the one place
+    that also writes it into the boot announcement: naming nothing about
+    *this* deployment is what keeps it inside FR-076's boundary despite
+    being served unauthenticated.
     """
 
     state: str
+    command: str = ""
 
 
 @router.get("/local-administrator", response_model=LocalAdministratorAvailabilityView)
@@ -331,14 +340,13 @@ async def local_administrator_availability(
     """
     org_id = organisation_id()
     if await identity_provider_is_active(state.gateway, org_id=org_id):
-        value = "identity_provider"
-    elif (state.local_sign_in is not None and state.local_sign_in.account is not None) or (
-        await local_sign_in_is_open(state.gateway, org_id=org_id)
-    ):
-        value = "administered"
-    else:
-        value = "unclaimed"
-    return LocalAdministratorAvailabilityView(state=value)
+        return LocalAdministratorAvailabilityView(state="identity_provider")
+    administered = (
+        state.local_sign_in is not None and state.local_sign_in.account is not None
+    ) or await local_sign_in_is_open(state.gateway, org_id=org_id)
+    if administered:
+        return LocalAdministratorAvailabilityView(state="administered")
+    return LocalAdministratorAvailabilityView(state="unclaimed", command=LOCAL_ADMIN_SETUP_COMMAND)
 
 
 __all__ = ["router"]
