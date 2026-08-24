@@ -297,3 +297,129 @@ feito, as chaves serão declaradas então.
 5. **Quebrar o pin de propósito** e capturar a mensagem: tem de conter os dois fingerprints e **não** conter "Neither the credential proxy nor any configured Proxmox node answered".
 6. `select count(*) from audit_events where detail::text like '%BEGIN CERTIFICATE%' or detail::text like '%PRIVATE KEY%' or detail::text like '%PVEAPIToken%';` — esperado 0.
 7. **Do vínculo do plano de controle:** no log do processo depois do boot, `remediation.control_plane_bound` (com `integration`, `endpoints`, `trust`, `capabilities=13`) e em seguida `remediation.desk_composed`. Se aparecer `remediation.control_plane_skipped`, a razão está na linha. E então `select count(*) from approvals where arguments->>'change_type'='remediation';` — o número que a 040 previu como zero.
+
+---
+
+# Segunda janela — Fases 9, T041 e o painel
+
+Retomada sobre `master` já mergeado (o vínculo do plano de controle está lá).
+Rebaseada depois sobre `897db31`, que trouxe a allowlist transversal a zero.
+
+## Fase 9 — as garantias que precisam de teste próprio (T042–T045)
+
+`tests/architecture/test_one_place_can_stop_verifying.py`, **10 casos, 10 passed**.
+Escrito de novo e **rodado** — na primeira janela eu o descartei sem commitar
+por não ter rodado, e isso estava certo.
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T042 — um lugar só pode não verificar | FEITO | `test_only_the_proxy_sender_can_build_a_context_that_does_not_verify`. Varre os sete pacotes entregues por `CERT_NONE` e `_create_unverified_context`; o conjunto tem de ser exatamente `{gateway/proxy/sender.py}` |
+| T042b — nome desligado só onde a cadeia não está | FEITO | `check_hostname = False` ⊆ o mesmo arquivo. Legítimo duas vezes: pin (substitui a identidade) e o handshake de diagnóstico que lê os nomes (ainda verifica a cadeia) |
+| T042c — alcançável só por declaração | FEITO | AST: todo `CERT_NONE` do arquivo está dentro de `context_for_trust` |
+| T043 — nenhum booleano desliga verificação | FEITO | três superfícies checadas por onde alguém escreve: seções de configuração (recursivo a partir de `ConfigSection`), schemas de credencial das 15 integrações, e o corpo de `TrustWriteRequest` |
+| T043b — o único booleano do vocabulário | FEITO | `CertificateTrust(verify=False)` levanta; com só razão levanta; com só identidade levanta. O campo existe para **expressar** a forma, e não pode ser virado |
+| T044 — nenhuma capacidade toca confiança | FEITO | varredura de `capabilities/` + nenhuma declara `integration.trust_unverified` como requisito |
+| T045 — a política de rede do sandbox | FEITO | manifesto construído de verdade: 3 regras de egress, ingress vazio, DNS e o proxy presentes |
+
+### A régua, cortando o fio à mão
+
+Plantei um segundo `CERT_NONE` em `integrations/proxmox/client.py` e rodei:
+
+```
+E   AssertionError: certificate verification may be weakened in exactly one
+    place, and it is gateway/proxy/sender.py. Found:
+    {'gateway/proxy/sender.py': [154], 'integrations/proxmox/client.py': [985]}.
+E   Extra items in the left set: 'integrations/proxmox/client.py'
+```
+
+A regra morde e **nomeia o arquivo**. Restaurado, 10 passed.
+
+### Correção de escopo medida, não presumida
+
+A varredura por nome de campo pegou quatro ocorrências e **duas eram falso
+positivo**, então o conjunto de nomes foi estreitado em vez de o teste ser
+afrouxado:
+
+- `platform/knowledge/topology/models.py:194,274 unverified: bool` — fato de
+  topologia que a descoberta ainda não confirmou. Nada de TLS.
+- `surfaces/cli/wizard/integrations/__init__.py:83 verify: bool = True` — *rodar
+  a verificação depois de guardar*, não *pular verificação de TLS*.
+
+`unverified` saiu da lista de nomes. Uma regra que grita onde não deve é uma
+regra que alguém afrouxa em vez de obedecer.
+
+## T041 — a documentação
+
+`integrations/proxmox/docs.md`, seção 4 reescrita. Além das três formas
+programáticas que já documentava: qual forma serve nó único e qual serve
+cluster, a rota (`PUT /v1/integrations/proxmox/trust`) com os corpos JSON, a
+tabela de qual permissão cada forma exige **e por quê**, o que a auditoria
+grava, que a confiança é por endereço e não por vendor, o que acontece quando o
+certificado do nó muda, e as três recusas contra a de rede.
+
+O bloco Python existente ficou **byte a byte igual**: `make verify` executa os
+exemplos documentados, e o caminho de configuração entrou como JSON/HTTP para
+não acrescentar exemplo executável. Gates: `test_doc_examples` 29 ok,
+`generate_integration_docs --check` exit 0, `check_docs_drift` exit 0.
+
+## O painel do console — o achado que o encolheu
+
+Fui medir antes de construir, e **FR-036 já valia com zero mudança de console**.
+A cadeia inteira:
+
+`ProxmoxVerifier.connect` → `_detail_for` → `Connectivity.detail` →
+`console/src/app/api/verify/route.ts:160` (`said = vendor.detail`, e "a resposta
+do vendor vence onde há uma") → `reason` → `integration-panel.tsx:253-256`, que
+renderiza `verdict.detail` **verbatim**.
+
+Ou seja: a frase da recusa que de fato aconteceu — com os fingerprints — já
+chega à tela. **E é assim que tem de ser**: só o servidor sabe qual certificado
+foi apresentado e qual era esperado; uma frase fixa no catálogo ou perderia os
+dois fatos ou os parafrasearia em algo que o operador não consegue comparar com
+o que o nó mostra.
+
+Travado por `console/tests/unit/surfaces/integration-panel-certificate.test.tsx`,
+**5 casos, 5 passed**: as três recusas de certificado passam inteiras, e a frase
+de host silencioso continua aparecendo sem mencionar fingerprint.
+
+Sem componente novo, sem chave de i18n, sem tocar arquivo de escrita única.
+
+## Transversal, com a allowlist em zero
+
+```
+uv run python -m tools.spec_validation browser \
+  --feature specs_v7/070-confianca-de-certificado \
+  --test console/tests/e2e/transversal-rules.spec.ts
+```
+
+**exit 0 — 45 passed, 7 skipped.** `EXCEPTIONS` está vazia, então isto é rede
+nenhuma: qualquer regressão de tela apareceria como falha nova. Não apareceu.
+
+Console também: `prettier --check` limpo no meu arquivo (o gate roda
+format-check agora), `tsc --noEmit` sem diagnóstico para ele.
+
+---
+
+## O que fica pendente ao fim desta janela
+
+| Item | Estado | Dono |
+|---|---|---|
+| **T039/T040 — o formulário de confiança no painel** | **NÃO FEITO, e nomeado.** Abre escopo: precisa de um courier `/api/...` novo para `PUT /v1/integrations/{name}/trust`, um grupo de campos no painel, o portão de permissão para a forma insegura, chaves de i18n nos **dois** catálogos, e teste. Não cabe como "pequeno". **A parte que importava — a frase da recusa — já está entregue e travada por teste.** O que falta é declarar a confiança *pela tela* em vez de pela API | próxima feature |
+| **T030** — teste da invalidação por troca de endereço | **PARCIAL.** A propriedade está implementada e coberta de lado; falta o teste que prova a recusa ao endereço novo até nova decisão | próxima sessão |
+| **T046 — `make verify` inteiro** | **NÃO RODADO — do orquestrador**, por instrução dele nesta janela | orquestrador |
+| **T002, T047–T053 — evidência de staging** | **NÃO INICIADO — do orquestrador** | orquestrador |
+
+## Coerência com o bloco de catálogo mergeado — conferida
+
+`ticket` e `csrf_token` declaram, em `integrations/proxmox/schema.py:126-149`,
+"o mesmo acesso do login que foi trocado por eles — material de sessão que o
+proxy escreve, nunca um escopo que um operador define". **Coerente com o que
+esta feature faz**, e nada a mudar: os dois escalares que acrescentei à linha de
+resolução (`trust_anchor`, `fingerprint`) não enumeram campo de credencial
+nenhum, e `trust_audit_detail` é um conjunto fixo que não tem como carregar
+material de sessão.
+
+## Chaves de i18n que precisei e não pude escrever
+
+**Nenhuma.** Nenhum arquivo de catálogo tocado, e por desenho: a frase da recusa
+é do servidor.

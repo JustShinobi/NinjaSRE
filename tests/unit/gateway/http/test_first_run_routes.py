@@ -15,6 +15,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from config.constants.first_run import (
+    NINJASRE_ORGANISATION_ENV,
     NINJASRE_STATE_DIR_ENV,
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_ORDER,
@@ -24,7 +25,12 @@ from gateway.http.state import GatewayState
 from platform.identity.permissions import Role
 from platform.startup.bootstrap import bring_up, credential_path
 from platform.startup.diagnostics import record_failure
-from tests.unit.gateway.http.conftest import ORG, Deployment, issue_token
+from tests.unit.gateway.http.conftest import (
+    ORG,
+    Deployment,
+    FakeInvestigationRunner,
+    issue_token,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -195,7 +201,7 @@ async def test_the_bootstrap_credential_is_exchanged_over_http(
                 "user_id": "ada",
                 "email": "ada@example.test",
                 "display_name": "Ada",
-                "password": "a-passphrase-for-ada",
+                "password": "a very long passphrase",
             },
         )
 
@@ -222,7 +228,7 @@ async def test_exchanging_with_no_credential_on_the_host_is_refused(
             "user_id": "grace",
             "email": "g@example.test",
             "display_name": "Grace",
-            "password": "a-passphrase-for-grace",
+            "password": "a very long passphrase",
         },
     )
 
@@ -246,7 +252,7 @@ async def test_the_credential_file_is_gone_once_the_exchange_has_happened(
                 "user_id": "ada",
                 "email": "ada@example.test",
                 "display_name": "Ada",
-                "password": "a-passphrase-for-ada",
+                "password": "a very long passphrase",
             },
         )
 
@@ -329,3 +335,123 @@ async def test_a_gateway_state_wired_from_the_table_serves_every_first_run_route
     ).route_table
     for route in FIRST_RUN_ROUTES:
         assert table.declaration_for(route.method, route.path) is not None
+
+
+# --- The local administrator's public availability -------------------------------
+
+
+@pytest.fixture
+def availability_org(monkeypatch: pytest.MonkeyPatch) -> str:
+    """``organisation_id()`` defaults to ``"default"``; this suite's fixtures
+    seed ``ORG``. Only the availability route reads the environment
+    directly — every other route resolves its tenant from the caller's own
+    token — so only these tests need the two to agree."""
+    monkeypatch.setenv(NINJASRE_ORGANISATION_ENV, ORG)
+    return ORG
+
+
+async def test_the_availability_route_needs_no_credential_at_all(
+    client: AsyncClient, availability_org: str
+) -> None:
+    """FR-071 has to be readable before anybody is signed in."""
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert response.status_code == 200
+
+
+async def test_a_fresh_deployment_is_unclaimed(client: AsyncClient, availability_org: str) -> None:
+    response = await client.get("/v1/setup/local-administrator")
+
+    body = response.json()
+    assert body["state"] == "unclaimed"
+
+
+async def test_the_unclaimed_response_names_the_setup_command(
+    client: AsyncClient, availability_org: str
+) -> None:
+    """T053: the console and the boot announcement read the same text."""
+    from config.constants.first_run import LOCAL_ADMIN_SETUP_COMMAND
+
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert response.json()["command"] == LOCAL_ADMIN_SETUP_COMMAND
+
+
+async def test_a_deployment_with_an_opening_reads_administered(
+    deployment: Deployment, client: AsyncClient, availability_org: str
+) -> None:
+    from datetime import UTC, datetime
+
+    from platform.persistence.ports.transaction import TenantScope
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.identity.open_local_sign_in(opened_at=datetime.now(UTC), opened_via="cli")
+
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert response.json()["state"] == "administered"
+
+
+async def test_a_deployment_with_an_active_identity_provider_reads_identity_provider(
+    deployment: Deployment, client: AsyncClient, availability_org: str
+) -> None:
+    from platform.config_service.service import ConfigService
+    from platform.persistence.ports.audit_repository import ActorKind
+    from platform.persistence.ports.transaction import TenantScope
+
+    service = ConfigService(gateway=deployment.gateway, scope=TenantScope(org_id=ORG))
+    await service.set_settings(
+        ORG,
+        {"policies": {"sso": {"is_active": True}}},
+        actor_id="test",
+        actor_kind=ActorKind.SYSTEM,
+    )
+
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert response.json()["state"] == "identity_provider"
+
+
+async def test_the_availability_response_names_no_deployment_detail(
+    deployment: Deployment, client: AsyncClient, availability_org: str
+) -> None:
+    """FR-076: no name, no version, no organisation, no count of anything.
+
+    ``command`` is the one other field, and it is a fixed constant — the same
+    string on every deployment, naming nothing about this one.
+    """
+    response = await client.get("/v1/setup/local-administrator")
+
+    assert set(response.json().keys()) == {"state", "command"}
+    assert ORG not in response.json()["command"]
+
+
+async def test_an_environment_configured_account_also_reads_administered(
+    availability_org: str,
+) -> None:
+    """FR-002: the fact must be true for the account-configured path too, not
+    only for a registered opening."""
+    from platform.identity.local_accounts import LocalAccount, LocalSignIn
+    from platform.identity.tokens import TokenService
+    from platform.persistence.fakes import FakePersistence
+
+    gateway = FakePersistence()
+    async with gateway.begin_system() as system:
+        await system.orgs.create_organisation(ORG, "Acme")
+    tokens = TokenService(gateway=gateway)
+
+    state = GatewayState(
+        gateway=gateway,
+        tokens=tokens,
+        investigator=FakeInvestigationRunner(),
+        local_sign_in=LocalSignIn(
+            gateway=gateway, tokens=tokens, account=LocalAccount(password_hash="x")
+        ),
+    )
+    app = create_app(state)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://gateway.test"
+    ) as http:
+        response = await http.get("/v1/setup/local-administrator")
+
+    assert response.json()["state"] == "administered"

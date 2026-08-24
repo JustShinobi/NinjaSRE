@@ -256,5 +256,30 @@ export function pairs(
   ]);
 }
 
+/**
+ * What the sign-in and first-run screens need before anybody is signed in:
+ * whether this deployment has an owner yet, and — only when it does not —
+ * the command that gives it one.
+ *
+ * Read with no credential at all: the route is public by declaration, and
+ * this is the one read in the whole console that is ever made without one.
+ * A failed read returns `command: ''`, the same shape as an administered
+ * deployment — this is the one fact where "could not tell" and "nothing to
+ * show" have to render identically, because a wrong guess in the other
+ * direction would print a stale invitation on a deployment that already has
+ * an owner.
+ */
+export async function localAdministratorAvailability(): Promise<{ readonly command: string }> {
+  try {
+    const body = await read('/v1/setup/local-administrator', { cache: 'no-store' });
+    return { command: text(body, 'command') };
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof TypeError) {
+      return { command: '' };
+    }
+    throw error;
+  }
+}
+
 /** The gateway read every surface makes, so the credential is applied in one place. */
 export { ask, read };

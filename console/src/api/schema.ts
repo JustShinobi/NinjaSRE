@@ -2644,9 +2644,36 @@ export interface paths {
          *     Reads the bootstrap credential from the host file rather than from the
          *     request: the caller has already proved they hold it by getting this far, and
          *     accepting it in a body would be a second way in — one where a caller could
-         *     name somebody else's credential to revoke.
+         *     name somebody else's credential to revoke. The passphrase is the opposite
+         *     case: it is the caller's own, chosen for the first time, and the request
+         *     body is the only place it could come from.
          */
         post: operations["durable_credential_v1_setup_durable_credential_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/local-administrator": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Local Administrator Availability
+         * @description Return the ternary fact the sign-in and first-run screens read.
+         *
+         *     Public by declaration: it is what tells an unauthenticated visitor
+         *     whether there is a way in at all, and revealing that is the whole point
+         *     of the route — see ``LocalAdministratorAvailabilityView`` for what it
+         *     deliberately does not also reveal.
+         */
+        get: operations["local_administrator_availability_v1_setup_local_administrator_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5014,6 +5041,34 @@ export interface components {
         LivenessView: {
             /** Live */
             live: boolean;
+        };
+        /**
+         * LocalAdministratorAvailabilityView
+         * @description The one fact the sign-in and first-run screens need before anybody is signed in.
+         *
+         *     Ternary, and nothing else deployment-specific: no name, no version, no
+         *     organisation, no count of anything. ``state`` is one of ``"unclaimed"``
+         *     (no local administrator and no identity provider — the CLI's own
+         *     command is the way in), ``"administered"`` (a local administrator
+         *     already exists, whether from the environment or a deliberate
+         *     enrolment), or ``"identity_provider"`` (this deployment's identity
+         *     provider is its way in).
+         *
+         *     ``command`` carries the CLI invitation exactly when it is relevant —
+         *     ``state == "unclaimed"`` — and is empty otherwise. It is a fixed
+         *     constant, the same string on every deployment, read from the one place
+         *     that also writes it into the boot announcement: naming nothing about
+         *     *this* deployment is what keeps it inside FR-076's boundary despite
+         *     being served unauthenticated.
+         */
+        LocalAdministratorAvailabilityView: {
+            /**
+             * Command
+             * @default
+             */
+            command: string;
+            /** State */
+            state: string;
         };
         /**
          * MaintenanceRequest
@@ -11248,6 +11303,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    local_administrator_availability_v1_setup_local_administrator_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalAdministratorAvailabilityView"];
                 };
             };
         };
