@@ -114,3 +114,39 @@ driver. É o texto exato que `LocalAdministratorNameTaken` carrega
 (`platform/identity/errors.py`), o mesmo que
 `tests/unit/platform/identity/test_enrolment.py` prova vermelho→verde no
 harness — confirmado aqui contra o Postgres real, não o fake.
+
+## T068 — um segundo service account sem e-mail
+
+**Esclarecimento de vocabulário, contra o schema real**: `email` em `users` é
+`NOT NULL` — um principal criado por `ninjasre setup admin --name <outro>`
+guarda o próprio `name` em `email` (confirmado: um segundo administrador
+`svc-second`, criado com sucesso pelo mesmo mecanismo de T013, ficou com
+`email='svc-second'`, não vazio). Quem tem `email=''`/`email_folded=NULL` de
+verdade é `kind='service_account'` — o formato do próprio principal de
+bootstrap (`bootstrap-administrator`, criado uma vez por
+`_ensure_bootstrap_principal`). É esse o "service account sem e-mail" que a
+User Story 5 e o SC-006 descrevem, e é o que T017-T019 provam no nível de
+repositório.
+
+Criado um segundo, pelo mesmo formato exato de `_ensure_bootstrap_principal`
+(`User(user_id=..., email="", display_name=..., kind=SERVICE_ACCOUNT)`),
+via `uow.identity.upsert_user`, contra o Postgres real deste deployment:
+
+```
+CREATED: user_id='second-service-account' email='' kind=<PrincipalKind.SERVICE_ACCOUNT: 'service_account'>
+```
+
+Consulta direta ao banco depois da escrita — os dois coexistem:
+
+```
+             user_id              |      kind       | email_q | email_folded_q
+-----------------------------------+-----------------+---------+----------------
+ bootstrap-administrator          | service_account | ''      | NULL
+ second-service-account           | service_account | ''      | NULL
+```
+
+Antes desta feature isto morria em `asyncpg.exceptions.UniqueViolationError`
+na coluna `email_folded` (registrado no `controle.md` da feature). Hoje os
+dois `email_folded` são `NULL`, e o índice único do Postgres nunca trata dois
+`NULL` como colisão — confirmado, não inferido, contra o mesmo `ix_users_email`
+que causava o defeito.

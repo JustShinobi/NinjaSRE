@@ -368,7 +368,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 - [x] T067 **[serving]** No mesmo deployment, repetir o caminho que criou o
       administrador e capturar a recusa. Conferir que ela é uma frase de gente.
 
-- [ ] T068 **[serving]** No mesmo deployment, criar um segundo service account
+- [x] T068 **[serving]** No mesmo deployment, criar um segundo service account
       sem e-mail e capturar o sucesso.
 
 - [ ] T069 **[serving]** No mesmo deployment, ativar o identity provider e
