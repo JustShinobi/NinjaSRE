@@ -2253,7 +2253,40 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                 ],
             },
         ),
+        *_integration_docs_records(),
     )
+
+
+def _integration_docs_records() -> tuple[CapturedRecord, ...]:
+    """Return one record per real, installed vendor's own package documentation.
+
+    Read the same way the gateway route reads it — the parity report's own
+    resolved path, never a path composed from the vendor name — so the mock
+    plane and a real deployment answer the documentation route identically.
+    A vendor whose parity report resolved no docs.md path answers unreadable,
+    the same distinction the real route holds between "no such vendor" (a 404
+    this endpoint's declaration itself already produces for an unknown name)
+    and "this deployment's own build did not carry the file".
+    """
+    records: list[CapturedRecord] = []
+    for entry in integration_catalogue():
+        docs_path = entry.parity.docs_path
+        if docs_path is None:
+            body: dict[str, Any] = {
+                "name": entry.name,
+                "display_name": entry.display_name,
+                "markdown": "",
+                "readable": False,
+            }
+        else:
+            body = {
+                "name": entry.name,
+                "display_name": entry.display_name,
+                "markdown": docs_path.read_text(encoding="utf-8"),
+                "readable": True,
+            }
+        records.append(_record("integration-docs", {"name": entry.name}, body))
+    return tuple(records)
 
 
 # --- Setting the deployment up -------------------------------------------------------

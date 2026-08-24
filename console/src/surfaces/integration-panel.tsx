@@ -16,6 +16,7 @@ import {
   type CredentialLabels,
 } from './credential';
 import { VERIFY_ENDPOINT } from './first-run/verify';
+import { Report } from './report';
 import { consumeScrollPosition, peekScrollPosition } from './scroll-memory';
 
 /**
@@ -100,6 +101,19 @@ export interface IntegrationPanelItem {
    * never disagree about it. Empty where a vendor has not declared one.
    */
   readonly whereToGetIt: string;
+  /**
+   * The vendor package's own documentation, as its `docs.md` reads — the
+   * text this deployment actually shipped, not a copy. Read fresh whenever
+   * the panel opens, the same way every other fact on this panel is.
+   */
+  readonly docsMarkdown: string;
+  /**
+   * Whether `docsMarkdown` is this deployment's real documentation. False
+   * means a read failure this deployment's own build produced — the vendor
+   * is real and every embedded vendor ships one — never that no
+   * documentation exists for this vendor.
+   */
+  readonly docsReadable: boolean;
 }
 
 export interface IntegrationPanelLabels {
@@ -140,6 +154,12 @@ export interface IntegrationPanelLabels {
   readonly intakeBody: string;
   /** What the link to the alert-intake screen is called. */
   readonly intakeAction: string;
+  /** The heading over the package documentation section. */
+  readonly docsHeading: string;
+  /** The disclosure control that opens the package documentation section. */
+  readonly docsToggle: string;
+  /** Shown in place of the document when this deployment could not read it. */
+  readonly docsUnreadable: string;
 }
 
 export interface IntegrationPanelProps {
@@ -555,6 +575,30 @@ export function IntegrationPanel({
               {labels.readOnly}
             </p>
           )}
+
+          {/* The package's own documentation — available to every viewer who
+              can open this panel at all, whether or not they may write a
+              credential, because reading it needs nothing more than the read
+              this panel already required. Collapsed by default: it is the
+              deepest, least time-critical thing on this screen. */}
+          <p className="text-meta text-muted mt-2">{labels.docsHeading}</p>
+          <details data-testid="integration-docs">
+            <summary className="text-meta text-muted cursor-pointer">
+              {labels.docsToggle}
+            </summary>
+            <div className="mt-2">
+              {item.docsReadable ? (
+                <Report text={item.docsMarkdown} />
+              ) : (
+                <p
+                  className="text-meta text-muted"
+                  data-testid="integration-docs-unreadable"
+                >
+                  {labels.docsUnreadable}
+                </p>
+              )}
+            </div>
+          </details>
         </div>
       )}
     </Drawer>

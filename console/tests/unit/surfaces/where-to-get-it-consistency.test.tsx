@@ -56,6 +56,8 @@ function panelItem(): IntegrationPanelItem {
     direction: 'outbound',
     intakePath: '',
     whereToGetIt: PHRASE,
+    docsMarkdown: '',
+    docsReadable: true,
   };
 }
 
@@ -116,6 +118,9 @@ describe('the same phrase reaches both screens that ask for a credential', () =>
           intakeTitle: 'Where to send alerts',
           intakeBody: 'The one step outside this deployment.',
           intakeAction: 'Point your alert router at it',
+          docsHeading: 'Package documentation',
+          docsToggle: 'Read the package documentation',
+          docsUnreadable: "This vendor's own documentation could not be read.",
         }}
       />,
     );

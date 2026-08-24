@@ -63,6 +63,9 @@ const LABELS: IntegrationPanelLabels = {
   intakeTitle: 'Where to send alerts',
   intakeBody: 'The one step that happens outside this deployment.',
   intakeAction: 'Point your alert router at it',
+  docsHeading: 'Package documentation',
+  docsToggle: 'Read the package documentation',
+  docsUnreadable: "This vendor's own documentation could not be read.",
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -87,6 +90,8 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     direction: 'outbound',
     intakePath: '',
     whereToGetIt: '',
+    docsMarkdown: '',
+    docsReadable: true,
     ...overrides,
   };
 }
