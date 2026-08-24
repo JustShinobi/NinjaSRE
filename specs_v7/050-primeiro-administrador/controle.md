@@ -298,7 +298,37 @@ turbulência recente e não relacionada a esta feature.
 
 Segunda rodada, só do gate de console (`make console-check`, que cobre
 tudo que `console-check` cobre dentro de `make verify`, sem repetir a
-metade Python que já tinha passado): RESULTADO_RETRY_PLACEHOLDER
+metade Python que já tinha passado): em andamento — ver o parágrafo seguinte pelo achado que decide o que essa
+segunda rodada vale.
+
+**`role-matrix.test.tsx`, isolado, sem nada competindo: verde.** Rodado de
+novo — desta vez sozinho (`pnpm exec vitest run
+tests/unit/surfaces/role-matrix.test.tsx`), com a carga da máquina já em
+queda (`load average` 11.39 no início da rodada, contra 14-63 antes) — as
+7 asserções passam, incluindo exatamente a que tinha estourado o timeout:
+`viewer: no control it cannot use is anywhere on any screen` termina em
+**1785ms**, bem dentro do orçamento de 5000ms (contra os 5560-7323ms que
+estouravam antes). A fase de `import` sozinha caiu de 89.56s para 3.66s.
+**Isto não é "flaky" — é um fato real da suíte: um teste sem folga de
+timeout quando a máquina está ocupada.** Passa isolado, falha sob carga; a
+diferença entre as duas frases importa e a segunda não é a primeira. Não é
+desta feature — nenhum arquivo que este teste toca (`src/surfaces/*`,
+`tests/unit/support/*`) foi alterado por ela, e o teste isolado prova que a
+lógica está correta; o dono do orçamento de 5s é quem escreveu o teste, não
+quem passou por perto.
+
+**Os dois vermelhos que o orquestrador nomeou como de outros agentes,
+confirmados nesta árvore, sem tentar corrigir nenhum dos dois:**
+
+- `tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed`
+  — **ainda vermelho**, mesma causa já registrada acima
+  (`capabilities.json`/`integration-docs.json` desalinhados do gerador,
+  por trabalho de outra feature).
+- `tests/contract/cli/test_onboarding_against_a_deployment.py::test_the_deployment_reads_as_ready_once_the_flow_has_run`
+  — **ainda vermelho**: `TypeError: build_checklist() got an unexpected
+  keyword argument 'verify_model'` — assinatura de `build_checklist`
+  divergiu da chamada que este teste faz. Não relacionado a
+  "primeiro administrador"; não tocado.
 
 **T075**: marcada apenas quando a linha acima confirmar `exit 0`, ou deixada
 sem marcar com a causa exata nomeada — nunca por inferência.
