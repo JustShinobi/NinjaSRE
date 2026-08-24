@@ -2496,6 +2496,11 @@ export interface paths {
          *     the recorded checks found, so "verified" means something answered rather than
          *     that a credential is present — and it means that on the next request too,
          *     which is the whole reason the answer is written down.
+         *
+         *     The provider's own readiness is read the same way, from the same ledger,
+         *     by the same helper `/v1/providers` already reads it with — this is the
+         *     fix for the checklist and the listing disagreeing about the same
+         *     provider: one document, read twice rather than derived twice.
          */
         get: operations["checklist_v1_setup_checklist_get"];
         put?: never;
@@ -5640,6 +5645,8 @@ export interface components {
             models: string[];
             /** Provider Id */
             provider_id: string;
+            /** Readiness */
+            readiness: string;
             /** Verified */
             verified: boolean;
             /**
@@ -5703,6 +5710,8 @@ export interface components {
             local: boolean;
             /** Provider Id */
             provider_id: string;
+            /** Readiness */
+            readiness: string;
             /** Verified */
             verified: boolean;
         };

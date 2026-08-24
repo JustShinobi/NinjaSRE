@@ -242,7 +242,7 @@ async def build_checklist(
         integrations=tuple(
             IntegrationReadiness(
                 name=name,
-                readiness=_readiness(
+                readiness=readiness_of(
                     configured=name in stored, checked=checked_integrations.get(name)
                 ),
             )
@@ -251,8 +251,12 @@ async def build_checklist(
     )
 
 
-def _readiness(*, configured: bool, checked: VerificationRecord | None) -> str:
+def readiness_of(*, configured: bool, checked: VerificationRecord | None) -> str:
     """Return how far along one thing is, given what was found about it.
+
+    Public, and reused outside this module: `/v1/providers` derives the same
+    word for the same provider from the same record, which is what FR-003
+    asks for structurally rather than by two implementations agreeing to.
 
     A recorded check outranks configuration either way: something a check
     reached and passed is verified without re-establishing that it is
@@ -344,7 +348,7 @@ def _provider_step(
     record = next((entry for entry in checked.values() if entry.verified), None) or next(
         iter(checked.values()), None
     )
-    readiness = _readiness(configured=bool(configured), checked=record)
+    readiness = readiness_of(configured=bool(configured), checked=record)
     if record is None:
         stored = ", ".join(configured)
         return ChecklistStep(
@@ -541,4 +545,5 @@ __all__ = [
     "build_checklist",
     "guided_objective",
     "readable_transcript",
+    "readiness_of",
 ]

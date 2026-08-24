@@ -2097,12 +2097,23 @@ def provider_records(
 
     def listing(onboarding: ProviderOnboarding) -> dict[str, Any]:
         present = onboarding.provider_id in stored
+        verified = onboarding.provider_id in answered
         return {
             "provider_id": onboarding.provider_id,
             "display_name": onboarding.display_name,
             "local": onboarding.local,
             "configured": present,
-            "verified": onboarding.provider_id in answered,
+            "verified": verified,
+            # No scenario here represents a check that failed rather than
+            # never having run — a real gap in coverage, not a value
+            # fabricated to fill it.
+            "readiness": (
+                SETUP_READINESS_VERIFIED
+                if verified
+                else SETUP_READINESS_CONFIGURED
+                if present
+                else SETUP_READINESS_ABSENT
+            ),
             "default_model": onboarding.default_model,
             "detail": (
                 "a live request reached this endpoint"

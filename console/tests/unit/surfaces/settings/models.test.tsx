@@ -76,11 +76,21 @@ function respond(body: unknown, status = 200): Response {
 interface ProviderFixture {
   readonly configured?: boolean;
   readonly verified?: boolean;
+  /** Overrides the derived readiness — the only way this fixture can represent `failing`. */
+  readonly readiness?: string;
   readonly detail?: string;
   readonly models?: readonly {
     readonly model_id: string;
     readonly supports_tools: boolean | null;
   }[];
+}
+
+/** The checklist's own four-word readiness, mirrored from the two booleans a fixture sets. */
+function readinessOf(over: ProviderFixture): string {
+  if (over.readiness !== undefined) return over.readiness;
+  if (over.verified === true) return 'verified';
+  if (over.configured === true) return 'configured';
+  return 'absent';
 }
 
 function providerDetail(id: string, over: ProviderFixture = {}): unknown {
@@ -90,6 +100,7 @@ function providerDetail(id: string, over: ProviderFixture = {}): unknown {
     local: id === 'ollama',
     configured: over.configured ?? false,
     verified: over.verified ?? false,
+    readiness: readinessOf(over),
     default_model: 'default-model',
     detail:
       over.detail ??
@@ -137,6 +148,7 @@ function serveModels({
               local: id === 'ollama',
               configured: over.configured ?? false,
               verified: over.verified ?? false,
+              readiness: readinessOf(over),
               default_model: 'default-model',
               detail:
                 over.detail ??

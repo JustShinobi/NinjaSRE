@@ -11,6 +11,7 @@
             "display_name": "Anthropic",
             "local": false,
             "provider_id": "anthropic",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -20,6 +21,7 @@
             "display_name": "OpenAI",
             "local": false,
             "provider_id": "openai",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -29,6 +31,7 @@
             "display_name": "Azure OpenAI",
             "local": false,
             "provider_id": "azure_openai",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -38,6 +41,7 @@
             "display_name": "AWS Bedrock",
             "local": false,
             "provider_id": "aws_bedrock",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -47,6 +51,7 @@
             "display_name": "Google Gemini",
             "local": false,
             "provider_id": "google_gemini",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -56,6 +61,7 @@
             "display_name": "Google Vertex AI",
             "local": false,
             "provider_id": "google_vertex_ai",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -65,6 +71,7 @@
             "display_name": "OpenRouter",
             "local": false,
             "provider_id": "openrouter",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -74,6 +81,7 @@
             "display_name": "NVIDIA NIM",
             "local": false,
             "provider_id": "nvidia_nim",
+            "readiness": "absent",
             "verified": false
           },
           {
@@ -83,6 +91,7 @@
             "display_name": "Ollama or vLLM",
             "local": true,
             "provider_id": "ollama",
+            "readiness": "absent",
             "verified": false
           }
         ]

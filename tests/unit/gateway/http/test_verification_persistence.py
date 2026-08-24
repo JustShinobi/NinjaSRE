@@ -258,6 +258,55 @@ async def test_a_provider_nobody_checked_says_so_rather_than_failing(
     rows = {row["provider_id"]: row for row in response.json()["providers"]}
     assert rows["google_gemini"]["verified"] is False
     assert "no verification has been run" in rows["google_gemini"]["detail"]
+    assert rows["google_gemini"]["readiness"] == "configured"
+
+
+async def test_the_provider_listing_carries_the_same_readiness_word_the_checklist_does(
+    client: AsyncClient, deployment: Deployment, operator_token: str
+) -> None:
+    """FR-003: one record, read by two routes, has to produce one word."""
+
+    async def verifier(provider_id: str, model_id: str | None) -> ModelVerdict:
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id="gemini-2.5-flash",
+            satisfied=True,
+            summary_line="gemini-2.5-flash called a tool and returned structure",
+        )
+
+    deployment.state.model_verifier = verifier
+    await client.post("/v1/providers/google_gemini/verify", headers=_headers(operator_token))
+
+    listing = await client.get("/v1/providers", headers=_headers(operator_token))
+    checklist = await client.get("/v1/setup/checklist", headers=_headers(operator_token))
+
+    row = {r["provider_id"]: r for r in listing.json()["providers"]}["google_gemini"]
+    assert row["readiness"] == "verified"
+    assert row["readiness"] == checklist.json()["provider"]
+
+
+async def test_a_provider_whose_last_check_failed_reads_as_failing_not_configured(
+    client: AsyncClient, deployment: Deployment, operator_token: str
+) -> None:
+    """The listing must not read the same for a broken key as for an unchecked one."""
+
+    async def verifier(provider_id: str, model_id: str | None) -> ModelVerdict:
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id="gemini-2.5-flash",
+            satisfied=False,
+            limitation="gemini-2.5-flash did not call the tool it was given",
+            remedy="choose a model that supports tool calling",
+        )
+
+    deployment.state.model_verifier = verifier
+    await client.post("/v1/providers/google_gemini/verify", headers=_headers(operator_token))
+
+    response = await client.get("/v1/providers", headers=_headers(operator_token))
+
+    row = {r["provider_id"]: r for r in response.json()["providers"]}["google_gemini"]
+    assert row["verified"] is False
+    assert row["readiness"] == "failing"
 
 
 # --- Where the vault holds it ------------------------------------------------------
