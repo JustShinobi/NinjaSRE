@@ -358,7 +358,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 
 ## Phase 9: Prova no caminho de serving
 
-- [ ] T066 **[serving]** Levantar um deployment limpo por compose, sem conta de
+- [x] T066 **[serving]** Levantar um deployment limpo por compose, sem conta de
       ambiente configurada, e percorrer o caminho lendo **apenas** o que o
       terminal diz: subir, executar o comando nomeado, responder ao prompt,
       abrir o console, entrar. Capturar a transcrição completa da sessão de
