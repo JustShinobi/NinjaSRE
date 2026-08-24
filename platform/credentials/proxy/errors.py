@@ -125,6 +125,39 @@ class EgressDenied(ProxyError):
         self.allowed = tuple(allowed)
 
 
+class CredentialWouldCrossInClear(ProxyError):
+    """A credential resolved, and the destination would carry it unencrypted.
+
+    Same classification as ``EgressDenied`` — ``reason`` is identical, so
+    whatever a console derives from the reason does not change — because this
+    *is* an egress refusal by every fact the proxy checks. What differs is the
+    question the sentence answers. ``EgressDenied``'s message is about the
+    allow-list: an address the integration never declared. This refusal has
+    nothing wrong with the address; the host is one this integration is
+    permitted to reach. What is wrong is the scheme, on a call that is about
+    to carry a secret — and telling an operator to check hosts they already
+    got right sends them looking at the wrong list.
+
+    Never raised for a request carrying nothing: a self-hosted vendor with no
+    authentication of its own is not held to this, because there is nothing
+    here to protect. See ``refuse_credential_in_clear``.
+    """
+
+    reason = ProxyErrorReason.EGRESS_DENIED
+
+    def __init__(self, integration: str, *, scheme: str, host: str) -> None:
+        tls_host = f"https://{host}"
+        super().__init__(
+            f"{integration!r} would send a stored credential to {scheme}://{host}, and "
+            f"{scheme} is never encrypted. Point {integration!r} at {tls_host} instead, "
+            f"or remove the stored credential and connect it by address only.",
+            integration=integration,
+            detail=host,
+        )
+        self.host = host
+        self.scheme = scheme
+
+
 class CredentialUnavailable(ProxyError):
     """This tenant and team have no credential for this integration.
 
@@ -294,6 +327,7 @@ __all__ = [
     "CredentialFieldsMissing",
     "CredentialUnavailable",
     "CredentialUnreadable",
+    "CredentialWouldCrossInClear",
     "EgressDenied",
     "IntegrationNotDeclared",
     "MalformedProxyRequest",

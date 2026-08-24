@@ -21,8 +21,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from config.constants.security import CREDENTIAL_PROXY_MAX_REQUESTS_PER_TENANT
+from integrations._base.errors import IntegrationError
+from integrations._base.transport import InProcessProxyTransport
 from platform.credentials.proxy.errors import (
     CredentialUnavailable,
+    CredentialWouldCrossInClear,
     EgressDenied,
     IntegrationNotDeclared,
     ProxyErrorReason,
@@ -191,11 +194,23 @@ async def test_an_undeclared_host_is_refused_before_the_vault_is_touched(
 
 
 async def test_plain_http_is_refused_even_to_a_declared_host(harness: Harness) -> None:
-    """A vendor reachable over HTTP is a vendor whose key is on the wire in clear."""
+    """A vendor reachable over HTTP is a vendor whose key is on the wire in clear.
+
+    The sentence is checked here too, not only in the dedicated suite below,
+    because this is the declared-host path — the one where the allow-list
+    sentence used to be reused, and where reusing it read as "this host is
+    wrong" for a host that was exactly right.
+    """
     await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
 
-    with pytest.raises(EgressDenied):
+    with pytest.raises(CredentialWouldCrossInClear) as raised:
         await harness.engine.forward(request(url=f"http://{HOST}/v1/logs"))
+
+    message = str(raised.value)
+    assert "http" in message
+    assert f"https://{HOST}" in message
+    assert "remove the stored credential" in message
+    assert "declared hosts are" not in message
 
 
 async def test_an_integration_with_no_rule_cannot_send_anything(harness: Harness) -> None:
@@ -490,8 +505,63 @@ async def test_a_credential_still_never_crosses_plain_http(harness: Harness) -> 
     _make_credential_optional(harness)
     await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
 
-    with pytest.raises(EgressDenied):
+    with pytest.raises(CredentialWouldCrossInClear):
         await harness.engine.forward(request(url=f"http://{HOST}/v1/logs"))
+
+
+async def test_the_clear_text_refusal_is_classified_exactly_as_an_egress_denial_is(
+    harness: Harness,
+) -> None:
+    """The sentence changed; the classification a console derives state from did not.
+
+    Same ``reason`` as ``EgressDenied``, so nothing downstream that reads the
+    reason — the HTTP status it maps to, the audit outcome, a console's own
+    state derivation — sees a difference. Only the words a person reads change.
+    """
+    await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
+
+    with pytest.raises(CredentialWouldCrossInClear) as raised:
+        await harness.engine.forward(request(url=f"http://{HOST}/v1/logs"))
+
+    assert raised.value.reason == ProxyErrorReason.EGRESS_DENIED
+    assert EgressDenied.reason == ProxyErrorReason.EGRESS_DENIED
+
+    events = await harness.audit_events()
+    assert events[-1].detail["reason"] == ProxyErrorReason.EGRESS_DENIED
+    assert events[-1].outcome == AuditOutcome.DENIED
+
+
+async def test_the_clear_text_sentence_survives_crossing_the_wire(harness: Harness) -> None:
+    """The refusal a capability actually sees, reached through the ASGI app rather than the engine.
+
+    Every other test in this module calls ``harness.engine.forward`` directly,
+    which is one call short of what a real capability does: it goes through
+    ``ProxyApp``, over the internal wire format, and comes back out as an
+    ``IntegrationError`` the transport reconstructs from a JSON record. This is
+    the one test that makes that whole trip, so the sentence is proven to
+    reach where a capability — and eventually an operator reading a failed
+    check — actually reads it, rather than only where it was raised.
+    """
+    await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
+    transport = InProcessProxyTransport(harness.app)
+
+    with pytest.raises(IntegrationError) as raised:
+        await transport.forward(
+            ProxyRequest(
+                integration=INTEGRATION,
+                org_id=ORG_ID,
+                team_id=TEAM_ID,
+                capability=CAPABILITY,
+                method="GET",
+                url=f"http://{HOST}/v1/logs",
+                headers={},
+            )
+        )
+
+    message = str(raised.value)
+    assert "http" in message
+    assert f"https://{HOST}" in message
+    assert "remove the stored credential" in message
 
 
 async def test_a_scheme_the_proxy_cannot_forward_is_refused_whatever_it_carries(
