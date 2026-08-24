@@ -30,7 +30,7 @@ from tools.demo_evidence.collector import (
     plan,
     render,
 )
-from tools.demo_evidence.queries import STATIONS, Query, Station
+from tools.demo_evidence.queries import SQL_DIRECTORY, STATIONS, VOCABULARY, Query, Station
 
 __all__ = [
     "NOT_COLLECTED",
@@ -38,7 +38,9 @@ __all__ = [
     "OUTPUT_OPENS",
     "REFUSAL_CLOSES",
     "REFUSAL_OPENS",
+    "SQL_DIRECTORY",
     "STATIONS",
+    "VOCABULARY",
     "NotASelect",
     "Parameters",
     "Query",

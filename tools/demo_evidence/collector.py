@@ -34,7 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
-from tools.demo_evidence.queries import STATIONS, Query, Station
+from tools.demo_evidence.queries import STATIONS, VOCABULARY, Query, Station
 
 #: What an identifier this tool substitutes into SQL may contain. Deliberately
 #: narrow, and wide enough for the two shapes staging really writes: a short
@@ -104,12 +104,20 @@ class Parameters:
             )
 
     def get(self, name: str) -> str:
-        """Return one parameter by the name a template refers to it by."""
+        """Return one parameter, or one declared word, by the name a statement uses.
+
+        The deployment's own vocabulary — an audit resource kind, an approval
+        state — resolves here too, from the modules that declare it. A statement
+        therefore never spells a product word out, and renaming one breaks the
+        query loudly instead of making it quietly return nothing.
+        """
+        if name in VOCABULARY:
+            return VOCABULARY[name]
         try:
             return str(getattr(self, name))
         except AttributeError as unknown:
             raise UnusableParameter(
-                f"no parameter is called {name!r}; the template refers to one that "
+                f"no parameter is called {name!r}; the statement refers to one that "
                 "does not exist, which is a typo rather than a missing value."
             ) from unknown
 

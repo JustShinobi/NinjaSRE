@@ -22,7 +22,9 @@ from pathlib import Path
 import pytest
 
 from tools.demo_evidence import (
+    SQL_DIRECTORY,
     STATIONS,
+    VOCABULARY,
     NotASelect,
     Parameters,
     UnusableParameter,
@@ -154,6 +156,37 @@ def test_the_identifiers_staging_really_uses_are_accepted() -> None:
         resource="proxmox:lxc:122",
     )
     assert accepted.incident.startswith("alert:")
+
+
+# --- The statements are files, and they spell no product word out -------------
+
+
+def test_every_declared_query_reads_a_statement_from_its_own_file() -> None:
+    """The SQL is data beside the module, so it can be pasted and diffed."""
+    for station in STATIONS:
+        for query in station.queries:
+            assert query.source.is_file(), f"{query.source} does not exist"
+            assert query.sql == query.source.read_text(encoding="utf-8")
+
+
+def test_no_statement_file_is_orphaned() -> None:
+    """A statement nothing declares is one nobody runs and nobody deletes."""
+    declared = {query.source.name for station in STATIONS for query in station.queries}
+    assert {path.name for path in SQL_DIRECTORY.glob("*.sql")} == declared
+
+
+def test_no_statement_spells_out_a_word_the_product_declares() -> None:
+    """An audit kind or an approval state arrives as a parameter, never as text.
+
+    Written down, a renamed word leaves a query that runs perfectly and returns
+    nothing, which reads as evidence of absence.
+    """
+    for station in STATIONS:
+        for query in station.queries:
+            for name, word in VOCABULARY.items():
+                assert f"'{word}'" not in query.sql, (
+                    f"{station.name}/{query.name} writes {word!r} out; use :{name}"
+                )
 
 
 # --- No query can read a credential ------------------------------------------
