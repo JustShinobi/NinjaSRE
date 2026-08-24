@@ -40,7 +40,11 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
-from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from config.constants.security import (
+    CREDENTIAL_ORG_WIDE_TEAM,
+    INTEGRATION_TRUST_AUDIT_ACTION,
+    INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
+)
 from gateway.http.configured import configured_integrations
 from gateway.http.credential_schemas import schema_for
 from gateway.http.credential_state import credential_detail, effective_credential_state
@@ -49,8 +53,11 @@ from gateway.http.errors import bad_request, not_found
 from gateway.http.integration_access import refresh_integration_endpoints
 from gateway.http.integration_endpoints import (
     configured_endpoints,
+    record_certificate_trust,
     record_endpoint,
     split_by_destination,
+    stamped_trust,
+    trust_audit_detail,
 )
 from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.state import GatewayState
@@ -725,6 +732,110 @@ async def store_credential(
         usable=credential_state.usable,
         version=version,
         fields=names,
+    )
+
+
+class TrustWriteRequest(BaseModel):
+    """What an operator declares about this vendor's certificate.
+
+    There is no field here that turns verification off, and there is not going
+    to be one. The insecure form is reached by writing down why, in
+    ``unverified_reason`` — which is also what makes it need a permission the
+    role that merely operates integrations does not hold. Who accepted it and
+    when are stamped by the server; a value sent here for either is discarded
+    before anything is validated.
+    """
+
+    fingerprints: list[str] = Field(default_factory=list)
+    certificate_pem: str | None = None
+    unverified_reason: str | None = None
+
+
+class TrustWriteView(BaseModel):
+    """What was written down, and which addresses it now covers."""
+
+    integration: str
+    anchor: str
+    addresses: list[str] = Field(default_factory=list)
+    #: The one line a report shows: what this endpoint is now checked against.
+    describes: str = ""
+
+
+@router.put("/{name}/trust", response_model=TrustWriteView)
+async def store_certificate_trust(
+    name: str,
+    body: TrustWriteRequest,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> TrustWriteView:
+    """Declare what this deployment accepts from ``name``'s endpoint certificate.
+
+    Written into the organisation's own configuration, beside the address, where
+    the credential proxy already reads from — the proxy applies it at the next
+    cycle, without a restart, because the same cycle that rebuilds the egress
+    allow-list rebuilds this.
+
+    Accepting an unverified certificate needs a permission of its own and a
+    reason in writing, and the identity recorded is the authenticated one rather
+    than anything the body carried. Nothing is written when either check fails:
+    the declaration is validated and authorised before the document is touched,
+    so a refusal leaves it exactly as it was.
+
+    Raises:
+        ApiProblem: the declaration is not one the vocabulary will hold (400) —
+            a blank reason, a private key where the certificate goes, a
+            fingerprint that is not one. The refusal names the field and never
+            quotes a value.
+    """
+    try:
+        declared = stamped_trust(
+            body.model_dump(exclude_none=True),
+            actor_id=auth.principal_id,
+            at=datetime.now(UTC),
+        )
+    except ValueError as refused:
+        raise bad_request(str(refused)) from refused
+
+    # Before anything is written, and it raises rather than returning: a partial
+    # write behind a refusal is the failure this ordering exists to prevent.
+    declared.refuse_unless_permitted(auth.context.permissions, node_id=auth.context.scope_node_id)
+
+    covered = await record_certificate_trust(
+        state.gateway,
+        # The organisation's node, not the caller's team, for the reason the
+        # address is written there: the binding that makes the call is
+        # organisation-wide, and a declaration written at a team node would be
+        # read by nothing.
+        scope=auth.scope,
+        node_id=auth.scope.org_id,
+        integration=name,
+        trust=declared,
+        actor_id=auth.principal_id,
+    )
+
+    # Who, when, which integration, which addresses, which form, the
+    # fingerprints when there are any and the reason when there is one — and no
+    # certificate material. Accepting an unverified certificate is a decision
+    # somebody needs to find six months later, and this is the row they find.
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        AuditContext(actor_kind=ActorKind.USER, actor_id=auth.principal_id),
+        action=INTEGRATION_TRUST_AUDIT_ACTION,
+        resource_kind=INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
+        resource_id=name,
+        detail=trust_audit_detail(name, declared, addresses=covered),
+    )
+
+    # A verdict belongs to the trust it was reached under. Keeping the last one
+    # across a change would leave a green tick on an anchor nothing has tested.
+    for kind in _affected_kinds(name):
+        await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    return TrustWriteView(
+        integration=name,
+        anchor=declared.anchor.value,
+        addresses=list(covered),
+        describes=declared.declaration(*covered).describe(),
     )
 
 

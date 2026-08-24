@@ -7652,6 +7652,73 @@
         "title": "TransitionView",
         "type": "object"
       },
+      "TrustWriteRequest": {
+        "description": "What an operator declares about this vendor's certificate.\n\nThere is no field here that turns verification off, and there is not going\nto be one. The insecure form is reached by writing down why, in\n``unverified_reason`` — which is also what makes it need a permission the\nrole that merely operates integrations does not hold. Who accepted it and\nwhen are stamped by the server; a value sent here for either is discarded\nbefore anything is validated.",
+        "properties": {
+          "certificate_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Pem"
+          },
+          "fingerprints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fingerprints",
+            "type": "array"
+          },
+          "unverified_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unverified Reason"
+          }
+        },
+        "title": "TrustWriteRequest",
+        "type": "object"
+      },
+      "TrustWriteView": {
+        "description": "What was written down, and which addresses it now covers.",
+        "properties": {
+          "addresses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addresses",
+            "type": "array"
+          },
+          "anchor": {
+            "title": "Anchor",
+            "type": "string"
+          },
+          "describes": {
+            "default": "",
+            "title": "Describes",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "anchor"
+        ],
+        "title": "TrustWriteView",
+        "type": "object"
+      },
       "TurnList": {
         "properties": {
           "turns": {
@@ -12261,6 +12328,75 @@
           }
         },
         "summary": "Store Credential",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/trust": {
+      "put": {
+        "description": "Declare what this deployment accepts from ``name``'s endpoint certificate.\n\nWritten into the organisation's own configuration, beside the address, where\nthe credential proxy already reads from — the proxy applies it at the next\ncycle, without a restart, because the same cycle that rebuilds the egress\nallow-list rebuilds this.\n\nAccepting an unverified certificate needs a permission of its own and a\nreason in writing, and the identity recorded is the authenticated one rather\nthan anything the body carried. Nothing is written when either check fails:\nthe declaration is validated and authorised before the document is touched,\nso a refusal leaves it exactly as it was.\n\nRaises:\n    ApiProblem: the declaration is not one the vocabulary will hold (400) —\n        a blank reason, a private key where the certificate goes, a\n        fingerprint that is not one. The refusal names the field and never\n        quotes a value.",
+        "operationId": "store_certificate_trust_v1_integrations__name__trust_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustWriteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Certificate Trust",
         "tags": [
           "integrations"
         ]

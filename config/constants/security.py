@@ -103,6 +103,13 @@ CREDENTIAL_EXPIRY_RETRY_ATTEMPTS: Final[int] = 1
 CREDENTIAL_PROXY_OVERHEAD_BUDGET_SECONDS: Final[float] = 0.005
 
 #: What a resolution is called in the audit trail (FR-019).
+#: Accepting a certificate for an address: which anchor, for which endpoints,
+#: by whom. Named here rather than written at the call site for the reason every
+#: other action is: an action spelled by hand is one the audit query does not
+#: find, and this is a query somebody runs precisely when it matters.
+INTEGRATION_TRUST_AUDIT_ACTION: Final = "integration.trust"
+INTEGRATION_TRUST_AUDIT_RESOURCE_KIND: Final = "integration"
+
 CREDENTIAL_RESOLUTION_AUDIT_ACTION: Final = "credential.resolve"
 CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND: Final = "integration"
 
@@ -866,6 +873,8 @@ __all__ = [
     "CREDENTIAL_PROXY_TIMEOUT_SECONDS",
     "CREDENTIAL_REFRESH_MARGIN_SECONDS",
     "CREDENTIAL_RESOLUTION_AUDIT_ACTION",
+    "INTEGRATION_TRUST_AUDIT_ACTION",
+    "INTEGRATION_TRUST_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_VERSION_SEPARATOR",
     "DEFAULT_GATED_SIDE_EFFECT_LEVELS",
