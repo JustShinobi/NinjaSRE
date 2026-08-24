@@ -163,7 +163,7 @@ PUT /v1/integrations/proxmox/trust
 ```
 
 Colons are optional — both spellings a tool produces are accepted. The other two
-forms are `{"certificate_pem": "-----BEGIN CERTIFICATE-----…"}` and
+forms are `{"certificate_pem": "<PEM-encoded certificate>"}` and
 `{"unverified_reason": "…"}`. There is no field in that body that turns
 verification off: the insecure form is reached by writing down *why*, and a
 reason that is present and blank is refused naming the reason.
