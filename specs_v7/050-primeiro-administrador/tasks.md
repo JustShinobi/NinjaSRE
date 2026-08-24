@@ -379,7 +379,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       e-mail contra o banco com dados, capturando os dois resultados —
       inclusive a recusa nomeada, se for o caso.
 
-- [ ] T071 Anotar em `evidence/` a comparação com T003: o mesmo deployment,
+- [x] T071 Anotar em `evidence/` a comparação com T003: o mesmo deployment,
       antes e depois, na forma em que ele aparece para quem instalou.
 
 ---
