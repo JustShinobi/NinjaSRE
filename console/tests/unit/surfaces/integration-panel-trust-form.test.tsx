@@ -123,7 +123,8 @@ function routed(
 ): [typeof fetch, () => readonly [string, RequestInit][]] {
   const calls: [string, RequestInit][] = [];
   const fetching = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     calls.push([url, init ?? {}]);
     const handler = handlers[url];
     if (handler === undefined) {
@@ -318,7 +319,8 @@ describe('what a refusal shows', () => {
       "This action needs 'integration.trust_unverified' in this organisation. " +
       "The 'ADMIN' role grants it.";
     const [fetching] = routed({
-      [TRUST_ENDPOINT]: () => refused(403, { ok: false, reachable: true, reason: message }),
+      [TRUST_ENDPOINT]: () =>
+        refused(403, { ok: false, reachable: true, reason: message }),
     });
     vi.stubGlobal('fetch', fetching);
     renderPanel(true);

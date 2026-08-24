@@ -131,9 +131,7 @@ describe('what crosses to the gateway', () => {
     expect(Reflect.get(Object(sent), 'certificate_pem')).toBe(
       '-----BEGIN CERTIFICATE-----',
     );
-    expect(Reflect.get(Object(sent), 'unverified_reason')).toBe(
-      'lab link with no DNS',
-    );
+    expect(Reflect.get(Object(sent), 'unverified_reason')).toBe('lab link with no DNS');
   });
 
   it('never puts the certificate or the reason in the address', async () => {

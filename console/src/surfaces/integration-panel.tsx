@@ -241,7 +241,10 @@ interface Verdict {
 }
 
 /** What a certificate trust declaration attempt produced, in the words the panel renders. */
-type TrustOutcome = { readonly role: 'success' | 'danger'; readonly message: string } | null;
+type TrustOutcome = {
+  readonly role: 'success' | 'danger';
+  readonly message: string;
+} | null;
 
 /** `raw` split into the fingerprints an operator meant, one per line. */
 function fingerprintsOf(raw: string): readonly string[] {
@@ -737,7 +740,9 @@ export function IntegrationPanel({
                   <Button
                     variant="secondary"
                     data-testid="trust-submit"
-                    state={trustSending ? 'loading' : trustEmpty ? 'disabled' : 'default'}
+                    state={
+                      trustSending ? 'loading' : trustEmpty ? 'disabled' : 'default'
+                    }
                     onClick={() => {
                       void submitTrust(item.name);
                     }}

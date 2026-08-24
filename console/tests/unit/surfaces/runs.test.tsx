@@ -62,7 +62,10 @@ function serveOneRealisticRun(): void {
       );
     }
     return Promise.resolve(
-      new Response('{}', { status: 404, headers: { 'content-type': 'application/json' } }),
+      new Response('{}', {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }),
     );
   });
 }
