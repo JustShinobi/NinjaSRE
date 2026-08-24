@@ -191,7 +191,12 @@ async def test_the_bootstrap_credential_is_exchanged_over_http(
         response = await http.post(
             "/v1/setup/durable-credential",
             headers=_headers(result.credential.secret),
-            json={"user_id": "ada", "email": "ada@example.test", "display_name": "Ada"},
+            json={
+                "user_id": "ada",
+                "email": "ada@example.test",
+                "display_name": "Ada",
+                "password": "a-passphrase-for-ada",
+            },
         )
 
         assert response.status_code == 200
@@ -213,7 +218,12 @@ async def test_exchanging_with_no_credential_on_the_host_is_refused(
     response = await client.post(
         "/v1/setup/durable-credential",
         headers=_headers(owner_token),
-        json={"user_id": "grace", "email": "g@example.test", "display_name": "Grace"},
+        json={
+            "user_id": "grace",
+            "email": "g@example.test",
+            "display_name": "Grace",
+            "password": "a-passphrase-for-grace",
+        },
     )
 
     assert response.status_code == 400
@@ -232,7 +242,12 @@ async def test_the_credential_file_is_gone_once_the_exchange_has_happened(
         await http.post(
             "/v1/setup/durable-credential",
             headers=_headers(result.credential.secret),
-            json={"user_id": "ada", "email": "ada@example.test", "display_name": "Ada"},
+            json={
+                "user_id": "ada",
+                "email": "ada@example.test",
+                "display_name": "Ada",
+                "password": "a-passphrase-for-ada",
+            },
         )
 
     assert not credential_path().exists()
