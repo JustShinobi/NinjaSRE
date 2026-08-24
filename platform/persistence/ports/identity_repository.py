@@ -32,7 +32,17 @@ class PrincipalKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class User:
-    """A person or service account within one organisation."""
+    """A person or service account within one organisation.
+
+    ``email`` is ``""`` for a principal that has none — the bootstrap service
+    account, and any other service account nobody gave an address. That is a
+    legitimate value, not a placeholder waiting to be filled in, and it is
+    **not** unique: a deployment may hold any number of principals with no
+    address at all. Uniqueness applies only between two principals that both
+    have one, compared case-insensitively. ``find_user_by_email("")`` never
+    matches an addressless principal, on either backend — searching for
+    nothing is not the same question as searching for something nobody has.
+    """
 
     user_id: str
     email: str
@@ -126,6 +136,28 @@ class TokenResolution:
     scopes: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class LocalSignInOpening:
+    """The one fact that decides whether this deployment's local sign-in exists.
+
+    One row per deployment, ever. Its presence — not an account, not a stored
+    passphrase — is the door: a principal created through
+    ``POST /identity/principals`` stores a passphrase of its own without
+    opening anything, and only a deliberate act (the CLI's administrator
+    command, or exchanging the bootstrap credential) writes this row. Once
+    written, it is never removed and never rewritten — there is no method on
+    this port that updates or deletes one, because the fact it records does
+    not stop being true.
+    """
+
+    opened_at: datetime
+    #: Which of the two deliberate acts wrote this row. Free text describing a
+    #: closed set (``"cli"``, ``"bootstrap-exchange"``) rather than an enum
+    #: here, so a third path this feature does not know about still records
+    #: something readable instead of failing to serialise.
+    opened_via: str
+
+
 @runtime_checkable
 class IdentityRepository(Protocol):
     """Users, their tokens, and their role bindings, within one tenant."""
@@ -203,6 +235,21 @@ class IdentityRepository(Protocol):
     async def remove_role_binding(self, binding_id: str) -> bool:
         """Remove ``binding_id`` and return whether it existed."""
 
+    async def local_sign_in_opening(self) -> LocalSignInOpening | None:
+        """Return this deployment's opening record, or ``None`` if it has never opened."""
+
+    async def open_local_sign_in(
+        self, *, opened_at: datetime, opened_via: str
+    ) -> LocalSignInOpening:
+        """Record that the local sign-in door has been opened, once, and return the record.
+
+        Raises ``DuplicateRecord`` when a record already exists — the arbiter
+        of a race between two callers both trying to be first. The record
+        already there is unchanged either way; a caller that loses reads it
+        back with ``local_sign_in_opening`` rather than trusting what it tried
+        to write.
+        """
+
 
 @dataclass(frozen=True, slots=True)
 class TokenLocation:
@@ -251,6 +298,7 @@ class TokenDirectory(Protocol):
 __all__ = [
     "ApiToken",
     "IdentityRepository",
+    "LocalSignInOpening",
     "PrincipalKind",
     "RoleBinding",
     "TokenDirectory",
