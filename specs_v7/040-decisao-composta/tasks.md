@@ -377,12 +377,22 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
 - [ ] S02 Contar no banco de staging: pedidos de aprovação de remediação maior
       que zero; planos de reversão maior que zero, com ao menos um
       correspondendo a um daqueles pedidos.
-      → **Medido, e o resultado é zero em ambos** — mas não por falta de
-      execução. A demo de 2026-08-24 rodou uma investigação real sobre um
-      incidente real e ela não propôs nada, porque o catálogo inteiro tem três
-      capacidades de escrita e as três são aviso: nenhuma atua sobre
-      infraestrutura. Esta contagem não pode passar de zero enquanto isso for
-      verdade, e a decisão é de escopo de produto, não desta feature.
+        → **Medido, e o resultado é zero em ambos** — mas não por falta de
+        execução, e não pela razão que eu escrevi aqui primeiro.
+
+        **Aquela razão estava errada.** Eu disse que o catálogo inteiro tinha
+        três capacidades de escrita e as três eram aviso. Tem **24**, sendo
+        **20** de remediação, e `proxmox_start_guest` é uma delas. O run da demo
+        recebeu **40** capacidades oferecidas, **treze** delas ações. O que
+        faltou foi uma: o seletor ofereceu sete maneiras de parar, desligar,
+        suspender, reiniciar, retomar, migrar e relocar um convidado, e cortou a
+        única que **liga** um — num incidente cujo conteúdo era um convidado que
+        parou. O agente não escolheu não propor; não tinha com o quê.
+
+        Então esta contagem pode passar de zero, e o que a prende em zero é o
+        ranqueamento em `_select_tools` contra o teto de 40, não o escopo do
+        produto. Apuração em `specs_v7/080-incidente-fecha-o-laco/evidence/
+        demo-2026-08-24/T041-ferramentas-oferecidas.md`.
 - [x] S03 Contar no banco de staging: pedidos de remediação em estado diferente
       de pendente igual a **zero**, e resultados de remediação igual a
       **zero**. Um valor diferente de zero em qualquer um dos dois é defeito,
