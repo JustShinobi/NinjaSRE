@@ -10,7 +10,9 @@ import { setupCause } from '@/surfaces/emptiness';
  * owes elsewhere.
  */
 
-function setup(steps: Readonly<Record<string, 'done' | 'ready' | 'blocked'>>): DeploymentSetup {
+function setup(
+  steps: Readonly<Record<string, 'done' | 'ready' | 'blocked'>>,
+): DeploymentSetup {
   return {
     complete: Object.values(steps).every((state) => state === 'done'),
     provider: 'absent',

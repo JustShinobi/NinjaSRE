@@ -1507,6 +1507,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integrations/{name}/docs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration Docs
+         * @description Return one embedded vendor's own package documentation.
+         *
+         *     Takes the same authorisation every other route on this router does, even
+         *     though it reads nothing tenant-scoped: the permission check is what
+         *     ``authorized`` performs against the route table, and a route mounted
+         *     without it would be reachable by anyone who could reach this deployment
+         *     at all.
+         *
+         *     ``name`` is resolved against the installed catalogue and never used to
+         *     build a filesystem path directly: the path this reads comes from the same
+         *     parity report that already walked the package tree to confirm ``docs.md``
+         *     is there, so a name that is not an installed vendor never reaches a disk
+         *     access at all — it is a 404 before that.
+         */
+        get: operations["integration_docs_v1_integrations__name__docs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{name}/trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Certificate Trust
+         * @description Declare what this deployment accepts from ``name``'s endpoint certificate.
+         *
+         *     Written into the organisation's own configuration, beside the address, where
+         *     the credential proxy already reads from — the proxy applies it at the next
+         *     cycle, without a restart, because the same cycle that rebuilds the egress
+         *     allow-list rebuilds this.
+         *
+         *     Accepting an unverified certificate needs a permission of its own and a
+         *     reason in writing, and the identity recorded is the authenticated one rather
+         *     than anything the body carried. Nothing is written when either check fails:
+         *     the declaration is validated and authorised before the document is touched,
+         *     so a refusal leaves it exactly as it was.
+         *
+         *     Raises:
+         *         ApiProblem: the declaration is not one the vocabulary will hold (400) —
+         *             a blank reason, a private key where the certificate goes, a
+         *             fingerprint that is not one. The refusal names the field and never
+         *             quotes a value.
+         */
+        put: operations["store_certificate_trust_v1_integrations__name__trust_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations/{name}/verify": {
         parameters: {
             query?: never;
@@ -4549,6 +4618,34 @@ export interface components {
             /** Value */
             value?: unknown;
         };
+        /**
+         * IntegrationDocsView
+         * @description One vendor package's own documentation, as its ``docs.md`` reads.
+         *
+         *     ``markdown`` is the file's text, unmodified — the console renders it with
+         *     the markdown reader it already has rather than this route parsing
+         *     anything. ``readable`` is false in exactly one situation: the vendor is
+         *     installed and its parity report resolved a ``docs.md`` path, but the file
+         *     at that path could not actually be read. That is never "no such vendor" —
+         *     a name outside the catalogue is a 404, not a row here — and it is never
+         *     "this vendor has no documentation", because every embedded vendor is
+         *     required to ship one. It is this deployment's own build failing to carry
+         *     a file its source tree has, which is exactly the failure the console has
+         *     to say plainly rather than reporting as if the document never existed.
+         */
+        IntegrationDocsView: {
+            /** Display Name */
+            display_name: string;
+            /** Markdown */
+            markdown: string;
+            /** Name */
+            name: string;
+            /**
+             * Readable
+             * @default true
+             */
+            readable: boolean;
+        };
         /** IntegrationList */
         IntegrationList: {
             /** Integrations */
@@ -4648,6 +4745,11 @@ export interface components {
             suggested?: components["schemas"]["SuggestionView"] | null;
             /** Summary */
             summary: string;
+            /**
+             * Where To Get It
+             * @default
+             */
+            where_to_get_it: string;
         };
         /** InteractionList */
         InteractionList: {
@@ -6773,6 +6875,42 @@ export interface components {
             signal?: components["schemas"]["SignalView"] | null;
             /** State */
             state: string;
+        };
+        /**
+         * TrustWriteRequest
+         * @description What an operator declares about this vendor's certificate.
+         *
+         *     There is no field here that turns verification off, and there is not going
+         *     to be one. The insecure form is reached by writing down why, in
+         *     ``unverified_reason`` — which is also what makes it need a permission the
+         *     role that merely operates integrations does not hold. Who accepted it and
+         *     when are stamped by the server; a value sent here for either is discarded
+         *     before anything is validated.
+         */
+        TrustWriteRequest: {
+            /** Certificate Pem */
+            certificate_pem?: string | null;
+            /** Fingerprints */
+            fingerprints?: string[];
+            /** Unverified Reason */
+            unverified_reason?: string | null;
+        };
+        /**
+         * TrustWriteView
+         * @description What was written down, and which addresses it now covers.
+         */
+        TrustWriteView: {
+            /** Addresses */
+            addresses?: string[];
+            /** Anchor */
+            anchor: string;
+            /**
+             * Describes
+             * @default
+             */
+            describes: string;
+            /** Integration */
+            integration: string;
         };
         /** TurnList */
         TurnList: {
@@ -9250,6 +9388,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CredentialDeleteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    integration_docs_v1_integrations__name__docs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationDocsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_certificate_trust_v1_integrations__name__trust_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrustWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustWriteView"];
                 };
             };
             /** @description Validation Error */

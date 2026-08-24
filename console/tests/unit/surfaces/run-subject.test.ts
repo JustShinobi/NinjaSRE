@@ -21,7 +21,10 @@ function run(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 
 describe('subjectOf', () => {
   it('uses the headline when the record carries one', () => {
-    const subject = subjectOf(run({ headline: 'Primary database ran out of connections' }), 'en');
+    const subject = subjectOf(
+      run({ headline: 'Primary database ran out of connections' }),
+      'en',
+    );
     expect(subject.text).toBe('Primary database ran out of connections');
     expect(subject.truncated).toBe(false);
   });
@@ -52,7 +55,10 @@ describe('subjectOf', () => {
   });
 
   it('collapses runs of whitespace left behind by stripped syntax', () => {
-    const subject = subjectOf(run({ headline: 'A   **very**    spaced   sentence' }), 'en');
+    const subject = subjectOf(
+      run({ headline: 'A   **very**    spaced   sentence' }),
+      'en',
+    );
     expect(subject.text).toBe('A very spaced sentence');
   });
 

@@ -3236,6 +3236,35 @@
         "title": "InheritedValueView",
         "type": "object"
       },
+      "IntegrationDocsView": {
+        "description": "One vendor package's own documentation, as its ``docs.md`` reads.\n\n``markdown`` is the file's text, unmodified — the console renders it with\nthe markdown reader it already has rather than this route parsing\nanything. ``readable`` is false in exactly one situation: the vendor is\ninstalled and its parity report resolved a ``docs.md`` path, but the file\nat that path could not actually be read. That is never \"no such vendor\" —\na name outside the catalogue is a 404, not a row here — and it is never\n\"this vendor has no documentation\", because every embedded vendor is\nrequired to ship one. It is this deployment's own build failing to carry\na file its source tree has, which is exactly the failure the console has\nto say plainly rather than reporting as if the document never existed.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "markdown": {
+            "title": "Markdown",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readable": {
+            "default": true,
+            "title": "Readable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "markdown"
+        ],
+        "title": "IntegrationDocsView",
+        "type": "object"
+      },
       "IntegrationList": {
         "properties": {
           "integrations": {
@@ -3468,6 +3497,11 @@
           },
           "summary": {
             "title": "Summary",
+            "type": "string"
+          },
+          "where_to_get_it": {
+            "default": "",
+            "title": "Where To Get It",
             "type": "string"
           }
         },
@@ -12338,6 +12372,65 @@
           }
         },
         "summary": "Store Credential",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/docs": {
+      "get": {
+        "description": "Return one embedded vendor's own package documentation.\n\nTakes the same authorisation every other route on this router does, even\nthough it reads nothing tenant-scoped: the permission check is what\n``authorized`` performs against the route table, and a route mounted\nwithout it would be reachable by anyone who could reach this deployment\nat all.\n\n``name`` is resolved against the installed catalogue and never used to\nbuild a filesystem path directly: the path this reads comes from the same\nparity report that already walked the package tree to confirm ``docs.md``\nis there, so a name that is not an installed vendor never reaches a disk\naccess at all — it is a 404 before that.",
+        "operationId": "integration_docs_v1_integrations__name__docs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationDocsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Docs",
         "tags": [
           "integrations"
         ]

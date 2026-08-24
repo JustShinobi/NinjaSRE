@@ -239,7 +239,10 @@ describe('a provider with no credential stored', () => {
   });
 
   it('draws an advanced role whose last check failed as failing, never as stored', async () => {
-    editor([INVESTIGATOR, { ...SUBAGENT, provider: 'mistral', model: 'mistral-large' }]);
+    editor([
+      INVESTIGATOR,
+      { ...SUBAGENT, provider: 'mistral', model: 'mistral-large' },
+    ]);
 
     await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
 
@@ -251,7 +254,10 @@ describe('a provider with no credential stored', () => {
 
 describe("the investigator's own headline chip", () => {
   it('reads failing, not stored, when the provider bound to it last failed its check', () => {
-    editor([{ ...INVESTIGATOR, provider: 'mistral', model: 'mistral-large' }, SUBAGENT]);
+    editor([
+      { ...INVESTIGATOR, provider: 'mistral', model: 'mistral-large' },
+      SUBAGENT,
+    ]);
 
     const chip = screen.getByTestId('provider-state-chip');
     expect(chip).toHaveAttribute('data-credential-status', 'failing');

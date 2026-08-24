@@ -66,7 +66,13 @@ function serveSummary(identifier: string, permissions: readonly string[]): void 
               finished_at: '2026-08-07T11:05:00+00:00',
             }
           : path === `/v1/runs/${RUN}/replay`
-            ? { run_id: RUN, is_interrupted: false, total_cost: 0, total_tokens: 0, turns: [] }
+            ? {
+                run_id: RUN,
+                is_interrupted: false,
+                total_cost: 0,
+                total_tokens: 0,
+                turns: [],
+              }
             : path === '/v1/incidents'
               ? { incidents: [] }
               : path === `/v1/investigations/${RUN}/interactions`
