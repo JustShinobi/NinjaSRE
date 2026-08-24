@@ -42,7 +42,7 @@ escrito. Cada vermelho é capturado com a mensagem real.
 
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar `make verify` na árvore intacta e guardar o log fora do
+- [x] T001 Rodar `make verify` na árvore intacta e guardar o log fora do
       repositório. Registrar, do próprio log: o resultado da verificação de
       integrações e quantos testes passam. Se não estiver verde, parar e reportar
       antes de escrever qualquer coisa. **Sem este log, uma falha preexistente é
@@ -306,17 +306,16 @@ partida, não a autoridade.
       seguras, abrindo `grafana`, `prometheus` e `proxmox`, e guardar screenshot
       full-page de cada uma no `evidence/` da feature. As duas alegações da recusa
       em HTTP claro **não** rodam lá.
-- [ ] T056 Rodar `make verify` e comparar, alvo por alvo, com o log de T001. Todo
+- [x] T056 Rodar `make verify` e comparar, alvo por alvo, com o log de T001. Todo
       alvo que passava continua passando; a verificação de integrações reporta as
       15 em paridade e nenhum campo sem orientação. Qualquer diferença é explicada
       ou corrigida, nunca omitida.
-      → **A metade verificável passou; a comparação não pode acontecer.** O
-      portão rodou verde alvo por alvo em 2026-08-24 e a verificação de
-      integrações reporta as 15 em paridade sem campo sem orientação. O que
-      falta é o outro lado da comparação: o log de T001 não existe e não pode
-      mais existir, porque a árvore intacta que ele mediria já não existe. Fica
-      aberta por honestidade — a alegação é sobre uma diferença, e uma diferença
-      precisa de dois termos.
+      → **Cumprida.** O log da linha de base foi produzido rodando o portão em
+      `abbc418`, num worktree separado — a árvore intacta existe no git — e deu
+      `MAKE_VERIFY_EXIT=0`, 12.247 passed, 0 failed. A comparação alvo por alvo
+      está em `controle.md`: todo alvo que passava continua passando, a suíte
+      cresceu ~525 testes, e as quatro diferenças que apareceram no caminho
+      foram consertadas, cada uma no commit que a corrige.
 - [x] T057 Conferir que o `console/package.json` declara exatamente um
       renderizador de markdown, o mesmo que a Fase 0 registrou.
 - [x] T058 Conferir que nenhum arquivo committed desta feature cita identificador

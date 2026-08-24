@@ -472,11 +472,11 @@ arquivo custam mais do que economizam.
       imagem, e aceitas com razão escrita no registro.
 - [x] Os dois arquivos de teste unitário existentes foram **estendidos**; nenhum
       caso foi duplicado.
-- [ ] `make verify` verde, comparado contra o log da linha de base.
+- [x] `make verify` verde, comparado contra o log da linha de base.
       → Verde, medido peça a peça em 2026-08-24 com a máquina vazia: ~12.800
       testes Python, 2802 do console a 90,08% de cobertura de ramos, 355 de
-      navegador, e todos os alvos estáticos. A comparação é que não pode
-      acontecer: o log da linha de base nunca foi guardado e a árvore que ele
-      mediria já não existe. Fica aberta porque a alegação é sobre uma
-      diferença, e uma diferença precisa de dois termos.
+      navegador, 33 visuais, e todos os alvos estáticos. A comparação existe: o
+      log da linha de base foi produzido rodando o portão em `abbc418` e deu
+      exit 0 com 12.247 passed, 0 failed. Todo alvo que passava continua
+      passando. Está em `specs_v7/060-o-catalogo-ensina/controle.md`.
 - [x] O bloco de coordenação do slot foi entregue no relatório final.
