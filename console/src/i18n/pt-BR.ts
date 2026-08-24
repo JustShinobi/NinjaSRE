@@ -1378,6 +1378,27 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.panel.disconnect': 'Desconectar',
   'catalogue.integrations.panel.disconnect.consequence':
     'Isso remove a credencial guardada no vault. A integração volta para Disponíveis até ser reconectada.',
+  // --- Confiança de certificado: o que este deployment confere no endereço ---------
+  'catalogue.integrations.panel.trust.heading': 'Confiança de certificado',
+  'catalogue.integrations.panel.trust.intro':
+    'O que este deployment aceita do certificado que este endereço apresenta. Declarado para este endereço apenas — trocar o endereço reinicia a decisão.',
+  'catalogue.integrations.panel.trust.fingerprintsLabel': 'Fingerprints pinados',
+  'catalogue.integrations.panel.trust.fingerprintsHelp':
+    'Um fingerprint SHA-256 por linha, copiado da própria interface do nó. Um cluster lista um fingerprint por nó na mesma declaração.',
+  'catalogue.integrations.panel.trust.certificateLabel':
+    'Autoridade do certificado (PEM)',
+  'catalogue.integrations.panel.trust.certificateHelp':
+    'A autoridade que o cluster mintou para si mesmo. Cobre todo nó cujo certificado encadeia até ela — a forma que um cluster costuma preferir.',
+  'catalogue.integrations.panel.trust.submit': 'Declarar confiança',
+  'catalogue.integrations.panel.trust.sending': 'Declarando…',
+  'catalogue.integrations.panel.trust.saved': 'Declarado. Testando a conexão agora.',
+  'catalogue.integrations.panel.trust.refused': 'O deployment recusou:',
+  'catalogue.integrations.panel.trust.unreachable':
+    'Não foi possível alcançar o deployment.',
+  'catalogue.integrations.panel.trust.unverifiedHeading': 'Aceitar sem verificar',
+  'catalogue.integrations.panel.trust.unverifiedReasonLabel': 'Por quê',
+  'catalogue.integrations.panel.trust.unverifiedReasonHelp':
+    'Registrado com seu nome e o instante da aceitação, porque abrir mão da verificação de certificado é uma decisão, não um ajuste.',
 
   // --- A página de referência dos vendors que este catálogo não cobre --------------
   'catalogue.notCovered.title': 'Não coberto, e por quê',
