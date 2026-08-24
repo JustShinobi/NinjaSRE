@@ -354,11 +354,16 @@ def _bootstrap_secret(base: Sequence[str]) -> str:
 
 #: Who the browser harness identifies as, exchanging the bootstrap credential
 #: for a durable one. Not a real operator — a fixed identity this harness owns,
-#: same as any other automated caller of the first-run route.
+#: same as any other automated caller of the first-run route. The password is
+#: thrown away with the rest of the stack at the end of the same run: the
+#: browser signs in with the durable secret this exchange returns, never with
+#: this name and password through the sign-in form, so the value carries no
+#: meaning beyond satisfying the route's own requirement that one be chosen.
 _HARNESS_PRINCIPAL: Final = {
     "user_id": "console-e2e",
     "email": "console-e2e@ninjasre.invalid",
     "display_name": "Console end-to-end harness",
+    "password": "console-e2e-harness-passphrase",
 }
 
 
