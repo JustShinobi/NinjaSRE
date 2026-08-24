@@ -136,3 +136,74 @@ nenhum, porque quem procura acha e conclui que não há o que dizer.
 
 Este é o achado com dono e com conserto claro. E é da mesma família de tudo o
 que esta onda vem fechando: uma superfície que afirma explicar e não explica.
+
+---
+
+## Terceira correção, e desta vez a causa está medida
+
+As duas explicações acima estavam erradas, e a terceira não é minha honra:
+**fui eu quem causou o efeito que passei o dia chamando de defeito do produto.**
+
+A regra de alerta que escrevi tem a descrição em português. Todo o catálogo de
+capacidades declara os seus casos de uso em inglês, e o escorador ordena por
+sobreposição de termos entre o resumo do incidente e esses casos de uso.
+
+Uma frase, duas línguas, medido com o escorador do próprio produto:
+
+    "ProxmoxGuestStopped: redis (lxc/122) estava em execucao no no pve01 e parou."
+      proxmox_start_guest      0.0000
+      proxmox_stop_guest       0.0000
+      proxmox_shutdown_guest   0.0000
+
+    "ProxmoxGuestStopped: The guest redis (lxc/122) was running on node pve01
+     and has stopped."
+      proxmox_start_guest      0.7407
+      proxmox_stop_guest       0.7692
+      proxmox_shutdown_guest   0.7692
+
+E o que isso faz com a seleção inteira, ranqueando as 60 candidatas que este
+deployment conectou:
+
+| descrição do alerta | posição de `proxmox_start_guest` | escore | resultado |
+|---|---|---|---|
+| português | 63º | 0,000 | **cortada** |
+| inglês | **13º** | 1,818 | **oferecida** |
+
+**Uma variável.** O idioma em que o operador escreve o alerta decide se o
+deployment recebe a ação que conserta o incidente.
+
+## O achado que sobra, e é maior que o que eu procurava
+
+Não é que o catálogo esteja vazio — tem 24 capacidades de escrita. Não é que o
+ranqueamento seja arbitrário — ele põe a ação em 13º quando os termos casam.
+
+É que **a seleção depende do idioma e nada diz isso**. Um deployment cujos
+alertas estão na língua do operador pontua **todas** as capacidades em zero, e
+aí o desempate é por nome: entrar na oferta passa a depender da posição no
+alfabeto. Foi exatamente o que a gravação mostrou — vinte capacidades cortadas,
+todas com escore zero, ordenadas alfabeticamente, e `proxmox_start_guest` entre
+elas porque "s" vem tarde.
+
+O produto degrada em silêncio. Não recusa, não avisa, não pontua diferente de
+um empate legítimo: entrega quarenta ferramentas escolhidas por ordem
+alfabética e segue como se tivesse escolhido.
+
+Isto não é hipótese de laboratório. Eu escrevi aquele alerta em português
+porque é a língua do operador deste deployment, que é o que qualquer operador
+brasileiro faria, e o efeito apareceu na primeira tentativa.
+
+## O que foi consertado, e o que fica
+
+Consertei a **minha** regra: `infra-cluster` commit `d74b3f3`, a descrição
+reescrita em inglês, com a razão no comentário para que ninguém a traduza de
+volta sem saber o que custa.
+
+O que **não** consertei é o produto, e é decisão de escopo com dono: ou o
+escorador deixa de depender do idioma, ou um deployment cujos alertas não estão
+em inglês precisa ser avisado disso em vez de descobrir por acidente.
+
+E nada disto seria visível sem a instrumentação que este mesmo trabalho
+produziu. Antes dela o campo `selection_rationale` estava vazio e a resposta era
+inalcançável; depois dela a própria gravação do run diz `ranked 60, offered 40,
+cut by the ceiling 20` e nomeia cada uma com o seu escore. **Foi o produto,
+instrumentado, que me mostrou que o erro era meu.**
