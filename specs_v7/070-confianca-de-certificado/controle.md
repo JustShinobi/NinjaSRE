@@ -522,7 +522,7 @@ Quatorze chaves novas, sob `catalogue.integrations.panel.trust.*`, em
 | Gate | Comando | Resultado |
 |---|---|---|
 | Vermelho genuíno | `pnpm exec vitest run` dos dois arquivos novos, contra a implementação isolada por `git stash` | 10 failed / 2 passed, mais 1 arquivo que não carregou — mensagens na tabela acima |
-| Vitest, os dois arquivos novos | `pnpm exec vitest run tests/unit/surfaces/integration-panel-trust-form.test.tsx tests/unit/surfaces/trust-route.test.ts` | **26 passed** |
+| Vitest, os dois arquivos novos | `pnpm exec vitest run tests/unit/surfaces/integration-panel-trust-form.test.tsx tests/unit/surfaces/trust-route.test.ts` | **27 passed** — 26 do vermelho genuíno (tabela acima) mais 1 acrescentado depois ("does not let whitespace in the reason field stand in for a written one"), **verificado só verde**: a propriedade que ele trava já valia na implementação quando o caso foi escrito, então este caso específico não tem vermelho próprio — dito aqui em vez de contado junto com os outros doze |
 | Vitest, os quatro arquivos pré-existentes tocados | mesmo comando, os quatro caminhos | **44 passed** |
 | Vitest, `IntegrationsScreen` (a fiação) | `tests/unit/surfaces/integrations.test.tsx` | **41 passed** |
 | Vitest, catálogo i18n | `tests/unit/i18n/` | **24 passed** |
@@ -531,7 +531,7 @@ Quatorze chaves novas, sob `catalogue.integrations.panel.trust.*`, em
 | Backend, o portão de permissão | `uv run pytest tests/unit/gateway/http/test_certificate_trust_write.py -v` | **15 passed** |
 | Transversal, na fronteira do slot | `uv run python -m tools.spec_validation browser --feature specs_v7/070-confianca-de-certificado --test console/tests/e2e/transversal-rules.spec.ts` | **exit 0 — 45 passed, 7 skipped**, nenhuma falha nova |
 
-Soma dos casos vitest tocados nesta janela: 26 + 44 + 41 + 24 = **135 passed**,
+Soma dos casos vitest tocados nesta janela: 27 + 44 + 41 + 24 = **136 passed**,
 mais os 15 do backend e os 45 da transversal.
 
 ## O que ainda fica pendente depois desta janela
@@ -542,4 +542,4 @@ mais os 15 do backend e os 45 da transversal.
 | **T030** — teste da invalidação por troca de endereço | PARCIAL, sem mudança nesta janela | próxima sessão |
 | **T046 — `make verify` inteiro** | NÃO RODADO — do orquestrador | orquestrador |
 | **T002, T047–T053 — evidência de staging** | NÃO INICIADO — do orquestrador | orquestrador |
-| `console_gate test` (suíte vitest inteira do console) | NÃO RODADO por inteiro nesta janela — rodei os arquivos afetados e adjacentes (135 casos, todos verdes) em vez da suíte inteira, por custo de turno | orquestrador, se quiser a suíte inteira antes do merge |
+| `console_gate test` (suíte vitest inteira do console) | NÃO RODADO por inteiro nesta janela — rodei os arquivos afetados e adjacentes (136 casos, todos verdes) em vez da suíte inteira, por custo de turno | orquestrador, se quiser a suíte inteira antes do merge |
