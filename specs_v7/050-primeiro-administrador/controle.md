@@ -110,23 +110,285 @@ rota de disponibilidade, nunca escrito no console.
 
 ## O que fica pendente, nomeado, não escondido
 
-1. **4 das 10 alegações normativas do acceptance spec continuam vermelhas**
-   (claims 1, 2, 3, 9 — a tela nomeia o comando). Motivo real, não falta de
-   implementação: nenhum cenário de mock comitado nem um `compose up` simples
-   alcançam o estado `unclaimed` hoje. A leitura acontece num Server
-   Component (não intercepta via `page.route()` — mesma limitação que
-   `030-uma-fonte-por-fato` documentou para a lista de incidentes). Dois
-   caminhos para fechar: estender `tools/mockplane/dataset/served.py` com
-   este endpoint no cenário `first-day` (gerado, não editado à mão), ou rodar
-   `--backing compose` com um `docker compose up` genuinamente limpo.
-2. **Prova no caminho de serving via compose real (T066-T071)** — não
-   tentada por tempo. Docker e Docker Compose v2 confirmados disponíveis
-   nesta sandbox.
+1. ~~4 das 10 alegações normativas do acceptance spec continuam vermelhas~~
+   **RESOLVIDO** — ver "Atualização — o mock plane passa a servir o fato"
+   abaixo. As claims 1, 2, 3 e 9 (mais a 4, que já passava) foram movidas
+   para `console/tests/first-day/primeiro-administrador.acceptance.spec.ts`
+   e provadas verdes contra o cenário `first-run`, pelo caminho que este
+   próprio item já apontava como uma das duas saídas.
+2. **Prova no caminho de serving via compose real (T066-T071)** — ainda não
+   tentada. Fora do escopo desta atualização, que tratou apenas do gate
+   automatizado (mock plane); segue pendente de um agente com esse recorte.
 3. **`config/constants/__init__.py`** — 6 nomes novos do slot não replicados
    no re-export agregado (~2000 linhas, sem teste que exija a réplica).
-4. **`make verify` completo** — não rodado (é o gate do orquestrador). Rodei
-   591+38+84+25+29 testes Python narrow (todos os arquivos tocados, mais a
-   suíte de regressão de identity/startup/cli/gateway inteira), 3 testes
-   Vitest, ruff e mypy em cada arquivo tocado — todos limpos.
+4. **`make verify` completo** — ver "Atualização" abaixo pelo resultado real,
+   lido do próprio comando.
 5. **Chaves i18n da seção 5** — aplicar em `console/src/i18n/en.ts` e
    `pt-BR.ts` (arquivos de escrita única do slot, não tocados por mim).
+6. **Achado novo, fora do escopo, nomeado**: seis baselines visuais de
+   `gallery-*` (todos os viewports e temas: `1440-dark`, `1440-light`,
+   `320-dark`, `320-light`, `768-dark`, `768-light`) divergem do que a
+   suíte visual comitada espera, além das sete que o orquestrador já
+   sabia. `console/src/app/gallery` não foi tocado por esta feature; o
+   dono é quem revisa a suíte visual, não "primeiro administrador".
+   Detalhe completo, com o tamanho do diff de cada uma, na
+   "Atualização" abaixo. Nenhuma baseline foi recapturada.
+
+---
+
+## Atualização — o mock plane passa a servir o fato, claims 1-4 e 9 fecham verdes
+
+**Ponto de partida**: `console/tests/e2e/primeiro-administrador.acceptance.spec.ts`
+era o único bloco vermelho de `make verify` na árvore — 2796 testes Python,
+170 testes unitários de console e 334/338 e2e passando; os quatro
+vermelhos eram exatamente as claims 1, 2, 3 e 9, pelo motivo que o próprio
+cabeçalho do arquivo já documentava: `GET /v1/setup/local-administrator`
+não existia em nenhum cenário do mock (404 em todos), então
+`localAdministratorAvailability()` sempre devolvia `command: ''` e o aviso
+nunca renderizava.
+
+**Vermelho confirmado antes de tocar em código** (mock plane isolado por
+`git stash`, harness `tools.console_e2e run --project behaviour
+tests/e2e/primeiro-administrador.acceptance.spec.ts`):
+
+```
+GET /v1/setup/local-administrator HTTP/1.1" 404
+✘ claim 1: shows an identifiable warning block (6.3s) — toBeVisible timeout, elemento ausente
+✘ claim 2: the block contains the command... (5.9s) — toBeVisible timeout, elemento ausente
+✘ claim 3: the block sits above the form... (30.3s) — Test timeout, elemento nunca aparece
+✘ claim 9: shows the same command... (30.2s) — Test timeout, elemento nunca aparece
+4 failed, 1 skipped, 6 passed
+```
+
+**O que mudou** (mock plane, nunca o produto — o backend e o console já
+serviam/liam a rota corretamente):
+
+1. `tools/mockplane/endpoints.py:434-439` — registra
+   `GET /v1/setup/local-administrator` (slug `local-administrator`) na
+   tabela de endpoints do mock. Sem isso o roteador nem tentava casar a
+   rota.
+2. `tools/mockplane/dataset/served.py:2861-2879` — nova
+   `local_administrator_record(*, unclaimed: bool = False)`, mesma forma de
+   `checklist_record`: `unclaimed=True` devolve
+   `{"state": "unclaimed", "command": LOCAL_ADMIN_SETUP_COMMAND}`;
+   `unclaimed=False` devolve `{"state": "administered", "command": ""}`.
+   Chamada de `setup_records()` (`served.py:2882`, sem argumento — o
+   deployment completo já tem dono).
+3. `tools/mockplane/dataset/build.py:274` — `empty_records()` ganha
+   `"local-administrator": {"state": "administered", "command": ""}`: um
+   deployment vazio já tem o operador assinado, não é "unclaimed".
+4. `tools/mockplane/dataset/build.py:599` — `first_run_records()` sobrescreve
+   para `served.local_administrator_record(unclaimed=True).body`. É o único
+   cenário comitado que ninguém abriu o sign-in local — o mesmo que já
+   alimenta o projeto `first-day` (`FIRST_DAY_SCENARIO = "first-run"`,
+   `tools/console_gate.py:63`).
+5. Fixtures regeneradas por `python -m tools.mockplane build` (gerador,
+   nunca editado à mão): `fixtures/scenarios/{populated,empty,first-run}/local-administrator.json`
+   novos. `restricted`, `incident-live`, `audit-flooded`, `degraded` e
+   `now-violations` **não precisaram de arquivo próprio** — todos
+   `derives_from: "populated"` no `fixtures/manifest.json` e herdam
+   `administered` na carga, confirmado por leitura direta
+   (`scenarios.load(nome).all_records()` para os sete nomes).
+
+**Onde as claims moraram** — a mesma forma que `first-day` e
+`010-provider-out-of-the-box.acceptance.spec.ts` já usam, não uma terceira:
+um mock serve um cenário só, e o cenário do projeto `behaviour`
+(`populated`) precisa continuar `administered` porque as claims 5, 7, 8 e
+10 dependem disso. As claims 1-4 e 9 foram movidas para
+`console/tests/first-day/primeiro-administrador.acceptance.spec.ts` (novo
+arquivo, mesmas asserções, byte a byte — nenhum `expect` foi tocado),
+rodando contra o projeto `first-day` / cenário `first-run`. O arquivo em
+`tests/e2e/` manteve as claims 5, 6 (skip), 7, 8, 10a e 10b, com o cabeçalho
+reescrito para descrever a divisão em vez de descrever um vermelho esperado
+que deixou de existir.
+
+**Verde confirmado, pela razão certa** (o aviso aparece porque o fato diz
+`unclaimed`, nunca por asserção afrouxada — nenhum `expect` foi alterado
+neste arquivo em nenhuma das duas metades):
+
+- `tools.console_e2e run --project first-day --scenario first-run
+  tests/first-day/primeiro-administrador.acceptance.spec.ts` → **5 passed**
+  (claims 1, 2, 3, 4, 9), `GET /v1/setup/local-administrator` → `200`
+  `{"state":"unclaimed","command":"ninjasre setup admin --name admin"}`.
+- `tools.console_e2e run --project first-day --scenario first-run` (as
+  quatro suítes do projeto inteiro, para provar que o cenário `first-run`
+  virar `unclaimed` não quebrou nada que já existia nele) → **20 passed**,
+  0 failed.
+- `tools.console_e2e run --project behaviour
+  tests/e2e/primeiro-administrador.acceptance.spec.ts` → **5 passed, 1
+  skipped** (claim 6, deliberado — precisa de identity provider ativo, fora
+  do alcance do mock e do compose simples, como o próprio teste documenta).
+  `GET /v1/setup/local-administrator` → `200`
+  `{"state":"administered","command":""}`.
+- `tools.console_e2e run --project behaviour` (as **333** especificações do
+  projeto inteiro, para provar que registrar a rota nova não mudou nada em
+  nenhuma outra tela) → **333 passed, 26 skipped, 0 failed** (6.6min).
+- `tools.console_gate typecheck` → limpo. `tools.console_gate lint` → limpo.
+- `pytest tests/contract/fixtures/ tests/unit/tools/mockplane/` (302 casos,
+  a suíte de contrato do dataset e o mock plane) → **301 passed, 1 failed**
+  — o `1 failed` é a descoberta abaixo, preexistente, nada relacionado a
+  este endpoint.
+
+**Descoberta, fora do escopo desta feature, nomeada e não escondida**: rodar
+o gerador (necessário para o próprio endpoint novo) expõe que
+`fixtures/scenarios/populated/capabilities.json` e
+`.../integration-docs.json` já divergiam do que `python -m tools.mockplane
+build` produz, **antes** de qualquer mudança minha (reproduzido com os três
+arquivos Python desta feature em `git stash`, zero mudança de código,
+mesma divergência). Raiz:
+
+- `capabilities.json`: o domínio do servidor de protocolo em
+  `served.py`'s `CAPABILITIES_SECTION` é `rushes.example.invalid`; o
+  comitado ainda tem `kelp.example.invalid` — alguém trocou a constante sem
+  regenerar.
+- `integration-docs.json`: `integrations/proxmox/docs.md` foi editado pelo
+  commit `4e77c80` ("docs(proxmox): document the configuration path for
+  certificate trust") depois da última regeneração
+  (`fixtures/scenarios/populated/integration-docs.json` está em `c3f5f90`,
+  anterior). O texto novo do doc nomeia `pve01.lan`/`pve02.lan` como
+  exemplo de endereço de nó — parecem hostnames internos reais, não
+  `*.example.invalid` fictício — e o scanner de identificadores do
+  pipeline de anonimização redige o campo inteiro para `"[removed]"` ao
+  regenerar. Comitar essa regeneração destruiria a documentação real do
+  Proxmox no mock por um motivo que não é meu para decidir (o hostname em
+  `docs.md`, não o gerador). **Não toquei em nenhum dos dois arquivos** —
+  regenerei, conferi que a única causa é essa, e reverti (`git checkout --`)
+  antes de commitar, deixando só os três `local-administrator.json` novos.
+  `tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed`
+  continua vermelho por essa razão, independente desta feature — não é
+  chaseável por ela.
+
+**`make verify`, exit code lido do próprio comando**:
+
+Primeira rodada completa, log inteiro capturado, exit code lido do
+arquivo (nunca do resumo do wrapper — a ferramenta de background relatou
+"exit code 0" porque a cadeia `make verify > log 2>&1; echo
+"MAKE_VERIFY_EXIT_CODE=$?" >> log` sempre termina no `echo`, que sempre
+sai 0; o valor real está dentro do log, capturado por `$?` logo depois do
+`make verify`):
+
+```
+MAKE_VERIFY_EXIT_CODE=2
+```
+
+Tudo antes de `console-check` passou (ruff check, ruff format, mypy sobre
+1323 arquivos, `lint-imports` — 7 contratos, 0 quebrados —, os oito
+`check_*.py`, `verify_integrations` — 15 integrações em paridade —,
+`generate_integration_docs --check`, `generate_env_example.py --check`,
+`check_docs_drift`, `test_doc_examples` — 29 exemplos). Dentro de
+`console-check` (`tools.console_gate all`): `prettier`, `eslint` +
+`check-css-literals`, `tsc --noEmit` passaram; a falha real:
+
+```
+❯ tests/unit/surfaces/role-matrix.test.tsx (7 tests | 1 failed) 14794ms
+    × viewer: no control it cannot use is anywhere on any screen 5560ms
+console gate: test failed — unit tests and coverage — see the output above
+make: *** [Makefile:294: console-check] Error 1
+```
+
+**Não é desta feature, e a evidência é direta, não inferida.** Vitest só
+enxerga `tests/unit/**` (`console/vitest.config.ts:31`) — nenhum arquivo
+que esta atualização tocou (`tests/e2e/`, `tests/first-day/`) está nesse
+escopo, e nenhum arquivo em `console/src/` foi tocado. A falha é
+`Error: Test timed out in 5000ms` — um timeout fixo, não uma asserção. Ao
+rodar `role-matrix.test.tsx` isolado, duas vezes, a máquina mostrava
+`load average` de 14-16 (confirmado por `uptime`, várias outras
+worktrees rodando `next build`/`vitest`/`console_gate.py` ao mesmo
+tempo) e swap ativo (2.4Gi de 6Gi); a segunda rodada isolada registrou a
+fase de `import` sozinha levando **89.56s** — não é o teste que está
+lento, é a máquina. As duas rodadas isoladas falharam em subconjuntos
+diferentes (`viewer`+`owner` na primeira, só `viewer` na segunda), o
+padrão de um timeout por contenção, não de uma asserção quebrada de
+verdade. `git log -- console/tests/unit/surfaces/role-matrix.test.tsx`
+mostra o último commit como `b7003f1 fix(console): restore the surfaces
+and fixtures the delivery commit truncated` — território que já teve
+turbulência recente e não relacionada a esta feature.
+
+Segunda rodada, só do gate de console (`make console-check`, que cobre
+tudo que `console-check` cobre dentro de `make verify`, sem repetir a
+metade Python que já tinha passado):
+
+```
+CONSOLE_CHECK_EXIT_CODE=2
+```
+
+Terminou. **20 passed (1.3m)** no projeto `visual`, **13 failed** — nenhum
+deles algo que esta feature tocou. Sete são exatamente os que o
+orquestrador nomeou de antemão: `agent-tools-1440-light`,
+`resources-320-light`, os quatro `shell-*` (`1440-dark`, `1440-light`,
+`320-light`, `768-light`) e `machine-tokens-1440-light` — confirmados
+aqui, não recapturados. **Seis não estavam na lista e são um achado
+novo desta rodada**: as seis combinações de `gallery-*`
+(`1440-dark`, `1440-light`, `320-dark`, `320-light`, `768-dark`,
+`768-light`) — todas as seis, não uma amostra, o que descarta contenção
+de máquina como causa (uma disputa por CPU derruba tela ao acaso, não
+seis de seis da mesma tela em todo viewport e tema). O diff de cada uma
+é pequeno e estável — `24672 pixels (ratio 0.01 of all image pixels)`
+para `gallery-1440-dark`, na mesma ordem de grandeza da razão que
+`machine-tokens-1440-light` reporta (`308 pixels`, também `ratio 0.01`)
+— e o orçamento do projeto `visual` é `maxDiffPixels: 0`, então qualquer
+diff estável reprova, por design. Não investiguei a causa (fora do
+escopo desta feature — `console/src/app/gallery` não foi tocado por
+"primeiro administrador"), e **não recapturei nenhuma baseline**, das
+sete nomeadas ou das seis novas — a captura é decisão de quem revisa,
+como o orquestrador pediu.
+
+Tudo antes de `visual`, dentro desta mesma rodada de `console-check`:
+prettier, eslint, `tsc --noEmit`, vitest (2796/2796, a rodada que
+resolve o achado de `role-matrix.test.tsx` acima), client-check
+(`openapi-typescript`), `next build`, `dynamic-routes`, `budget`,
+e2e/`behaviour` (**333 passed, 26 skipped, 0 failed**, 3.9min — batendo
+exatamente com a rodada isolada já registrada acima) e e2e/`first-day`
+(**20 passed, 0 failed**, 17.2s — as 5 claims desta feature inclusas,
+nomeadas por título no log:
+`tests/first-day/primeiro-administrador.acceptance.spec.ts:35,40,52,66,81`)
+— **todos verdes**.
+
+**`role-matrix.test.tsx`, isolado, sem nada competindo: verde.** Rodado de
+novo — desta vez sozinho (`pnpm exec vitest run
+tests/unit/surfaces/role-matrix.test.tsx`), com a carga da máquina já em
+queda (`load average` 11.39 no início da rodada, contra 14-63 antes) — as
+7 asserções passam, incluindo exatamente a que tinha estourado o timeout:
+`viewer: no control it cannot use is anywhere on any screen` termina em
+**1785ms**, bem dentro do orçamento de 5000ms (contra os 5560-7323ms que
+estouravam antes). A fase de `import` sozinha caiu de 89.56s para 3.66s.
+**Isto não é "flaky" — é um fato real da suíte: um teste sem folga de
+timeout quando a máquina está ocupada.** Passa isolado, falha sob carga; a
+diferença entre as duas frases importa e a segunda não é a primeira. Não é
+desta feature — nenhum arquivo que este teste toca (`src/surfaces/*`,
+`tests/unit/support/*`) foi alterado por ela, e o teste isolado prova que a
+lógica está correta; o dono do orçamento de 5s é quem escreveu o teste, não
+quem passou por perto.
+
+**Os dois vermelhos que o orquestrador nomeou como de outros agentes,
+confirmados nesta árvore, sem tentar corrigir nenhum dos dois:**
+
+- `tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed`
+  — **ainda vermelho**, mesma causa já registrada acima
+  (`capabilities.json`/`integration-docs.json` desalinhados do gerador,
+  por trabalho de outra feature).
+- `tests/contract/cli/test_onboarding_against_a_deployment.py::test_the_deployment_reads_as_ready_once_the_flow_has_run`
+  — **ainda vermelho**: `TypeError: build_checklist() got an unexpected
+  keyword argument 'verify_model'` — assinatura de `build_checklist`
+  divergiu da chamada que este teste faz. Não relacionado a
+  "primeiro administrador"; não tocado.
+
+**T075 permanece desmarcada.** `make console-check` — que é a metade de
+`make verify` onde qualquer coisa desta feature poderia quebrar algo —
+terminou com `CONSOLE_CHECK_EXIT_CODE=2`, não `0`. A causa inteira é o
+projeto `visual`: treze baselines divergentes, nenhuma delas tocada por
+"primeiro administrador" (sete já nomeadas pelo orquestrador, seis
+descobertas nesta rodada — `gallery-*`, ver acima), nenhuma recapturada.
+Toda peça que esta feature poderia ter quebrado — typecheck, lint, os
+2796 testes Python, os 2796 testes Vitest, os dois projetos de e2e
+completos (`behaviour` 333/333, `first-day` 20/20, as dez alegações
+normativas inclusas e verdes pela razão certa) — está confirmada verde,
+por evidência direta, nesta mesma rodada ou numa isolada equivalente.
+`make verify` de ponta a ponta soma a isso a mesma metade Python que já
+tinha passado antes de chegar em `console-check`
+(`MAKE_VERIFY_EXIT_CODE=2` da primeira rodada completa, seção acima) e
+os dois vermelhos nomeados pelo orquestrador, confirmados e não
+tocados. T075 pede `make verify` verde partindo de verde; a árvore não
+partiu verde — carregava treze divergências visuais de outras features
+antes de qualquer commit desta — e marcá-la seria inferir um "verde" que
+o comando nunca disse.
