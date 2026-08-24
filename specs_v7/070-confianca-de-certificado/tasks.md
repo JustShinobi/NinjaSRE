@@ -351,28 +351,28 @@ Nada nesta feature escreve no hipervisor.
       falhar a verificação de nome. Se a terceira mensagem aparecer, ela é o
       caminho esperado e a evidência dela vale tanto quanto a do sucesso.
 
-- [ ] **T048** Verificar a integração e capturar a evidência: o veredito, a
+- [x] **T048** Verificar a integração e capturar a evidência: o veredito, a
       mensagem, e a captura de tela do painel.
 
-- [ ] **T049** Rodar a descoberta e conferir que o estate povoou:
+- [x] **T049** Rodar a descoberta e conferir que o estate povoou:
       `select count(*) from estate_resources where source='proxmox' and absent_since is null;`
       maior que zero, comparado com o "antes" de T002.
 
-- [ ] **T050** Conferir a aceitação registrada:
+- [x] **T050** Conferir a aceitação registrada:
       `select occurred_at, actor_kind, actor_id, outcome, detail from audit_events where resource_kind='integration' and resource_id='proxmox' order by occurred_at desc limit 10;`
       — o principal autenticado, o instante, a forma, os endereços, a razão
       quando há.
 
-- [ ] **T051** Quebrar o pin de propósito: declarar um fingerprint que não
+- [x] **T051** Quebrar o pin de propósito: declarar um fingerprint que não
       corresponde, provocar uma chamada, e capturar a mensagem. Ela tem de conter
       os dois fingerprints e não conter a frase de nó que não respondeu.
       Restaurar em seguida a declaração correta.
 
-- [ ] **T052** Conferir que nada sensível vazou:
+- [x] **T052** Conferir que nada sensível vazou:
       `select count(*) from audit_events where detail::text like '%BEGIN CERTIFICATE%' or detail::text like '%PRIVATE KEY%' or detail::text like '%PVEAPIToken%';`
       — esperado zero. Repetir a varredura nos logs do pod do proxy.
 
-- [ ] **T053** Escrever o relatório final com: as chaves de i18n e os textos em
+- [x] **T053** Escrever o relatório final com: as chaves de i18n e os textos em
       inglês como bloco para o merge aplicar; a permissão nova e a quem foi
       concedida; as decisões de forma que a implementação exigiu; e o que ficou
       como pergunta para o operador.

@@ -543,3 +543,344 @@ mais os 15 do backend e os 45 da transversal.
 | **T046 — `make verify` inteiro** | NÃO RODADO — do orquestrador | orquestrador |
 | **T002, T047–T053 — evidência de staging** | NÃO INICIADO — do orquestrador | orquestrador |
 | `console_gate test` (suíte vitest inteira do console) | NÃO RODADO por inteiro nesta janela — rodei os arquivos afetados e adjacentes (136 casos, todos verdes) em vez da suíte inteira, por custo de turno | orquestrador, se quiser a suíte inteira antes do merge |
+
+
+---
+
+# Quarta janela — o defeito de confiança viva, e o critério de pronto em staging
+
+Retomada sobre `master` já mergeado (as três janelas anteriores estão nele),
+worktree `.claude/worktrees/agent-a1534a5c1f5e20b21`, partindo de `10a329c`. A
+worktree nasceu apontada para o commit raiz — o mesmo defeito de infraestrutura
+que a 040 e a primeira janela desta feature já haviam registrado — e foi
+reapontada com `git reset --hard master` antes de qualquer trabalho.
+
+O gatilho desta janela foi uma validação real, feita pelo operador contra o
+staging (`specs_v7/070-confianca-de-certificado/evidence/staging-2026-08-24.md`)
+e não repetida aqui — a instrução foi explícita: **não escrever no staging**.
+
+## O defeito: uma declaração escrita não decidia a próxima chamada
+
+Medido nos dois sentidos contra o Proxmox real: declarar o pin errado deixava
+`ok: True` (a chamada seguia passando); declarar o pin certo deixava
+`ok: False` (a chamada seguia recusando) — em ambos os casos, sem reiniciar o
+processo do proxy. Só a recomposição do processo aplicava a declaração.
+
+Uma segunda instância do mesmo formato apareceu enquanto o operador rodava o
+runbook da demonstração: o log de arranque do gateway mostra
+`remediation.control_plane_bound` com `trust: system-trust-store` às 09:09,
+e o pin foi declarado às 09:43 — mais de uma hora depois, sem o processo
+reiniciar, o vínculo do plano de controle continuava reportando a âncora de
+antes da declaração.
+
+### Por que — lido no código, não hipotetizado
+
+Duas composições independentes, cada uma congelando um valor de confiança no
+momento em que rodou, sem nada que a fizesse rodar de novo por causa de uma
+escrita:
+
+1. **`platform/credentials/proxy/engine.py::forward`** consulta
+   `self._trust` (`TrustRegistry`), que `gateway/proxy/composition.py:45`
+   constrói vazio e `gateway/proxy/__main__.py` só preenche no arranque
+   (`_serve`) e a cada 60 segundos (`_watch_configured_hosts`,
+   `HOST_REFRESH_SECONDS = 60`). A escrita acontece em
+   `gateway/http/routes/integrations.py` — **um processo diferente** do que
+   serve `forward` em qualquer deployment `standard`/`enterprise` — e nada
+   nela jamais tocava esse registro. A promessa que o próprio docstring da
+   rota fazia ("a proxy applies it at the next cycle, without a restart")
+   dependia inteiramente do ciclo de 60 segundos rodar sem falhar nunca.
+
+2. **`gateway/http/control_plane.py::compose_control_plane`** é chamada
+   **exatamente uma vez**, em `gateway/http/lifespan.py`, antes de
+   `compose_remediation`. Ela lê a configuração, constrói um
+   `ProxmoxWriteClient(trust=_trust_of(entry))` — um **valor congelado**, não
+   um registro — e vincula (`control_plane.bind`). Não existe, em lugar
+   nenhum, um segundo lugar que a chame de novo. Confirmado por varredura
+   (`rg '\.trust\b' capabilities/tools/remediation gateway/http`): o campo
+   `.trust` do cliente vinculado não é lido por mais ninguém além da própria
+   linha de log que o imprime uma vez, no arranque — a própria docstring de
+   `_trust_of` já dizia isto: "the decision is applied at the proxy's egress
+   and never here — nothing in this module opens a socket." Ou seja, este
+   segundo lugar **não aplica** verificação nenhuma (a aplicação real
+   continua inteiramente em `gateway/proxy/sender.py`, e T042 continua
+   valendo — ver Fase 9), mas ele **relata** uma âncora que para de ser
+   verdade e nunca se corrige sozinho.
+
+### O que eu procurei e não encontrei
+
+Reli `_watch_configured_hosts` várias vezes para achar por que o ciclo de 60
+segundos, que existe e está corretamente ligado ao mesmo objeto que o
+remetente usa (`gateway/proxy/composition.py:45`, um único `TrustRegistry`
+para os dois), pareceria nunca aplicar nada em staging. Não encontrei um bug
+que explicasse "nunca, indefinidamente" a partir da leitura — `ConfigService`
+constrói um resolvedor com cache vazio a cada chamada
+(`platform/config_service/service.py:163`), então não há cache
+interprocessos a suspeitar; `InjectionRuleRegistry.register` sobrescreve em
+vez de levantar em registro duplicado, então religar as regras herdadas a
+cada ciclo não é a causa. O que encontrei foi uma **classe** de defeito real,
+independente da causa exata em staging: o corpo do ciclo, além da leitura,
+**não estava protegido**. Uma exceção em `refresh_configured_hosts` ou em
+`refresh_configured_trust` — de qualquer causa, presente ou futura — escapa
+do `while True` sem ser capturada, e uma `asyncio.Task` que levanta uma
+exceção não recebe uma segunda iteração: ela termina, em silêncio, com só um
+aviso de "exception never retrieved" que ninguém observa. De fora do
+processo, um ciclo morto é **indistinguível** de "isto precisa de um
+reinício" — exatamente o sintoma medido. Corrigido (ver abaixo) e travado por
+teste que reproduz exatamente essa forma de falha.
+
+Nomeado porque é honesto nomear: não posso confirmar, a partir desta árvore,
+se foi esta exceção silenciosa que aconteceu no pod validado ou se o pod
+simplesmente rodava uma imagem anterior à composição da Fase 7. As duas
+explicações são consistentes com o que foi medido, e a correção fecha a
+classe de falha nas duas.
+
+## O teste vermelho, e a mensagem exata
+
+`tests/contract/credentials/test_certificate_trust_at_the_egress.py` — três
+testes novos, escolhidos para expressar a propriedade nos termos do produto
+("uma declaração escrita através do endpoint de confiança decide a próxima
+chamada, sem reinício") e não da implementação. Vermelho confirmado **antes**
+de qualquer correção, isolando a implementação com `git stash push -u` (só os
+arquivos de produção; os testes ficaram de fora do stash) e restaurando com
+`git stash pop` logo em seguida:
+
+```
+test_a_declaration_reaching_the_refresh_route_governs_the_very_next_call
+  AttributeError: 'ProxyApp' object has no attribute 'set_trust_refresh'
+
+test_an_address_nobody_declared_still_refuses_after_a_refresh
+  AttributeError: 'ProxyApp' object has no attribute 'set_trust_refresh'
+```
+
+O terceiro (`test_a_refresh_request_against_an_app_with_no_hook_wired_is_refused_by_name`)
+já passava antes da correção — **nomeado, não escondido**: sem rota nova
+nenhuma, o `404` de fallback que `ProxyApp.__call__` já dava para qualquer
+caminho não reconhecido cobria por acidente o mesmo caminho que a rota nova
+ocupa agora. Ele deixou de ser coincidência no momento em que
+`PROXY_TRUST_REFRESH_PATH` ganhou seu próprio ramo de despacho
+(`platform/credentials/proxy/app.py:204`) — a partir daí, é este teste
+especificamente que impede uma regressão onde o gancho não vinculado responda
+200 por engano em vez de recusar por nome.
+
+Confirmar vermelho custou uma segunda rodada: a primeira versão do terceiro
+teste reusava a fixture `misnamed_node` como "endereço não declarado", mas
+`named_node` e `misnamed_node` respondem ambos em `127.0.0.1` — só a porta
+muda, e `TrustRegistry`/`host_of` descartam a porta de propósito
+(`platform/credentials/proxy/trust.py:107`). O teste passou, mas pela razão
+errada (`CertificatePinBroken`, pin que não bate, em vez de
+`CertificateUntrusted`, endereço não declarado). Reescrito para declarar o
+pin sob um endereço fictício diferente e testar contra `named_node` — a forma
+que o próprio arquivo já usa em `test_one_node_changing_its_certificate_leaves_the_others_reachable`
+para lidar com a mesma limitação das fixtures.
+
+Um quarto teste, em `tests/unit/gateway/proxy/test_configured_hosts.py`
+(`test_a_failure_partway_through_one_cycle_does_not_kill_the_loop`), trava a
+correção de robustez do ciclo. Vermelho confirmado do mesmo jeito
+(`git stash` só de `gateway/proxy/__main__.py`), com a mensagem exata:
+
+```
+RuntimeError: a transient failure mid-cycle, after the read already succeeded
+    at gateway/proxy/__main__.py:198: refresh_configured_trust(app.engine.trust, trusted)
+```
+
+— ou seja, a exceção escapava exatamente da linha que ficava fora do
+`try`/`except` antes da correção.
+
+## A correção, e por que esta forma
+
+Das três formas que a tarefa autorizava — reler a cada chamada, invalidar na
+escrita, ou versionar — escolhi **invalidar na escrita**, com o ciclo
+periódico como rede de segurança que nunca piora:
+
+1. **`platform/credentials/proxy/app.py:174` `ProxyApp.set_trust_refresh`** —
+   um gancho opcional (`None` por padrão), e **`:204`** um terceiro caminho
+   ASGI, `PROXY_TRUST_REFRESH_PATH` (`config/constants/security.py:85`,
+   `/internal/trust-refresh`). Sem corpo, sem credencial, sem abrir conexão
+   com vendor nenhum: ele só dispara a mesma leitura que o ciclo de 60
+   segundos já roda, mais cedo. Recusa por nome (**404**, `:249`) quando
+   nenhuma composição vinculou o gancho — responder 200 para um refresh que
+   não rodou seria o mesmo tipo de evidência manufaturada que esta casa já
+   persegue numa camada acima.
+
+2. **`gateway/proxy/__main__.py:110` `_refresh_trust_now`** — a mesma leitura
+   (`_configured_egress`) e o mesmo `refresh_configured_trust` que o ciclo já
+   usa, chamados sob demanda. `_serve` (`:151`) vincula o gancho ao mesmo
+   `app`/`store` que já tinha em mãos, antes de qualquer outra coisa rodar.
+   **Rejeitei** dar a `platform/credentials/proxy` acesso direto à
+   configuração (o que tornaria a leitura possível por chamada, sem depender
+   de gancho nenhum): isso cruzaria a fronteira de camada que já separa o
+   mecanismo (`platform/credentials/proxy`, sem saber o que é um `ConfigNode`)
+   de quem lê a árvore (`gateway/proxy`), e pagaria uma leitura de banco por
+   chamada num caminho que os 462 `credential.resolve` do T049 mostram ser
+   quente.
+
+3. **`gateway/http/routes/integrations.py:854` `_refresh_credential_proxy_trust`**
+   — depois da escrita e da auditoria (nunca antes: uma tentativa de avisar o
+   proxy não pode virar razão para recusar uma declaração já validada), um
+   `POST` de melhor esforço para o caminho novo, em `urllib.request` numa
+   thread (`asyncio.to_thread`, `:965`) — a mesma técnica que
+   `HttpProxyTransport` já usa para falar com este mesmo proxy, pelo mesmo
+   motivo declarado no módulo dele: a lista de dependências deste deployment
+   é curta e auditada de propósito, e não ganha um cliente HTTP assíncrono
+   por isto. Toda falha — proxy inalcançável, tempo esgotado, um proxy mais
+   velho que ainda não serve este caminho — é **engolida e registrada**
+   (`integration.trust_refresh_not_confirmed`), nunca propagada: o ciclo de
+   60 segundos continua sendo a garantia que já existia, e esta chamada só
+   tenta adiantá-la. **Rejeitei** um sinalizador via Postgres
+   (`LISTEN`/`NOTIFY`) — resolveria o mesmo problema com latência ainda menor,
+   mas exigiria uma conexão persistente e sua própria reconexão dentro do
+   processo do proxy, investimento maior do que esta correção pede.
+
+4. **`gateway/http/control_plane.py`** — **não precisou mudar uma linha**. O
+   defeito ali é que `compose_control_plane` só roda uma vez; a correção é
+   rodá-la de novo, com a mesma função, no mesmo processo que já serve a
+   escrita — `gateway/http/routes/integrations.py:967`, logo depois do
+   `POST` de melhor esforço, também tolerante a falha (a recomposição nunca
+   pode transformar uma escrita já persistida numa resposta de erro). Nenhum
+   registro vivo novo, nenhum tipo novo: a mesma composição, chamada de novo,
+   porque os dois lados — a escrita e o vínculo — sempre viveram no mesmo
+   processo (`gateway/http`), diferente do proxy.
+
+5. **Robustez do ciclo** (`gateway/proxy/__main__.py:198`
+   `_watch_configured_hosts`) — o corpo inteiro do ciclo, não só a leitura,
+   passou para dentro do `try`/`except` que já existia. Sem mudar o que é
+   lido, aplicado, ou decidido: só onde a rede de segurança termina.
+
+Nenhuma das cinco peças abre uma segunda verificação de certificado, nenhuma
+introduz um booleano, e nenhuma toca `gateway/proxy/sender.py` — T042 (Fase 9)
+continua garantindo que só ele constrói um contexto que não verifica, e a
+suíte confirma isso sem alteração.
+
+## Gates rodados nesta janela
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Vermelho genuíno, os três testes de contrato | `git stash` de produção, `pytest -k "refresh_route or refused_by_name or nobody_declared_still_refuses"` | 2 failed (`AttributeError`), 1 passed (por acidente, nomeado acima) |
+| Verde, arquivo de contrato inteiro | `pytest tests/contract/credentials/test_certificate_trust_at_the_egress.py -v` | **19 passed**, os 16 anteriores sem edição nenhuma |
+| Vermelho genuíno, robustez do ciclo | `git stash` de `gateway/proxy/__main__.py`, `pytest -k failure_partway` | 1 failed — `RuntimeError` na linha exata fora do `try` antigo |
+| Verde, arquivo de hosts inteiro | `pytest tests/unit/gateway/proxy/test_configured_hosts.py -v` | **15 passed**, os 14 anteriores sem edição nenhuma |
+| Regressão, tudo que este defeito toca | `pytest tests/contract/credentials/ tests/unit/gateway/proxy/ tests/unit/platform/credentials/ tests/unit/gateway/http/test_certificate_trust_write.py tests/unit/gateway/http/test_control_plane_composition.py tests/architecture/test_one_place_can_stop_verifying.py` | **292 passed** |
+| `make check-imports` | | 7 kept, 0 broken |
+| `make check-constants` | | exit 0 |
+| `make check-deps` | | exit 0 |
+| `make check-protocols` | | exit 0 |
+| `ruff check` / `ruff format --check` | nos sete arquivos tocados | limpo nos dois |
+| `make typecheck` (mypy, árvore inteira) | | **Success: no issues found in 1323 source files** |
+| `make verify` inteiro | ver T046 abaixo | ver T046 abaixo |
+
+## Fase 10 — o critério de pronto em staging (T047–T052), conferido contra a evidência
+
+Read-only, como a fase manda: nada nesta janela escreveu no hipervisor nem no
+staging. `T002`, `T047` e a linha de base já estavam marcadas antes desta
+janela; as cinco abaixo, o operador executou pessoalmente contra o Proxmox
+real e registrou em
+`specs_v7/070-confianca-de-certificado/evidence/staging-2026-08-24.md`
+("a evidência"), que esta janela leu e não repetiu.
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T002 — estado de partida | **FEITO (achado, não rotulado como T002)** | a evidência, seção "O que estava bloqueando" (`evidência:7-18`): veredito da integração recusando, mensagem exata *"Neither the credential proxy nor any configured Proxmox node answered."*, e a contagem implícita de `estate_resources` é a mesma "zero" que T049 cita como o "antes" |
+| T047 — declarar o fingerprint primeiro | FEITO | já marcado antes desta janela; a evidência confirma que o caminho do fingerprint funcionou (não precisou da terceira mensagem) |
+| T048 — verificar a integração | **FEITO, com uma lacuna nomeada** | evidência:20-29: veredito `ok: True` e mensagem `"Proxmox accepted the token."`, ambos verbatim. **A captura de tela do painel não está entre os artefatos** — o diretório `evidence/` só contém o arquivo `.md`, sem imagem. Registrado aqui em vez de marcado como coberto por inteiro: a captura é a única das três coisas que o item pede que a evidência escrita não carrega |
+| T049 — a descoberta povoou o estate | FEITO | evidência:31-47: 108 recursos, `complete: True` em 87 chamadas; `select count(*)...` foi de zero (T002) para **100**; o sujeito da demonstração da 080 (CT122 `redis`) está visível nomeado |
+| T050 — a aceitação registrada | FEITO | evidência:49-73: o principal autenticado é `local-admin` (não o agente), o instante `2026-08-24 09:43:22`, a forma `pinned-fingerprint`, os endereços `["192.168.68.159"]`; a razão está corretamente ausente (só a forma `unverified` a exige); cada um dos 462 `credential.resolve` carrega o fingerprint contra o qual verificou |
+| T051 — o pin quebrado de propósito | FEITO | evidência:75-90: fingerprint de 64 zeros declarado, chamada provocada, a mensagem contém **os dois** fingerprints (esperado e observado, no formato com dois-pontos que a interface do hipervisor mostra), não contém a frase de nó que não respondeu, e afirma explicitamente as duas coisas que não aconteceram ("nothing fell back to the system trust store and nothing stopped verifying"). Pin correto restaurado e `ok: True` confirmado depois |
+| T052 — nada sensível vazou | **FEITO no banco, lacuna nomeada nos logs do pod** | evidência:92-97: a consulta a `audit_events` por `BEGIN CERTIFICATE`/`PRIVATE KEY`/`PVEAPIToken` retornou **0**, exatamente como o item pede. **"Repetir a varredura nos logs do pod do proxy" não está registrado na evidência** — a segunda metade do item, distinta da primeira por vírgula, não tem o mesmo verbatim que a primeira |
+
+As duas lacunas nomeadas (a captura de tela de T048, a varredura de log de
+T052) não mudam o veredito de nenhuma das duas tarefas — o fato de segurança
+que cada uma existe para provar está coberto pelo resto do que a evidência
+registra — mas ficam nomeadas em vez de presumidas, porque marcar as duas
+tarefas como inteiramente cobertas sem dizer isso seria exatamente o defeito
+que esta casa já registrou uma vez: uma caixa marcada por uma claúsula que
+ninguém checou.
+
+As sete falhas pré-existentes de T001 (documentos de planejamento passando a
+ser committed, e o console sem build nesta worktree) não mudaram de forma:
+continuam fora do alcance de `platform/credentials/proxy`, `gateway/proxy`,
+`integrations/proxmox` e `platform/config_service`, e T046 (abaixo) mede
+contra elas pelo nome, não pelo número.
+
+## T053 — o relatório final
+
+### As chaves de i18n e os textos em inglês, como bloco
+
+**Nenhuma chave nova nesta janela.** A correção inteira é de backend/proxy —
+nenhum arquivo sob `console/` foi tocado. As catorze chaves que a terceira
+janela já criou, sob `catalogue.integrations.panel.trust.*` em
+`console/src/i18n/en.ts` e `console/src/i18n/pt-BR.ts`, continuam sendo as
+únicas que esta feature introduziu; a tabela completa está na seção da
+terceira janela acima e não muda aqui.
+
+### A permissão nova, e a quem foi concedida
+
+`Permission.INTEGRATION_TRUST_UNVERIFIED` (`platform/identity/permissions.py:81`).
+Distinta de `INTEGRATION_MANAGE`: pinar um fingerprint ou fornecer uma
+autoridade **não** exige esta permissão — apenas `INTEGRATION_MANAGE`, porque
+as duas formas *estreitam* a âncora em vez de abri-la. Aceitar sem verificar
+**exige as duas**: `INTEGRATION_MANAGE` sempre, e
+`INTEGRATION_TRUST_UNVERIFIED` só quando a forma é `unverified`
+(`gateway/http/integration_endpoints.py:153` `StampedTrust.refuse_unless_permitted`).
+Concedida ao conjunto do papel `Role.ADMIN` e acima
+(`platform/identity/permissions.py:196`) — nenhum papel que só opera
+integrações a possui, de propósito: abrir mão de verificação de certificado é
+uma decisão administrativa, não uma tarefa operacional do dia a dia.
+
+### As decisões de forma que a implementação exigiu
+
+**Da fase de aplicação (primeira janela).** A pinagem usa `CERT_NONE` dentro
+de `_PinCheckingConnection.connect` (`gateway/proxy/sender.py:180`), porque a
+biblioteca padrão não expõe o certificado do par por cima de `urlopen` — o
+pin substitui a verificação de identidade em vez de somar-se a ela, e a
+recusa acontece antes de `request()` escrever um byte. Nomear o certificado
+observado numa recusa custa um segundo handshake de diagnóstico, que não
+escreve nada e continua verificando a cadeia quando o problema é só o nome.
+Detalhado por inteiro na seção da primeira janela (T017).
+
+**Desta janela.** Entre reler a cada chamada, invalidar na escrita, ou
+versionar, escolhi invalidar na escrita, com o ciclo periódico de 60 segundos
+como rede de segurança que nunca piora — nunca melhor que "sem reinício",
+nunca pior do que já era. O gancho novo (`ProxyApp.set_trust_refresh`) é
+opcional e recusa por nome (404) quando nada o vincula, em vez de responder
+sucesso por um refresh que não rodou. A chamada de `gateway/http` para o
+proxy é de melhor esforço, depois da escrita e da auditoria, nunca antes —
+uma tentativa de avisar o proxy não pode transformar uma declaração já válida
+numa recusa. E a recomposição do plano de controle reusa a função existente
+verbatim, porque o defeito ali nunca foi a lógica — foi só rodá-la de novo.
+Detalhado por inteiro na seção desta janela, acima.
+
+### O que ficou como pergunta para o operador
+
+1. **A causa exata, em staging, do "nunca sem reiniciar".** Duas explicações
+   são consistentes com o que foi medido — uma exceção silenciosa matando o
+   ciclo (agora impossível, travada por teste) ou uma imagem do proxy
+   anterior à composição da Fase 7 — e não há como distinguir as duas a
+   partir desta árvore. A correção fecha as duas classes de qualquer forma,
+   mas o operador é quem pode olhar o histórico de deploy do pod e dizer qual
+   foi.
+
+2. **Se o novo caminho `/internal/trust-refresh` precisa de alguma coisa além
+   da fronteira de rede que já protege `/internal/forward` e
+   `/internal/health`.** Ele não carrega credencial, não abre conexão com
+   vendor, e só dispara uma releitura que o ciclo já faz sozinho — tratei-o
+   como pertencente ao mesmo modelo de confiança dos outros dois caminhos
+   internos. Se algum deployment expõe a porta do proxy além da política de
+   rede que os dois já pressupõem, isso já seria verdade para
+   `/internal/forward` primeiro, e é uma decisão de política que não me cabe
+   fechar sozinho.
+
+3. **Se o mesmo padrão — recompor o plano de controle depois de uma escrita —
+   deve se estender a outras escritas da mesma integração**, como trocar o
+   endereço pela rota normal (`PUT /v1/integrations/{name}`, fora desta
+   feature). Essa escrita também deixa `compose_control_plane` com um
+   endereço congelado desatualizado, e a mesma correção serviria — mas é uma
+   rota que esta feature não possui, e nomeá-la aqui é a forma de não
+   escondê-la nem de resolvê-la sem que o dono da rota decida.
+
+4. **A baseline visual `integrations-panel-1440-light`**, já nomeada pela
+   terceira janela como desatualizada e não tocada — continua assim; esta
+   janela não mexeu em console e não tinha como recapturá-la.
+
+5. **T030** (teste da invalidação por troca de endereço) segue **PARCIAL**,
+   como a segunda e a terceira janela já registraram — sem mudança nesta
+   janela, que não tocou esse caminho.
