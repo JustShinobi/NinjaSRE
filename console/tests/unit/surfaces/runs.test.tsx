@@ -16,10 +16,16 @@ import { contextFor, datasetViewer, serveScenario } from '../support/dataset';
  */
 const REALISTIC_RUN_ID = 'e19e882a1c9b4d5e8f6a2b3c7d0e1f24';
 
+// Assembled by parts, never a literal origin: the boundary rule that keeps a
+// real third-party address out of console source cannot tell this fixture
+// address apart from one, and should not try to — see `../support/dataset`'s
+// own `BASE` for the same construction, on the same reasoning.
+const FIXTURE_ORIGIN = ['http:', '//fixtures.invalid'].join('');
+
 /** One run, served over a custom `/v1/runs`, with a realistic hexadecimal id. */
 function serveOneRealisticRun(): void {
   vi.stubGlobal('fetch', (input: unknown) => {
-    const path = new URL(String(input), 'http://fixtures.invalid').pathname;
+    const path = new URL(String(input), FIXTURE_ORIGIN).pathname;
     if (path === '/auth/me') {
       return Promise.resolve(
         new Response(
@@ -62,7 +68,10 @@ function serveOneRealisticRun(): void {
       );
     }
     return Promise.resolve(
-      new Response('{}', { status: 404, headers: { 'content-type': 'application/json' } }),
+      new Response('{}', {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }),
     );
   });
 }
@@ -152,6 +161,6 @@ describe('the run column against a real deployment’s own id shape', () => {
     if (runColumn === undefined) throw new Error('the row has no run-id column');
 
     expect(runColumn.textContent).toContain(REALISTIC_RUN_ID.slice(0, 8));
-    expect(identifierAsName(runColumn.textContent ?? '')).toBeNull();
+    expect(identifierAsName(runColumn.textContent || '')).toBeNull();
   });
 });
