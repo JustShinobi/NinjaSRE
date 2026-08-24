@@ -346,7 +346,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 - [x] T063 Acrescentar o mesmo bloco à tela de first-run, no mesmo estado, pela
       **mesma chave** — não por uma segunda redação.
 
-- [ ] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
+- [x] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
       que dependem de um deployment sem administrador não rodam contra o
       staging, e o spec as marca.
 
@@ -358,24 +358,24 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 
 ## Phase 9: Prova no caminho de serving
 
-- [ ] T066 **[serving]** Levantar um deployment limpo por compose, sem conta de
+- [x] T066 **[serving]** Levantar um deployment limpo por compose, sem conta de
       ambiente configurada, e percorrer o caminho lendo **apenas** o que o
       terminal diz: subir, executar o comando nomeado, responder ao prompt,
       abrir o console, entrar. Capturar a transcrição completa da sessão de
       terminal e uma captura da tela autenticada em `evidence/`. Esta tarefa é
       o DoD da feature; nenhuma outra a substitui.
 
-- [ ] T067 **[serving]** No mesmo deployment, repetir o caminho que criou o
+- [x] T067 **[serving]** No mesmo deployment, repetir o caminho que criou o
       administrador e capturar a recusa. Conferir que ela é uma frase de gente.
 
-- [ ] T068 **[serving]** No mesmo deployment, criar um segundo service account
+- [x] T068 **[serving]** No mesmo deployment, criar um segundo service account
       sem e-mail e capturar o sucesso.
 
-- [ ] T069 **[serving]** No mesmo deployment, ativar o identity provider e
+- [x] T069 **[serving]** No mesmo deployment, ativar o identity provider e
       capturar as três recusas locais, mais a tela que deixa de nomear o
       comando.
 
-- [ ] T070 **[serving]** No mesmo deployment, subir e descer a migração de
+- [x] T070 **[serving]** No mesmo deployment, subir e descer a migração de
       e-mail contra o banco com dados, capturando os dois resultados —
       inclusive a recusa nomeada, se for o caso.
 

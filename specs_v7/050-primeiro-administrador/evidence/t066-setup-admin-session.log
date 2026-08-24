@@ -1,0 +1,12 @@
+Passphrase for 'admin': 
+Confirm passphrase: 
+setup plugin alembic.autogenerate.schemas
+setup plugin alembic.autogenerate.tables
+setup plugin alembic.autogenerate.types
+setup plugin alembic.autogenerate.constraints
+setup plugin alembic.autogenerate.defaults
+setup plugin alembic.autogenerate.comments
+setup plugin alembic.autogenerate.checkconstraint_byname
+Context impl PostgresqlImpl.
+Will assume transactional DDL.
+✓ 'admin' created. Sign in at the console with that name and the passphrase you just entered.
