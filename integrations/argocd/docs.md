@@ -4,10 +4,17 @@ What Argo CD has actually applied: which applications are synced and healthy, an
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Argo CD address — https://argocd.internal | no | yes |
-| `token` | Argo CD API token for a project-scoped account | yes | yes |
+| `endpoint` | Argo CD address — https://argocd.internal | — | [Argo CD API docs](https://argo-cd.readthedocs.io/en/stable/developer-guide/api-docs/) |
+| `token` | Argo CD API token for a project-scoped account | RBAC access granting `applications, get` and `account, get` | [User management](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/) |
+
+Sources: both from Argo CD's own documentation, current as of this feature.
 
 ```bash
 ninjasre integrations setup argocd

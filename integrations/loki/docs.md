@@ -4,11 +4,21 @@ Log search over Loki's label index and LogQL, with the shape of a query counted 
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your Loki answers, scheme and port included | no | yes |
-| `token` | Loki bearer token, or the Grafana Cloud access policy token | yes | no |
-| `tenant` | Tenant id sent as X-Scope-OrgID on a multi-tenant install | no | no |
+| `endpoint` | Where your Loki answers, scheme and port included | — | [Get started with Loki](https://grafana.com/docs/loki/latest/get-started/) |
+| `token` | Loki bearer token, or the Grafana Cloud access policy token | `logs:read` | [Access policies](https://grafana.com/docs/grafana-cloud/account-management/authentication-and-permissions/access-policies/) |
+| `tenant` | Tenant id sent as X-Scope-OrgID on a multi-tenant install | — | [Multi-tenancy](https://grafana.com/docs/loki/latest/operations/multi-tenancy/) |
+
+Sources: `token`'s permission is Loki's own — not Grafana's — and is
+deliberately different from Grafana's own service-account Viewer role, because
+the two vendors' permission models do not match even where they share a
+company.
 
 ```bash
 ninjasre integrations setup loki

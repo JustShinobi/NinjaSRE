@@ -33,6 +33,10 @@ SCHEMA: Final = credential_schema(
         "endpoint",
         "Where your Hermes answers, scheme and port included.",
         label="Hermes address",
+        # Hermes is this deployment's own package, with no public vendor site of
+        # its own to point at. Its guide is this deployment's own served copy of
+        # the package documentation below — see that document for why.
+        guide_url="/v1/integrations/hermes/docs",
     ),
     secret(
         "api_key",
@@ -40,8 +44,14 @@ SCHEMA: Final = credential_schema(
         min_length=8,
         label="Access token",
         min_scope="logs:read",
+        guide_url="/v1/integrations/hermes/docs",
     ),
-    public("stream", "Default stream to read", label="Default stream"),
+    public(
+        "stream",
+        "Default stream to read",
+        label="Default stream",
+        guide_url="/v1/integrations/hermes/docs",
+    ),
 )
 
 RULE: Final = InjectionRule(

@@ -4,11 +4,18 @@ What Grafana knows about a stack: which dashboards and folders exist, and the an
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your Grafana answers, scheme and port included | no | yes |
-| `token` | Grafana service account token, with the Viewer role at minimum | yes | yes |
-| `org` | Grafana organisation id, when the stack has more than one | no | no |
+| `endpoint` | Where your Grafana answers, scheme and port included | — | [Set up Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/) |
+| `token` | Grafana service account token, with the Viewer role at minimum | Viewer role | [Service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/) |
+| `org` | Grafana organisation id, when the stack has more than one | — | [Organisation management](https://grafana.com/docs/grafana/latest/administration/organization-management/) |
+
+Sources: all three from Grafana's own documentation, current as of this feature.
 
 ```bash
 ninjasre integrations setup grafana

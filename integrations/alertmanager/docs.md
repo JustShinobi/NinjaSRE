@@ -4,10 +4,19 @@ What Prometheus Alertmanager is currently holding: which alerts are firing, how 
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your Alertmanager answers, scheme and port included | no | yes |
-| `token` | Bearer token accepted by whatever fronts Alertmanager | yes | no |
+| `endpoint` | Where your Alertmanager answers, scheme and port included | — | [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) |
+| `token` | Bearer token accepted by whatever fronts Alertmanager | whatever your reverse proxy or ingress accepts | [Securing with a reverse proxy](https://prometheus.io/docs/guides/basic-auth/) |
+
+Sources: Alertmanager ships no authentication of its own, so `token`'s
+guidance is Prometheus's own — the two are fronted the same way, and this is
+the page Prometheus itself points operators at for it.
 
 ```bash
 ninjasre integrations setup alertmanager

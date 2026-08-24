@@ -4,10 +4,19 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your Prometheus answers, scheme and port included | no | yes |
-| `token` | Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own | yes | no |
+| `endpoint` | Where your Prometheus answers, scheme and port included | — | [HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/) |
+| `token` | Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own | whatever your reverse proxy or ingress accepts | [Securing with a reverse proxy](https://prometheus.io/docs/guides/basic-auth/) |
+
+Sources: both from Prometheus's own documentation. `token`'s guidance is
+shared with Alertmanager's, because both ship no authentication of their own
+and are fronted the same way.
 
 ```bash
 ninjasre integrations setup prometheus

@@ -14,11 +14,14 @@ system was the one living there.
 
 ## Setup
 
-One field.
+One field. Secret and required status are declared once, in this package's
+`schema.py`.
 
-| Field | What it is |
-|---|---|
-| `api_key` | The key from Google AI Studio. Sent as `x-goog-api-key` on every request. |
+| Field | What it is | Minimum permission | Guide |
+|---|---|---|---|
+| `api_key` | The key from Google AI Studio. Sent as `x-goog-api-key` on every request. | whole-project access to the Generative Language API; there is no narrower scope | [Google AI Studio](https://aistudio.google.com/apikey) |
+
+Source: Google's own API key console, current as of this feature.
 
 The key is never sent in the query string, which Gemini also accepts. A query
 string reaches access logs, proxy logs and referrer headers, and a key that has

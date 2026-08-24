@@ -35,6 +35,7 @@ SCHEMA: Final = credential_schema(
         "http://loki.example.com:3100. For Grafana Cloud this is the address on "
         "your stack's details page, not the Grafana one.",
         label="Loki address",
+        guide_url="https://grafana.com/docs/loki/latest/get-started/",
     ),
     secret(
         "token",
@@ -44,6 +45,10 @@ SCHEMA: Final = credential_schema(
         required=False,
         label="Bearer token",
         min_scope="logs:read",
+        guide_url=(
+            "https://grafana.com/docs/grafana-cloud/account-management/authentication-and-"
+            "permissions/access-policies/"
+        ),
     ),
     public(
         "tenant",

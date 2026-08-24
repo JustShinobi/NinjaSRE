@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Argo CD",
     category=IntegrationCategory.CI_CD,
     summary="What Argo CD has actually applied: which applications are synced and healthy, and the ones that are not.",
+    where_to_get_it=(
+        "Generate a project-scoped API token from Argo CD's own UI, under Settings → "
+        "Accounts, or run `argocd account generate-token`."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

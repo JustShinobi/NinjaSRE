@@ -34,16 +34,34 @@ SCHEMA: Final = credential_schema(
         "Where your OpenObserve answers, scheme and port included — "
         "http://openobserve.example.com:5080.",
         label="OpenObserve address",
+        guide_url="https://openobserve.ai/docs/",
     ),
-    secret("username", "OpenObserve user email", min_length=8, label="Email"),
+    secret(
+        "username",
+        "OpenObserve user email",
+        min_length=8,
+        label="Email",
+        # Basic Auth authenticates the pair together, so the email carries the
+        # same account role the password does — there is no separate scope for
+        # the identifying half of one credential.
+        min_scope="streams:read",
+        guide_url="https://openobserve.ai/docs/",
+    ),
     secret(
         "password",
         "That user's password or token",
         min_length=8,
         label="Password or token",
         min_scope="streams:read",
+        guide_url="https://openobserve.ai/docs/",
     ),
-    public("organisation", "OpenObserve organisation", required=True, label="Organisation"),
+    public(
+        "organisation",
+        "OpenObserve organisation",
+        required=True,
+        label="Organisation",
+        guide_url="https://openobserve.ai/docs/",
+    ),
 )
 
 RULE: Final = InjectionRule(

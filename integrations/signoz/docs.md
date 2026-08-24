@@ -4,10 +4,20 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your SigNoz query service answers, scheme and port included | no | yes |
-| `api_key` | SigNoz API key for the workspace holding this service's telemetry | yes | yes |
+| `endpoint` | Where your SigNoz query service answers, scheme and port included | — | [SigNoz docs](https://signoz.io/docs/) |
+| `api_key` | SigNoz API key for the workspace holding this service's telemetry | this token does not carry scope — treat it as full access | [SigNoz docs](https://signoz.io/docs/) |
+
+Sources: SigNoz's own documentation site. Its API keys carry no separate scope
+today, so a workspace key is full access to that workspace's telemetry;
+neither field has a stable deep link this deployment can point at, so both
+point at the same documentation entry point.
 
 ```bash
 ninjasre integrations setup signoz

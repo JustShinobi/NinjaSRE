@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Grafana Loki",
     category=IntegrationCategory.LOG_STORE,
     summary="Log search over Loki's label index and LogQL, with the shape of a query counted before any line of it is read.",
+    where_to_get_it=(
+        "For Grafana Cloud, create an access policy token scoped to logs:read; a "
+        "self-hosted Loki behind no auth proxy needs nothing here."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
