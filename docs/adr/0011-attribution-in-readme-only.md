@@ -1,7 +1,8 @@
 # ADR 0011 — Attribution lives in README and NOTICE only
 
 - **Status:** Accepted — its attribution rule stands; the clause about which
-  files may be committed is replaced by [0017](0017-everything-but-a-credential.md), 2026-08-23
+  files may be committed is replaced by [0017](0017-everything-but-a-credential.md), and the clause
+  forbidding attribution elsewhere by [0018](0018-attribution-complete-not-unique.md), 2026-08-24
 - **Date:** 2026-08-04
 - **Deciders:** Project owner
 - **Constitution impact:** Amends Article XIII (1.0.0 → 2.0.0)

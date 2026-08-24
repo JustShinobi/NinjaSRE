@@ -1,15 +1,20 @@
 # NinjaSRE Constitution
 
-**Version:** 2.3.0
+**Version:** 2.4.0
 **Ratified:** 2026-08-04
-**Last amended:** 2026-08-23 — Article XIII: the repository carries everything
-except a credential, see
-[ADR 0017](../../docs/adr/0017-everything-but-a-credential.md)
+**Last amended:** 2026-08-24 — Article XIII: attribution must be complete in
+`README.md` and `NOTICE`, and is no longer forbidden elsewhere, see
+[ADR 0018](../../docs/adr/0018-attribution-complete-not-unique.md)
 **Status:** Active
 
 **Amendment history:**
 
 - 2026-08-04 — Article XIII, see [ADR 0011](../../docs/adr/0011-attribution-in-readme-only.md)
+- 2026-08-24 — Article XIII: the clause forbidding attribution from appearing
+  anywhere but `README.md` and `NOTICE` is replaced. Completeness there is what
+  the licence asks for; uniqueness was this project's own addition, and it
+  suppressed records that help a reader. See
+  [ADR 0018](../../docs/adr/0018-attribution-complete-not-unique.md)
 - 2026-08-23 — Article XIII: the clause forbidding a committed file from
   depending on an uncommitted one is replaced. The repository now carries
   everything except a credential, so the dependency it guarded against cannot
@@ -292,10 +297,12 @@ ask for.
    and user-facing text are in **English**.
 2. Attribution for the Apache-2.0 work NinjaSRE draws on lives in `README.md`
    and `NOTICE`, and MUST be complete there.
-3. It MUST NOT be repeated anywhere else in the repository. No per-file
-   provenance headers, no provenance map, no "derived from" comments, no asides
-   naming a prior project. A file that needs a fact from prior art states the
-   fact.
+3. It MAY be repeated elsewhere. A provenance record, a "derived from" note or
+   an aside naming a prior project is allowed where it helps a reader — the
+   obligation the licence creates is that the attribution in `README.md` and
+   `NOTICE` is complete, not that it is unique. A file that needs a fact from
+   prior art may state the fact, cite where it came from, or both; stating the
+   fact is still the better writing where a citation would stand in for it.
 4. The repository carries everything except a credential. Specifications,
    control files, this constitution and the working guidance are committed, so
    a committed file MAY link to them and a test MAY read them. A password, a

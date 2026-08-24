@@ -19,6 +19,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	console-lockfile console-lint console-typecheck console-test console-build \
 	console-client console-client-check console-budget console-e2e console-e2e-run \
 	console-e2e-sweep console-visual console-visual-accept console-check \
+	console-dynamic-routes \
 	check-console-boundary \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
@@ -252,6 +253,9 @@ console-typecheck: ## Type-check the console
 
 console-test: ## Run the console's unit suite against its coverage threshold
 	$(RUN) python -m tools.console_gate test
+
+console-dynamic-routes: ## Fail if a shell route is prerendered instead of served live
+	$(RUN) python -m tools.console_gate dynamic-routes
 
 console-build: ## Produce the console's standalone production build
 	$(RUN) python -m tools.console_gate build

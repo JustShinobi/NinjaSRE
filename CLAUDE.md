@@ -42,26 +42,14 @@ substance when the substance is the point.
 
 ### Writing about prior art
 
-The ADRs compare two existing systems. They are named by what each is good at,
-never by project name:
+Attribution is complete in `README.md` and `NOTICE`, and that is the whole of
+the obligation. It is no longer forbidden elsewhere: a provenance record, a
+"derived from" note, an aside naming a prior project are all allowed wherever
+they help a reader.
 
-- **the pipeline design** — investigation pipeline, bounded ReAct loop, vendor
-  integrations, provider abstraction, masking and guardrails, evaluation harness
-- **the memory design** — episodic memory, strategy synthesis, topology graph,
-  skills, hierarchical config, web console, credential proxy and sandbox
-
-Keep using those labels. Detail that would identify either — repository names,
-URLs, LOC counts, author names — belongs in local notes, not in a committed
-file.
-
-### The rule behind the rules
-
-**Say the substance, and cite when a citation earns its place.** The
-specifications ship with the repository now, so a link into them resolves for
-whoever clones it. That makes citing allowed — not obligatory. A committed file
-that answers "why" with a pointer is still worse than one that answers it, and
-the root `AGENTS.md` remains the source of truth for the tier table, read from
-there by `tests/architecture/test_contract_coverage.py`.
+What survives is a preference, not a rule. Stating the substance teaches more
+than citing a source in its place — a comment that says what a mechanism does
+beats one that says where it came from. Where both help, write both.
 
 ## Writing style in committed files
 
@@ -121,7 +109,7 @@ Read the current wave's material for context, and never link to it from
 anything that is committed — the rule this file opens with.
 
 The architecture notes, roadmap, ADRs, the constitution
-(`.specify/memory/constitution.md`, currently 2.3.0), every wave's planning
+(`.specify/memory/constitution.md`, currently 2.4.0), every wave's planning
 material and `docs/provenance-map.md` are all committed.
 
 Constitution Article XIII was amended to 2.0.0 by ADR 0011: attribution lives
