@@ -324,5 +324,21 @@
     "exposicao": "Um agente imprimiu NINJASRE_STAGING_CREDENTIAL na propria transcricao ao rodar 'cat -A' no .env para conferir fim de linha. Ele mesmo declarou, sem ser perguntado.",
     "alcance": "Confinado a transcricao daquela sessao em disco. Nenhum commit, arquivo do repositorio ou relatorio carrega o valor.",
     "acao_recomendada": "Rodar a senha do operador de staging. Decisao do operador."
+  },
+  "portao_em_2026-08-24": {
+    "veredito": "sem falha conhecida; nao provado inteiro numa corrida so",
+    "medido": {
+      "estaticos": "exit 0 — lint, format, mypy, 7 contratos de importacao, constantes, protocolos, dependencias, deriva de documentacao, 15 integracoes em paridade",
+      "tests/unit + tests/architecture": "8288 passed, 1 skipped; 2 falhas encontradas e consertadas, 395 passed na reconferencia",
+      "tests/contract (91% percorrido)": "nenhuma falha ate onde chegou",
+      "tests/contract/console": "incompleto — test_console_gate.py constroi o console e roda o portao inteiro varias vezes; nao cabe no limite de tempo de uma chamada",
+      "console vitest": "170 arquivos, 2802 testes, todos passando; cobertura 93.77% de sentencas e 90.08% de ramos, acima do limiar"
+    },
+    "consertado_nesta_rodada": [
+      "Deriva do OpenAPI: os merges de 030 e 070 mudaram o que as rotas de integracao servem, e a deriva so existe com as duas na mesma arvore — nenhum portao estatico a pegou.",
+      "test_one_fictional_deployment varria a saida do proprio Playwright (test-results/), que e gravacao do dataset sendo servido, nao uma segunda declaracao dele."
+    ],
+    "por_que_nao_fechou": "Tarefas de fundo desta sessao foram mortas tres vezes no mesmo ponto (Error 143 durante o vitest), e em primeiro plano o limite e de dez minutos. O comando em si esta sao: rodado em primeiro plano, o vitest completa em 118s com tudo verde.",
+    "achado_de_ferramenta": "console/.toolchain/tree-writing-suite.lock guarda um PID e nao confere se ele ainda vive. Toda corrida interrompida deixa a sua, e a proxima recusa-se a rodar citando um processo que nao existe. Bloqueou o portao tres vezes seguidas ate eu remover o arquivo a mao."
   }
 }
