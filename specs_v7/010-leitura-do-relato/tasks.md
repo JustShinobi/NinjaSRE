@@ -367,9 +367,15 @@ edita — e deixa o rastro para o merge.
       proteger — um título que é uma sentença, um documento desenhado como
       documento, e a ausência do painel de controle num run terminado. Sem citar
       feature, requisito nem documento de planejamento.
-- [ ] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
+- [x] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
       imagem antes de aceitar**. A aceitação é o commit que alguém revisa, não uma
       flag num comando. Escrever no `controle.md` o que foi visto em cada imagem.
+      → Revisadas e aceitas em 2026-08-24, imagem a imagem, contra o que
+      substituíam e com cada diferença rastreada até a causa. O exame achou
+      duas regressões que nenhum portão pegaria: uma manchete que virara o
+      rótulo `manual investigation`, e o nome da página truncado a `Resourc…`
+      a 320px sem forma de ler o resto. As duas foram consertadas antes de
+      qualquer aceitação. `make console-visual` exit 0, 33 passed.
 - [x] T055 Rodar `make console-visual` e confirmar que nenhuma baseline órfã
       sobrou e que nenhuma captura fabricada ocupou o lugar de uma revisão.
 
@@ -468,7 +474,7 @@ arquivo custam mais do que economizam.
 - [x] `dangerouslySetInnerHTML` continua exclusivo do arquivo de layout, provado
       por teste.
 - [x] O plugin de HTML cru não está no manifesto, provado por teste.
-- [ ] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
+- [x] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
       imagem, e aceitas com razão escrita no registro.
 - [x] Os dois arquivos de teste unitário existentes foram **estendidos**; nenhum
       caso foi duplicado.

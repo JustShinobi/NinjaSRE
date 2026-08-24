@@ -296,6 +296,13 @@ que esta feature precisa provar lá.
       T002, chave interna intacta contra a amostra de T002, e concordância entre
       o valor gravado e o valor que a função do código deriva para a mesma
       linha.
+      → **Três das cinco rodaram e passaram** contra os trinta incidentes do
+      staging — cobertura 0 sem forma pública, unicidade 0 repetidos, e a
+      concordância entre o valor gravado e o que o código deriva: 30 conferidos,
+      0 divergentes. Registro em
+      `evidence/consultas-staging-2026-08-24.md`. As duas restantes comparam com
+      o retrato de T002, que nunca foi tirado e não pode ser reconstruído. Fica
+      aberta em vez de arredondada.
 - [x] T058 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` as doze alegações
       staging-safe do acceptance, no viewport 1920×1080, e registrar o verde de
       cada uma.
