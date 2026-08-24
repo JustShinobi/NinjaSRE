@@ -324,3 +324,58 @@ async def test_a_token_hash_is_locatable_for_the_audit_trail(
         assert located.token.token_id == "t-1"
 
         assert await system.tokens.find_token_by_hash("sha256:unknown") is None
+
+
+async def test_a_deployment_can_hold_more_than_one_addressless_principal(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # The bootstrap service account already has no address. A second one —
+    # any other service account nobody gave an address — used to collide with
+    # it on the email uniqueness rule; this is that defect, closed.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(
+            User(user_id="svc-1", email="", display_name="First service account")
+        )
+        await uow.identity.upsert_user(
+            User(user_id="svc-2", email="", display_name="Second service account")
+        )
+        first = await uow.identity.get_user("svc-1")
+        second = await uow.identity.get_user("svc-2")
+
+    assert first is not None
+    assert second is not None
+    assert first.email == ""
+    assert second.email == ""
+
+
+async def test_an_empty_address_search_finds_nobody(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(
+            User(user_id="svc-1", email="", display_name="First service account")
+        )
+        await uow.identity.upsert_user(
+            User(user_id="svc-2", email="", display_name="Second service account")
+        )
+        found = await uow.identity.find_user_by_email("")
+
+    assert found is None
+
+
+async def test_a_real_address_collision_names_the_address_not_a_constraint(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        with pytest.raises(DuplicateRecord) as raised:
+            await uow.identity.upsert_user(
+                User(user_id="u-ada-2", email="ADA@EXAMPLE.COM", display_name="Impostor")
+            )
+
+    message = str(raised.value)
+    assert "ada@example.com" in message.lower() or "ADA@EXAMPLE.COM" in message
+    assert "ix_users_email" not in message
+    assert "constraint" not in message.lower()
+    assert "sqlstate" not in message.lower()
+    assert "asyncpg" not in message.lower()
