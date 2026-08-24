@@ -59,10 +59,18 @@ from config.constants.first_run import (
     DEFAULT_ORGANISATION_NAME,
     DEFAULT_STATE_DIR,
     DURABLE_CREDENTIAL_LIFETIME_DAYS,
+    LOCAL_ADMIN_SETUP_COMMAND,
+    LOCAL_SIGN_IN_OPENED_VIA_BOOTSTRAP_EXCHANGE,
     NINJASRE_ORGANISATION_ENV,
     NINJASRE_STATE_DIR_ENV,
 )
-from platform.identity.audit.recorder import AuditContext
+from platform.identity.audit.recorder import AuditContext, AuditRecorder
+from platform.identity.enrolment import (
+    enrol_local_administrator,
+    identity_provider_is_active,
+    local_sign_in_is_open,
+)
+from platform.identity.errors import LocalSignInAlreadyOpen
 from platform.identity.permissions import Permission, Role
 from platform.identity.tokens import TokenService
 from platform.observability.logging import get_logger
@@ -125,17 +133,21 @@ class BootstrapCredential:
 class BringUp:
     """What bring-up established, and whether it had to establish anything."""
 
-    credential: BootstrapCredential
-    #: False when a previous bring-up's credential was still live and was reused.
-    #: This is the observable half of idempotence: a second run reports that it
-    #: issued nothing, rather than quietly replacing a credential somebody has
+    #: ``None`` when there is no invitation to hand back: this deployment
+    #: already has a local administrator, or its identity provider is
+    #: active. Neither is a failure — bring-up still brought the deployment
+    #: up — there is simply nothing here to print.
+    credential: BootstrapCredential | None
+    #: False when a previous bring-up's credential was still live and was
+    #: reused, or when no credential is issued at all. This is the
+    #: observable half of idempotence: a second run reports that it issued
+    #: nothing, rather than quietly replacing a credential somebody has
     #: already written down.
     issued: bool = True
-
-    @property
-    def organisation_id(self) -> str:
-        """Return the organisation this deployment brought up."""
-        return self.credential.organisation_id
+    #: The organisation this deployment brought up. A field rather than a
+    #: property derived from ``credential``, so it is still answerable when
+    #: ``credential`` is ``None``.
+    organisation_id: str = ""
 
 
 def state_dir(environ: Mapping[str, str] | None = None) -> Path:
@@ -208,18 +220,32 @@ def announcement(credential: BootstrapCredential, *, path: Path) -> str:
     the structured logger goes wherever the operator pointed it, and FR-004 says
     the bootstrap credential appears in no log. So it is written to the terminal
     and to one file, and nowhere else.
+
+    It names the command that creates the first administrator, and it does
+    not claim this credential is what the sign-in form wants — it never was:
+    the form takes a name and a passphrase, and this is a token. What this
+    credential is actually for is the same command, used non-interactively:
+    exchange it once, for an administrator of your own choosing.
     """
     rule = "=" * 72
     return "\n".join(
         [
             rule,
-            "  NinjaSRE is up. Sign in with this credential:",
+            "  NinjaSRE is up. Create your first administrator with:",
+            "",
+            f"    {LOCAL_ADMIN_SETUP_COMMAND}",
+            "",
+            "  It will ask you to choose a passphrase, without echoing it.",
+            "",
+            "  No shell on this host? Exchange the credential below for that",
+            "  administrator instead, through the setup API — it does not sign you",
+            "  in by itself:",
             "",
             f"    {credential.secret}",
             "",
             f"  It expires at {credential.expires_at.isoformat()} and can do exactly two",
-            "  things: tell you who you are, and create your own account. Do that first;",
-            "  this credential is revoked the moment you have.",
+            "  things: tell you who you are, and establish that one administrator.",
+            "  It is revoked the moment you have.",
             "",
             f"  If you lose this screen it is readable again at {path}",
             rule,
@@ -247,12 +273,22 @@ async def bring_up(
     Nothing here resets or wipes anything. The only destructive step in the whole
     first-run path is the revocation that spends the credential, and that happens
     in ``establish_durable_credential`` where somebody asked for it.
+
+    No credential is issued — ``credential`` comes back ``None`` — when this
+    deployment already has a local administrator or its identity provider is
+    active. Both are ways in already; a bootstrap invitation nobody asked for
+    is a second door, and this is the gate that keeps it shut.
     """
     instant = now or datetime.now(UTC)
     org_id = organisation_id(environ)
 
     await _ensure_organisation(gateway, org_id)
     await _ensure_bootstrap_principal(gateway, org_id)
+
+    if await local_sign_in_is_open(gateway, org_id=org_id) or await identity_provider_is_active(
+        gateway, org_id=org_id
+    ):
+        return BringUp(credential=None, issued=False, organisation_id=org_id)
 
     existing = read_credential(environ)
     reusable = (
@@ -263,7 +299,7 @@ async def bring_up(
     )
     if reusable and existing is not None:
         logger.info("bootstrap.credential_reused", organisation_id=org_id)
-        return BringUp(credential=existing, issued=False)
+        return BringUp(credential=existing, issued=False, organisation_id=org_id)
 
     credential = await _issue(gateway, tokens, org_id=org_id)
     write_credential(credential, environ)
@@ -273,7 +309,7 @@ async def bring_up(
         token_id=credential.token_id,
         expires_at=credential.expires_at.isoformat(),
     )
-    return BringUp(credential=credential, issued=True)
+    return BringUp(credential=credential, issued=True, organisation_id=org_id)
 
 
 async def establish_durable_credential(
@@ -284,6 +320,7 @@ async def establish_durable_credential(
     user_id: str,
     email: str,
     display_name: str,
+    password: str,
     name: str = DEFAULT_DURABLE_CREDENTIAL_NAME,
     environ: Mapping[str, str] | None = None,
 ) -> DurableCredential:
@@ -295,29 +332,39 @@ async def establish_durable_credential(
     ``TokenRejected`` rather than returning a refusal: the caller presented a
     credential that is no longer one.
 
+    The principal it creates is a local administrator with a passphrase,
+    through the same rule the CLI's own administrator command uses — not a
+    second implementation of "create an administrator". That is the seam
+    this closes: the name and passphrase given here are what the console's
+    sign-in form accepts immediately afterwards, on the same principal the
+    returned token names.
+
     Raises:
         TokenRejected: the bootstrap credential is expired, revoked, or unknown.
+        LocalSignInAlreadyOpen: this deployment already has a local
+            administrator — a stale credential file must not mint a second
+            one silently. Rotate or create another one through the CLI
+            instead.
+        LocalEnrolmentBlockedBySso: this deployment's identity provider is
+            active.
     """
     await tokens.authenticate(bootstrap.secret)
 
+    if await local_sign_in_is_open(gateway, org_id=bootstrap.organisation_id):
+        raise LocalSignInAlreadyOpen
+
     scope = TenantScope(org_id=bootstrap.organisation_id)
-    async with gateway.begin(scope) as uow:
-        await uow.identity.upsert_user(
-            User(
-                user_id=user_id,
-                email=email,
-                display_name=display_name,
-                kind=PrincipalKind.USER,
-            )
-        )
-        await uow.identity.upsert_role_binding(
-            RoleBinding(
-                binding_id=f"{user_id}-owner",
-                user_id=user_id,
-                role=Role.OWNER.value,
-                node_id=None,
-            )
-        )
+    await enrol_local_administrator(
+        gateway,
+        tokens,
+        org_id=bootstrap.organisation_id,
+        name=email,
+        password=password,
+        opened_via=LOCAL_SIGN_IN_OPENED_VIA_BOOTSTRAP_EXCHANGE,
+        recorder=AuditRecorder(gateway=gateway),
+        user_id=user_id,
+        display_name=display_name,
+    )
 
     issued = await tokens.issue(
         scope,
