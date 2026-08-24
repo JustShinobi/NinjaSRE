@@ -76,6 +76,22 @@ class Permission(StrEnum):
     CONFIG_READ = "config.read"
     CONFIG_WRITE = "config.write"
     INTEGRATION_MANAGE = "integration.manage"
+    #: Accepting a certificate nobody verified, for one address. Its own
+    #: permission, and deliberately not ``integration.manage``.
+    #:
+    #: Pinning a fingerprint and supplying an authority do not weaken anything —
+    #: they redirect verification to a narrower anchor than the system store,
+    #: which is strictly stronger for a host that issues its own certificate.
+    #: Requiring an administrator for those would push an operator towards the
+    #: worse option precisely because the better one is harder to reach, so they
+    #: stay on the permission that already writes an address.
+    #:
+    #: Not verifying is the one operation here that gives up a guarantee and
+    #: returns nothing but convenience. It gets a gate that is not the one that
+    #: opens for typing an address, so an audit review can tell "edited the
+    #: configuration" from "gave up verifying an endpoint" — which is the only
+    #: distinction that matters when somebody asks how this happened.
+    INTEGRATION_TRUST_UNVERIFIED = "integration.trust_unverified"
     SCHEDULE_MANAGE = "schedule.manage"
 
     # Credentials. Reading metadata is not reading a value — there is no
@@ -193,6 +209,7 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             Permission.AUDIT_READ,
             Permission.AUDIT_EXPORT,
             Permission.ORG_MANAGE,
+            Permission.INTEGRATION_TRUST_UNVERIFIED,
         }
     ),
     #: What separates an owner from an admin, and the whole of it: ending the

@@ -83,6 +83,11 @@ class IntegrationErrorReason(StrEnum):
     CREDENTIAL_UNAVAILABLE = "credential_unavailable"
     #: The proxy itself is unreachable, or the vendor behind it is.
     PROXY_UNAVAILABLE = "proxy_unavailable"
+    #: The address answered and the proxy would not trust the certificate it
+    #: presented. Its own reason rather than a shade of the one above: an
+    #: operator told "nothing answered" checks a network that is fine, and the
+    #: fix is a trust decision nobody has taken rather than anything on the wire.
+    CERTIFICATE_UNTRUSTED = "certificate_untrusted"
     #: The request was refused before it left: an undeclared host, a tenant
     #: over its rate limit, an integration with no rule.
     REFUSED = "refused"
@@ -108,6 +113,7 @@ class IntegrationErrorReason(StrEnum):
 _CAPABILITY_CLASSES: dict[IntegrationErrorReason, CapabilityErrorClass] = {
     IntegrationErrorReason.CREDENTIAL_UNAVAILABLE: CapabilityErrorClass.PERMISSION_DENIED,
     IntegrationErrorReason.PROXY_UNAVAILABLE: CapabilityErrorClass.UNAVAILABLE,
+    IntegrationErrorReason.CERTIFICATE_UNTRUSTED: CapabilityErrorClass.UNAVAILABLE,
     IntegrationErrorReason.REFUSED: CapabilityErrorClass.PERMISSION_DENIED,
     IntegrationErrorReason.UNAUTHENTICATED: CapabilityErrorClass.PERMISSION_DENIED,
     IntegrationErrorReason.FORBIDDEN: CapabilityErrorClass.PERMISSION_DENIED,
@@ -127,6 +133,11 @@ _CAPABILITY_CLASSES: dict[IntegrationErrorReason, CapabilityErrorClass] = {
 _CATEGORIES: dict[IntegrationErrorReason, ErrorCategory] = {
     IntegrationErrorReason.CREDENTIAL_UNAVAILABLE: ErrorCategory.AUTH,
     IntegrationErrorReason.PROXY_UNAVAILABLE: ErrorCategory.UNAVAILABLE,
+    # Unavailable rather than permission: a probe that met a certificate
+    # nobody trusts learned nothing about the permission it was checking, and
+    # reporting it as denied sends an operator into a vendor's console
+    # looking for a privilege that is already granted.
+    IntegrationErrorReason.CERTIFICATE_UNTRUSTED: ErrorCategory.UNAVAILABLE,
     IntegrationErrorReason.REFUSED: ErrorCategory.PERMISSION,
     IntegrationErrorReason.UNAUTHENTICATED: ErrorCategory.AUTH,
     IntegrationErrorReason.FORBIDDEN: ErrorCategory.PERMISSION,
@@ -150,6 +161,7 @@ _PROXY_REASONS: dict[ProxyErrorReason, IntegrationErrorReason] = {
     ProxyErrorReason.REFRESH_FAILED: IntegrationErrorReason.CREDENTIAL_UNAVAILABLE,
     ProxyErrorReason.RATE_LIMITED: IntegrationErrorReason.RATE_LIMITED,
     ProxyErrorReason.UPSTREAM_UNREACHABLE: IntegrationErrorReason.PROXY_UNAVAILABLE,
+    ProxyErrorReason.CERTIFICATE_UNTRUSTED: IntegrationErrorReason.CERTIFICATE_UNTRUSTED,
 }
 
 #: A vendor status, translated. Anything not listed falls to ``UPSTREAM_ERROR``

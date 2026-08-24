@@ -63,6 +63,15 @@ class ResolutionRecord:
     version: int | None = None
     reason: ProxyErrorReason | None = None
     host: str = ""
+    #: How the endpoint's certificate was verified for this call. Present on
+    #: every resolution, because "which anchor was in force when this went out"
+    #: is a question nothing else can answer six months later.
+    trust_anchor: str = ""
+    #: The fingerprint when there is one: the declared set on a call that went
+    #: out, and the one actually presented on a refusal. Never certificate
+    #: material — a PEM in an audit trail is bulk that proves nothing a
+    #: fingerprint does not.
+    fingerprint: str = ""
 
     def detail(self) -> dict[str, Any]:
         """Return the audit payload: scalars only, and never a value."""
@@ -79,6 +88,10 @@ class ResolutionRecord:
             payload["reason"] = str(self.reason)
         if self.host:
             payload["host"] = self.host
+        if self.trust_anchor:
+            payload["trust_anchor"] = self.trust_anchor
+        if self.fingerprint:
+            payload["fingerprint"] = self.fingerprint
         return payload
 
 

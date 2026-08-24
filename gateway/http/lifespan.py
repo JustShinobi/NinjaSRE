@@ -23,6 +23,7 @@ from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.executor import NINJASRE_NODE_EXECUTOR_URL_ENV
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
+from gateway.http.control_plane import compose_control_plane
 from gateway.http.deep_verification import compose_deep_verifier
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
@@ -89,6 +90,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # line above has just replaced, so composing before it would install the
         # desk on the object that was thrown away and leave the loop that
         # actually runs with none.
+        # Before the desk, and that order is the whole of it. The desk asks
+        # whether a control plane exists and composes nothing when one does
+        # not, so binding afterwards would leave every deployment proposing
+        # nothing for a reason no policy chose. Binding authorises nothing: the
+        # gate still resolves this deployment's posture when a write is
+        # decided, the approval is stored pending, and running it is a second
+        # entry through a route a person presses.
+        await compose_control_plane(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
         await compose_remediation(
             state,
             org_id=organisation_id(),

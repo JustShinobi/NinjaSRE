@@ -40,6 +40,7 @@ from integrations._verification.permissions import (
     RequiredPermission,
     client_probe,
 )
+from integrations.proxmox.certificates import FINGERPRINT_IS_SHOWN_AT
 from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.privileges import (
     GRANTED_AT,
@@ -76,7 +77,30 @@ _ADVICE: dict[IntegrationErrorReason, str] = {
         "Neither the credential proxy nor any configured Proxmox node answered. "
         "Authenticated calls have no path around the proxy."
     ),
+    # Appended to the proxy's own words rather than replacing them. The proxy
+    # names which certificate was presented and which was expected, and those
+    # facts are the whole value of the message; what this adds is where a
+    # Proxmox operator finds the fingerprint to compare it against.
+    #
+    # Its own arm because the node *answered*. Reported as "nothing answered" —
+    # which is what happened before this existed, a self-signed install being
+    # the default rather than an eccentricity — an operator checks a network
+    # that is fine, finds it correct, and concludes the product is broken.
+    IntegrationErrorReason.CERTIFICATE_UNTRUSTED: (
+        f"Proxmox shows the node's SHA-256 fingerprint at {FINGERPRINT_IS_SHOWN_AT}. "
+        f"Pin it on this integration, or supply the authority the cluster minted for "
+        f"itself — the fingerprint is the one that works when the integration is "
+        f"pointed at an IP address, because a pin replaces the name check rather "
+        f"than adding to it."
+    ),
 }
+
+#: The reasons whose advice is *added* to what the proxy said instead of
+#: standing in for it. Everything else in the table above answers a question the
+#: proxy could not, so its own words are the whole message.
+_ADVICE_FOLLOWS_THE_REFUSAL: Final[frozenset[IntegrationErrorReason]] = frozenset(
+    {IntegrationErrorReason.CERTIFICATE_UNTRUSTED}
+)
 
 _GRANTED_AT: Final = GRANTED_AT
 
@@ -212,7 +236,7 @@ class ProxmoxVerifier:
         except IntegrationError as error:
             return Connectivity(
                 reachable=False,
-                detail=_ADVICE.get(error.reason, str(error)),
+                detail=_detail_for(error),
                 status_code=error.status_code,
             )
         return Connectivity(
@@ -261,6 +285,19 @@ class ProxmoxVerifier:
             context=context,
             base_url=configured_base_url(self.integration),
         )
+
+
+def _detail_for(error: IntegrationError) -> str:
+    """Return the sentence the panel shows for one refusal.
+
+    Most reasons get this vendor's own advice, because the proxy could not know
+    what a Proxmox token looks like. A refused certificate is the exception: the
+    proxy named which certificate was presented and which was expected, those
+    facts are the message, and the advice is appended rather than substituted.
+    """
+    if error.reason in _ADVICE_FOLLOWS_THE_REFUSAL:
+        return f"{error} {_ADVICE[error.reason]}"
+    return _ADVICE.get(error.reason, str(error))
 
 
 #: The privileges the report above is built from, re-exported so a document

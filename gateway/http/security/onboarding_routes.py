@@ -51,6 +51,22 @@ ONBOARDING_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/integrations/{name}/credential",
         permission=Permission.CREDENTIAL_WRITE,
     ),
+    # --- Saying what to accept from this vendor's certificate --------------------
+    # ``integration.manage``, which is what writing the address already needs.
+    # Pinning a fingerprint and supplying an authority narrow the anchor rather
+    # than widening it — strictly stronger than the system store for a host that
+    # issues its own certificate — so requiring an administrator would push an
+    # operator towards the worse option because the better one is out of reach.
+    #
+    # Accepting an *unverified* certificate needs
+    # ``integration.trust_unverified`` as well, and that check is in the handler
+    # because it depends on which form the body declares rather than on which
+    # route was called. A row here cannot express "and also, when".
+    Route(
+        method="PUT",
+        path="/v1/integrations/{name}/trust",
+        permission=Permission.INTEGRATION_MANAGE,
+    ),
     # --- Asking a vendor what this credential may actually do --------------------
     Route(
         method="POST",

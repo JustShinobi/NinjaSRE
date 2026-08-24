@@ -70,6 +70,7 @@ from platform.credentials.proxy.refresh import (
     needs_refresh,
 )
 from platform.credentials.proxy.resolution import CredentialResolver, ResolvedCredential
+from platform.credentials.proxy.trust import TrustRegistry
 from platform.observability.logging import get_logger
 from platform.persistence.errors import CredentialUndecryptable
 from platform.persistence.ports import AuditOutcome, TenantScope
@@ -115,6 +116,7 @@ class ProxyEngine:
         "_rules",
         "_sender",
         "_timeout_seconds",
+        "_trust",
     )
 
     def __init__(
@@ -128,6 +130,7 @@ class ProxyEngine:
         refresher: CredentialRefresher | None = None,
         timeout_seconds: float = CREDENTIAL_PROXY_TIMEOUT_SECONDS,
         clock: Callable[[], datetime] | None = None,
+        trust: TrustRegistry | None = None,
     ) -> None:
         self._resolver = resolver
         self._rules = rules
@@ -137,11 +140,19 @@ class ProxyEngine:
         self._refresher = refresher
         self._timeout_seconds = timeout_seconds
         self._clock = clock if clock is not None else (lambda: datetime.now(UTC))
+        #: The same object the sender applies, so the line recording how a call
+        #: was verified and the code that verified it cannot disagree.
+        self._trust = trust if trust is not None else TrustRegistry()
 
     @property
     def rules(self) -> InjectionRuleRegistry:
         """Return the declared injection rules, for health and verification."""
         return self._rules
+
+    @property
+    def trust(self) -> TrustRegistry:
+        """Return what this deployment accepts per address, for the refresh cycle."""
+        return self._trust
 
     @property
     def resolver(self) -> CredentialResolver:
@@ -190,7 +201,16 @@ class ProxyEngine:
 
         rule = self._rule_for(request.integration)
         host = egress.enforce(rule, request.url)
-        record = replace(record, host=host)
+        declared = self._trust.for_host(host)
+        record = replace(
+            record,
+            host=host,
+            trust_anchor=str(declared.anchor),
+            # The declared fingerprints, when the form is a pin. Not a secret:
+            # it is the public half's digest, and it is what an operator
+            # compares against what the node shows them.
+            fingerprint=", ".join(declared.fingerprints),
+        )
 
         handle = CredentialHandle(integration=request.integration, team_id=request.team_id)
         credential = await self._resolve(request, rule, handle)
@@ -274,7 +294,15 @@ class ProxyEngine:
         injected = self._inject(request.outbound(), rule, credential)
         try:
             return await self._sender.send(injected, timeout_seconds=self._timeout_seconds)
-        except ProxyError:
+        except ProxyError as refused:
+            # Already classified, so it goes up as it stands. The sender is
+            # handed a request rather than the rule that authenticated it, so it
+            # cannot name the integration; naming it here is the one thing added,
+            # and it leaves the reason, the message and the detail untouched.
+            # Re-wrapping would turn a refused certificate back into whatever
+            # the outer handler happened to guess.
+            if not refused.integration:
+                refused.integration = request.integration
             raise
         except Exception as error:  # noqa: BLE001 — a transport fails how it likes
             raise UpstreamUnreachable(
@@ -350,6 +378,13 @@ class ProxyEngine:
         """Write the audit line for this resolution, however it ended."""
         if reason is not None:
             record = replace(record, outcome=AuditOutcome.DENIED, reason=reason.reason)
+            observed = getattr(reason, "observed", "")
+            if observed:
+                # The fingerprint actually presented, which on a refusal is the
+                # fact somebody needs and the declared one is not. A refusal is
+                # audited as loudly as a success for the reason it always was:
+                # it is the event somebody has to be able to find.
+                record = replace(record, fingerprint=str(observed))
         await self._auditor.record(record)
 
 
