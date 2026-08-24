@@ -1,6 +1,6 @@
 {
   "wave": "specs_v7",
-  "updated": "2026-08-23",
+  "updated": "2026-08-24",
   "orchestrator": "Opus 5 lead session (/spec-wave specs_v7)",
   "execution": "pares paralelos por slot conforme EXECUCAO.md — S0: 000 | S1: 001+020 | S2: 010+040 | S3: 030+070 | S4: 050+060 | S5: 080. Worktrees isoladas por implementer; single-write com dono por slot (EXECUCAO.md §2); deploy-stg + acceptance contra staging no fim de cada slot (EXECUCAO.md §3); checkpoint do laço mínimo no fim do S2.",
   "feature_order": [
@@ -93,7 +93,7 @@
     "020-identidade-enderecavel"
   ],
   "current_feature": null,
-  "last_verdict": "S1 fechado (001 e 020 PASS). S2: 040 entregue com make verify exit 0 (12376 passed, +98 reconciliados); 030 em execucao.",
+  "last_verdict": "Dez features implementadas. Marcacao de tarefas: 000 e 030 e 070 em 100%; 020 96%, 040 96%, 050 92%, 060 91%, 001 98%, 010 86%, 080 34% (60 das 92 dependiam da demo, que ja rodou). O portao ainda nao esta verde.",
   "decisions_taken_during_generation": [
     "Vocabulário de status: a enumeração do STORE (run_trace_store.py:30) é a servida por summary_of; o console aprende (010) e o gate bidirecional + purga das fixtures ('succeeded', 'awaiting_approval') é da 030 (Phase 2b, T060-T069, ordem rígida). Unificar runtime×store NÃO é desta onda (recusa registrada no plan da 030).",
     "Canônico de runtime: ReActLoop; build_pipeline declara-se dormente nomeando o harness (040). zero_integration_outcome vira função com dois chamadores.",
@@ -125,7 +125,7 @@
   ],
   "model_strategy": "spec-implementer segue Sonnet effort max como default (as specs foram escritas para tornar a implementação mecânica: 50-75 tarefas/feature com file:line). Exceção recomendada: 040 e 070 — as duas features de fronteira (composition roots com ordem entre elas; TLS no credential proxy) — implementadas com Opus, OU Sonnet com verifier em Opus. O orquestrador do /spec-wave permanece Opus+ (os merges, a regeneração de artefatos e os gates de staging são onde mora o julgamento agora).",
   "notes": "Ler EXECUCAO.md antes de dispatchar qualquer slot: é o opt-in de paralelismo e staging que a skill spec-wave exige — inclui a regra de artefatos gerados, a de arquivos fora do índice em worktrees, e a de merge que recusa hunk revertendo arquivo alheio (precedente 6d1ede6→19431fc). Constituição alvo pós-000: 2.2.0. Confronto final ganha a coluna 'quem constrói isso em produção?'.",
-  "current_slot": "S1 fechado; S2 (010 ∥ 040) e o proximo",
+  "current_slot": "todas as dez features implementadas; reconciliacao e portao final em curso",
   "baseline_commit": "abbc418",
   "baseline_tree": "limpa (git status --short vazio) no dispatch do S0",
   "staging_access": {
@@ -175,7 +175,10 @@
     "O spec-implementer bateu o teto de turnos TRES vezes na 000 (154, 275, 391 chamadas). A model_strategy presume tarefas mecanicas de file:line; as da 000 nao eram (auditar artigos, capturar cinco vermelhos reais, implementar um backing). Para features de forma parecida, fatiar o dispatch por fase em vez de por feature — vale especialmente para 040 e 070.",
     "O implementer nao escreveu controle.md ate ser mandado escreve-lo primeiro e incrementalmente. Nas proximas features, exigir o controle.md como primeira entrega e nao como ultima.",
     "Escrever log de run DENTRO do --evidence-dir invalida o resultado: a ferramenta limpa o diretorio. Log sempre fora.",
-    "Nunca conferir vazamento de segredo com 'grep -F -- \"$SEGREDO\"': o proprio grep nasce com o segredo em argv e o ps seguinte o encontra. Usar comparacao embutida do shell (case)."
+    "Nunca conferir vazamento de segredo com 'grep -F -- \"$SEGREDO\"': o proprio grep nasce com o segredo em argv e o ps seguinte o encontra. Usar comparacao embutida do shell (case).",
+    "Commitar por fase nao basta: quatro agentes bateram o teto de turnos segurando trabalho nao commitado, dois deles com a instrucao de commitar por fase no proprio prompt. O teto nao chega numa fronteira de fase. A regra passou a ser commitar onde a arvore estiver coerente.",
+    "O codigo de saida vem do comando, nunca da ultima linha da cadeia: um 'echo' no fim faz toda notificacao dizer 0. Aconteceu duas vezes nesta onda, uma delas comigo.",
+    "Ao reportar um negativo, diga o que voce olhou. 'Nenhuma regra sobre a metrica do convidado' e um achado; 'nada vigia este conteiner' era palpite com roupa de achado — quatro regras vigiavam pelo lado do servico e dispararam antes."
   ],
   "s1_state": {
     "001": {
@@ -234,7 +237,10 @@
   },
   "achados_de_infraestrutura": [
     "PROVISIONAMENTO DE WORKTREE: as tres worktrees da onda (001, 020, 030) nasceram no commit RAIZ do repositorio (c789c2d, 'Add initial README') em vez da ponta da master. Cada implementer consertou sozinho com fast-forward ou reset e relatou como nota de rodape, entao passou duas vezes como curiosidade. Tres de tres e defeito sistematico do isolation: worktree. Custo por ocorrencia: o implementer gasta turnos diagnosticando uma arvore sem codigo antes de comecar. Mitigacao ate haver conserto: o dispatch deve mandar conferir 'git log --oneline -1' antes de qualquer trabalho e corrigir para a ponta se necessario.",
-    "RELATORIO DE AGENTE PODE VOLTAR VAZIO: o relatorio de um verifier voltou sem conteudo apos 118 chamadas de ferramenta. Mitigacao adotada no S2 e obrigatoria daqui em diante: todo implementer grava o controle.md incrementalmente num arquivo em /tmp/.../scratchpad/controle/<feature>.md, fora do repositorio e da worktree, ao fim de cada fase junto com o commit. Provou-se no mesmo dia: a 030 bateu o teto sem relatorio e o arquivo em disco tinha o ledger inteiro."
+    "RELATORIO DE AGENTE PODE VOLTAR VAZIO: o relatorio de um verifier voltou sem conteudo apos 118 chamadas de ferramenta. Mitigacao adotada no S2 e obrigatoria daqui em diante: todo implementer grava o controle.md incrementalmente num arquivo em /tmp/.../scratchpad/controle/<feature>.md, fora do repositorio e da worktree, ao fim de cada fase junto com o commit. Provou-se no mesmo dia: a 030 bateu o teto sem relatorio e o arquivo em disco tinha o ledger inteiro.",
+    "O proxy de credencial rodava havia 30 horas quando a 070 foi validada: o deploy levara apenas app e web. O componente que aplica a confianca de certificado era exatamente o nao atualizado. O T003 da 080 ja mandava rodar make deploy-stg SEM COMPONENTS=, e estava certo.",
+    "A maquina fica saturada com cinco agentes: carga 9.7/19.6/25.5 em 3 CPUs, vitest orfaos, execucoes de cobertura falhando por contencao e nao por regressao. O portao final tem de rodar sozinho.",
+    "Worktrees de agente podem nascer no primeiro commit do repositorio: tres agentes de uma so onda abriram arvores com um README.md e nada mais, uma delas 757 commits atras. Recuperacao: git merge --ff-only master. Agora esta nas definicoes dos agentes."
   ],
   "defeitos_nomeados_com_dono": [
     {
@@ -262,5 +268,61 @@
       "o_que_continua_aberto": "Fazer o corpus dirigir o investigador de serving em vez do proprio laco. E trabalho de instrumento no harness.",
       "dono": "trabalho de instrumento pos-onda; NAO e da 040, que fechou o que a fase pedia e nomeou o resto."
     }
-  ]
+  ],
+  "demo_080_executada": {
+    "quando": "2026-08-24, 10:26:29Z a 10:50:06Z (UTC)",
+    "onde": "staging real + hipervisor Proxmox real (cluster HAL9000)",
+    "sujeito": "CT122 redis, no pve01, autorizada pelo operador, fora por 18 minutos",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/ (EVIDENCIA.md + 11 capturas)",
+    "estacoes_cumpridas": [
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E10"
+    ],
+    "estacoes_nao_exercidas": [
+      "E7",
+      "E8",
+      "E9"
+    ],
+    "porque_E7_a_E9_nao_correram": "O catalogo inteiro tem tres capacidades de escrita — acknowledge_incident, pushover/post_message, telegram/post_message — e as tres sao aviso. Nenhuma capacidade atua sobre infraestrutura. O balcao compos 20 capacidades, o portao se registra por run, o teto de ferramentas e 40 e so 4 foram usadas: nada foi cortado por orcamento. O agente estava certo em nao propor nada.",
+    "o_laco_fecha_ate_onde": "Ate 'entendi, gravei e registrei o desfecho'. Nao fecha em 'agi'. O incidente encerrou-se sozinho com close_reason 'ProxmoxGuestStopped was resolved upstream' e self_resolved=true — o produto nao reivindica ter consertado nada, o que e a resposta honesta, porque quem religou foi um humano."
+  },
+  "achados_da_demo": [
+    {
+      "achado": "O titulo do incidente e o nome do alerta, nao uma frase",
+      "evidencia": "Tela mostra 'ProxmoxGuestStopped'. A manchete da investigacao, na tela seguinte, e uma frase correta e completa.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "O cabecalho do incidente atribui o sujeito ao no errado",
+      "evidencia": "Cabecalho diz 'node pve02'; os rotulos do alerta na mesma tela dizem 'node=pve01'; a investigacao tambem diz pve01. O cabecalho le 'instance' — o endereco de quem raspou a metrica — e o apresenta como o no do sujeito.",
+      "consequencia": "Um operador abre sessao no no errado. O dado certo esta em duas outras superficies.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "A descoberta nao resolve o no do convidado",
+      "evidencia": "Todo convidado tem native_id na forma lxc/HAL9000/unknown/122. O pve_guest_info do exportador carrega node=pve01, entao o dado existe.",
+      "provavel_causa_de": "o achado do cabecalho",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "O custo aparece de duas formas em duas telas para o mesmo run",
+      "evidencia": "Painel do incidente: '5 steps · 23s · Not recorded'. Tela do run: 'Cost $0.00' com reparticao por turno.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "prometheus_metric_statistics devolve 400 com start vazio",
+      "evidencia": "invalid parameter 'start': cannot parse '' to a valid timestamp — visto num run anterior, nao reincidiu no run da demo",
+      "dono": "por atribuir"
+    }
+  ],
+  "seguranca": {
+    "exposicao": "Um agente imprimiu NINJASRE_STAGING_CREDENTIAL na propria transcricao ao rodar 'cat -A' no .env para conferir fim de linha. Ele mesmo declarou, sem ser perguntado.",
+    "alcance": "Confinado a transcricao daquela sessao em disco. Nenhum commit, arquivo do repositorio ou relatorio carrega o valor.",
+    "acao_recomendada": "Rodar a senha do operador de staging. Decisao do operador."
+  }
 }
