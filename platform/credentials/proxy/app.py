@@ -1,11 +1,15 @@
 """The proxy's internal API, as a plain ASGI application.
 
-Two paths and no framework. ``/internal/forward`` takes an envelope describing
-the call a capability wants to make and returns the vendor's answer;
-``/internal/health`` says whether the proxy is ready and what it can
-authenticate. There is deliberately no third path, and in particular no path
-that returns a credential: FR-010 says no configuration may enable a bypass, and
+Three paths and no framework. ``/internal/forward`` takes an envelope
+describing the call a capability wants to make and returns the vendor's
+answer; ``/internal/health`` says whether the proxy is ready and what it can
+authenticate; ``/internal/trust-refresh`` asks the proxy to re-read what it
+trusts sooner than its own timer would. There is deliberately no path that
+returns a credential: FR-010 says no configuration may enable a bypass, and
 the cheapest way to keep that true is for the bypass not to exist as a route.
+The refresh path carries no body, injects no credential, opens no vendor
+connection, and answers with nothing but whether it ran — it triggers the
+same read the timer already runs on a cycle, sooner than the cycle would.
 
 **Why hand-written ASGI.** The application is thirty lines of protocol and a
 call into ``ProxyEngine``. A framework would add a dependency to a tree the
@@ -30,7 +34,11 @@ import json
 from collections.abc import Awaitable, Callable, Mapping, MutableMapping
 from typing import Any
 
-from config.constants.security import PROXY_FORWARD_PATH, PROXY_HEALTH_PATH
+from config.constants.security import (
+    PROXY_FORWARD_PATH,
+    PROXY_HEALTH_PATH,
+    PROXY_TRUST_REFRESH_PATH,
+)
 from platform.credentials.proxy.engine import ProxyEngine
 from platform.credentials.proxy.errors import (
     MalformedProxyRequest,
@@ -147,15 +155,32 @@ class ProxyApp:
     behaviour that depends on which (FR-011).
     """
 
-    __slots__ = ("_engine",)
+    __slots__ = ("_engine", "_on_trust_refresh_requested")
 
     def __init__(self, engine: ProxyEngine) -> None:
         self._engine = engine
+        #: What a request for ``/internal/trust-refresh`` runs, when composition
+        #: wired one. Unset by default: a synthetic scenario or an isolated unit
+        #: test does not owe this application a live configuration source, and a
+        #: request against an unset hook is refused by name rather than answering
+        #: 200 for a refresh that did not happen.
+        self._on_trust_refresh_requested: Callable[[], Awaitable[None]] | None = None
 
     @property
     def engine(self) -> ProxyEngine:
         """Return the engine this application serves."""
         return self._engine
+
+    def set_trust_refresh(self, hook: Callable[[], Awaitable[None]]) -> None:
+        """Wire what ``/internal/trust-refresh`` runs.
+
+        The composition root that already knows how to read the configuration
+        tree and rebuild the trust registry — ``gateway/proxy`` — is the only
+        caller; this class is not given the means to read configuration itself,
+        so the seam it exposes here is a trigger for that existing mechanism,
+        never a second way to decide what is trusted.
+        """
+        self._on_trust_refresh_requested = hook
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Serve one ASGI request."""
@@ -176,6 +201,10 @@ class ProxyApp:
             await self._forward(await _read_body(receive), send)
             return
 
+        if path == PROXY_TRUST_REFRESH_PATH and method == "POST":
+            await self._trust_refresh(send)
+            return
+
         await _respond(
             send,
             404,
@@ -184,8 +213,9 @@ class ProxyApp:
                     "reason": str(ProxyErrorReason.MALFORMED_REQUEST),
                     "integration": "",
                     "message": (
-                        f"the credential proxy serves {PROXY_FORWARD_PATH} and "
-                        f"{PROXY_HEALTH_PATH}; {method} {path} is neither"
+                        f"the credential proxy serves {PROXY_FORWARD_PATH}, "
+                        f"{PROXY_HEALTH_PATH} and {PROXY_TRUST_REFRESH_PATH}; "
+                        f"{method} {path} is neither"
                     ),
                     "detail": path,
                     "retryable": False,
@@ -206,6 +236,36 @@ class ProxyApp:
             )
             return
         await _respond(send, 200, encode_forward_response(response))
+
+    async def _trust_refresh(self, send: Send) -> None:
+        """Re-read what this deployment trusts, right now, and say whether it ran.
+
+        Refuses by name — 404, the same status an unmatched path already
+        answers with — when no composition wired the hook, rather than
+        answering 200 for a refresh that did not happen: a caller that could
+        not tell the two apart would trust a declaration that was never
+        applied.
+        """
+        if self._on_trust_refresh_requested is None:
+            await _respond(
+                send,
+                404,
+                json.dumps(
+                    {
+                        "reason": str(ProxyErrorReason.MALFORMED_REQUEST),
+                        "integration": "",
+                        "message": (
+                            "this composition of the credential proxy was not given a way "
+                            "to re-read its configuration on demand"
+                        ),
+                        "detail": PROXY_TRUST_REFRESH_PATH,
+                        "retryable": False,
+                    }
+                ).encode("utf-8"),
+            )
+            return
+        await self._on_trust_refresh_requested()
+        await _respond(send, 200, json.dumps({"refreshed": True}).encode("utf-8"))
 
 
 def create_proxy_app(engine: ProxyEngine) -> ProxyApp:

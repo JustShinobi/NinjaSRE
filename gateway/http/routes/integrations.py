@@ -32,9 +32,14 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+import asyncio
+import os
+import urllib.error
+import urllib.request
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urljoin
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -43,8 +48,11 @@ from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import (
     INTEGRATION_TRUST_AUDIT_ACTION,
     INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
+    NINJASRE_CREDENTIAL_PROXY_URL_ENV,
+    PROXY_TRUST_REFRESH_PATH,
 )
 from gateway.http.configured import configured_integrations
+from gateway.http.control_plane import compose_control_plane
 from gateway.http.credential_handles import credential_team_holders, resolve_credential_handle
 from gateway.http.credential_schemas import schema_for
 from gateway.http.credential_state import credential_detail, effective_credential_state
@@ -866,6 +874,42 @@ class TrustWriteView(BaseModel):
     describes: str = ""
 
 
+#: How long this route waits on the credential proxy's own answer before
+#: giving up and falling back to its periodic cycle. Short and deliberately
+#: so: a declaration is already written and audited by the time this runs, so
+#: nothing here is worth making an operator wait on — it is a nudge for the
+#: common case, not a promise the write depends on.
+_TRUST_REFRESH_TIMEOUT_SECONDS = 5.0
+
+
+def _refresh_credential_proxy_trust(proxy_url: str) -> None:
+    """Ask the credential proxy, over its own internal path, to re-read what it trusts.
+
+    Runs in a worker thread at the call site via ``asyncio.to_thread`` — the
+    same technique ``HttpProxyTransport`` uses to reach this same proxy for
+    the same reason: this deployment's short, audited dependency list has no
+    async HTTP client in it. Every failure is swallowed here rather than
+    raised: an unreachable proxy, a timeout, or an older proxy that does not
+    yet serve this path all leave the declaration exactly as written, and the
+    proxy's own periodic cycle still applies it on its own next tick either
+    way — this call only tries to make that sooner.
+    """
+    request = urllib.request.Request(  # noqa: S310 — the URL is the operator's own proxy
+        urljoin(proxy_url, PROXY_TRUST_REFRESH_PATH), method="POST"
+    )
+    try:
+        with urllib.request.urlopen(  # noqa: S310 — same
+            request, timeout=_TRUST_REFRESH_TIMEOUT_SECONDS
+        ):
+            pass
+    except (urllib.error.URLError, OSError, TimeoutError, ValueError) as unconfirmed:
+        logger.info(
+            "integration.trust_refresh_not_confirmed",
+            error=str(unconfirmed),
+            detail="the credential proxy's own periodic cycle still applies this declaration",
+        )
+
+
 @router.put("/{name}/trust", response_model=TrustWriteView)
 async def store_certificate_trust(
     name: str,
@@ -876,9 +920,11 @@ async def store_certificate_trust(
     """Declare what this deployment accepts from ``name``'s endpoint certificate.
 
     Written into the organisation's own configuration, beside the address, where
-    the credential proxy already reads from — the proxy applies it at the next
-    cycle, without a restart, because the same cycle that rebuilds the egress
-    allow-list rebuilds this.
+    the credential proxy already reads from. The write itself asks the proxy to
+    re-read it immediately rather than waiting for the periodic cycle that
+    rebuilds the egress allow-list — best-effort, and never a reason this write
+    fails: an unreachable proxy still applies the declaration on that cycle's
+    own next tick, without a restart, exactly as it always has.
 
     Accepting an unverified certificate needs a permission of its own and a
     reason in writing, and the identity recorded is the authenticated one rather
@@ -935,6 +981,23 @@ async def store_certificate_trust(
     # across a change would leave a green tick on an anchor nothing has tested.
     for kind in _affected_kinds(name):
         await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    # The declaration is written and audited above this line; everything below
+    # it is best-effort and never turns a stored declaration into a refused
+    # write. Two things composed at a moment in the past now describe a moment
+    # that just changed, and both are asked to catch up rather than left to
+    # find out on their own timer: the credential proxy's own registry, which
+    # otherwise governs the very next call on nothing sooner than its sixty
+    # second cycle, and this deployment's control-plane binding, which
+    # otherwise reports the trust anchor it was composed with at boot for as
+    # long as the process runs.
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    if proxy_url:
+        await asyncio.to_thread(_refresh_credential_proxy_trust, proxy_url)
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
 
     return TrustWriteView(
         integration=name,

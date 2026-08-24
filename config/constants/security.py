@@ -73,11 +73,16 @@ GOOGLE_QUOTA_PROJECT_HEADER: Final = "x-goog-user-project"
 
 CREDENTIAL_PROXY_TIMEOUT_SECONDS: Final[float] = 30.0
 
-#: The proxy's internal API. Two paths and nothing else: one that forwards a
-#: request and one that reports health. There is deliberately no path that
-#: returns a credential, because FR-010 says no configuration may enable one.
+#: The proxy's internal API. Three paths and nothing else: one that forwards a
+#: request, one that reports health, and one that asks the proxy to re-read what
+#: it trusts. There is deliberately no path that returns a credential, because
+#: FR-010 says no configuration may enable one, and the third path carries no
+#: body and answers with nothing but whether it ran: it moves no credential and
+#: decides nothing a configuration read would not already decide on its own
+#: next cycle, it only asks for that cycle sooner than the timer would.
 PROXY_FORWARD_PATH: Final = "/internal/forward"
 PROXY_HEALTH_PATH: Final = "/internal/health"
+PROXY_TRUST_REFRESH_PATH: Final = "/internal/trust-refresh"
 
 #: Per-tenant ceiling, counted over a fixed window. A tenant that exceeds it is
 #: refused rather than queued: a queue turns a runaway loop into latency
@@ -972,6 +977,7 @@ __all__ = [
     "PRODUCTION_ENVIRONMENT",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
+    "PROXY_TRUST_REFRESH_PATH",
     "REDACTION_PLACEHOLDER",
     "REMEDIATION_APPROVAL_EXPIRY_SECONDS",
     "REMEDIATION_AUDIT_ACTION_AUTONOMOUS",

@@ -107,6 +107,24 @@ def _trust_record(entry: Any) -> Mapping[str, Any]:
     return dict(dumped(exclude_none=True)) if dumped is not None else {}
 
 
+async def _refresh_trust_now(app: Any, store: Any) -> None:
+    """Run one trust cycle immediately — the read the timer runs, sooner.
+
+    Wired to ``/internal/trust-refresh`` so a declaration written through the
+    trust endpoint governs the very next forward rather than whichever one
+    happens to land after the timer's own tick. Failure is swallowed the same
+    way :func:`_watch_configured_hosts` swallows it: what is in force stays in
+    force and is logged rather than replaced by a read that did not complete,
+    and the timer's own next tick is still there regardless of this one.
+    """
+    try:
+        _, trusted = await _configured_egress(store)
+    except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
+        _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
+        return
+    refresh_configured_trust(app.engine.trust, trusted)
+
+
 async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
     """Return the active integration entries the configuration tree holds."""
     scope = TenantScope(org_id=organisation_id())
@@ -125,6 +143,15 @@ async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
 async def _serve(host: str, port: int) -> None:
     """Compose, check the key, and serve — all on one event loop."""
     app, store = build_proxy_app()
+
+    # Wired before anything else runs, so a declaration written through the
+    # trust endpoint while this process is already serving reaches this
+    # engine's own registry immediately, rather than waiting for the next
+    # sixty-second tick — see PROXY_TRUST_REFRESH_PATH.
+    async def _trust_refresh_requested() -> None:
+        await _refresh_trust_now(app, store)
+
+    app.set_trust_refresh(_trust_refresh_requested)
 
     # Before the check below, which cannot verify what has not been loaded.
     if not install_encryption_key():
@@ -189,13 +216,19 @@ async def _watch_configured_hosts(app: Any, store: Any) -> None:
     shipped = tuple(declared.get(name) for name in declared.integrations())
     while True:
         await asyncio.sleep(HOST_REFRESH_SECONDS)
+        # The whole cycle is guarded, not just the read. A background task
+        # that raises out of its loop body dies silently — asyncio prints an
+        # unretrieved-exception warning nobody watches, and nothing here
+        # restarts it — and a dead cycle is indistinguishable, from outside
+        # the process, from "this needs a restart", which is exactly the
+        # symptom this feature exists to remove.
         try:
             hosts, trusted = await _configured_egress(store)
+            refresh_configured_hosts(app.engine.rules, shipped=shipped, hosts=hosts)
+            refresh_configured_trust(app.engine.trust, trusted)
         except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
             _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
             continue
-        refresh_configured_hosts(app.engine.rules, shipped=shipped, hosts=hosts)
-        refresh_configured_trust(app.engine.trust, trusted)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

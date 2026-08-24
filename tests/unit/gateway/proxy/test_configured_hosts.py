@@ -27,6 +27,7 @@ from platform.credentials.proxy.injection import (
     InjectionRule,
     InjectionRuleRegistry,
 )
+from platform.credentials.proxy.trust import CertificateTrust, TrustRegistry
 
 pytestmark = pytest.mark.unit
 
@@ -272,3 +273,71 @@ async def test_a_disabled_entry_closes_what_it_opened() -> None:
         rules, shipped=shipped, hosts=hosts_from_configuration([{**entry, "enabled": False}])
     )
     assert not rules.get("acme").permits("acme.internal")
+
+
+# --- A cycle that fails must not end the loop that runs it ---------------------
+
+
+async def test_a_failure_partway_through_one_cycle_does_not_kill_the_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A raised exception used to end the background task forever.
+
+    Before this fix, only the read at the top of a cycle was guarded — a
+    failure in either rebuild below it propagated out of the loop body, and an
+    ``asyncio.Task`` that raises out of a ``while True`` gets no second
+    iteration: it is done, silently, with only an unretrieved-exception
+    warning nobody watches. From outside the process that is indistinguishable
+    from "this needs a restart", which is the exact symptom this feature
+    exists to remove.
+    """
+    import gateway.proxy.__main__ as proxy_main
+    from gateway.proxy.hosts import refresh_configured_trust as real_refresh_configured_trust
+
+    class _StopTheTest(Exception):
+        """Raised by the third sleep, so the loop under test does not run forever."""
+
+    sleeps = 0
+
+    async def fake_sleep(_seconds: float) -> None:
+        nonlocal sleeps
+        sleeps += 1
+        if sleeps > 2:
+            raise _StopTheTest
+
+    declared = CertificateTrust.pinned("A" * 64).for_addresses("acme.internal")
+
+    async def fake_egress(_store: object) -> tuple[dict[str, tuple[str, ...]], tuple[object, ...]]:
+        # The read itself always succeeds: this test is about what happens to
+        # the loop when a step *after* a successful read fails, which is the
+        # half of the cycle that was not guarded before this fix.
+        return {}, (declared,)
+
+    trust_calls = 0
+
+    def fake_refresh_trust(registry: TrustRegistry, declarations: object) -> TrustRegistry:
+        nonlocal trust_calls
+        trust_calls += 1
+        if trust_calls == 1:
+            raise RuntimeError("a transient failure mid-cycle, after the read already succeeded")
+        return real_refresh_configured_trust(registry, declarations)  # type: ignore[arg-type]
+
+    class _FakeEngine:
+        rules = InjectionRuleRegistry()
+        trust = TrustRegistry()
+
+    class _FakeApp:
+        engine = _FakeEngine()
+
+    monkeypatch.setattr(proxy_main.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(proxy_main, "_configured_egress", fake_egress)
+    monkeypatch.setattr(proxy_main, "refresh_configured_trust", fake_refresh_trust)
+
+    with pytest.raises(_StopTheTest):
+        await proxy_main._watch_configured_hosts(_FakeApp(), object())
+
+    # Reached a second cycle after the first one raised partway through, and
+    # that second cycle actually rebuilt what it reads — not merely "the
+    # process did not crash".
+    assert trust_calls >= 2
+    assert _FakeApp.engine.trust.hosts() == ("acme.internal",)
