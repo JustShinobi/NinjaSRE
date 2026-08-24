@@ -552,3 +552,33 @@ antes de carregar. Mas eu afirmei mais do que havia medido: *"nenhuma regra
 sobre a métrica do convidado"* era um achado; *"nada vigia este contêiner"* era
 palpite com roupa de achado. É a mesma família de defeito que esta onda passou
 a semana fechando nas telas, cometida no relatório de quem a conduzia.
+
+---
+
+## O componente `console`, encontrado duas vezes por caminhos diferentes
+
+Vale registrar junto porque as duas descobertas não se conhecem e chegam ao
+mesmo lugar.
+
+**No k3s**, o deploy da onda inteira parou dizendo que o manifesto nomeava um
+componente que o patch de imagens não nomeia. O componente era `console`, e ele
+constrói uma imagem **Python** — a mesma roda que o `app`, iniciada noutro ponto
+de entrada. A cópia que aquele cluster rodava tinha derivado dezoito horas
+enquanto o `web` apontava um navegador para ela, o que custou uma hora de
+diagnóstico de um defeito que era roteamento.
+
+**No compose**, um agente levantando um deployment limpo para as tarefas de
+serving da 050 tentou abrir a interface no serviço `console` e não achou tela
+nenhuma. Ele apurou em vez de contornar: `/health/live` devolve `{"live":true}`,
+que é a forma do gateway, e não o texto simples que o renderizador de console
+daria; e `/` devolve o 404 JSON padrão do gateway, sem HTML em lugar nenhum do
+log de boot.
+
+**Nos dois casos, o serviço chamado `console` é um segundo gateway de API, não
+uma interface.** Quem serve a interface é o `web`, que constrói o Next.js. O
+nome mente em duas formas de implantação diferentes, e nas duas alguém perdeu
+tempo antes de descobrir.
+
+No k3s isso foi resolvido retirando o componente do manifesto de staging, com a
+compensação escrita no lugar. **No compose não foi tocado** — é anterior a esta
+onda e não é de nenhuma feature dela. Fica nomeado.
