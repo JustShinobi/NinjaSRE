@@ -106,6 +106,14 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/integrations/{name}/verify",
         permission=Permission.INTEGRATION_MANAGE,
     ),
+    # Reading a package's own documentation is exactly as sensitive as
+    # reading the catalogue it is part of — the same permission, never a
+    # weaker one, because the two are shown on the same screen.
+    Route(
+        method="GET",
+        path="/v1/integrations/{name}/docs",
+        permission=Permission.INTEGRATION_MANAGE,
+    ),
     # --- Memory ----------------------------------------------------------------
     Route(method="GET", path="/v1/memory/search", permission=Permission.MEMORY_READ),
     Route(method="GET", path="/v1/memory/stats", permission=Permission.MEMORY_READ),

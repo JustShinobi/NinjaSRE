@@ -47,6 +47,14 @@ def test_the_composed_table_has_no_collision_between_identity_and_gateway() -> N
     application_table()
 
 
+def test_the_documentation_route_takes_the_same_permission_as_the_catalogue() -> None:
+    """A package's own documentation is exactly as sensitive as the catalogue it describes."""
+    table = application_table()
+    catalogue_route = table.declaration_for("GET", "/v1/integrations")
+    docs_route = table.declaration_for("GET", "/v1/integrations/{name}/docs")
+    assert docs_route.permission == catalogue_route.permission
+
+
 def test_every_planned_surface_is_represented() -> None:
     """FR-001: investigations, threads, streaming, queue, interactions, runs,
     config, integrations, memory, schedules, and health are all declared."""
