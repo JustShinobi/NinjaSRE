@@ -157,13 +157,13 @@ com a mensagem real.
 - [x] T024 Escrever o `downgrade`: derruba o índice e a coluna, e nada mais.
       Nenhum incidente apagado, nenhuma outra coluna tocada, chave interna
       intacta.
-- [ ] T025 Teste da migração contra PostgreSQL real: com incidentes gravados
+- [x] T025 Teste da migração contra PostgreSQL real: com incidentes gravados
       antes, aplicar a revisão e conferir que toda linha ganhou forma pública,
       que nenhuma se repete dentro da organização, que o total de linhas não
       mudou e que nenhum `incident_id` mudou. Depois reverter e conferir que o
       esquema volta ao anterior com todos os incidentes ainda lá. **A volta é
       exercitada, não presumida.**
-- [ ] T026 Teste que amarra as duas metades: para uma chave interna qualquer, o
+- [x] T026 Teste que amarra as duas metades: para uma chave interna qualquer, o
       valor que a migração grava e o valor que a função do código deriva são o
       mesmo. Sem este teste, a concordância é coincidência de revisão de código.
 
@@ -296,10 +296,10 @@ que esta feature precisa provar lá.
       T002, chave interna intacta contra a amostra de T002, e concordância entre
       o valor gravado e o valor que a função do código deriva para a mesma
       linha.
-- [ ] T058 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` as doze alegações
+- [x] T058 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` as doze alegações
       staging-safe do acceptance, no viewport 1920×1080, e registrar o verde de
       cada uma.
-- [ ] T059 Navegar lista → detalhe de um incidente **real** de alerta no
+- [x] T059 Navegar lista → detalhe de um incidente **real** de alerta no
       staging e capturar a evidência: a URL na barra de endereços, o H1, e os
       painéis. A captura vai para `evidence/` desta feature. **É esta captura,
       não o pytest, que prova a composição no caminho de serving** — o harness

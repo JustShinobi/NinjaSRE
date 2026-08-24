@@ -17,11 +17,16 @@ import { signIn } from './session';
  *
  * **Twelve of the sixteen are staging-safe** — read-only, no destructive
  * write, safe against a shared deployment — and carry the tag this suite's
- * harness selects by. The other four (a search result, a run's own incident
- * link, and the two failed-read claims) depend on this dataset's own shape
- * or on forcing a read to fail, neither of which a shared environment's
- * live data can be made to do safely, so they run only against this
- * project's own deterministic backing.
+ * harness selects by. The timeline claim carries the tag on a second, wider
+ * test: a live deployment's real incidents are never bound to the fixture's
+ * own five-step count, so the staging-safe version proves fidelity of the
+ * read instead of that literal number, and the exact count is checked
+ * separately, without the tag, against this project's own dataset. The
+ * remaining four (a search result, a run's own incident link, and the two
+ * failed-read claims) depend on this dataset's own shape or on forcing a
+ * read to fail, neither of which a shared environment's live data can be
+ * made to do safely, so they run only against this project's own
+ * deterministic backing.
  *
  * **This spec is expected to be comprehensively red when it is written.**
  * The public address does not exist on the wire yet, the edge decodes
@@ -202,27 +207,56 @@ test.describe('identity: an alert-sourced incident opens', () => {
     },
   );
 
+  test('the timeline renders one entry per reasoning step the gateway returned, on this dataset', async ({
+    page,
+  }) => {
+    // The incident this dataset attaches a full, five-reasoning-step
+    // timeline to (the same one an investigated run points at) — found by
+    // its own title rather than a literal id, same as every other lookup
+    // in this file. This screen renders one `investigation-step` per
+    // reasoning-kind entry, never per lifecycle one, so five is what the
+    // gateway returns for this incident on this dataset; a broken read
+    // renders none of them.
+    //
+    // Not staging-safe, on purpose: the exact count of five is this
+    // project's own fixture. A shared, live deployment's real incidents
+    // carry whatever reasoning steps their own investigation actually
+    // produced, and are never bound to match it — see the staging-safe
+    // sibling below for the claim this dataset-shape assumption cannot
+    // carry.
+    const title = investigatedIncidentTitle();
+    await page.goto('/incidents');
+    await page
+      .getByTestId('row')
+      .filter({ hasText: title })
+      .locator('a')
+      .first()
+      .click();
+
+    await expect(page.getByTestId('investigation-step')).toHaveCount(5);
+  });
+
   test(
-    'the timeline renders one entry per reasoning step the gateway returned',
+    'the timeline renders the same count of entries on every read',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
-      // The incident this dataset attaches a full, five-reasoning-step
-      // timeline to (the same one an investigated run points at) — found by
-      // its own title rather than a literal id, same as every other lookup
-      // in this file. This screen renders one `investigation-step` per
-      // reasoning-kind entry, never per lifecycle one, so five is what the
-      // gateway returns for this incident on this dataset; a broken read
-      // renders none of them.
-      const title = investigatedIncidentTitle();
-      await page.goto('/incidents');
-      await page
-        .getByTestId('row')
-        .filter({ hasText: title })
-        .locator('a')
-        .first()
-        .click();
+      // The staging-safe half of the same claim. A live deployment's own
+      // incidents were never authored by this repository, so no fixed
+      // count is true of all of them the way five is true of the
+      // deterministic dataset above — but fidelity is: reading the same
+      // incident twice must render the same number of `investigation-step`
+      // entries both times. A read that silently dropped or duplicated
+      // entries — the failure this claim exists to catch — would not.
+      await openAlertIncident(page);
+      const first = await page.getByTestId('investigation-step').count();
 
-      await expect(page.getByTestId('investigation-step')).toHaveCount(5);
+      await page.reload();
+      const second = await page.getByTestId('investigation-step').count();
+
+      expect(
+        second,
+        'the same incident must render the same step count on every read',
+      ).toBe(first);
     },
   );
 });
