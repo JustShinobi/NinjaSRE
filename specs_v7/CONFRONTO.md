@@ -357,13 +357,18 @@ coletor estão em `specs_v7/080-incidente-fecha-o-laco/`. A evidência
 consolidada vive em
 `specs_v7/080-incidente-fecha-o-laco/evidence/EVIDENCIA.md`.
 
-**Veredito da demo: não executado.** Todo campo do gabarito está em branco, e
-isso é o estado honesto: quem escreveu os roteiros roda em worktree isolada e
-não alcança cluster, banco nem Alertmanager. O gabarito aterrissou **antes** da
-execução, que é a única ordem em que ele prova alguma coisa.
+**Veredito quando esta seção foi escrita: não executado.** Todo campo do
+gabarito estava em branco, e era o estado honesto: quem escreveu os roteiros
+roda em worktree isolada e não alcança cluster, banco nem Alertmanager. O
+gabarito aterrissou **antes** da execução, que é a única ordem em que ele prova
+alguma coisa.
 
-O que ainda falta medir, comando por comando, está na seção final de
-`specs_v7/080-incidente-fecha-o-laco/controle.md`.
+> **Isto foi superado.** A demo rodou em 2026-08-24 contra o hipervisor real,
+> e o registro está em "A demo, executada", mais abaixo neste arquivo, com a
+> evidência em `evidence/demo-2026-08-24/`. O parágrafo acima fica como estava
+> porque apagá-lo esconderia a ordem em que as coisas aconteceram — o gabarito
+> antes da execução —, que é o que lhe dá valor. Um documento que se reescreve
+> para parecer que sempre soube não serve para confrontar coisa nenhuma.
 
 ---
 
