@@ -410,3 +410,24 @@ tocados. T075 pede `make verify` verde partindo de verde; a árvore não
 partiu verde — carregava treze divergências visuais de outras features
 antes de qualquer commit desta — e marcá-la seria inferir um "verde" que
 o comando nunca disse.
+
+---
+
+## Atualização — T075 fechada
+
+A leitura acima ("T075 permanece desmarcada") vale para a árvore de quando
+foi escrita: treze baselines visuais divergentes, nenhuma desta feature,
+bloqueando `console-check`. As oito nomeadas foram revisadas e aceitas desde
+então (fora desta feature), e a comparação alvo por alvo contra a linha de
+base intacta (`abbc418`, reconstruída em worktree separado porque o log
+nunca tinha sido guardado ao vivo — o mesmo "impossível" que bloqueava T001
+e T056 de 060) foi feita e está em
+`specs_v7/060-o-catalogo-ensina/controle.md`, seção "A comparação com a
+linha de base": `MAKE_VERIFY_EXIT=0`, 12.247 passed / 0 failed na base,
+verde medido peça a peça hoje, todo alvo que passava continuando a passar.
+Conferido aqui, de novo, sem inferir nada da citação: o log da base
+descompactado e lido (mesmos números), e os dois vermelhos que a rodada de
+`console-check` desta feature havia atribuído a outras features
+(`test_dataset_coherence`, `test_onboarding_against_a_deployment`) rodados
+de novo nesta árvore — **2 passed in 3.24s**. T075 marcada em `tasks.md` com
+a citação completa.
