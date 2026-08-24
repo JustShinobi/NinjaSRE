@@ -272,15 +272,14 @@ test.describe('the investigation chip on an incident that read successfully', ()
       const rows = page.getByTestId('row');
       const count = await rows.count();
       let found = false;
-      for (let index = 0; index < count && !found; index += 1) {
+      for (let index = 0; index < count; index += 1) {
         await rows.nth(index).locator('a').first().click();
-        const chips = page.getByTestId('incident-chip');
-        const chipCount = await chips.count();
-        for (let chipIndex = 0; chipIndex < chipCount; chipIndex += 1) {
-          const label = (await chips.nth(chipIndex).textContent()) ?? '';
-          if (/no investigation/i.test(label)) found = true;
+        const labels = await page.getByTestId('incident-chip').allTextContents();
+        if (labels.some((label) => /no investigation/i.test(label))) {
+          found = true;
+          break;
         }
-        if (!found) await page.goto('/incidents');
+        await page.goto('/incidents');
       }
       test.skip(!found, 'no incident with "no investigation" exists in this dataset');
       expect(found).toBe(true);
@@ -372,11 +371,27 @@ test.describe('no panel in error state asserts a negative', () => {
 
 const BACKING_URL = process.env.NINJASRE_CONSOLE_BACKING_URL;
 
+/**
+ * `BACKING_URL`, asserted defined.
+ *
+ * Every block that calls this guards itself first with
+ * `test.skip(BACKING_URL === undefined, ...)`, so by the time this runs the
+ * variable is never actually missing — this just gives the type checker the
+ * same fact the runtime skip already establishes, rather than threading a
+ * `string | undefined` through every request this file makes.
+ */
+function backingUrl(): string {
+  if (BACKING_URL === undefined) {
+    throw new Error("NINJASRE_CONSOLE_BACKING_URL is not set; this block should have been skipped");
+  }
+  return BACKING_URL;
+}
+
 test.describe('a list load reaches the backing, not a cache that never did', () => {
   test.skip(BACKING_URL === undefined, "requires the mock backing's own request counter");
 
   async function countFor(page: Page, route: string): Promise<number> {
-    const response = await page.request.get(`${BACKING_URL}/__mockplane__/requests`);
+    const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
     const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
     return body.counts[`GET ${route}`] ?? 0;
   }
@@ -404,7 +419,7 @@ test.describe('a list load reaches the backing, not a cache that never did', () 
    * know ahead of time is matched by prefix rather than assumed.
    */
   async function detailRequestTotal(page: Page): Promise<number> {
-    const response = await page.request.get(`${BACKING_URL}/__mockplane__/requests`);
+    const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
     const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
     return Object.entries(body.counts)
       .filter(([key]) => key.startsWith('GET /v1/incidents/'))
@@ -443,14 +458,14 @@ test.describe('a fact written after the first load appears in one reload', () =>
     page,
   }) => {
     test.skip(BACKING_URL === undefined, "requires the mock backing's own request counter");
-    const response = await page.request.get(`${BACKING_URL}/__mockplane__/requests`);
+    const response = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
     const body = (await response.json()) as { readonly counts: Readonly<Record<string, number>> };
     const before = body.counts['GET /v1/incidents'] ?? 0;
 
     await page.goto('/incidents', { waitUntil: 'networkidle' });
     await page.reload({ waitUntil: 'networkidle' });
 
-    const afterResponse = await page.request.get(`${BACKING_URL}/__mockplane__/requests`);
+    const afterResponse = await page.request.get(`${backingUrl()}/__mockplane__/requests`);
     const afterBody = (await afterResponse.json()) as {
       readonly counts: Readonly<Record<string, number>>;
     };

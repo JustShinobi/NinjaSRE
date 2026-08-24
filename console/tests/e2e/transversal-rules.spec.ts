@@ -849,17 +849,26 @@ test.describe('controle de run vivo: a settled run offers no live-only control',
 test.describe('afirmação negativa: nothing here answers from a read that failed', () => {
   const label = '/incidents/{id}';
 
-  test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+  test(label, async ({ page }) => {
+    // Not staging-safe: an id shaped like a real one, guaranteed absent —
+    // querying an arbitrary identifier against a shared environment is kept
+    // out of the staging-safe set even though it is a read, the same
+    // caution the identity-addressable incidents feature's own acceptance
+    // spec already applies to this exact technique.
     test.fixme(
       exceptionFor(label, 'negative-assertion') !== undefined,
       exceptionFor(label, 'negative-assertion')?.reason ?? '',
     );
 
-    await page.goto('/incidents');
-    await page.getByTestId('row').first().locator('a').first().click();
+    // A real, forced failure — not whichever incident happens to sort
+    // first, which is an ordinary, successfully-read one against this
+    // dataset and would let this test pass without ever exercising the
+    // failure path it is named for.
+    await page.goto('/incidents/inc_0000000000000000');
 
     const failedPanel = page.locator('[data-testid="panel"][data-state="error"]');
     const dependencyFailed = (await failedPanel.count()) > 0;
+    expect(dependencyFailed, `${label}: the forced-failure address did not fail`).toBe(true);
     // The investigation chip: the second of the two chips this header
     // draws next to the incident's own title.
     const chips = page.getByTestId('incident-chip');

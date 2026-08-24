@@ -173,14 +173,19 @@ export function liveControlOnTerminalRun(
  * `assertion` is known, on this same page, to have come from a read that did
  * not succeed. A screen may say it does not know; it may not derive a
  * statement about the world from a read that never answered.
+ *
+ * "Unknown" is the one word this exempts, and deliberately: it is the
+ * honest answer a failed read is allowed to give, the fourth state a chip
+ * of this kind derives instead of falling silent or guessing. Absolving it
+ * is what keeps this rule measuring something once a screen adopts that
+ * state, rather than banning the very state it exists to require.
  */
 export function negativeAssertionAfterFailedRead(
   dependencyFailed: boolean,
   assertion: string,
 ): string | null {
   const trimmed = assertion.trim();
-  if (dependencyFailed && trimmed !== '') {
-    return `"${trimmed}" is asserted on a page where the read behind it failed`;
-  }
-  return null;
+  if (!dependencyFailed || trimmed === '') return null;
+  if (/\bunknown\b/i.test(trimmed)) return null;
+  return `"${trimmed}" is asserted on a page where the read behind it failed`;
 }
