@@ -269,7 +269,9 @@ export function pairs(
  * direction would print a stale invitation on a deployment that already has
  * an owner.
  */
-export async function localAdministratorAvailability(): Promise<{ readonly command: string }> {
+export async function localAdministratorAvailability(): Promise<{
+  readonly command: string;
+}> {
   try {
     const body = await read('/v1/setup/local-administrator', { cache: 'no-store' });
     return { command: text(body, 'command') };

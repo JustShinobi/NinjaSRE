@@ -77,7 +77,9 @@ test.describe('the sign-in screen, before anybody has claimed this deployment', 
     }
   });
 
-  test('claim 4: the form still has exactly two fields and one button', async ({ page }) => {
+  test('claim 4: the form still has exactly two fields and one button', async ({
+    page,
+  }) => {
     await page.goto('/sign-in');
     const form = page.getByTestId('sign-in-form');
     await expect(form.locator('input:not([type="hidden"])')).toHaveCount(2);
@@ -94,12 +96,18 @@ test.describe('the first-run screen, before anybody has claimed this deployment'
     page,
   }) => {
     await page.goto('/sign-in');
-    const onSignIn = ((await page.getByTestId(COMMAND_TESTID).textContent()) ?? '').trim();
+    const onSignIn = (
+      (await page.getByTestId(COMMAND_TESTID).textContent()) ?? ''
+    ).trim();
 
     await page.goto('/first-run');
-    const onFirstRun = ((await page.getByTestId(COMMAND_TESTID).textContent()) ?? '').trim();
+    const onFirstRun = (
+      (await page.getByTestId(COMMAND_TESTID).textContent()) ?? ''
+    ).trim();
 
-    expect(onFirstRun, 'first-run named a different command than sign-in did').toBe(onSignIn);
+    expect(onFirstRun, 'first-run named a different command than sign-in did').toBe(
+      onSignIn,
+    );
     expect(onFirstRun).not.toBe('');
   });
 });
@@ -186,7 +194,11 @@ test.describe('the catalogue keys this feature added are never printed raw', () 
     },
   );
 
-  test('claim 10b: /first-run never shows a raw i18n key', async ({ page, context, baseURL }) => {
+  test('claim 10b: /first-run never shows a raw i18n key', async ({
+    page,
+    context,
+    baseURL,
+  }) => {
     await signIn(context, baseURL ?? 'http://127.0.0.1:8423');
     await assertsNoRawKey(page, '/first-run');
   });
