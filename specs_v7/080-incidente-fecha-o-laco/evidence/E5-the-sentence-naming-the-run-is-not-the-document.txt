@@ -1,6 +1,6 @@
 # E5 — the sentence naming the run is not the document
-# collected at 2026-08-24T08:35:49.064035+00:00
-# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+# collected at 2026-08-24T09:11:29.568611+00:00
+# parameters: org=default run=0c9c0d5ce453458d9e115af98763ade4 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
 
 ## sentence-and-document — the sentence does not open with markdown syntax, and the document still does
 ## before the wave: every recent summary opened with ###, and no separate sentence existed
@@ -13,16 +13,16 @@ SELECT headline,
        finished_at
 FROM agent_runs
 WHERE org_id = 'default'
-  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+  AND run_id = '0c9c0d5ce453458d9e115af98763ade4';
 
 --- output ---
-                                           headline                                            |         summary_opens_with         |  status   |          finished_at          
------------------------------------------------------------------------------------------------+------------------------------------+-----------+-------------------------------
- Blackbox HTTP probes to homepage.lan.kyo.ninja are failing with probe success returning zero. | ### Investigation Report          +| completed | 2026-08-24 08:34:00.108103+00
-                                                                                               |                                   +|           | 
-                                                                                               | #### Findings & Observations      +|           | 
-                                                                                               | 1. **Blackbox Probe Failure**:    +|           | 
-                                                                                               |    - Prometheus active alert inspe |           | 
+                                                   headline                                                    |             summary_opens_with              |  status   |          finished_at          
+---------------------------------------------------------------------------------------------------------------+---------------------------------------------+-----------+-------------------------------
+ Weekly restore drill jobs on pve02 exceeded their maximum allowable execution window without a successful run | ### Investigation Report                   +| completed | 2026-08-24 09:04:13.571594+00
+                                                                                                               |                                            +|           | 
+                                                                                                               | #### 1. Findings and Evidence              +|           | 
+                                                                                                               | - **Active Alerts**:                       +|           | 
+                                                                                                               |   - `RestoreDrillStale` (critical) is activ |           | 
 (1 row)
 
 
@@ -47,7 +47,7 @@ WHERE org_id = 'default';
 --- output ---
  runs | without_a_sentence | document_opens_with_syntax |            oldest             |            newest             
 ------+--------------------+----------------------------+-------------------------------+-------------------------------
-  210 |                145 |                        180 | 2026-08-22 11:42:33.090252+00 | 2026-08-24 08:34:00.659119+00
+  213 |                145 |                        183 | 2026-08-22 11:42:33.090252+00 | 2026-08-24 09:03:53.342377+00
 (1 row)
 
 

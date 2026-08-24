@@ -1,6 +1,6 @@
 # R — the refusal path, exercised on a different occurrence
-# collected at 2026-08-24T08:35:49.064035+00:00
-# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+# collected at 2026-08-24T09:11:29.568611+00:00
+# parameters: org=default run=0c9c0d5ce453458d9e115af98763ade4 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
 
 ## rejections — a rejection was recorded with its reason, and a reason is not optional
 ## before the wave: no row

@@ -1,6 +1,6 @@
 # E9 — the execution went through the gate, and what it produced was recorded
-# collected at 2026-08-24T08:35:49.064035+00:00
-# parameters: org=default run=25ee298163db44cf949f8b5f85eb3341 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+# collected at 2026-08-24T09:11:29.568611+00:00
+# parameters: org=default run=0c9c0d5ce453458d9e115af98763ade4 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
 
 ## outcome — the execution produced a recorded outcome for this resource — a named failure is an outcome, a silent one is not
 ## before the wave: no row
@@ -17,7 +17,7 @@ SELECT episode_id,
        components
 FROM episodes
 WHERE org_id = 'default'
-  AND run_id = '25ee298163db44cf949f8b5f85eb3341';
+  AND run_id = '0c9c0d5ce453458d9e115af98763ade4';
 
 --- output ---
  episode_id | title | outcome | occurred_at | components 
