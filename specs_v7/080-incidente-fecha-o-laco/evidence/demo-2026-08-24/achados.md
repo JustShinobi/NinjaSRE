@@ -61,9 +61,33 @@ afirma com confiança um fato que ele não mediu.
 O painel da investigação diz `5 steps · 23s · Not recorded`. A duração e os
 passos estão lá; o custo não. Vale confrontar com o que a 001 promete gravar.
 
-## Observação — a descoberta não resolve o nó do convidado
+### 3. ~~A descoberta não resolve o nó do convidado~~ — **este achado estava errado**
 
-Todo convidado descoberto tem `native_id` na forma `lxc/HAL9000/unknown/122` —
-o segmento do nó é literalmente `unknown`. O `pve_guest_info` do exportador
-carrega `node=pve01` corretamente, então o dado existe; a descoberta é que não
-o coleta. Provável causa do Achado 2.
+Eu escrevi que todo `native_id` sai como `lxc/HAL9000/unknown/122` porque o
+segmento do nó fica sem resolver, e apontei isso como provável causa do achado
+anterior. **As duas coisas estão erradas.**
+
+`integrations/proxmox/identity.py` diz o que aquele formato é:
+
+    guest_identity  ->  {kind}/{cluster}/{created_at or "unknown"}/{vmid}
+    node_identity   ->  node/{cluster}/{node}
+
+O terceiro segmento é o **instante de criação**, não o nó, e `unknown` é o valor
+documentado para quando o provedor não deu essa hora. O nó é excluído de
+propósito: a identidade de um convidado tem de sobreviver a uma migração entre
+nós, enquanto a de um nó é o próprio nome — renomear um nó não é uma operação,
+é removê-lo do cluster e devolvê-lo.
+
+Eu li um formato que não conhecia, vi uma palavra que parecia uma falta, e
+construí uma causa em cima dela. Quem apurou foi um verificador que abriu o
+arquivo em vez de repetir o que três leituras anteriores já vinham repetindo.
+
+**O achado 2 continua de pé** — o cabeçalho nomeia o host do exportador, e isso
+foi provado pelo contraste entre as duas travessias, não por esta dedução. O que
+cai é a causa que lhe atribuí.
+
+Fica no lugar um achado menor e real: o instante de criação **está** ausente em
+todos os convidados descobertos. Pelo desenho da própria função, um convidado
+que ganhe esse campo depois passa a ser "visivelmente uma identidade diferente",
+o que significa que uma descoberta futura pode duplicar o que já existe.
+

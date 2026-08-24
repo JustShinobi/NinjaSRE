@@ -304,10 +304,11 @@
       "dono": "por atribuir"
     },
     {
-      "achado": "A descoberta nao resolve o no do convidado",
+      "achado": "RETIRADO — estava errado: a descoberta nao omite o no do convidado",
       "evidencia": "Todo convidado tem native_id na forma lxc/HAL9000/unknown/122. O pve_guest_info do exportador carrega node=pve01, entao o dado existe.",
-      "provavel_causa_de": "o achado do cabecalho",
-      "dono": "por atribuir"
+      "dono": "por atribuir (na forma corrigida)",
+      "correcao": "O terceiro segmento de lxc/HAL9000/unknown/122 e o instante de criacao, nao o no (integrations/proxmox/identity.py). O no e excluido de proposito para que a identidade sobreviva a uma migracao entre nos. Achado construido sobre um formato que eu nao conhecia; apurado por um verificador que abriu o arquivo.",
+      "o_que_sobra": "O instante de criacao esta mesmo ausente em todos os convidados. Pelo desenho da funcao, um convidado que o ganhe depois passa a ser uma identidade diferente — pode duplicar o que existe."
     },
     {
       "achado": "O custo aparece de duas formas em duas telas para o mesmo run",

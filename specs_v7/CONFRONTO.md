@@ -523,9 +523,16 @@ consertar, e é a coisa mais importante que esta onda descobriu sobre si mesma.
    `node=pve01`.** O cabeçalho lê `instance` — o endereço de quem raspou a
    métrica — e o apresenta como o nó do sujeito. Um operador vai ao nó errado
    com o dado certo três linhas abaixo.
-3. **A descoberta não resolve o nó do convidado**: todo `native_id` sai como
-   `lxc/HAL9000/unknown/122`, embora o exportador carregue `node=pve01`.
-   Provável causa do item 2.
+3. ~~**A descoberta não resolve o nó do convidado**~~ — **retirado, estava
+   errado.** `lxc/HAL9000/unknown/122` não tem o nó faltando: o terceiro
+   segmento é o instante de criação (`integrations/proxmox/identity.py`), e o
+   nó é excluído de propósito para que a identidade sobreviva a uma migração.
+   Eu li um formato que não conhecia e construí uma causa sobre uma palavra que
+   parecia uma falta. O item 2 continua de pé por conta própria — foi provado
+   pelo contraste entre as duas travessias, não por esta dedução. Sobra um
+   achado menor e real: o instante de criação está ausente em todos os
+   convidados, e pelo desenho da função um convidado que o ganhe depois vira
+   uma identidade diferente, o que pode duplicar o que já existe.
 4. **O custo aparece de duas formas para o mesmo run**: `Not recorded` no
    painel do incidente, `$0.00` repartido por turno na tela do run.
 5. **`prometheus_metric_statistics` devolve 400** com `start` vazio — visto
