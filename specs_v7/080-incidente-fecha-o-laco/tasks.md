@@ -68,7 +68,7 @@ de a evidência ser considerada entregue.
 **Objetivo**: descobrir agora, com calma, tudo que faria a janela ser desperdiçada.
 Nenhuma tarefa desta fase altera infraestrutura.
 
-- [ ] T007 [P] Descobrir e registrar o identificador da organização do
+- [x] T007 [P] Descobrir e registrar o identificador da organização do
       deployment de staging no banco — toda consulta de evidência é escopada por
       ele. `SELECT org_id, name FROM organisations;` no `ninjasre-stg-db`.
       Guardar como o parâmetro `:org` dos roteiros.
@@ -117,42 +117,42 @@ Nenhuma tarefa desta fase altera infraestrutura.
 **Objetivo**: escrever o que se espera ver **antes** de ver. Um roteiro escrito
 depois da execução é um relatório disfarçado.
 
-- [ ] T017 Escrever `runbooks/laco-de-leitura.md`: pré-condições, o alerta já
+- [x] T017 Escrever `runbooks/laco-de-leitura.md`: pré-condições, o alerta já
       ativo escolhido em T015, os passos de E1 a E7, as URLs exatas do staging, o
       que se espera ver em cada estação, a evidência a coletar, e a afirmação de
       que ele não faz escrita nenhuma e não precisa de janela.
-- [ ] T018 Escrever `runbooks/laco-inteiro.md`: o que este roteiro **não é** (o
+- [x] T018 Escrever `runbooks/laco-inteiro.md`: o que este roteiro **não é** (o
       passo destrutivo é digitado por uma pessoa, uma vítima por vez, uma janela
       por vez); a vítima com a evidência de ser descartável **e** observada; o
       estado inicial a conferir; o passo destrutivo; as estações E1 a E10; a
       reversão manual; e a regra de que a reversão vale a qualquer instante e não
       espera pelo produto.
-- [ ] T019 Escrever, dentro dos dois roteiros, a **tabela de estações**: nome, o
+- [x] T019 Escrever, dentro dos dois roteiros, a **tabela de estações**: nome, o
       que se espera ver, onde se olha, evidência exigida.
-- [ ] T020 Escrever, para cada estação, a **classificação de desfechos**: quais
+- [x] T020 Escrever, para cada estação, a **classificação de desfechos**: quais
       são de ambiente (reexecutável, nomeando o que reconferir e por onde
       reentrar) e quais são de produto (bloqueiam, com a feature dona nomeada).
       A regra que separa: se a mesma execução amanhã, sem mudar código, tem
       chance razoável de passar, é ambiente; se vai falhar igual até alguém mudar
       código, é produto.
-- [ ] T021 [P] Escrever no roteiro do laço inteiro o bloco de reversão manual com
+- [x] T021 [P] Escrever no roteiro do laço inteiro o bloco de reversão manual com
       o comando exato, **antes** do bloco do passo destrutivo — a reversão é
       escrita antes de a mudança acontecer, não depois.
-- [ ] T022 [P] Escrever no roteiro do laço inteiro a estação E8 deixando
+- [x] T022 [P] Escrever no roteiro do laço inteiro a estação E8 deixando
       explícito que a aprovação é dada por uma pessoa, na interface, e que
       aprovar por chamada de API invalida a demo.
-- [ ] T023 [P] Escrever no roteiro do laço inteiro a instrução de **não aprovar
+- [x] T023 [P] Escrever no roteiro do laço inteiro a instrução de **não aprovar
       antes de conferir E4 a E7**: a aprovação é o último passo, e aprová-la
       antes de olhar desperdiça a única execução que responde "o registro ficou
       completo?".
-- [ ] T024 [P] Escrever a estação de rejeição: em ocorrência **diferente** da que
+- [x] T024 [P] Escrever a estação de rejeição: em ocorrência **diferente** da que
       foi aprovada, rejeitar sem motivo (deve ser recusado) e depois com motivo
       (deve ser registrado).
-- [ ] T025 Escrever o esqueleto de `evidence/EVIDENCIA.md`: uma seção por
+- [x] T025 Escrever o esqueleto de `evidence/EVIDENCIA.md`: uma seção por
       estação, com os campos expectativa / evidência / consulta / saída /
       veredito / instante, **em branco**. O esqueleto vazio é o gabarito; ele
       aterrissa antes da demo.
-- [ ] T026 Revisar os dois roteiros à procura de segredo transcrito. Token,
+- [x] T026 Revisar os dois roteiros à procura de segredo transcrito. Token,
       chave e credencial são referenciados por onde obtê-los, nunca copiados.
 
 ---
@@ -162,11 +162,11 @@ depois da execução é um relatório disfarçado.
 **Objetivo**: as consultas viram ferramenta, com saída literal, para que ninguém
 digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 
-- [ ] T027 Criar `tools/demo_evidence/` com as consultas nomeadas por estação,
+- [x] T027 Criar `tools/demo_evidence/` com as consultas nomeadas por estação,
       todas `SELECT`, todas escopadas por `:org`, parametrizadas por `run_id`,
       `incident_id`, `approval_id` e `resource_id`. Nenhuma escrita, em nenhuma
       hipótese.
-- [ ] T028 As consultas, no mínimo — cada uma com o valor de partida da onda ao
+- [x] T028 As consultas, no mínimo — cada uma com o valor de partida da onda ao
       lado, porque o contraste é a evidência:
       - E4 gravação: `SELECT count(*) FROM run_turns WHERE org_id=:org AND
         run_id=:run;` idem `tool_calls`, `evidence`, `trace_events` (partida:
@@ -201,19 +201,19 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
         incident_id=:incident;`
       - E3 estate: `SELECT count(*) FROM estate_resources WHERE org_id=:org;` e a
         linha do recurso que é sujeito do incidente (partida: estate vazio).
-- [ ] T029 O coletor escreve, por estação, um arquivo em `evidence/consultas/`
+- [x] T029 O coletor escreve, por estação, um arquivo em `evidence/consultas/`
       com **a consulta e a saída literal**, nunca uma afirmação sobre a saída.
-- [ ] T030 O coletor recusa executar qualquer instrução que não seja `SELECT`, e
+- [x] T030 O coletor recusa executar qualquer instrução que não seja `SELECT`, e
       falha alto se receber uma. É o guarda que impede um coletor de evidência de
       virar um caminho de escrita ao banco de staging.
-- [ ] T031 Teste de unidade do coletor em `tests/unit/tools/`, confirmado
+- [x] T031 Teste de unidade do coletor em `tests/unit/tools/`, confirmado
       vermelho antes: que ele escopa por organização, que ele recusa não-`SELECT`,
       que ele grava saída literal e não formatada, e que o nome do arquivo
       identifica a estação. Um coletor que escreve o arquivo errado corrompe a
       única prova que a onda tem.
-- [ ] T032 [P] O coletor nunca imprime nem grava valor de credencial; se uma
+- [x] T032 [P] O coletor nunca imprime nem grava valor de credencial; se uma
       coluna puder conter segredo, ela não entra em consulta nenhuma.
-- [ ] T033 Registrar o comando exato de invocação do coletor no cabeçalho dos dois
+- [x] T033 Registrar o comando exato de invocação do coletor no cabeçalho dos dois
       roteiros, para que a coleta seja reexecutável por outra pessoa.
 
 ---
@@ -255,7 +255,7 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 - [ ] T042 [P] E7 — screenshot full-page de `/decisions` e do painel de ação
       proposta no incidente: a proposta, o plano de reversão, o alcance, a
       postura, e o chip aguardando decisão. **Nada é aprovado aqui.**
-- [ ] T043 Rodar o coletor para o run deste laço e anexar as saídas por estação.
+- [x] T043 Rodar o coletor para o run deste laço e anexar as saídas por estação.
 - [ ] T044 Executar o laço de leitura **uma segunda vez** e conferir que produz a
       mesma evidência — ou nomear, na saída, qual passo variou e por quê. É o que
       prova a repetibilidade que o laço inteiro não pode provar.
@@ -354,7 +354,7 @@ e registra o estado real.
 - [ ] T066 [P] Chave do gateway de modelos: conferir se o provider correspondente
       aparece **Verified** no console. Screenshot. Se não, registrar o estado
       real.
-- [ ] T067 Para cada uma das três que **não** estiver feita, escrever a entrada
+- [x] T067 Para cada uma das três que **não** estiver feita, escrever a entrada
       correspondente do backlog novo com o estado real e o que falta — a redação
       final entra em T086. Nenhuma some.
 - [ ] T068 Registrar, por estação da demo, quais dependiam de uma tarefa
@@ -407,18 +407,18 @@ e registra o estado real.
 - [ ] T079 Criar ou completar `specs_v7/CONFRONTO.md` com uma seção por feature
       da onda: o que entregou, o gate, o veredito do verifier, os commits, e o
       que ficou nomeado como dívida.
-- [ ] T080 Adicionar a coluna fixa **"quem constrói isso em produção?"** à tabela
+- [x] T080 Adicionar a coluna fixa **"quem constrói isso em produção?"** à tabela
       de mecanismos, respondida com `file:line` da composition root de serving.
-- [ ] T081 Preencher a coluna, no mínimo, para: o recorder de investigação (001),
+- [x] T081 Preencher a coluna, no mínimo, para: o recorder de investigação (001),
       o gate de remediação e o gate de autonomia (040), o resolvedor de
       integrações do time e o caminho canônico de pipeline (040), e a confiança
       de certificado até o egress do proxy (070). Obter cada `file:line` lendo o
       código — o índice de símbolos do repositório é o caminho barato.
-- [ ] T082 Para todo mecanismo cuja única construção seja teste, contract test ou
+- [x] T082 Para todo mecanismo cuja única construção seja teste, contract test ou
       plano de dados simulado: declarar **dormant** com a referência do que o
       ligaria. Uma célula apontando um teste é pior que uma célula vazia, porque
       parece resposta.
-- [ ] T083 Fechar o confronto citando a demo como evidência, com o caminho de
+- [x] T083 Fechar o confronto citando a demo como evidência, com o caminho de
       `evidence/EVIDENCIA.md` e o veredito de uma frase.
 
 ---
@@ -428,7 +428,7 @@ e registra o estado real.
 **`backlog.md` é committed.** Quem clona o repositório não tem a onda, nem os
 briefings, nem esta spec, nem número de feature nenhum. A redação obedece a isso.
 
-- [ ] T084 Montar a tabela de destino, no confronto (não no backlog), de **todos**
+- [x] T084 Montar a tabela de destino, no confronto (não no backlog), de **todos**
       os itens do backlog anterior: fechado com a evidência nomeada, ou presente
       no backlog novo com o estado real. Zero itens sem destino.
       Os itens a percorrer são os onze do arquivo atual: primeiro administrador;
@@ -438,18 +438,18 @@ briefings, nem esta spec, nem número de feature nenhum. A redação obedece a i
       dois service accounts; investigação que deixa o detalhe vazio; a metade que
       age não composta; operador de segredos sem autenticar; gateway de modelos
       sem chave.
-- [ ] T085 Reescrever `backlog.md` contendo **apenas**: o que esta onda descobriu
+- [x] T085 Reescrever `backlog.md` contendo **apenas**: o que esta onda descobriu
       de novo, mais o que ela não fechou (inclusive as tarefas operacionais
       pendentes de T067, com o estado real).
-- [ ] T086 Conferir a redação do arquivo novo contra as regras do que é committed:
+- [x] T086 Conferir a redação do arquivo novo contra as regras do que é committed:
       sem caminho de planejamento, sem número de feature, sem identificador de
       requisito, sem artigo de constituição, sem nome de projeto de origem.
       A substância vai no arquivo; a referência fica nos documentos da onda.
-- [ ] T087 Conferir que a forma do arquivo foi preservada: problema descrito, o
+- [x] T087 Conferir que a forma do arquivo foi preservada: problema descrito, o
       que acontece hoje, por que não é trivial quando não é, e o desfecho pelo
       qual seria julgado. É o melhor documento do repositório e a reescrita não o
       empobrece.
-- [ ] T088 Conferir que nenhum item removido saiu sem evidência nomeada no
+- [x] T088 Conferir que nenhum item removido saiu sem evidência nomeada no
       confronto, e que nenhuma tarefa operacional pendente sumiu.
 
 ---
@@ -458,14 +458,14 @@ briefings, nem esta spec, nem número de feature nenhum. A redação obedece a i
 
 - [ ] T089 `make verify` completo na árvore final. Registrar exit code, número de
       testes, pulados e duração.
-- [ ] T090 Confirmar que esta feature não alterou arquivo de produto: o diff dela
+- [x] T090 Confirmar que esta feature não alterou arquivo de produto: o diff dela
       contém apenas `tools/demo_evidence/`, `tests/unit/tools/`, `backlog.md`,
       `specs_v7/CONFRONTO.md` e o próprio diretório da feature.
-- [ ] T091 Escrever `controle.md` desta feature afirmando **apenas** o que a
+- [x] T091 Escrever `controle.md` desta feature afirmando **apenas** o que a
       evidência prova, com o veredito por estação, as estações não exercidas com
       a razão, os achados e seus destinos, e as decisões que ficaram com o
       operador.
-- [ ] T092 Reportar ao orquestrador: veredito da demo em uma frase, caminho da
+- [x] T092 Reportar ao orquestrador: veredito da demo em uma frase, caminho da
       evidência, lista de achados com dona, estado das três tarefas operacionais,
       e as decisões do operador que ficaram pendentes.
 

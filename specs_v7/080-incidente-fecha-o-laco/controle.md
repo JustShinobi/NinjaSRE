@@ -8,6 +8,36 @@ repositório (`c789c2d`, "Add initial README") — sexta ocorrência do mesmo
 defeito de provisionamento nesta onda. Reapontada com `git reset --hard master`
 antes de qualquer trabalho.
 
+## Segunda auditoria — 2026-08-24, `tasks.md` confrontado caixa por caixa
+
+O texto acima é da sessão de 2026-08-23 e continua correto sobre o que ela
+verificou. Esta segunda passagem, na worktree `agent-a93e02cefd3bb41b0`
+(mesmo defeito de provisionamento — **sétima ocorrência** — corrigido do
+mesmo jeito, `git reset --hard master`, ponta em `10a329c`), existiu porque
+`tasks.md` continuava com **0 de 92 caixas marcadas** apesar de tudo isto
+estar registrado em prosa: as caixas nunca refletiam o ledger abaixo.
+
+**O que esta auditoria fez.** Reabriu os 92 itens um a um contra o código, os
+testes e — descoberta desta passagem — três commits que chegaram **depois**
+de `aeb0dd6` (o último que a sessão de 23/08 conhecia), escritos por
+`kyo@kyo.ninja` (o operador, não um agente) em 24/08: `9f25679` (este mesmo
+arquivo), `397cff9` (a coluna do confronto ganhou a seção "S2 a S5" e
+`specs_v7/010-leitura-do-relato/` ganhou dez screenshots reais contra
+staging) e `9f87ac6` (o coletor **rodou de verdade** contra o banco de
+staging e gravou oito arquivos reais em `evidence/`). Isso muda o que é
+verificável: partes do laço de leitura (User Story 2) já têm evidência real,
+embora o laço inteiro — a janela, a aprovação, a execução — continue em
+branco. O detalhe de cada item está no ledger abaixo e em
+`specs_v7/080-incidente-fecha-o-laco/relatorio-confronto.md`.
+
+**O que mudou em `tasks.md`**: 32 caixas marcadas, cada uma com o `file:line`
+ou o teste que a prova nesta seção. As outras 60 continuam abertas, cada uma
+com uma linha dizendo por quê — nenhuma em branco. Nenhuma delas foi marcada
+por leitura ao vivo de staging, cluster ou navegador: esta auditoria não
+tocou nenhum dos três, por instrução — o operador está executando
+`runbooks/navegador.md` à mão, e o passo destrutivo (`pct stop 122` na CT122)
+é dele, uma vez, olhando.
+
 ## A fronteira desta execução, declarada antes do trabalho
 
 - **Desta feature:** os três roteiros, o coletor de evidência com teste, a
@@ -31,6 +61,16 @@ antes de qualquer trabalho.
 | `8f0d756` | `feat(demo-evidence)` — contar os runs anteriores à coluna de manchete |
 | `aeb0dd6` | `docs(demo)` — o roteiro de navegador, com o que cada tela deve dizer |
 
+Três commits chegaram depois, do operador (`kyo@kyo.ninja`), fora desta
+worktree — citados aqui porque mudam o que a segunda auditoria pôde marcar,
+não porque são desta implementação:
+
+| Commit | Conteúdo | Escopo |
+|---|---|---|
+| `9f25679` | `docs(demo)` — este arquivo, versão de 23/08 | só 080 |
+| `397cff9` | `docs(wave)` — `CONFRONTO.md` ganha a seção "S2 a S5"; dez screenshots reais em `specs_v7/010-leitura-do-relato/evidence/` | onda inteira; nada em `evidence/` de 080 |
+| `9f87ac6` | `feat(evidence)` — o coletor rodou contra staging de verdade; oito arquivos em `evidence/` reescritos com saída real; `scripts/deploy/stg-psql` novo | evidência de 080 (os oito `.txt`) + um script de deploy fora do diretório da feature |
+
 ---
 
 ## Ledger
@@ -38,12 +78,38 @@ antes de qualquer trabalho.
 Convenção: **FEITO** · **FEITO (já existia, verificado)** · **PARCIAL** ·
 **NÃO INICIADO** · **Do orquestrador (ambiente real)**.
 
-### Fase 1–2 — pré-voo e aptidão do ambiente (T001–T016)
+**A partir daqui o ledger é por tarefa, uma linha por número.** A versão de
+23/08 agrupava faixas (`T007–T016`, `T037–T044`...); a segunda auditoria
+abriu cada faixa porque, dentro de várias delas, o estado real não era mais
+uniforme — a leitura do laço já tem evidência real para algumas estações e
+não para outras dentro da mesma faixa antiga. Cada linha abaixo é a razão
+que faltava ao lado da caixa, exatamente como pedido.
 
-| Peça | Estado | Detalhe |
+### Fase 1 — pré-voo (T001–T006)
+
+| Tarefa | Estado | Detalhe |
 |---|---|---|
-| T001–T006 — publicar, Argo, serviço respondendo | **Do orquestrador** | Feito por ele durante esta sessão: as nove features mergeadas, `Synced/Healthy`, rotas aquecidas |
-| T007–T016 — aptidão do ambiente | **Do orquestrador** | Cada item tem comando na última seção. A worktree não alcança cluster nem banco |
+| T001 confirmar merges + PASS, registrar commit da onda | **Do orquestrador** | `evidence/EVIDENCIA.md` §1, linha "Commit da árvore da onda": `(a preencher)`. Exige julgar o veredito de verifier de cada feature — leitura que esta auditoria não refaz por cima da dele |
+| T002 `make verify` antes de publicar | **Do orquestrador** | `EVIDENCIA.md` §1: `(a preencher)`. É rodado no momento do `deploy-stg`, ação de infraestrutura fora desta auditoria |
+| T003 publicar com `make deploy-stg` | **Do orquestrador** | Mudança de infraestrutura; esta auditoria não publica nada |
+| T004 aguardar Argo `Synced + Healthy` | **Do orquestrador** | Leitura via `ssh root@192.168.68.159`; esta auditoria não abre sessão nos hosts |
+| T005 confirmar serviço respondendo, separado do Argo | **Do orquestrador** | Mesma razão de T004 |
+| T006 registrar digest + estado do Argo em `EVIDENCIA.md` | **Do orquestrador** | `EVIDENCIA.md` §1 permanece com todo campo `(a preencher)` |
+
+### Fase 2 — aptidão do ambiente (T007–T016)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T007 identificador da organização | **FEITO** | Não descoberto por esta auditoria, mas provado correto pelo uso: os oito arquivos reais em `evidence/` (coletados 2026-08-24T09:11:29Z pelo operador) usam `org=default` e devolvem linhas reais e não vazias em toda consulta escopada por ele — `evidence/E4-...txt` conta 5 turnos, 4 chamadas, 1 evidência para `org_id='default'`. Um `:org` errado devolveria zero em tudo |
+| T008 provider Verified, chave do cofre | **Do orquestrador** | Nenhuma screenshot de `/settings/models-providers` existe (`evidence/telas/` não existe). Indício indireto, não a prova exigida: `evidence/E4-...txt` mostra quatro chamadas reais ao Gemini (`"model": "gemini-flash-latest"`) com tokens e duração reais, o que exige um provider funcionando — mas não confirma o rótulo **Verified** nem que a chave veio do cofre |
+| T009 Proxmox conectado, confiança declarada, `/resources` real | **Do orquestrador** | `evidence/E3-...txt` (a única leitura real de `estate_resources` que existe) devolve **0** para `present_resources` no instante coletado (09:11:29Z de 24/08) — o mesmo valor de partida da onda, não o valor "depois". Se `/resources` está com 100 recursos agora, a mudança aconteceu **depois** desse instante; esta auditoria não tem uma leitura mais nova porque não toca staging. Nenhuma screenshot existe |
+| T010 privilégio do token do Proxmox | **Do orquestrador** | Leitura do console do Proxmox, decisão de fronteira de segurança do operador |
+| T011 operador confirma a vítima na abertura da janela | **Do orquestrador** | Confirmação verbal, por natureza fora do alcance de uma auditoria de código |
+| T012 vítima `running`, conferido | **Do orquestrador** | `pct status 122` via `ssh root@192.168.68.159`; não executado por esta auditoria |
+| T013 regra de alerta ativa + rota casando severidade | **Do orquestrador** | As regras do Alertmanager/Prometheus não estão neste repositório — busca confirmou zero arquivos citando `RestoreDrillStale` ou `RedisExporterDown` na árvore. Leitura obrigatoriamente contra a stack de monitoração real |
+| T014 webhook recusa sem credencial | **Do orquestrador** | Sonda HTTP contra a URL pública; esta auditoria não inicia requisição nenhuma contra staging, para não competir com a sessão ao vivo do operador |
+| T015 escolher o alerta já ativo do laço de leitura, e por quê | **Do orquestrador** | O alerta **foi** escolhido e exercitado — `RestoreDrillStale` sobre `192.168.68.159`, seis ciclos de correlação entre 03:38Z e 09:03Z de 24/08 em `evidence/E10-...txt`. O que falta é o registro do "por quê" em `EVIDENCIA.md`, que continua `(a preencher)` |
+| T016 registrar a tabela de aptidão em `EVIDENCIA.md` §2 | **Do orquestrador** | Doze linhas, todas com a coluna "Conferido?" vazia |
 
 ### Fase 3 — os roteiros e o gabarito (T017–T026, T033)
 
@@ -93,25 +159,94 @@ Convenção: **FEITO** · **FEITO (já existia, verificado)** · **PARCIAL** ·
 | T087 forma preservada | **FEITO** | cada item: o que acontece hoje, por que não é trivial quando não é, e o desfecho pelo qual seria julgado |
 | T088 nenhum item removido sem evidência | **FEITO** | conferido linha a linha na tabela de destino |
 
-### Fases 5–11 — a demo
+### Fase 5 — o vermelho a seco (T034–T036)
 
-| Peça | Estado | Detalhe |
+| Tarefa | Estado | Detalhe |
 |---|---|---|
-| T034–T036 o vermelho a seco contra o staging | **Do orquestrador** | O gabarito está de pé e as consultas foram provadas executáveis (ver abaixo); rodá-las contra o staging pré-demo é dele |
-| T037–T044 laço de leitura executado | **Do orquestrador** | `runbooks/laco-de-leitura.md` |
-| T045–T060 a janela | **Do orquestrador** | `runbooks/laco-inteiro.md` e `runbooks/navegador.md` |
-| T061–T063 a rejeição | **Do orquestrador** | `navegador.md` passo 14 |
-| T064–T068 tarefas operacionais | **Do orquestrador** | comandos na última seção |
-| T069–T074 evidência consolidada | **Do orquestrador** | o gabarito está pronto para receber |
-| T075–T078 achados | **Do orquestrador** | a seção existe em branco em `EVIDENCIA.md` |
+| T034 coletor a seco com parâmetros de um run pré-onda → `evidence/consultas/000-partida.txt` | **Do orquestrador** | Nem o diretório `evidence/consultas/` nem o arquivo existem. O que existe é diferente por natureza: uma coleta real, mas com parâmetros de um run **novo** (o da leitura), não de um run **pré-onda** — ver T043 |
+| T035 conferir que as consultas devolvem os valores de partida | **Do orquestrador** | Consequência de T034 não ter ocorrido como pedido. Os valores "antes da onda" que aparecem nos oito arquivos reais são o texto fixo de `queries.py` (`baseline=`), citado ao lado do valor medido — não uma segunda leitura independente contra um run velho |
+| T036 registrar o vermelho em `EVIDENCIA.md` §3 | **Do orquestrador** | Tabela inteira sem a coluna "Valor medido a seco" preenchida |
 
-### Fase 14 — fechamento
+### Fase 6 — o laço de leitura (T037–T044)
 
-| Peça | Estado | Detalhe |
+| Tarefa | Estado | Detalhe |
 |---|---|---|
-| T089 `make verify` completo | **NÃO RODADO — do orquestrador**, por instrução dele. Rodei os gates de tier equivalentes; ver "Gates" |
-| T090 nenhum arquivo de produto alterado | **FEITO — conferido** | O diff desta feature toca **apenas** `tools/demo_evidence/`, `tests/unit/tools/test_demo_evidence.py`, `backlog.md`, `specs_v7/CONFRONTO.md` e o diretório da própria feature. Nada em `gateway/`, `platform/`, `core/`, `capabilities/`, `integrations/`, `config/` ou `console/` |
-| T091 este arquivo | **FEITO** | |
+| T037 executar `laco-de-leitura.md` do começo ao fim | **Do orquestrador** | A cadeia de banco (alerta → incidente → investigação → proposta) rodou de verdade para `run=0c9c0d5ce453458d9e115af98763ade4`, `incident=inc_d4b0bf515a6a7e1e` — mas os passos de tela do roteiro (telas, comparação de repetição, registro em `EVIDENCIA.md`) não têm evidência anexada |
+| T038 screenshots E2/E3 | **Do orquestrador** | `evidence/telas/` não existe |
+| T039 screenshot E4 | **Do orquestrador** | Sem screenshot. A alegação por trás dela **está** provada por banco: `evidence/E4-...txt` — 5 `run_turns`, 4 `tool_calls`, 1 `evidence`, 12 `trace_events`, todos > 0 (partida: 0, 0, 0, para 37 runs) |
+| T040 screenshot E5 | **Do orquestrador** | Sem screenshot. Provado por banco: `evidence/E5-...txt` — `headline` é uma sentença ("Weekly restore drill jobs on pve02 exceeded their maximum allowable execution window without a successful run"), `summary` continua abrindo com `### Investigation Report` |
+| T041 ferramentas condizentes, tela + log | **Do orquestrador** | Nenhum artefato — nem screenshot, nem saída do `grep` do log de seleção de ferramentas |
+| T042 screenshots E7 (`/decisions` + painel) | **Do orquestrador** | Sem screenshot. `evidence/E7-...txt` mostra **0 linhas** em `approvals` para este run — desfecho aceitável e declarado pelo próprio roteiro (investigação sem evidência suficiente para propor); o run vira cenário de leitura, não laço fechado |
+| T043 rodar o coletor para este run, anexar saídas por estação | **FEITO** | Os oito arquivos em `evidence/*.txt` (E3, E4, E5, E7, E8, E9, E10, R), datados `2026-08-24T09:11:29Z`, com consulta e saída literal para `run=0c9c0d5c…`/`incident=inc_d4b0bf…`. Ressalva: gravados em `evidence/` diretamente, não em `evidence/consultas/` como os roteiros documentam no `--out` — desvio de local, não de substância; a saída é real e literal |
+| T044 repetir e comparar (ou nomear a variação) | **Do orquestrador** | Uma coleta, um instante só; nenhuma segunda passagem registrada |
+
+### Fase 7 — a janela, o laço inteiro (T045–T060)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T045 abrir a janela, confirmação da vítima | **Do orquestrador** | ação verbal ao vivo do operador |
+| T046 o passo destrutivo, digitado uma vez | **Do orquestrador — e corretamente assim** | esta auditoria foi instruída a não tocar CT122/`pve01`/`pve02`, e não tocou |
+| T047 E1 — o alerta dispara sozinho | **Do orquestrador** | `evidence/E8-...txt`/`E9-...txt`: zero linhas a jusante |
+| T048 E2 — entrega autenticada | **Do orquestrador** | mesma evidência de zero linhas |
+| T049 E3 — incidente abre legível | **Do orquestrador** | mesma evidência de zero linhas |
+| T050 E4 — investigação grava | **Do orquestrador** | mesma evidência de zero linhas |
+| T051 E5 — relato legível | **Do orquestrador** | mesma evidência de zero linhas |
+| T052 E6 — ferramentas condizentes | **Do orquestrador** | mesma evidência de zero linhas |
+| T053 E7 — proposta aguardando | **Do orquestrador** | `evidence/E7-...txt`: 0 linhas em `approvals` para qualquer run deste laço |
+| T054 conferir E4–E7 antes de aprovar | **Do orquestrador** | nada a conferir ainda |
+| T055 E8 — operador aprova pela interface | **Do orquestrador** | `evidence/E8-...txt`: `nothing-executed-unattended`=0; `decision`/`audit-of-the-decision`: `NOT COLLECTED`, sem `--approval` |
+| T056 E9 — execução pelo gate | **Do orquestrador** | `evidence/E9-...txt`: `outcome` `NOT COLLECTED`, `episode`: 0 linhas |
+| T057 E10 — incidente reflete o desfecho | **Do orquestrador** | `evidence/E3-...txt` mostra este mesmo incidente ainda `state=investigating`, nunca fechado |
+| T058 conferir que o alerta resolveu e fechou o incidente | **Do orquestrador** | mesmo estado `investigating` |
+| T059 reversão: confirmar `running` | **Do orquestrador** | `pct status` ao vivo, fora desta auditoria |
+| T060 fechar a janela, registrar instante + resumo | **Do orquestrador** | `EVIDENCIA.md` §4, E1–E10 todos em branco |
+
+### Fase 8 — a rejeição (T061–T063)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T061 rejeitar sem motivo, em ocorrência diferente | **Do orquestrador** | `evidence/R-...txt`: 0 linhas em `approvals` com `state='rejected'` |
+| T062 rejeitar com motivo | **Do orquestrador** | Mesma evidência de T061 — nada decidido ainda |
+| T063 conferir as duas decisões na auditoria | **Do orquestrador** | `evidence/R-...txt`, consulta `both-decisions-in-the-audit`: 0 linhas |
+
+### Fase 9 — tarefas operacionais (T064–T068)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T064 resolução de nomes, de dentro de cada contêiner | **Do orquestrador** | Leitura via `ssh`/`getent hosts`; não executada por esta auditoria. `backlog.md` ("Three monitoring containers point at a resolver that no longer exists") carrega o estado mais recente conhecido: ainda não resolvida |
+| T065 sincronização do segredo gerenciado | **Do orquestrador** | Leitura via `kubectl get infisicalsecret -A`; não executada. `backlog.md` ("The managed-secret operator in the cluster cannot authenticate") carrega o estado mais recente conhecido: ainda não |
+| T066 chave do gateway de modelos, Verified | **Do orquestrador** | Leitura de console; não executada. `backlog.md` ("One model gateway has no key, so its provider never verifies") carrega o estado mais recente conhecido: ainda não |
+| T067 escrever a entrada de cada uma não concluída no backlog novo | **FEITO** | As três estão em `backlog.md`, cada uma com "o que acontece hoje" e "como deveria ser julgado"; nenhuma foi omitida (ver T085) |
+| T068 marcar estações não exercidas por tarefa operacional pendente | **Do orquestrador** | `EVIDENCIA.md` §5, linha "Estações marcadas não exercidas": `(a preencher)` |
+
+### Fase 10 — a evidência consolidada (T069–T074)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T069 preencher `EVIDENCIA.md` estação por estação | **Do orquestrador** | Todo campo de todas as 11 estações (E1–E10, R) continua `(a preencher)` |
+| T070 confirmar screenshot full-page 1920×1080 em toda estação-tela | **Do orquestrador** | `evidence/telas/` não existe |
+| T071 confirmar consulta + saída literal em toda estação-gravação | **PARCIAL, não fechável ainda** | E3/E4/E5/E7 têm; E8/E9/E10/R têm o arquivo mas com `NOT COLLECTED` ou zero linhas, porque essas estações não aconteceram — o que é o estado correto agora, não uma falha do coletor |
+| T072 varredura de credencial em texto e screenshot | **PARCIAL — a metade de texto, feita agora** | Esta auditoria varreu os oito `.txt` de evidência e `EVIDENCIA.md` contra um arquivo de padrões (`postgresql://`, `Authorization: Bearer`, `-----BEGIN`, `PGPASSWORD`, formatos de chave de API comuns) — **zero ocorrências** — e, à parte, comparou os dois valores reais de `.env` (usuário e credencial de staging) contra os mesmos arquivos por um `grep -qF` que nunca imprime o valor — **nenhum dos dois aparece**. `evidence/telas/` não existe, então a metade de screenshot não é aplicável ainda |
+| T073 rodar acceptance das donas + transversal contra staging | **Do orquestrador** | Precisa da demo completa para fazer sentido como fechamento; a rodada determinística já registrada em "Gates" (23/08) segue válida para o que ela mediu, mas não substitui esta tarefa |
+| T074 veredito de uma frase + veredito por estação no topo de `EVIDENCIA.md` | **Do orquestrador** | Linha do veredito e tabela da §7 continuam vazias |
+
+### Fase 11 — os achados (T075–T078)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T075 listar achados em `EVIDENCIA.md` §6 | **Do orquestrador** | Tabela só com cabeçalho. Um candidato observado por esta auditoria, **não classificado nem escrito aqui** porque julgar ambiente-vs-produto é do orquestrador: em `evidence/E4-...txt`, a chamada `prometheus_metric_statistics` devolveu `400` do Prometheus — `invalid parameter "start": cannot parse "" to a valid timestamp` — um parâmetro de início vazio chegando à API. Relatado no `relatorio-confronto.md` desta auditoria para que o orquestrador decida dono e destino |
+| T076 entregar achados de produto ao orquestrador, sem consertar | **Do orquestrador** | Consequência de T075; o candidato acima é entregue, não corrigido, por esta mesma auditoria |
+| T077 redigir entrada de backlog para achado sem dono | **Do orquestrador** | Depende de T075 ter classificado algo primeiro |
+| T078 reexecutar e substituir evidência após reparo aceito | **Do orquestrador** | Nenhum reparo ocorreu dentro desta feature |
+
+### Fase 14 — fechamento (T089–T092)
+
+| Tarefa | Estado | Detalhe |
+|---|---|---|
+| T089 `make verify` completo, exit code + testes + duração | **Do orquestrador** | Não rodado por esta auditoria: é a árvore inteira (12223+ testes por `specs_v7/CONFRONTO.md`), reservado ao orquestrador na árvore final pela mesma instrução já registrada em 23/08. Esta auditoria rodou os gates da própria superfície tocada — ver "Verificação" no relatório — todos verdes |
+| T090 nenhum arquivo de produto alterado | **FEITO — reconferido** | `git diff --stat a0bfa74~1 aeb0dd6` fora de `specs_v7/080-incidente-fecha-o-laco/`, `tools/demo_evidence/`, `tests/unit/tools/test_demo_evidence.py`, `backlog.md`, `specs_v7/CONFRONTO.md`: **zero arquivos**. Os próprios commits desta auditoria tocam apenas `tasks.md`, este arquivo e `relatorio-confronto.md`, todos dentro do diretório da feature |
+| T091 este arquivo | **FEITO** | Reescrito nesta auditoria com o ledger por tarefa que faltava |
+| T092 reportar ao orquestrador | **FEITO** | Entregue como a resposta final desta auditoria: veredito em uma frase, caminho da evidência, achado com candidato a dona, estado das três tarefas operacionais, decisões pendentes do operador |
 
 ---
 
@@ -219,6 +354,19 @@ preexistente de delegação de orçamento de rolagem, medido em
 **Não rodado:** `make verify` completo (é do orquestrador, na árvore mergeada),
 e qualquer coisa contra staging real.
 
+**Reconferido pela segunda auditoria (2026-08-24), na árvore `master` atual
+(`10a329c`, que já inclui as sete features restantes da onda mergeadas):**
+`pytest tests/unit/tools/test_demo_evidence.py` → **31 passed**;
+`pytest tests/unit/tools tests/architecture` → **734 passed**;
+`ruff check`, `ruff format --check` e `mypy` sobre `tools/demo_evidence` e o
+teste → limpos; `check_constants.py`, `check_direct_credentials.py`,
+`check_docs_drift`, `test_doc_examples` (29 exemplos), `verify_integrations`
+(15 integrações em paridade total) → todos exit 0, números idênticos aos de
+23/08. A suíte transversal contra staging **não** foi rerodada por esta
+auditoria — é a mesma decisão de não iniciar rede nova contra o alvo que o
+operador está usando ao vivo, e o resultado de 23/08 (45 passed, 7 skipped,
+`EXCEPTIONS` vazia) segue sendo o último medido.
+
 ---
 
 ## Um gate que falhou, e era meu
@@ -300,17 +448,62 @@ sensível e não têm componentes de remediação. Com o balcão composto elas d
 de ser oferecidas a um turno — o filtro fazendo o que deve. É **mudança de
 comportamento visível**, e entrou no backlog novo em vez de virar surpresa.
 
+**(h) O laço de leitura já rodou de verdade, entre o controle de 23/08 e esta
+auditoria — descoberto lendo `git log`, não relatado por ninguém.** Três
+commits do operador (`kyo@kyo.ninja`), datados 24/08, chegaram depois de
+`aeb0dd6`: `9f87ac6` reescreveu os oito arquivos de `evidence/` com saída real
+do coletor contra o Postgres de staging, para o alerta `RestoreDrillStale`
+(`incident=inc_d4b0bf515a6a7e1e`, `run=0c9c0d5ce453458d9e115af98763ade4`). A
+metade de leitura do laço (E1 a E7) tem prova de banco: `run_turns=5`,
+`tool_calls=4`, `evidence=1`, `trace_events=12`, todos maiores que zero contra
+uma partida de zero; a manchete é uma sentença enquanto o `summary` continua
+abrindo com `###`; e a proposta devolve **zero linhas para este run**, o que o
+próprio roteiro declara como desfecho aceitável — a investigação não achou
+evidência suficiente para propor, e o run vira cenário de leitura. **Isto
+resolve a hipótese (f)**: a manchete deste run específico, novo, passa —
+exatamente o que (f) previu antes de haver dado real para conferir. Nenhuma
+screenshot existe ainda, e `EVIDENCIA.md` continua com todo campo em branco: a
+prova de banco chegou antes da prova de tela, não depois — e as duas são
+exigidas, não uma no lugar da outra.
+
+**(i) A frase "não executado" no `CONFRONTO.md` está um passo atrás da
+árvore.** A seção "A demo, e o que ela ainda deve" (`specs_v7/CONFRONTO.md:353-362`
+na árvore atual) afirma que "quem escreveu os roteiros roda em worktree isolada e não
+alcança cluster, banco nem Alertmanager" — verdade sobre a worktree de 23/08,
+não mais sobre o estado do banco depois de `9f87ac6`. Não corrigido por esta
+auditoria: aquele arquivo declara, na própria abertura, que é medido pelo
+orquestrador e não copiado de relatório de quem implementou — a mesma regra
+que já levou T079 a ficar como dele. Registrado aqui para que ele saiba
+que a frase precisa de uma segunda passada quando fechar o confronto.
+
+**(j) Uma chamada de ferramenta devolveu `400` do Prometheus por parâmetro
+vazio — candidato a achado de produto, sem dono atribuído por esta
+auditoria.** Em `evidence/E4-...txt`, `prometheus_metric_statistics` (a quarta
+chamada do run de leitura) falhou com `invalid parameter "start": cannot parse
+"" to a valid timestamp`. `search_knowledge_base` e `logs_for_resource`
+falharam por ausência de configuração (base de conhecimento e fonte de log não
+configuradas neste deployment) — desfecho de ambiente, coerente com o backlog
+já registrado. A falha do Prometheus é diferente: parece um parâmetro de
+início construído vazio em vez de omitido ou calculado, o que aponta para o
+código que monta a chamada, não para configuração ausente. Não investigado
+mais fundo por esta auditoria — julgar ambiente-versus-produto e nomear a
+dona é o trabalho de T075, que é do orquestrador, com a demo inteira à vista.
+
 ---
 
 ## O que fica pendente, nomeado, não escondido
 
 | Item | Estado | Dono |
 |---|---|---|
-| **Toda a demo** — Fases 5 a 11: o vermelho a seco, o laço de leitura, a janela, a rejeição, a evidência consolidada, os achados | **NÃO EXECUTADO.** Os três roteiros, o gabarito e o coletor estão de pé; o que falta é rodar contra o ambiente real | orquestrador |
+| **A metade de leitura do laço de leitura** (E1–E7) | **PARCIAL.** Prova de banco real existe para E3, E4, E5, E7 (ver descoberta (h)); zero screenshots; `EVIDENCIA.md` sem uma linha preenchida; sem segunda passagem para provar repetibilidade (T044) | orquestrador |
+| **O laço inteiro** — Fase 7: a janela, o passo destrutivo, a aprovação, a execução (E8–E10) | **NÃO EXECUTADO, provado pela própria evidência** — `evidence/E8-...txt`/`E9-...txt` leem zero linhas. É a fronteira que esta auditoria foi instruída a não cruzar: o operador está executando `runbooks/navegador.md` à mão | orquestrador |
+| **A rejeição** — Fase 8 | **NÃO EXECUTADA** — `evidence/R-...txt` lê zero linhas em `approvals` e em auditoria | orquestrador |
+| **A evidência consolidada e os achados** — Fases 10–11 | **NÃO ESCRITAS.** `EVIDENCIA.md` continua o gabarito de 23/08; um candidato a achado de produto está nomeado na descoberta (j), sem dono atribuído por esta auditoria | orquestrador |
 | **T079 — seção por feature no confronto**, com o veredito de cada verifier | **NÃO FEITO, deliberadamente.** O cabeçalho do `CONFRONTO.md` declara que ele é medido pelo orquestrador e não copiado de relatório; escrever vereditos que não medi violaria isso | orquestrador |
-| **T089 — `make verify` completo** | **NÃO RODADO**, por instrução | orquestrador |
-| **Screenshots** (`evidence/telas/`) | **Diretório criado, vazio.** Nenhuma captura é possível desta worktree | orquestrador |
-| **As três tarefas operacionais** — resolução de nomes, sincronização de segredo gerenciado, chave do gateway de modelos | **NÃO VERIFICADAS.** Entraram no backlog novo descritas pelo desfecho que as julga, sem afirmar se estão feitas — porque eu não posso medir. Se estiverem feitas, o item sai com a evidência | orquestrador |
+| **T089 — `make verify` completo** | **NÃO RODADO**, por instrução (repetida nesta auditoria) | orquestrador |
+| **Screenshots** (`evidence/telas/`) | **O diretório nem existe mais nesta árvore** (a versão de 23/08 o criara vazio; não sobreviveu ao merge). Nenhuma captura é possível desta worktree | orquestrador |
+| **As três tarefas operacionais** — resolução de nomes, sincronização de segredo gerenciado, chave do gateway de modelos | **NÃO VERIFICADAS por leitura nova.** `backlog.md` carrega o estado mais recente conhecido para as três (nenhuma resolvida) — ver Fase 9 no ledger. Se alguma tiver sido resolvida desde a última leitura, o item sai do backlog com a evidência nomeada | orquestrador |
+| **A frase "não executado" em `specs_v7/CONFRONTO.md`** (seção "A demo, e o que ela ainda deve") | **DESATUALIZADA** frente à descoberta (h) — não corrigida por esta auditoria porque aquele arquivo é medido pelo orquestrador, não por quem confronta a feature | orquestrador |
 | **A coluna do confronto para features futuras** | as 17 linhas cobrem o que esta onda entregou; um mecanismo novo precisa de linha nova | próxima onda |
 
 ---
