@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -117,5 +120,46 @@ describe('Report', () => {
     const { container } = render(<Report text={hostile} />);
     expect(container.querySelectorAll('img').length).toBe(0);
     expect(container.querySelectorAll('script').length).toBe(0);
+  });
+});
+
+/**
+ * The structural guarantee behind the choice of renderer, checked across
+ * every surface rather than just this one: nothing outside the file that has
+ * to emit its own stylesheet and its own no-flash script ever hands a string
+ * to the DOM. Reading the rendered output the way the tests above do proves
+ * this renderer's own behaviour; it says nothing about whether some other
+ * surface reaches for the same shortcut later. Only reading the source does.
+ *
+ * Resolved from the runner's root rather than from `import.meta.url`: the DOM
+ * environment these tests run under does not hand back a `file:` URL for it.
+ */
+const SRC_ROOT = join(process.cwd(), 'src');
+// The prop as it is actually written, `=` and all — not the bare word, which
+// this file's own prose above uses to say the call does not happen here.
+const PROP_USE = /dangerouslySetInnerHTML\s*=/;
+
+/** Every `.ts`/`.tsx` file under `src/`, as a path relative to it. */
+function sourceFiles(dir: string = SRC_ROOT): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...sourceFiles(full));
+    } else if (/\.tsx?$/.test(entry.name)) {
+      found.push(full);
+    }
+  }
+  return found;
+}
+
+describe('dangerouslySetInnerHTML, across the whole console source tree', () => {
+  it('is written in exactly the one file that has to generate its own HTML', () => {
+    const users = sourceFiles()
+      .filter((path) => PROP_USE.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(SRC_ROOT, path).split('\\').join('/'))
+      .sort();
+
+    expect(users).toEqual(['app/layout.tsx']);
   });
 });
