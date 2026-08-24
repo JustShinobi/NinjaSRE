@@ -149,3 +149,46 @@ Mas ela não era a precondição que afirmei ser.
 `ssh root@192.168.68.159 'ssh pve01 "pct stop 122"'` não funciona: `pve01` não
 resolve a partir do host de entrada. O endereço que funciona é
 `192.168.68.149`. A primeira tentativa falhou sem parar nada.
+
+## O privilégio do token, que faltava aqui
+
+Esta seção existe porque um verificador recusou marcar a tarefa correspondente:
+o fato tinha sido apurado e **não estava neste arquivo**, e ele aplicou de volta
+a instrução de tomar o arquivo como fonte em vez da palavra de quem o escreveu.
+Estava certo. Aqui está a apuração.
+
+O handle guardado é `proxmox/-@v1` e não carrega identidade nenhuma: o
+principal está dentro do segredo cifrado, que é o cofre se comportando como
+deve. Então a pergunta foi respondida pelo lado do hipervisor, no log de acesso
+do `pveproxy`, correlacionando principal com caminho na janela da varredura
+(06:51 local = 09:51 UTC):
+
+    136 chamadas  prometheus@pve    /cluster/status, /cluster/resources, /version
+     98 chamadas  root@pam!infra    /nodes/pveN (84), /cluster/ha (6),
+                                    /cluster/resources (3), /cluster/config (2)
+
+O padrão de `root@pam!infra` — 84 leituras de nó mais HA e configuração de
+cluster — é o da varredura de descoberta, que reportou **87 chamadas ao
+provedor**. O `prometheus@pve` é o exportador raspando em intervalo regular.
+
+As ACLs do datacenter:
+
+    /  root@pam!infra   Administrator  propagate 1
+    /  prometheus@pve   PVEAuditor     propagate 1
+
+`Administrator` com propagação inclui `VM.PowerMgmt`. **O deployment tinha
+privilégio para religar o convidado**, e portanto a estação E9 não deixou de
+correr por falta de permissão — deixou de correr porque não há capacidade
+alguma que ligue um convidado, que é o achado de escopo registrado acima.
+
+## O viewport das capturas
+
+As onze capturas são de página inteira, mas com **1280px de largura**, não os
+1920×1080 que a especificação declara. O navegador embarcado usado nesta corrida
+tem essa janela e ela não foi redimensionada antes de capturar.
+
+Nada do que está afirmado neste documento depende da largura — nenhuma alegação
+é sobre transbordo horizontal, quebra de coluna ou o que cabe acima da dobra.
+Mas as capturas não substituem uma corrida a 1920 para as alegações que forem
+sobre isso, e este parágrafo existe para que ninguém as tome como se
+substituíssem.
