@@ -42,22 +42,22 @@ pegar.
 
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar a verificação completa do repositório na árvore intacta e
+- [x] T001 Rodar a verificação completa do repositório na árvore intacta e
       guardar o log fora do repositório. Registrar, do próprio log: quantos
       testes passam, quais falham, e quanto tempo levou. **Sem este log, uma
       falha preexistente é debitada desta feature e uma falha desta feature se
       esconde atrás de "já estava assim".** Se a linha de base não estiver
       verde, parar e reportar antes de escrever qualquer coisa.
-- [ ] T002 Registrar as contagens de partida a partir da árvore, não de um
+- [x] T002 Registrar as contagens de partida a partir da árvore, não de um
       documento: quantas capacidades o registro declara, quantas escrevem por
       nível, quantas declaram exigir aprovação, quantos componentes de
       remediação estão registrados, e quantos cenários sintéticos a suíte tem.
       Esses cinco números são o "antes".
-- [ ] T003 Rodar a suíte de cenários sintéticos isoladamente e guardar o
+- [x] T003 Rodar a suíte de cenários sintéticos isoladamente e guardar o
       resultado, cenário a cenário. É contra esta rodada que o efeito da
       mudança de seleção de ferramentas é medido no fechamento — e "sem efeito"
       só é resposta aceitável se tiver saído desta comparação.
-- [ ] T004 Varrer a árvore por construção de cada um dos dois portões e
+- [x] T004 Varrer a árvore por construção de cada um dos dois portões e
       registrar, com arquivo e linha, cada ocorrência e o que ela é (teste,
       contract test, plano de dados de mentira, produção). Este é o inventário
       que a última tarefa da feature refaz para provar que agora existe uma
@@ -69,116 +69,116 @@ Toda tarefa desta fase escreve teste contra a árvore atual e **tem de falhar**,
 com uma exceção nomeada. O vermelho de cada uma é capturado com a mensagem
 real.
 
-- [ ] T005 [P] Teste de contrato em `tests/contract/remediation/`: toda
+- [x] T005 [P] Teste de contrato em `tests/contract/remediation/`: toda
       capacidade de escrita embarcada, invocada diretamente, recusa, e a frase
       da recusa é a mesma para todas. **Este é o único teste da fase que nasce
       verde**, e o motivo fica escrito no próprio arquivo: ele é a rede que
       pega esta feature afrouxando a garantia enquanto a faz funcionar.
       Registrar que passou.
-- [ ] T006 [P] Teste em `tests/unit/gateway/http/`: o balcão de remediação é
+- [x] T006 [P] Teste em `tests/unit/gateway/http/`: o balcão de remediação é
       composto pela root assíncrona quando a loja responde e o deployment tem
       como remediar. Confirmar vermelho: hoje nada o compõe.
-- [ ] T007 [P] Teste em `tests/unit/gateway/http/`: o balcão de remediação é
+- [x] T007 [P] Teste em `tests/unit/gateway/http/`: o balcão de remediação é
       composto **depois** de o runner ser reconstruído, e o balcão que o runner
       segura é o mesmo objeto que a rota de aprovação lê. Confirmar vermelho.
-- [ ] T008 [P] Teste em `tests/unit/gateway/http/`: um deployment sem perfil de
+- [x] T008 [P] Teste em `tests/unit/gateway/http/`: um deployment sem perfil de
       sandbox que provisione, ou sem componentes registrados, não compõe o
       balcão, e a linha de log nomeia o que falta. Confirmar vermelho.
-- [ ] T009 [P] Teste em `tests/unit/gateway/runtime/`: o laço construído para
+- [x] T009 [P] Teste em `tests/unit/gateway/runtime/`: o laço construído para
       uma investigação tem o portão de remediação registrado no ponto que
       decide se uma chamada de ferramenta acontece, com o contexto daquele run.
       Confirmar vermelho: hoje o registro de hooks tem só o guarda de janela.
-- [ ] T010 [P] Teste em `tests/unit/gateway/runtime/`: dois runs simultâneos têm
+- [x] T010 [P] Teste em `tests/unit/gateway/runtime/`: dois runs simultâneos têm
       portões distintos, cada um com o seu contexto, e a proposta de um não é
       atribuída ao requisitante do outro. Confirmar vermelho.
-- [ ] T011 [P] Teste em `tests/unit/gateway/runtime/`: uma capacidade acima de
+- [x] T011 [P] Teste em `tests/unit/gateway/runtime/`: uma capacidade acima de
       leitura sensível não é oferecida quando o balcão não está composto.
       Confirmar vermelho: hoje a seleção não olha o nível de efeito colateral.
-- [ ] T012 [P] Teste em `tests/unit/gateway/runtime/`: uma capacidade acima de
+- [x] T012 [P] Teste em `tests/unit/gateway/runtime/`: uma capacidade acima de
       leitura sensível não é oferecida quando este deployment não tem
       componentes registrados para ela, mesmo com o balcão composto. Confirmar
       vermelho.
-- [ ] T013 [P] Teste em `tests/unit/gateway/runtime/`: nenhuma ferramenta
+- [x] T013 [P] Teste em `tests/unit/gateway/runtime/`: nenhuma ferramenta
       oferecida exige uma integração que o time não conectou. Confirmar
       vermelho: hoje a seleção ranqueia contra o alerta e não contra a
       configuração.
-- [ ] T014 [P] Teste em `tests/unit/gateway/runtime/`: o corte pelo teto de
+- [x] T014 [P] Teste em `tests/unit/gateway/runtime/`: o corte pelo teto de
       esquemas acontece depois dos dois estreitamentos, provado por um caso em
       que cortar antes deixaria de fora uma capacidade que o time tem.
       Confirmar vermelho.
-- [ ] T015 [P] Teste em `tests/unit/gateway/runtime/`: um time sem nenhuma
+- [x] T015 [P] Teste em `tests/unit/gateway/runtime/`: um time sem nenhuma
       integração conectada termina com a resposta que nomeia o que conectar,
       quantas capacidades cada sugestão destravaria e exemplos delas, com a
       correspondente à fonte do alerta primeiro. Confirmar vermelho.
-- [ ] T016 [P] Teste em `tests/unit/capabilities/registry/`: o resolvedor de
+- [x] T016 [P] Teste em `tests/unit/capabilities/registry/`: o resolvedor de
       catálogo por time devolve a mesma resolução pela entrada com estado e pela
       entrada sem estado, para a mesma disponibilidade. Confirmar vermelho: a
       entrada sem estado não existe.
-- [ ] T017 [P] Teste em `tests/unit/gateway/runtime/`: as interações pendentes
+- [x] T017 [P] Teste em `tests/unit/gateway/runtime/`: as interações pendentes
       de um run devolvem a pergunta que aquele run levantou, respondê-la a
       fecha, e a resposta chega ao run. Confirmar vermelho: hoje a listagem
       devolve vazio incondicionalmente e a resposta recusa.
-- [ ] T018 [P] Teste em `tests/unit/gateway/runtime/`: dois runs concorrentes
+- [x] T018 [P] Teste em `tests/unit/gateway/runtime/`: dois runs concorrentes
       levantam perguntas e a resposta a uma não fecha a do outro. Confirmar
       vermelho.
-- [ ] T019 [P] Teste em `tests/unit/gateway/runtime/`: responder um
+- [x] T019 [P] Teste em `tests/unit/gateway/runtime/`: responder um
       identificador que nenhum run levantou é distinguido de responder um que já
       foi respondido. Confirmar vermelho.
-- [ ] T020 [P] Teste em `tests/unit/gateway/http/`: aprovar um pedido de
+- [x] T020 [P] Teste em `tests/unit/gateway/http/`: aprovar um pedido de
       remediação leva a ação adiante pelo portão e grava o resultado com o
       identificador da aprovação; rejeitar não executa nada e grava a razão.
       Confirmar vermelho: hoje a rota só registra a decisão.
-- [ ] T021 [P] Teste em `tests/unit/gateway/http/`: um pedido expirado não é
+- [x] T021 [P] Teste em `tests/unit/gateway/http/`: um pedido expirado não é
       executado, e o interruptor acionado entre a aprovação e a execução a
       recusa nomeando o interruptor. Confirmar vermelho.
-- [ ] T022 [P] Teste estrutural em `tests/contract/remediation/`: o executor de
+- [x] T022 [P] Teste estrutural em `tests/contract/remediation/`: o executor de
       remediação é chamado a partir do portão e de nenhum outro lugar. Deve
       passar hoje — é a garantia vigente — e é a rede que pega a rota de
       aprovação chamando o executor por atalho. Registrar que passou.
-- [ ] T023 [P] Teste em `tests/architecture/`: exatamente um caminho de
+- [x] T023 [P] Teste em `tests/architecture/`: exatamente um caminho de
       orquestração de investigação é alcançável a partir da composition root de
       serving, e o outro declara de si mesmo que não está composto, nomeando o
       que o constrói. Confirmar vermelho: hoje os dois existem sem dono
       declarado.
-- [ ] T024 Confirmar e registrar o vermelho de T006–T021 e T023 com a mensagem
+- [x] T024 Confirmar e registrar o vermelho de T006–T021 e T023 com a mensagem
       real de cada um, e o verde de T005 e T022. **Portão: nenhuma composição
       começa antes disto.**
 
 ## Phase 2: O compositor e o campo de estado
 
-- [ ] T025 Acrescentar ao estado do gateway o campo que segura o balcão de
+- [x] T025 Acrescentar ao estado do gateway o campo que segura o balcão de
       remediação composto, com o comentário dizendo o que significa ele estar
       ausente: este deployment propõe e não age, e as capacidades de escrita não
       são oferecidas. Ausente é o padrão.
-- [ ] T026 Escrever o módulo compositor novo em `gateway/http/`, na forma que o
+- [x] T026 Escrever o módulo compositor novo em `gateway/http/`, na forma que o
       compositor do verificador profundo já pratica: uma função que recebe o
       estado e a organização, constrói o balcão, o instala, e — quando este
       deployment não tem como remediar — não instala nada e escreve a linha de
       log que nomeia o que falta.
-- [ ] T027 Construir o registro de componentes de remediação dentro do
+- [x] T027 Construir o registro de componentes de remediação dentro do
       compositor, passando os sinais que as fontes de observação deste
       deployment produzem, de modo que uma capacidade que nomeia um sinal que
       ninguém emite falhe na composição e não na primeira execução.
-- [ ] T028 Construir o gerador de plano de reversão e o construtor de pedido
+- [x] T028 Construir o gerador de plano de reversão e o construtor de pedido
       dentro do compositor, com o serviço de aprovação, o handle de
       persistência, o escopo do tenant e a consulta de eficácia sobre o registro
       de resultados.
-- [ ] T029 Construir o executor dentro do compositor, com o interruptor vindo do
+- [x] T029 Construir o executor dentro do compositor, com o interruptor vindo do
       estado do processo, o auditor sobre o gravador de auditoria, as obrigações
       de verificação sobre o registro de resultados, e o aplicador de desfazer
       para o caso do meio-aplicado.
-- [ ] T030 Construir o isolamento de execução dentro do compositor, com o perfil
+- [x] T030 Construir o isolamento de execução dentro do compositor, com o perfil
       lido da resolução de perfil que já existe e o provisionador
       correspondente. Um deployment cujo perfil não provisiona não compõe o
       balcão — é o caso de T008.
-- [ ] T031 Construir a política de portamento a partir da política de segurança
+- [x] T031 Construir a política de portamento a partir da política de segurança
       da organização, deixando o padrão de silêncio no estrito: uma organização
       que não declarou nada porta tudo acima de leitura sensível.
-- [ ] T032 Colocar no balcão o construtor do portão de autonomia — um
+- [x] T032 Colocar no balcão o construtor do portão de autonomia — um
       construtor, não um portão pronto — que resolve a política do nó de
       configuração do time no momento da decisão, através do mesmo serviço que a
       explicação publicada usa, com o interruptor do processo.
-- [ ] T033 Chamar o compositor na root assíncrona, **depois** da composição do
+- [x] T033 Chamar o compositor na root assíncrona, **depois** da composição do
       acesso a integrações, da composição das credenciais de provedor e da
       reconstrução do runner, com o comentário no lugar da chamada explicando a
       ordem — em particular por que compor antes da reconstrução entregaria o
@@ -186,129 +186,129 @@ real.
 
 ## Phase 3: O portão por investigação
 
-- [ ] T034 Acrescentar ao runner de serving o campo que recebe o balcão de
+- [x] T034 Acrescentar ao runner de serving o campo que recebe o balcão de
       remediação, com a mesma disposição do campo que já existe para o registro
       do que aconteceu: ausente é um estado válido e o comportamento sem ele é
       exatamente o de antes.
-- [ ] T035 Construir, por investigação, o contexto de run — quem pede, qual
+- [x] T035 Construir, por investigação, o contexto de run — quem pede, qual
       time, qual run, qual ambiente — e o portão de remediação daquele run, e
       registrá-lo no registro de hooks do laço. T009 passa a verde.
-- [ ] T036 Confirmar por teste que a ordem de registro deixa o portão depois dos
+- [x] T036 Confirmar por teste que a ordem de registro deixa o portão depois dos
       guardrails: uma chamada que um guardrail vai bloquear não deve primeiro
       custar a uma pessoa a interrupção de ser consultada.
-- [ ] T037 Garantir que nada compartilha portão entre runs simultâneos. T010
+- [x] T037 Garantir que nada compartilha portão entre runs simultâneos. T010
       passa a verde.
-- [ ] T038 Conferir, com teste, que a proposta gerada por uma chamada de
+- [x] T038 Conferir, com teste, que a proposta gerada por uma chamada de
       ferramenta chega ao armazenamento com a ação, o recurso, o raio de
       alcance — ou a declaração de que ele é desconhecido — e o plano de
       reversão, escritos na mesma unidade de trabalho.
-- [ ] T039 Conferir, com teste, que em propose-only nada é executado, que a
+- [x] T039 Conferir, com teste, que em propose-only nada é executado, que a
       razão devolvida ao modelo diz que a ação espera por uma pessoa, que ela
       nomeia a política, e que a investigação continua.
 
 ## Phase 4: Aprovação e execução
 
-- [ ] T040 Dar ao portão de remediação a entrada pública que significa "esta
+- [x] T040 Dar ao portão de remediação a entrada pública que significa "esta
       aprovação foi concedida, leve a ação adiante": ela reconfere o interruptor
       e as travas do laço fechado e desce pelo mesmo caminho de execução que o
       portão já usa. **Não** um segundo chamador do executor.
-- [ ] T041 Reconstruir a ação a partir do que o pedido de aprovação guardou, de
+- [x] T041 Reconstruir a ação a partir do que o pedido de aprovação guardou, de
       modo que a execução seja da ação que a pessoa leu, e não de uma
       reconstruída por aproximação. Um pedido cujo conteúdo não permita
       reconstruir a ação é recusado nomeando o que falta.
-- [ ] T042 Fazer a rota que decide uma aprovação chamar essa entrada quando o
+- [x] T042 Fazer a rota que decide uma aprovação chamar essa entrada quando o
       veredito é aprovar e a mudança é de remediação, **depois** de a decisão
       estar gravada, e nunca antes. Atualizar a docstring da rota para dizer o
       que ela passa a fazer, porque hoje ela afirma explicitamente que nunca
       invoca a capacidade. T020 passa a verde.
-- [ ] T043 Deixar a rejeição, a expiração e o interruptor acionado no caminho
+- [x] T043 Deixar a rejeição, a expiração e o interruptor acionado no caminho
       certo: nenhuma delas executa, cada uma grava o que houve. T021 passa a
       verde.
-- [ ] T044 Conferir que o resultado gravado diz se a execução foi autônoma ou
+- [x] T044 Conferir que o resultado gravado diz se a execução foi autônoma ou
       aprovada, carrega o identificador da aprovação, e que a obrigação de
       verificar se aquilo funcionou foi gravada quando a execução mudou alguma
       coisa.
-- [ ] T045 Reconfirmar T022: o executor continua sendo chamado do portão e de
+- [x] T045 Reconfirmar T022: o executor continua sendo chamado do portão e de
       nenhum outro lugar, agora que existe uma segunda entrada.
 
 ## Phase 5: Seleção de ferramentas
 
-- [ ] T046 Dar ao resolvedor de catálogo por time a entrada sem estado que
+- [x] T046 Dar ao resolvedor de catálogo por time a entrada sem estado que
       recebe a disponibilidade já derivada, com a entrada existente delegando
       nela. Uma implementação de resolução, dois chamadores. T016 passa a
       verde.
-- [ ] T047 Instanciar o resolvedor no caminho de serving, derivando a
+- [x] T047 Instanciar o resolvedor no caminho de serving, derivando a
       disponibilidade da configuração resolvida do nó do time — a mesma lista
       que a visão de catálogo lê, para que o que a tela conta e o que a
       investigação recebe não possam discordar.
-- [ ] T048 Tratar a configuração do time que não pôde ser lida como a postura
+- [x] T048 Tratar a configuração do time que não pôde ser lida como a postura
       mais estrita, com o motivo no registro. Uma leitura falhada não vira
       permissão.
-- [ ] T049 Estreitar a seleção pelo nível de efeito colateral: uma capacidade
+- [x] T049 Estreitar a seleção pelo nível de efeito colateral: uma capacidade
       acima de leitura sensível só entra quando o balcão está composto **e** o
       registro de componentes tem aquela capacidade. T011 e T012 passam a
       verde.
-- [ ] T050 Estreitar a seleção pelo que o time conectou, mantendo o registro do
+- [x] T050 Estreitar a seleção pelo que o time conectou, mantendo o registro do
       que foi excluído e por qual requisito, para que a exclusão seja legível
       depois e não uma ausência silenciosa. T013 passa a verde.
-- [ ] T051 Mover o corte pelo teto de esquemas para depois dos dois
+- [x] T051 Mover o corte pelo teto de esquemas para depois dos dois
       estreitamentos. T014 passa a verde.
-- [ ] T052 Fazer o caminho de serving produzir a resposta de zero integrações
+- [x] T052 Fazer o caminho de serving produzir a resposta de zero integrações
       chamando a mesma função que o estágio de resolução já chama — não uma
       segunda redação dela. T015 passa a verde.
-- [ ] T053 Atualizar a docstring do método de seleção: hoje ela declara, como
+- [x] T053 Atualizar a docstring do método de seleção: hoje ela declara, como
       limitação conhecida, exatamente as duas coisas que esta fase resolve.
       Deixá-la como está seria o arquivo mentindo sobre o próprio
       comportamento.
 
 ## Phase 6: O balcão de perguntas
 
-- [ ] T054 Construir, por investigação, o balcão de perguntas daquele run com o
+- [x] T054 Construir, por investigação, o balcão de perguntas daquele run com o
       seu próprio registro de interações, e guardá-lo junto do que o processo já
       lembra sobre o run enquanto pode agir sobre ele.
-- [ ] T055 Substituir, na seleção de ferramentas, a capacidade de pergunta
+- [x] T055 Substituir, na seleção de ferramentas, a capacidade de pergunta
       declarada pela do run — mesmo nome, mesmo esquema — de modo que o vínculo
       de processo não seja usado pelo gateway. Duas grafias da mesma capacidade
       competindo no orçamento de esquemas seria um defeito por si só.
-- [ ] T056 Fazer a listagem de interações pendentes devolver as perguntas
+- [x] T056 Fazer a listagem de interações pendentes devolver as perguntas
       daquele run em vez de vazio incondicional. T017 passa a verde para a
       parte de listagem.
-- [ ] T057 Fazer a busca de uma interação por identificador responder pelo
+- [x] T057 Fazer a busca de uma interação por identificador responder pelo
       balcão do run correspondente.
-- [ ] T058 Fazer a resposta a uma interação fechá-la e chegar ao run que
+- [x] T058 Fazer a resposta a uma interação fechá-la e chegar ao run que
       esperava, com a primeira resposta vencendo e a segunda sendo informada de
       quem respondeu antes. T017, T018 e T019 passam a verde.
-- [ ] T059 Conferir, com teste, que uma pergunta que pede credencial é recusada
+- [x] T059 Conferir, com teste, que uma pergunta que pede credencial é recusada
       antes de aparecer para qualquer pessoa, e que uma pergunta não respondida
       dentro da janela é fechada como não respondida.
-- [ ] T060 Atualizar a docstring do módulo do investigador de serving, que hoje
+- [x] T060 Atualizar a docstring do módulo do investigador de serving, que hoje
       afirma que nada nesta composição vincula o balcão de perguntas. A
       afirmação deixa de ser verdadeira nesta fase.
 
 ## Phase 7: O caminho duplicado ganha dono
 
-- [ ] T061 Declarar, no módulo que monta o pipeline de seis estágios, que ele
+- [x] T061 Declarar, no módulo que monta o pipeline de seis estágios, que ele
       não está no caminho de serving e nomear o que o constrói — o harness de
       avaliação que roda o corpus sintético. A declaração é sobre composição,
       não sobre qualidade: "não serve produção" e não "está morto".
-- [ ] T062 Conferir, com teste, que o caminho de serving é o outro e que ele é
+- [x] T062 Conferir, com teste, que o caminho de serving é o outro e que ele é
       alcançável da composition root. T023 passa a verde.
-- [ ] T063 Conferir que a resposta de zero integrações continua tendo uma
+- [x] T063 Conferir que a resposta de zero integrações continua tendo uma
       implementação só, com os dois chamadores apontando para ela.
 
 ## Phase 8: O cenário ponta a ponta
 
-- [ ] T064 Escrever o cenário sintético em `tests/synthetic/`: uma investigação
+- [x] T064 Escrever o cenário sintético em `tests/synthetic/`: uma investigação
       cujo diagnóstico leva à capacidade de escala de carga de trabalho — a
       escolhida no plano por ser reversível, de risco baixo e com plano de
       reversão derivável — sobre uma carga de trabalho do próprio deployment,
       nunca do estate. Sob propose-only, ele para na proposta, e a asserção é o
       que ficou gravado.
-- [ ] T065 Estender o cenário com a metade da aprovação, **num ambiente que
+- [x] T065 Estender o cenário com a metade da aprovação, **num ambiente que
       este trabalho controla, com plano de controle ligado**: a aprovação
       executa pelo portão, o resultado fica gravado com o identificador da
       aprovação, e o plano de reversão já estava gravado antes.
-- [ ] T066 Conferir, no mesmo cenário, que nada foi executado antes da
+- [x] T066 Conferir, no mesmo cenário, que nada foi executado antes da
       aprovação, e que o estado do recurso é o mesmo do início até ela
       acontecer.
 
@@ -331,7 +331,7 @@ real.
       catálogo de mensagens que a implementação tenha descoberto precisar, com o
       texto proposto; e a confirmação de que nenhum arquivo de escrita única do
       console foi tocado.
-- [ ] T072 Atualizar o `controle.md` desta feature com o que o código prova: o
+- [x] T072 Atualizar o `controle.md` desta feature com o que o código prova: o
       inventário antes e depois dos construtores dos portões, o vermelho
       capturado de cada teste da Fase 1, as contagens no armazenamento depois do
       cenário sintético, o efeito medido sobre a suíte de cenários, e toda

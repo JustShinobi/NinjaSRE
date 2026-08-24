@@ -45,26 +45,26 @@ diagnóstico não é a causa.
 
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar `make verify` na árvore intacta e guardar o log **fora do
+- [x] T001 Rodar `make verify` na árvore intacta e guardar o log **fora do
       repositório**. Registrar do próprio log: quantos testes passam, quais
       falham, e o tempo. Sem esta linha de base, uma falha preexistente é
       debitada desta feature e uma falha desta feature se esconde atrás de "já
       estava assim". Se a linha de base não estiver verde, parar e reportar
       antes de tocar em qualquer coisa.
 
-- [ ] T002 Medir a linha de base de latência: primeira pintura de `/incidents`,
+- [x] T002 Medir a linha de base de latência: primeira pintura de `/incidents`,
       `/runs` e `/incidents/{id}`, a **1920×1080**, contra o backing de mock, 20
       loads por rota, p50 e p95. Guardar em `evidence/latency-before.md`. É o
       "antes" contra o qual a decisão de dinamismo é julgada, e sem ele a
       medição de depois não significa nada.
 
-- [ ] T003 Registrar o estado de partida das telas, do código e não de um
+- [x] T003 Registrar o estado de partida das telas, do código e não de um
       documento: quais telas usam a causa de vazio, quantos valores tem o
       vocabulário de prontidão hoje, quais rotas sob o shell existem, e quais
       delas declaram dinamismo por si. Esses quatro números são o "antes" desta
       feature.
 
-- [ ] T004 **Diagnosticar a camada de cache real.** Com o console em produção
+- [x] T004 **Diagnosticar a camada de cache real.** Com o console em produção
       contra o backing, comparar três formas de chegar a `/incidents`: reload
       duro, navegação suave pelo menu, e primeira visita. Para cada uma,
       registrar se o backing recebeu requisição. Escrever a conclusão em
@@ -85,20 +85,20 @@ O vermelho de cada uma é capturado com a mensagem real e colado na tarefa.
 
 ### 1a. Instrumentação, sem a qual três alegações não têm teste honesto
 
-- [ ] T005 No plano de mock (`tools/mockplane/server.py`), contar as requisições
+- [x] T005 No plano de mock (`tools/mockplane/server.py`), contar as requisições
       por rota e por sessão, e servi-las numa rota de controle fora do espaço de
       caminhos do gateway. A rota de controle é do backing e não existe em
       produção; ela é resolvida **antes** do casamento de rota do gateway, e
       nunca colide com um caminho servido. Teste unitário Python do contador
       junto.
 
-- [ ] T006 No harness (`tools/console_e2e.py`), exportar o endereço do backing
+- [x] T006 No harness (`tools/console_e2e.py`), exportar o endereço do backing
       para o processo do Playwright, do mesmo jeito que a URL do console e a
       credencial já são exportadas, por uma constante declarada em
       `config/constants/`. Sem isso o acceptance não tem como perguntar ao
       contador.
 
-- [ ] T007 [P] No gate do console (`tools/console_gate.py`), adicionar o check
+- [x] T007 [P] No gate do console (`tools/console_gate.py`), adicionar o check
       que lê a saída do build de produção e reprova quando qualquer rota sob o
       shell consta como pré-renderizada. **Confirmar primeiro, contra uma saída
       de build real, qual arquivo de manifesto carrega esse fato e como ele
@@ -110,14 +110,14 @@ O vermelho de cada uma é capturado com a mensagem real e colado na tarefa.
 
 ### 1b. O acceptance da feature
 
-- [ ] T008 Criar `console/tests/e2e/030-uma-fonte-por-fato.acceptance.spec.ts`
+- [x] T008 Criar `console/tests/e2e/030-uma-fonte-por-fato.acceptance.spec.ts`
       com as alegações da spec, uma por bloco de teste, cada bloco nomeado pela
       frase que ele codifica. Marcar no próprio arquivo, por anotação de teste,
       quais são seguras contra ambiente compartilhado — leitura pura — e quais
       exigem o backing. Rodar e **confirmar vermelho**, colando aqui a mensagem
       de cada bloco que falhou.
 
-- [ ] T009 Estender `console/tests/e2e/transversal-rules.spec.ts` com o ban
+- [x] T009 Estender `console/tests/e2e/transversal-rules.spec.ts` com o ban
       desta rodada: nenhuma tela imprime negativa de existência num painel cujo
       estado é de erro. A regra é da feature de governança; a asserção que a
       exercita é escrita aqui. Confirmar vermelho contra o detalhe de incidente
@@ -125,45 +125,45 @@ O vermelho de cada uma é capturado com a mensagem real e colado na tarefa.
 
 ### 1c. Unitários que fixam a verdade antes da mudança
 
-- [ ] T010 [P] `tests/unit/platform/startup/test_checklist.py`: o passo de
+- [x] T010 [P] `tests/unit/platform/startup/test_checklist.py`: o passo de
       provider reporta verificado quando existe um registro de verificação que
       passou, sem chamar o endpoint. Vermelho: hoje ele reporta guardado.
 
-- [ ] T011 [P] Mesmo arquivo: o passo de provider reporta falhando quando o
+- [x] T011 [P] Mesmo arquivo: o passo de provider reporta falhando quando o
       último registro falhou. Vermelho: hoje não existe esse valor.
 
-- [ ] T012 [P] Mesmo arquivo: uma integração cujo último registro falhou é
+- [x] T012 [P] Mesmo arquivo: uma integração cujo último registro falhou é
       reportada como falhando, não como guardada. Vermelho pela mesma razão.
 
-- [ ] T013 [P] Mesmo arquivo: um registro de verificação ausente é reportado
+- [x] T013 [P] Mesmo arquivo: um registro de verificação ausente é reportado
       como não verificado, e um registro ilegível é tratado como ausente — nunca
       como falha. Deve **passar** já, e é a rede que pega a mudança inventando
       um vermelho que ninguém mediu. Registrar que passou e por quê.
 
-- [ ] T014 [P] `tests/unit/gateway/http/`: a resolução de handle de credencial
+- [x] T014 [P] `tests/unit/gateway/http/`: a resolução de handle de credencial
       devolve o handle do time que detém a credencial, e o handle org-wide
       quando ninguém a detém por time. Vermelho: a função não existe.
 
-- [ ] T015 [P] Mesmo lugar: com dois times detendo credencial para a mesma
+- [x] T015 [P] Mesmo lugar: com dois times detendo credencial para a mesma
       integração, a resolução devolve o handle org-wide e reporta a ambiguidade
       nomeando a integração. Vermelho pela mesma razão.
 
-- [ ] T016 [P] Mesmo lugar: o handle que a verificação resolve e o handle que o
+- [x] T016 [P] Mesmo lugar: o handle que a verificação resolve e o handle que o
       binding de ferramentas resolve são o mesmo, percorrendo o catálogo
       configurado. Vermelho: hoje um é o do caller e o outro é org-wide.
 
-- [ ] T017 [P] `console/tests/unit/surfaces/`: a causa de setup não é produzida
+- [x] T017 [P] `console/tests/unit/surfaces/`: a causa de setup não é produzida
       num deployment com investigação concluída. Vermelho: hoje ela é produzida
       por contagem de passos pendentes.
 
-- [ ] T018 [P] Mesmo lugar: a causa de setup, quando produzida, nomeia o passo
+- [x] T018 [P] Mesmo lugar: a causa de setup, quando produzida, nomeia o passo
       pendente que a justifica. Vermelho: hoje ela cita uma contagem.
 
-- [ ] T019 [P] Mesmo lugar: a derivação do chip de investigação devolve
+- [x] T019 [P] Mesmo lugar: a derivação do chip de investigação devolve
       desconhecido quando a leitura falhou, e nomeia a dependência. Vermelho: a
       derivação não existe e o chip afirma o negativo.
 
-- [ ] T020 [P] Mesmo lugar: as três superfícies que citam progresso de setup
+- [x] T020 [P] Mesmo lugar: as três superfícies que citam progresso de setup
       citam o mesmo par de números. Caracterização — deve passar já, e é o que
       distingue "verifiquei e estava certo" de "presumi que a onda anterior
       resolveu". Registrar o resultado, seja qual for.
@@ -176,35 +176,35 @@ motivo. Nada de implementação começou.
 
 ## Phase 2: Verdade de estado no backend
 
-- [ ] T021 Acrescentar o quarto valor ao vocabulário de prontidão em
+- [x] T021 Acrescentar o quarto valor ao vocabulário de prontidão em
       `config/constants/first_run.py`, ao lado dos três que já existem, com o
       comentário que diz por que ele é distinto de "guardada".
 
-- [ ] T022 Em `platform/startup/checklist.py`, derivar a prontidão do provider e
+- [x] T022 Em `platform/startup/checklist.py`, derivar a prontidão do provider e
       das integrações de quatro entradas — registro que passou, registro que
       falhou, credencial presente, nada — por uma função só, usada pelos dois.
       O módulo continua sem alcançar o catálogo nem o registro por si: eles
       chegam por parâmetro, como as integrações já chegam.
 
-- [ ] T023 Em `platform/startup/checklist.py`, fazer o texto sob o passo de
+- [x] T023 Em `platform/startup/checklist.py`, fazer o texto sob o passo de
       provider dizer o que o último check encontrou quando existe um, e que
       ninguém verificou quando não existe. A frase é do documento que o console
       renderiza, e não nomeia variável de ambiente nem instrução de deploy.
 
-- [ ] T024 Em `gateway/http/routes/first_run.py`, ler o registro de verificação
+- [x] T024 Em `gateway/http/routes/first_run.py`, ler o registro de verificação
       de provider — pelo mesmo helper que já lê o de integração — e injetá-lo no
       builder. **Esta é uma tarefa de composição**: ela só fecha com a evidência
       de serving da Phase 5, não com o unitário verde.
 
-- [ ] T025 Ampliar o modelo de resposta do checklist para o quarto valor, sem
+- [x] T025 Ampliar o modelo de resposta do checklist para o quarto valor, sem
       renomear nem remover nenhum dos três existentes.
 
-- [ ] T026 Varrer quem lê a prontidão e tratar o quarto valor explicitamente: o
+- [x] T026 Varrer quem lê a prontidão e tratar o quarto valor explicitamente: o
       console (first-run, dashboard, integrações) e o `doctor` do CLI. Um leitor
       que caísse no ramo errado por omissão é o defeito que esta feature
       existiria para não criar.
 
-- [ ] T027 Confirmar T010, T011, T012 e T013 verdes, e o passo de provider ainda
+- [x] T027 Confirmar T010, T011, T012 e T013 verdes, e o passo de provider ainda
       **sem** chamada ao endpoint — a propriedade que o injetor de verificação
       protege e que esta mudança não pode gastar.
 
@@ -319,70 +319,70 @@ mesma resolução. `make verify` estreito no lado Python.
 
 ### 4a. Causas de vazio
 
-- [ ] T035 Em `console/src/surfaces/emptiness.ts`, fazer a causa de setup
+- [x] T035 Em `console/src/surfaces/emptiness.ts`, fazer a causa de setup
       depender do passo que de fato bloqueia a tela que a pede, em vez da
       contagem de pendentes. A assinatura passa a receber qual dependência a
       tela tem.
 
-- [ ] T036 Fazer a causa de setup nomear o passo pendente que a justifica, com a
+- [x] T036 Fazer a causa de setup nomear o passo pendente que a justifica, com a
       chave de mensagem nova.
 
-- [ ] T037 Escrever a causa própria de `/decisions`: nenhuma proposta porque
+- [x] T037 Escrever a causa própria de `/decisions`: nenhuma proposta porque
       nenhuma investigação concluiu com remediação a propor. Chave nova em en.
 
-- [ ] T038 Escrever a causa própria de `/knowledge`: nenhum episódio porque
+- [x] T038 Escrever a causa própria de `/knowledge`: nenhum episódio porque
       nenhuma investigação terminou de forma que produzisse um. Chave nova em
       en.
 
-- [ ] T039 [P] Percorrer as demais telas que usam a causa de setup e dar a cada
+- [x] T039 [P] Percorrer as demais telas que usam a causa de setup e dar a cada
       uma a sua causa própria para quando a de setup não se aplicar. Uma tela
       que ficar sem causa própria mantém as suas palavras de mecanismo — o que é
       correto — e isso é registrado por tela, não deixado por omissão.
 
-- [ ] T040 Retirar do catálogo a sentença que afirma que investigações não podem
+- [x] T040 Retirar do catálogo a sentença que afirma que investigações não podem
       rodar enquanto o setup não termina, na forma em que ela afirma o que o
       gating não tem.
 
-- [ ] T041 Traduzir para pt-BR toda chave nova ou alterada desta feature, no
+- [x] T041 Traduzir para pt-BR toda chave nova ou alterada desta feature, no
       mesmo commit em que a chave em inglês entra.
 
-- [ ] T042 Confirmar T017 e T018 verdes.
+- [x] T042 Confirmar T017 e T018 verdes.
 
 ### 4b. Chips e o estado desconhecido
 
-- [ ] T043 Em `console/src/surfaces/read.ts`, acrescentar a derivação de estado
+- [x] T043 Em `console/src/surfaces/read.ts`, acrescentar a derivação de estado
       que devolve desconhecido quando a leitura falhou, ao lado da que já devolve
       erro/vazio/pronto, e que devolve junto a dependência que falhou.
 
-- [ ] T044 Em `console/src/surfaces/screens/incident-detail.tsx`, derivar o chip
+- [x] T044 Em `console/src/surfaces/screens/incident-detail.tsx`, derivar o chip
       de investigação dessa função, a partir do resultado da leitura e não do
       corpo dela. Quatro estados; o desconhecido nomeia a dependência.
 
-- [ ] T045 [P] Varrer os demais chips e rótulos que afirmam o negativo a partir
+- [x] T045 [P] Varrer os demais chips e rótulos que afirmam o negativo a partir
       de um corpo que pode ser de leitura falhada, e corrigi-los pelo mesmo
       caminho. A varredura é por uso da derivação, não por texto.
 
-- [ ] T046 Chaves de mensagem do estado desconhecido, en e pt-BR.
+- [x] T046 Chaves de mensagem do estado desconhecido, en e pt-BR.
 
-- [ ] T047 Confirmar T019 verde e a asserção transversal de T009 verde.
+- [x] T047 Confirmar T019 verde e a asserção transversal de T009 verde.
 
 ### 4c. Rotas dinâmicas
 
-- [ ] T048 Aplicar o remédio que T004 indicou, rota por rota: cada rota de lista
+- [x] T048 Aplicar o remédio que T004 indicou, rota por rota: cada rota de lista
       e cada rota de detalhe declara o seu próprio dinamismo no próprio arquivo,
       sem depender de herança de segmento. Se T004 tiver apontado uma camada
       diferente da do diagnóstico, o remédio é o dela — e a declaração por rota
       entra de todo jeito, porque depender de herança é a fragilidade que
       permitiu a dúvida.
 
-- [ ] T049 Confirmar que o check de build de T007 passa a **aprovar**, e que ele
+- [x] T049 Confirmar que o check de build de T007 passa a **aprovar**, e que ele
       reprova de novo se uma rota for revertida — testado revertendo uma e
       desfazendo.
 
-- [ ] T050 Confirmar verdes os blocos do acceptance que contam requisições e o
+- [x] T050 Confirmar verdes os blocos do acceptance que contam requisições e o
       que exige o fato novo em um reload.
 
-- [ ] T051 Medir de novo a latência exatamente como em T002 e escrever
+- [x] T051 Medir de novo a latência exatamente como em T002 e escrever
       `evidence/latency-after.md` com a comparação. Aplicar a decisão do plano:
       dentro do orçamento, aceito sem cache de dados; fora, cache de dados curto
       com a janela em constante declarada e a alegação do reload continuando a
@@ -391,7 +391,7 @@ mesma resolução. `make verify` estreito no lado Python.
 
 ### 4d. Contagens
 
-- [ ] T052 Fechar o que sobrou da coerência de contagens de setup entre
+- [x] T052 Fechar o que sobrou da coerência de contagens de setup entre
       cabeçalho, painel e dashboard, guiado pelo resultado registrado em T020. Se
       T020 passou, esta tarefa é uma confirmação escrita e nada mais — e dizer
       isso é o trabalho.
@@ -404,31 +404,31 @@ mesma resolução. `make verify` estreito no lado Python.
 
 Esta fase acontece depois do merge do slot, e o deploy é do orquestrador.
 
-- [ ] T053 Confirmar o deploy do slot com os componentes que esta feature mudou,
+- [x] T053 Confirmar o deploy do slot com os componentes que esta feature mudou,
       e o ambiente Synced e Healthy antes de qualquer medição.
 
-- [ ] T054 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` os blocos do
+- [x] T054 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` os blocos do
       acceptance marcados como seguros para ambiente compartilhado, mais a
       transversal. Screenshots full-page por tela retocada em `evidence/`.
 
-- [ ] T055 **Evidência de serving do checklist**: `/first-run` e
+- [x] T055 **Evidência de serving do checklist**: `/first-run` e
       `/settings/models-providers` no staging dizem a mesma palavra para o mesmo
       provider, capturada nas duas telas na mesma sessão.
 
-- [ ] T056 **Evidência de serving da resolução de provider**: o log de boot do
+- [x] T056 **Evidência de serving da resolução de provider**: o log de boot do
       pod nomeia a origem por provider e o time, sem valor nenhum; e uma
       investigação disparada no staging alcança o provider. Colar as linhas
       relevantes, redigidas de qualquer coisa que não seja nome.
 
-- [ ] T057 **Evidência de serving da resolução de handle**: para cada integração
+- [x] T057 **Evidência de serving da resolução de handle**: para cada integração
       configurada, o handle do registro de verificação e o handle que o binding
       reporta são o mesmo. Consulta ao banco, não inspeção de tela.
 
-- [ ] T058 Rodar as quatro consultas de banco que a spec enumera e colar as
+- [x] T058 Rodar as quatro consultas de banco que a spec enumera e colar as
       contagens. Uma consulta que não puder ser executada é reportada como tal,
       nunca substituída por uma inspeção de tela.
 
-- [ ] T059 Confirmar `make verify` verde ao final e comparar com o log de T001.
+- [x] T059 Confirmar `make verify` verde ao final e comparar com o log de T001.
 
 **Checkpoint final**: as três tarefas de composição têm a sua evidência de
 serving; os acceptance staging-safe estão verdes contra o ambiente real; as
