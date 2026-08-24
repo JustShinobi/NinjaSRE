@@ -16,6 +16,7 @@ import {
   authorised,
   dataOf,
   dependencyOf,
+  existenceOf,
   field,
   list,
   panelRead,
@@ -195,14 +196,26 @@ export async function IncidentDetailScreen(
     INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
   );
 
-  // `null` when the read itself failed: rendering "No investigation" over a
-  // read that never answered would be asserting the negative from evidence
-  // that does not exist. A read that succeeded and genuinely carries no
-  // investigation still says so — that is a fact, not a guess.
-  const investigationChip: { role: SemanticRole; shape: Shape; label: string } | null =
-    readFailed
-      ? null
-      : !hasInvestigation
+  // Four states, derived from the read's own outcome rather than from its
+  // body: `unknown` when the read itself failed — naming the dependency
+  // that did — never "No investigation" over a read that never answered.
+  // A read that succeeded and genuinely carries no investigation still
+  // says so; that is a fact, not a guess.
+  const investigationExistence = existenceOf(detail, hasInvestigation);
+  const investigationChip: {
+    role: SemanticRole;
+    shape: Shape;
+    label: string;
+    title?: string | undefined;
+  } =
+    investigationExistence.kind === 'unknown'
+      ? {
+          role: 'neutral',
+          shape: 'dash',
+          label: message(locale, 'incident.chip.investigation.unknown'),
+          title: message(locale, 'incident.chip.investigation.unknown.explain'),
+        }
+      : investigationExistence.kind === 'absent'
         ? {
             role: 'neutral',
             shape: 'dash',
@@ -280,30 +293,40 @@ export async function IncidentDetailScreen(
             shape={incidentPresented.shape}
             label={incidentStateLabel}
           />
-          {investigationChip === null ? null : (
-            <ResolvedChip
-              testId="incident-chip"
-              role={investigationChip.role}
-              shape={investigationChip.shape}
-              label={investigationChip.label}
-            />
-          )}
+          <ResolvedChip
+            testId="incident-chip"
+            role={investigationChip.role}
+            shape={investigationChip.shape}
+            label={investigationChip.label}
+            {...(investigationChip.title === undefined
+              ? {}
+              : { title: investigationChip.title })}
+          />
         </div>
-        <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
-          <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
-          {' · '}
-          <span data-testid="subtitle-source">{source}</span>
-          {' · '}
-          <span data-testid="subtitle-instant">
-            {message(locale, 'incident.subtitle.started', { when: opened.relative })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-zone">
-            {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
-        </p>
+        {readFailed ? null : (
+          // Every field here is derived from the incident this route could
+          // not read at all when `readFailed` — rendering it anyway would
+          // fall back to the same placeholder word on more than one slot at
+          // once, which reads as a description of an incident rather than
+          // as what it actually is: five facts nobody could learn. The
+          // title already says the read failed; a subtitle repeating that
+          // five different ways says nothing more.
+          <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
+            <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
+            {' · '}
+            <span data-testid="subtitle-source">{source}</span>
+            {' · '}
+            <span data-testid="subtitle-instant">
+              {message(locale, 'incident.subtitle.started', { when: opened.relative })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-zone">
+              {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

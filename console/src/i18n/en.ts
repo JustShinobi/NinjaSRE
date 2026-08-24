@@ -852,6 +852,12 @@ export const EN = {
   'incident.chip.investigation.none': 'No investigation',
   'incident.chip.investigation.running': 'Investigation running',
   'incident.chip.investigation.finished': 'Investigation finished',
+  // Distinct from `.none`: this incident's own detail failed to load, so
+  // whether an investigation exists at all was never learned — "no
+  // investigation" and "could not tell" call for opposite next steps.
+  'incident.chip.investigation.unknown': 'Unknown',
+  'incident.chip.investigation.unknown.explain':
+    'This incident could not be read, so whether it has an investigation could not be told either.',
   'incident.header.unreadable': 'This incident could not be read',
 
   'incident.origin.alert': 'Alertmanager',

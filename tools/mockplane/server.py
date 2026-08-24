@@ -75,6 +75,19 @@ SESSION_HEADER: Final = "x-mockplane-session"
 #: The session a client that names none gets.
 DEFAULT_SESSION: Final = "default"
 
+#: Where the mock's own telemetry answers. Resolved before the gateway's route
+#: matching and never handed to it, so a caller asking "did the console reach
+#: you" cannot collide with a path the console itself requests — no served
+#: endpoint starts with two underscores, and this one is not in the fixture
+#: set or the production binary either.
+CONTROL_PATH_PREFIX: Final = "/__mockplane__"
+
+#: The one control route this mock answers: how many times each route has
+#: been requested, in the caller's own session. What proves a page was served
+#: live rather than from a cache that never reached this process — a count
+#: that goes up between two reads is a request that happened.
+REQUEST_COUNTS_PATH: Final = f"{CONTROL_PATH_PREFIX}/requests"
+
 #: How many events the stream emits before it drops the connection, when a
 #: caller asks it to drop one. Far enough in that a reducer has state to lose.
 DEFAULT_DISCONNECT_AFTER: Final = 5
@@ -171,6 +184,10 @@ class MockPlane:
         self._data = data
         self._stream = stream if stream is not None else StreamControl()
         self._sessions: dict[str, Session] = {}
+        #: How many times each ``"METHOD path"`` has actually reached this
+        #: process, per session. Distinct from anything the fixture set
+        #: describes: this is telemetry about requests, not an answer to one.
+        self._counts: dict[str, dict[str, int]] = {}
 
     # --- What it is serving ---------------------------------------------------
 
@@ -202,8 +219,31 @@ class MockPlane:
         return self._sessions.setdefault(name, Session())
 
     def reset(self) -> None:
-        """Forget every session's writes. What a test does between cases."""
+        """Forget every session's writes and request counts. What a test does between cases."""
         self._sessions.clear()
+        self._counts.clear()
+
+    def request_counts(self, session: str = DEFAULT_SESSION) -> dict[str, int]:
+        """Return how many times each route has been requested, in ``session``.
+
+        Keyed by ``"METHOD path"`` of the request as it actually arrived — the
+        gateway's own path, never the fixture slug — so the count answers
+        exactly the question a caller asks the control route: did a request
+        for this route reach the process at all.
+        """
+        return dict(self._counts.get(session, {}))
+
+    def _record_request(self, method: str, path: str, session: str) -> None:
+        """Count one request toward ``session``'s tally, before it is answered.
+
+        Recorded here — ahead of route matching, fixture lookup and any
+        override — so the count reflects that a request *arrived*, which is
+        the only claim this feature's dynamism tests make. Whether the mock
+        could answer it is a separate fact this counter does not carry.
+        """
+        bucket = self._counts.setdefault(session, {})
+        key = f"{method} {path}"
+        bucket[key] = bucket.get(key, 0) + 1
 
     # --- Answering ------------------------------------------------------------
 
@@ -297,6 +337,12 @@ class MockPlane:
         headers = {key.decode().lower(): value.decode() for key, value in scope.get("headers", [])}
         session = headers.get(SESSION_HEADER, DEFAULT_SESSION)
 
+        if path.startswith(CONTROL_PATH_PREFIX):
+            await self._serve_control(method, path, session, send)
+            return
+
+        self._record_request(method, path, session)
+
         resolved = match_request(method, path)
         if resolved is not None and resolved[0].streaming:
             await self._serve_stream(resolved[0], resolved[1], headers, send)
@@ -324,6 +370,41 @@ class MockPlane:
             }
         )
         await send({"type": "http.response.body", "body": answer.body})
+
+    async def _serve_control(self, method: str, path: str, session: str, send: Send) -> None:
+        """Answer the mock's own telemetry route, never a fixture-served one.
+
+        Outside the gateway's path space by construction — ``CONTROL_PATH_PREFIX``
+        is checked before ``match_request`` ever runs, so this can never shadow
+        or be shadowed by an endpoint the fixture set declares.
+        """
+        if method == "GET" and path == REQUEST_COUNTS_PATH:
+            body = dumps({"session": session, "counts": self.request_counts(session)}).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"cache-control", b"no-store"),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 404,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": self._problem(f"{method} {path} is not a control route this mock serves"),
+            }
+        )
 
     async def _lifespan(self, receive: Receive, send: Send) -> None:
         while True:
@@ -626,8 +707,10 @@ def serve(
 
 
 __all__ = [
+    "CONTROL_PATH_PREFIX",
     "DEFAULT_DISCONNECT_AFTER",
     "DEFAULT_SESSION",
+    "REQUEST_COUNTS_PATH",
     "SESSION_HEADER",
     "Answer",
     "MockPlane",

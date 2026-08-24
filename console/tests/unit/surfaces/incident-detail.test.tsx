@@ -388,18 +388,23 @@ describe('a detail read that failed', () => {
     serve({ '/auth/me': PRINCIPAL });
   });
 
-  it('says it could not read the incident, names no identifier, and renders no chip that could assert an absent investigation', async () => {
+  it('says it could not read the incident, names no identifier, and the investigation chip says Unknown rather than asserting an absent investigation', async () => {
     await renderIncident('inc-unreadable-01');
 
     const heading = screen.getByTestId('incident-title');
     expect(heading).toHaveTextContent('This incident could not be read');
     expect(heading).not.toHaveTextContent('inc-unreadable-01');
 
-    // Only the state chip renders — the investigation chip is not there to
-    // assert anything, absent rather than derived from a read that never
-    // answered.
+    // Both chips render: the incident's own state, and the investigation
+    // chip — which now says Unknown rather than being absent, and rather
+    // than asserting "No investigation" from a read that never answered.
     const chips = screen.getAllByTestId('incident-chip');
-    expect(chips).toHaveLength(1);
+    expect(chips).toHaveLength(2);
+    const investigationChip = chips[1];
+    expect(investigationChip).toHaveTextContent('Unknown');
+    expect(investigationChip).not.toHaveTextContent('No investigation');
+    // The dependency that failed, named in the tooltip.
+    expect(investigationChip?.getAttribute('title')).toMatch(/incident/i);
 
     const panels = screen.getAllByTestId('panel');
     expect(panels).toHaveLength(3);
@@ -410,6 +415,14 @@ describe('a detail read that failed', () => {
     const states = panels.map((panel) => panel.getAttribute('data-state'));
     expect(states.filter((state) => state === 'error')).toHaveLength(2);
     expect(states.filter((state) => state === 'empty')).toHaveLength(1);
+  });
+
+  it('renders no subtitle at all, rather than the same fallback word on more than one of its five slots', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    expect(screen.queryByTestId('incident-subtitle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-rule')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-host')).not.toBeInTheDocument();
   });
 
   it('shows the deployment’s own name in the document title instead of the identifier', async () => {

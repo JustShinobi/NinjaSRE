@@ -132,4 +132,12 @@ describe('negativeAssertionAfterFailedRead', () => {
   it('absolves a failed read that asserts nothing', () => {
     expect(negativeAssertionAfterFailedRead(true, '')).toBeNull();
   });
+
+  it('absolves the honest answer a failed read is allowed to give', () => {
+    expect(negativeAssertionAfterFailedRead(true, 'Unknown')).toBeNull();
+  });
+
+  it('still accuses a specific, positive claim made over the same failed read', () => {
+    expect(negativeAssertionAfterFailedRead(true, 'Investigation finished')).not.toBeNull();
+  });
 });
