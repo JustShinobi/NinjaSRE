@@ -36,7 +36,7 @@ de a evidência ser considerada entregue.
 
 **Objetivo**: garantir que a demo mede a onda, e não uma versão anterior dela.
 
-- [ ] T001 Confirmar que todas as features da onda estão mergeadas na árvore da
+- [x] T001 Confirmar que todas as features da onda estão mergeadas na árvore da
       onda e que cada uma tem veredito PASS do seu verifier. Registrar o commit
       da árvore em `evidence/EVIDENCIA.md` (seção "A versão que a demo mediu").
       Se alguma feature não estiver PASS, a demo não começa — reportar ao
@@ -45,18 +45,18 @@ de a evidência ser considerada entregue.
       registrar exit code, número de testes e duração. Um vermelho aqui é
       bloqueio: publicar uma árvore que não passa transforma qualquer falha da
       demo em ambiguidade.
-- [ ] T003 Publicar em staging: `make deploy-stg` (sem `COMPONENTS=`, porque a
+- [x] T003 Publicar em staging: `make deploy-stg` (sem `COMPONENTS=`, porque a
       onda mudou app e console). Registrar os digests que o script imprimiu.
-- [ ] T004 Aguardar o Argo reconciliar:
+- [x] T004 Aguardar o Argo reconciliar:
       `ssh root@192.168.68.159 'kubectl get application stg-ninjasre -n argocd'`
       até `Synced + Healthy`. Registrar a saída com o instante.
-- [ ] T005 Confirmar, **separadamente**, que o serviço responde — `Synced +
+- [x] T005 Confirmar, **separadamente**, que o serviço responde — `Synced +
       Healthy` diz que o cluster reflete o Git, não que alguém atende. Conferir
       os pods (`kubectl get pods -n k3s-stg-ninjasre`), o `/health/ready` do app
       (`kubectl exec -n k3s-stg-ninjasre deploy/app -- curl -s
       http://localhost:8420/health/ready | jq .`) e a URL pública
       `https://stg-ninjasre.lan.kyo.ninja` respondendo. Registrar as três saídas.
-- [ ] T006 Registrar em `evidence/EVIDENCIA.md` o digest publicado e o estado do
+- [x] T006 Registrar em `evidence/EVIDENCIA.md` o digest publicado e o estado do
       Argo no instante da demo — a evidência precisa apontar uma versão.
       **Checkpoint**: sem T004+T005 verdes a demo não começa. Reprovar aqui é
       **ambiente**: reexecutável, não reprova a onda.
@@ -80,7 +80,7 @@ Nenhuma tarefa desta fase altera infraestrutura.
       recursos reais. Screenshot das duas telas. `SELECT count(*) FROM
       estate_resources WHERE org_id = :org;` — o valor de partida da onda é zero
       recursos na tela.
-- [ ] T010 Conferir que o token do Proxmox guardado por este deployment tem o
+- [x] T010 Conferir que o token do Proxmox guardado por este deployment tem o
       privilégio de gerência de energia de convidados (`VM.PowerMgmt` no caminho
       `/vms`). **Sem alterar o token.** Se ele for de leitura, registrar como
       **decisão pendente do operador** — conceder escrita é decisão de fronteira
