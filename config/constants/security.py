@@ -546,6 +546,13 @@ PERMISSION_AUDIT_ACTION_DENIED: Final = "permission.denied"
 #: apart, and a reviewer asking "who was created" needs a query narrower than
 #: "who was granted anything".
 PRINCIPAL_AUDIT_ACTION_CREATE: Final = "principal.create"
+#: Enrolling a local administrator — deliberately its own class rather than
+#: ``PRINCIPAL_AUDIT_ACTION_CREATE``: the CLI's own path never touches
+#: ``POST /identity/principals`` at all, and a reviewer asking "who became an
+#: administrator, and when" needs a query that does not also return every
+#: ordinary local password somebody else created.
+LOCAL_ADMIN_AUDIT_ACTION_ENROLLED: Final = "local_admin.enrolled"
+LOCAL_ADMIN_AUDIT_ACTION_ROTATED: Final = "local_admin.rotated"
 IMPERSONATION_AUDIT_ACTION_START: Final = "impersonation.start"
 IMPERSONATION_AUDIT_ACTION_END: Final = "impersonation.end"
 BREAK_GLASS_AUDIT_ACTION: Final = "break_glass.open"
@@ -902,6 +909,8 @@ __all__ = [
     "LOCAL_ACCOUNT_SESSION_SECONDS",
     "LOCAL_ACCOUNT_USERNAME",
     "LOCAL_ACCOUNT_USERNAME_ENV",
+    "LOCAL_ADMIN_AUDIT_ACTION_ENROLLED",
+    "LOCAL_ADMIN_AUDIT_ACTION_ROTATED",
     "MASKING_BUDGET_SECONDS_PER_MEGABYTE",
     "MASKING_ENABLED_BY_DEFAULT",
     "MASKING_POLICY_LEVELS",
