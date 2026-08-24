@@ -80,3 +80,59 @@ de produto que eu havia empurrado para o operador.
 Porque o operador perguntou por que esta tarefa não podia ser feita. Ela podia:
 o transcript está no store, o conjunto oferecido é gravado por turno, e o
 catálogo responde por uma chamada. Eu não tinha olhado nenhum dos três.
+
+---
+
+## Segunda correção: o ranqueamento também não era a explicação
+
+Escrevi acima que o seletor cortou `proxmox_start_guest` por ranqueamento.
+Fui medir e a coisa é mais interessante.
+
+**O balcão trata a ação.** `capabilities/tools/remediation/proxmox/guests.py`
+declara `START` com `capability="proxmox_start_guest"`, e
+`components_for(START, verifier=StartedVerifier())` lhe dá os quatro
+componentes que o balcão exige. Ela não é filtrada por `_can_carry`.
+
+**E o ranqueamento não a rejeita por princípio.** Rodado localmente contra um
+sinal desta forma, `proxmox_start_guest` sai em 19º com escore 0,909 — dentro
+de qualquer corte de 40. Enquanto isso `proxmox_reboot_guest` sai em 77º com
+escore **zero** e *foi* oferecido ao run real.
+
+Ou seja: a posição depende do objetivo real da investigação, que eu não
+consigo reconstruir, e reconstruí-lo por aproximação produz uma ordem que
+contradiz o que aconteceu. **Não vou afirmar a causa que não medi** — foi
+exatamente assim que errei duas vezes nesta mesma investigação.
+
+## O que está provado, e é suficiente
+
+1. `proxmox_start_guest` existe, é `write_reversible`, tem os quatro
+   componentes, e o balcão a trata.
+2. Ela **não** estava entre as 40 oferecidas ao run da demo.
+3. Sete outras ações sobre convidados estavam: parar, desligar, suspender,
+   reiniciar, retomar, migrar, relocar.
+4. O incidente era, textualmente, um convidado que estava rodando e parou.
+
+O agente tinha sete maneiras de mexer naquele convidado e nenhuma que o
+resolvesse. Ele não escolheu não agir.
+
+## E o defeito que impede de saber por quê
+
+O store grava, por turno, um campo chamado **`selection_rationale`**.
+
+    turno 1   offered_capabilities: 40   selection_rationale: (vazio)
+    turno 2   offered_capabilities: 40   selection_rationale: (vazio)
+    turno 3   offered_capabilities: 40   selection_rationale: (vazio)
+    turno 4   offered_capabilities: 40   selection_rationale: (vazio)
+    turno 5   offered_capabilities: 40   selection_rationale: o resumo da investigação
+
+Nos quatro turnos que fizeram seleção ele está vazio. No quinto carrega o
+relatório do modelo, que não é a razão da seleção de coisa nenhuma.
+
+**Existe um campo para explicar por que uma capacidade foi ou não oferecida, e
+ele não explica.** É por isso que a pergunta acima ficou sem resposta: não
+porque a informação seja inalcançável, mas porque o lugar onde ela deveria
+estar está vazio — e um campo vazio com um nome desses é pior que campo
+nenhum, porque quem procura acha e conclui que não há o que dizer.
+
+Este é o achado com dono e com conserto claro. E é da mesma família de tudo o
+que esta onda vem fechando: uma superfície que afirma explicar e não explica.
