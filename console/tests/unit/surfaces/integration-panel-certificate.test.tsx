@@ -152,7 +152,7 @@ async function testAgainShowing(reason: string): Promise<string> {
   await waitFor(() => {
     expect(screen.getByTestId('credential-outcome')).toBeTruthy();
   });
-  return screen.getByTestId('credential-outcome').textContent ?? '';
+  return screen.getByTestId('credential-outcome').textContent || '';
 }
 
 beforeEach(() => {
