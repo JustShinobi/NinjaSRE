@@ -19,21 +19,28 @@ import type { SemanticRole } from './tokens';
 /**
  * The statuses the gateway reports for a run.
  *
- * `completed` and `partial` are the words the runtime itself emits on an
- * ordinary and a degraded finish; `succeeded` stays declared alongside them
- * rather than being replaced, because the fixtures and the visual baselines
- * that already use it are not this feature's to move. A run this console
- * reads may carry either spelling for the same fact.
+ * This is the persistence store's own enumeration, served verbatim —
+ * `gateway/http/routes/investigations.py::summary_of` writes
+ * `status=run.status.value` with no translation, so this is the one closed
+ * set a real run's status ever arrives in. It is not the runtime's own
+ * status (how one loop iteration ended: completed, partial, cancelled,
+ * failed) and it is not a fixture's invention — a repository check
+ * (`tools/check_run_status_vocabulary.py`) reads this array and the store's
+ * enumeration and reproves the build the moment either lists a word the
+ * other does not.
+ *
+ * `succeeded` is deliberately absent from this list even though the shared
+ * presentation table below still knows it: a tool call's own outcome
+ * (`ToolCallStatus.SUCCEEDED`) is spelled the same word for an unrelated
+ * fact, and a transcript badge still needs to draw it.
  */
 export const RUN_STATUSES = [
-  'queued',
   'running',
-  'waiting',
-  'succeeded',
+  'suspended',
   'completed',
-  'partial',
-  'failed',
   'cancelled',
+  'failed',
+  'interrupted',
 ] as const;
 
 export type RunStatus = (typeof RUN_STATUSES)[number];
@@ -42,21 +49,27 @@ export type RunStatus = (typeof RUN_STATUSES)[number];
  * Every word that means a run is still doing something — still taking tool
  * calls, on its own.
  *
- * `awaiting_approval` is deliberately absent. A run in that state has
- * stopped calling tools and is paused on a person's decision, which is
- * neither "still working" nor "settled and will not change again" — it is
- * its own third thing, surfaced by the open-interaction panel rather than by
- * a live transcript stream watching for tool calls that are not coming.
+ * `suspended` is deliberately absent. A run in that state has stopped
+ * calling tools and is paused on a person's decision, which is neither
+ * "still working" nor "settled and will not change again" — it is its own
+ * third thing, surfaced by the open-interaction panel rather than by a live
+ * transcript stream watching for tool calls that are not coming.
  */
-const LIVE_RUN_STATUSES: readonly string[] = ['queued', 'running', 'waiting'];
+const LIVE_RUN_STATUSES: readonly string[] = ['running'];
 
-/** Every word that means a run has finished and will not change again. */
+/**
+ * Every word that means a run has finished and will not change again.
+ *
+ * `interrupted` counts as settled here even though it is not a conclusion:
+ * nothing is going to resume producing events for a run the store only
+ * marked this way because the process that was running it is gone, so a
+ * live transcript has nothing further to wait for.
+ */
 const SETTLED_RUN_STATUSES: readonly string[] = [
-  'succeeded',
   'completed',
-  'partial',
-  'failed',
   'cancelled',
+  'failed',
+  'interrupted',
 ];
 
 /** The statuses a resource, detector or dependency reports. */
@@ -219,20 +232,24 @@ export interface StatusPresentation {
 
 const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> = {
   // Runs.
-  queued: { role: 'neutral', shape: 'hollow-circle' },
   running: { role: 'info', shape: 'rotated-square' },
-  waiting: { role: 'warning', shape: 'triangle' },
-  succeeded: { role: 'success', shape: 'filled-circle' },
-  // The runtime's own word for the same fact `succeeded` already draws —
-  // same role, same shape, because the two are one outcome under two
-  // spellings, not two outcomes.
+  // Paused on a human decision — the persistence store's own word for the
+  // fact `awaiting_approval` used to spell inconsistently across fixtures.
+  // Same role and shape `waiting` drew, because it is the same fact.
+  suspended: { role: 'warning', shape: 'triangle' },
   completed: { role: 'success', shape: 'filled-circle' },
-  // The degraded finish: evidence intact, the answer is whatever could be
-  // said from it. Distinct from both a clean finish and a failure, so it
-  // gets warning's shape rather than borrowing either of theirs.
-  partial: { role: 'warning', shape: 'triangle' },
+  // A tool call's own word for succeeding, not a run's: the persistence
+  // store never writes this spelling for where a run is (RUN_STATUSES
+  // above does not carry it), but `ToolCallStatus.SUCCEEDED` does, and the
+  // transcript's own call badges still read it through this shared table.
+  succeeded: { role: 'success', shape: 'filled-circle' },
   failed: { role: 'danger', shape: 'square' },
   cancelled: { role: 'neutral', shape: 'dash' },
+  // Nobody knows how far this run got — the process running it is gone,
+  // and recording it as a failure would put a conclusion in the history
+  // that nothing established. Its own shape, borrowing neither `failed`'s
+  // nor `cancelled`'s, for exactly that reason.
+  interrupted: { role: 'neutral', shape: 'dimmed-circle' },
   // Resources.
   healthy: { role: 'success', shape: 'filled-circle' },
   degraded: { role: 'warning', shape: 'triangle' },
