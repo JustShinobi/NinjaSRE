@@ -98,12 +98,17 @@ describe('a run that failed before it started', () => {
     expect(screen.getAllByText(RAW)).toHaveLength(1);
   });
 
-  it('shows the translated failure headline only once', async () => {
+  it('shows the translated failure headline in the header, the breadcrumb and the panel — never a fourth time', async () => {
     serveFailedBeforeStart();
     await runScreen();
 
+    // Three, not one: the breadcrumb's current crumb, the page's own H1, and
+    // the summary panel's body all read the same run's name from the same
+    // place now, which is the property this suite holds them to — the
+    // regression this test used to guard against was a *fourth* copy, in
+    // the transcript's own "report" entry.
     const title = 'Investigations are not switched on yet';
-    expect(screen.getAllByText(title)).toHaveLength(1);
+    expect(screen.getAllByText(title)).toHaveLength(3);
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
   });
 

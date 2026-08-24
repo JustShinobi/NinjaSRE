@@ -417,6 +417,105 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "finished_at": at(days=5, minutes=58),
         "summary": "Cancelled by the operator after the cause was identified by hand.",
     },
+    # --- The three cases below reproduce, from fixture, what the running
+    # deployment looked like before and after the console learned to read a
+    # headline. Appended rather than folded into the six above: rewriting an
+    # existing run would move baselines and unit assertions that are not
+    # about this.
+    {
+        "run_id": "run-0101",
+        # The word the product's own runtime emits on an ordinary finish —
+        # distinct from the six runs above, which still carry the older
+        # "succeeded" this dataset kept so as not to move their baselines.
+        "status": "completed",
+        "trigger": "alert",
+        "started_at": at(days=1, hours=6, minutes=10),
+        "finished_at": at(days=1, hours=5, minutes=41),
+        # No "headline" key at all: this run is one recorded before that
+        # field existed, and `_run_detail` leaves it exactly that way
+        # instead of synthesising one — the console's own fallback is what
+        # has to name it.
+        "summary": (
+            "### Incident Findings & Root Cause Analysis\n"
+            "\n"
+            "The **standby** replica fell behind after a maintenance window "
+            "extended past its usual length, and alerting caught up only once "
+            "the replication lag crossed the paging threshold.\n"
+            "\n"
+            "#### Evidence gathered\n"
+            "\n"
+            "- Replication lag crossed 900s at 05:12, alerting fired at 05:41\n"
+            "- The maintenance window's own log shows it closed 38 minutes late\n"
+            "- No write was lost: the standby caught up on its own within the hour\n"
+            "\n"
+            "| Metric | Before | After |\n"
+            "| --- | --- | --- |\n"
+            "| Replication lag | 940s | 4s |\n"
+            "| Standby state | catching up | in sync |\n"
+            "\n"
+            "```\n"
+            "2026-08-06T05:12:03Z lag_seconds=940 threshold=900 "
+            "replica=pve02-pg-standby-01 window=maintenance-extended-past-schedule\n"
+            "```\n"
+            "\n"
+            "No action is required: the standby is caught up and the "
+            "maintenance window that caused the delay already closed."
+        ),
+    },
+    {
+        "run_id": "run-0102",
+        "status": "partial",
+        "trigger": "schedule",
+        "started_at": at(days=6, hours=2),
+        "finished_at": at(days=6, hours=1, minutes=44),
+        # Deliberately over the console's own display limit once flattened,
+        # and carrying emphasis a model's answer would — this is the case
+        # that proves the name is flattened and clipped, not merely shown.
+        "headline": (
+            "The **platform** node's shared connection pool exhausted under "
+            "sustained memory pressure, degrading query latency for every "
+            "service that depends on it, until the leak was found and cleared"
+        ),
+        "summary": (
+            "Memory pressure on the platform node exhausted the shared "
+            "connection pool. The evidence gathered so far points at a slow "
+            "leak in one long-running worker; the investigation could not "
+            "confirm which one before its own budget ran out."
+        ),
+    },
+    {
+        "run_id": "run-0103",
+        "status": "completed",
+        "trigger": "manual",
+        "started_at": at(days=7, hours=3),
+        "finished_at": at(days=7, hours=2, minutes=55),
+        "headline": "A stray log line was mistaken for a live credential",
+        # Hostile on purpose: a raw HTML tag, an image pointing off this
+        # deployment, a link whose scheme is executable, and one unbroken
+        # line wider than the viewport. The report panel has to survive all
+        # four without turning any of them into something the browser acts
+        # on.
+        "summary": (
+            "The alert text embedded a fragment the log line itself had "
+            "printed. Rendered here exactly as recorded, for review:\n"
+            "\n"
+            "<script>alert('not really')</script>\n"
+            "\n"
+            "![a screenshot the investigation was never given]"
+            "(https://attacker.example/track.png)\n"
+            "\n"
+            "[open the dashboard](javascript:alert(document.cookie))\n"
+            "\n"
+            "```\n"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
+            "```\n"
+            "\n"
+            "None of the above was a live credential; the alert source had "
+            "copied a fixture line verbatim into its own payload."
+        ),
+    },
 )
 
 #: The window the storage investigation asked what changed in: the six hours
@@ -603,6 +702,65 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
             ],
         },
     ),
+    # Four calls across two turns — the run the transcript and cost panels
+    # count against. One turn priced, one not: `unpriced_turns` on the
+    # replay this produces is 1, never 0 and never every turn, so both the
+    # "has cost" and the "this one did not price" paths stay exercised.
+    "run-0005": (
+        {
+            "turn_id": "turn-0005-1",
+            "index": 0,
+            "model": "operator-configured",
+            "selection_rationale": "the disabled job's own state names the subject to check first",
+            "prompt_tokens": 612,
+            "completion_tokens": 148,
+            "cost": 0.0091,
+            "calls": [
+                {
+                    "call_id": "call-0005-1",
+                    "name": "estate.backup_job_status",
+                    "status": "succeeded",
+                    "duration_ms": 205,
+                    "error": None,
+                    "arguments": {"resource": "proxmox:container/hal9000/110"},
+                },
+                {
+                    "call_id": "call-0005-2",
+                    "name": "estate.backup_job_status",
+                    "status": "succeeded",
+                    "duration_ms": 179,
+                    "error": None,
+                    "arguments": {"resource_id": "ct-101"},
+                },
+            ],
+        },
+        {
+            "turn_id": "turn-0005-2",
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "both subjects share one disabled job; read the schedule that disabled it",
+            # No "cost" key: the call this turn made is one this dataset has
+            # no real spend figure for, so the turn is left unpriced rather
+            # than given an invented one.
+            "calls": [
+                {
+                    "call_id": "call-0005-3",
+                    "name": "knowledge.search",
+                    "status": "succeeded",
+                    "duration_ms": 91,
+                    "error": None,
+                },
+                {
+                    "call_id": "call-0005-4",
+                    "name": "estate.backup_schedule",
+                    "status": "succeeded",
+                    "duration_ms": 133,
+                    "error": None,
+                    "arguments": {"resource": "proxmox:container/hal9000/110"},
+                },
+            ],
+        },
+    ),
 }
 
 
@@ -636,7 +794,11 @@ def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> d
 
     - ``headline`` is synthesised the same way a stored run with none gets
       one — never read from ``summary``, which is the document it has to
-      stay distinct from.
+      stay distinct from — **unless** ``run`` already names an explicit
+      ``headline`` (including ``""``). A raw run entry that sets the key
+      itself is standing in for a real model-produced sentence, or for a run
+      recorded before this field existed at all; either way, the fixture is
+      declaring the fact rather than asking this function to invent one.
     - ``report`` is that document, unaltered.
     - ``touched_resources`` comes from what this run's own calls were
       actually made with, never from a declared subject.
@@ -647,13 +809,33 @@ def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> d
     identifier = str(run["run_id"])
     trigger = str(run.get("trigger") or "")
     objective = f"{trigger} investigation" if trigger else ""
+    headline = (
+        str(run["headline"]) if "headline" in run else synthesize_headline(objective=objective)
+    )
     return {
         **run,
-        "headline": synthesize_headline(objective=objective),
+        "headline": headline,
         "report": str(run.get("summary") or ""),
         "incident_id": incident_by_run.get(identifier, ""),
         "touched_resources": list(touched_resources_of(_run_calls(identifier))),
     }
+
+
+def _turn_usage(turn: Mapping[str, Any]) -> tuple[float, int, bool]:
+    """Return ``(cost, tokens, priced)`` for one turn, from what it recorded.
+
+    ``priced`` is ``False`` exactly when the turn carries no ``cost`` at
+    all — the same distinction ``platform.runs.recorder.record_turn`` marks
+    by omitting the key, and the one ``ReplayedRun.unpriced_turn_count``
+    counts on the real replay path. A turn with no cost contributes zero to
+    the running total rather than a guess, which is what keeps the sum
+    honest for a run whose calls this dataset does not have real spend
+    figures for.
+    """
+    if "cost" not in turn:
+        return 0.0, 0, False
+    tokens = int(turn.get("prompt_tokens", 0)) + int(turn.get("completion_tokens", 0))
+    return float(turn["cost"]), tokens, True
 
 
 def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[CapturedRecord, ...]:
@@ -668,6 +850,13 @@ def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[C
         records.append(
             _record("run-threads", {"run_id": identifier}, {"run_id": identifier, "turns": turns})
         )
+        # Summed from what each turn actually carries — never a formula over
+        # the turn count — so a run with no real spend recorded reports zero
+        # rather than a plausible-looking number nothing backs. A turn that
+        # never priced itself (still running, or a call this dataset has no
+        # real figure for) is counted in ``unpriced_turns`` instead of
+        # silently contributing to the total.
+        usages = [_turn_usage(turn) for turn in turns]
         records.append(
             _record(
                 "run-replay",
@@ -675,14 +864,10 @@ def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[C
                 {
                     "run_id": identifier,
                     "turns": turns,
-                    "total_cost": round(0.031 * (len(turns) + 1), 4),
-                    "total_tokens": 1840 * (len(turns) + 1),
+                    "total_cost": round(sum(cost for cost, _, _ in usages), 4),
+                    "total_tokens": sum(tokens for _, tokens, _ in usages),
                     "is_interrupted": run["status"] == "cancelled",
-                    # No turn in this dataset has ever recorded a cost, so by
-                    # the same definition ``ReplayedRun.unpriced_turn_count``
-                    # uses — turns whose cost was never recorded — every turn
-                    # here counts as one.
-                    "unpriced_turns": len(turns),
+                    "unpriced_turns": sum(1 for _, _, priced in usages if not priced),
                 },
             )
         )

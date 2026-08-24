@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { isSettled } from '@/design/status';
+import { isSettled, roleFor } from '@/design/status';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -12,6 +12,7 @@ import { Figure } from '../figure';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
 import { DashboardQuickActions } from '../quick-actions';
+import { subjectOf } from '../run-subject';
 import { SetupHero } from '../setup-hero';
 import {
   authorised,
@@ -178,13 +179,16 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     // failure that matters most that is a raised exception naming an
     // environment variable. It was the first thing on this page: a sentence
     // written for whoever deploys the product, shown to whoever opened the
-    // console, on a screen that has a button leading to the fix.
+    // console, on a screen that has a button leading to the fix. A run whose
+    // text is not a raised exception is named the same way every other
+    // surface names a run — never by printing its raw, possibly markdown
+    // document here instead.
     const said = readFailure(text(record, 'summary'), locale);
     const raised = said.technical !== '';
     attention.push({
       id,
       kind: 'failure',
-      title: raised ? said.title : text(record, 'summary'),
+      title: raised ? said.title : subjectOf(record, locale).text,
       detail: raised ? said.action : text(record, 'status'),
       href: raised && said.href !== '' ? said.href : `/runs/${id}`,
       since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
@@ -214,18 +218,17 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     const status = text(record, 'status');
     // Same translation as the band above, for the same reason: this was the
     // fourth surface repeating the identical stack trace, and a narrative of
-    // what happened here reads worst of all as an exception message.
+    // what happened here reads worst of all as an exception message. The
+    // title itself comes from the one place that names a run — never the
+    // raw summary a plain sentence used to fall through to here, which for
+    // an ordinary investigation is its whole markdown report.
     const said = readFailure(text(record, 'summary'), locale);
     feed.push({
       id: `run-${id}`,
       kind: 'run',
       kindLabel: message(locale, 'runs.list.title'),
-      outcome: FAILED.has(status)
-        ? 'danger'
-        : status === 'succeeded'
-          ? 'success'
-          : 'info',
-      title: said.title === '' ? id : said.title,
+      outcome: FAILED.has(status) ? 'danger' : roleFor(status) === 'success' ? 'success' : 'info',
+      title: subjectOf(record, locale).text,
       detail: said.technical === '' ? status : said.action,
       href: `/runs/${id}`,
       ...timestamp(locale, text(record, 'started_at'), now, zone),
@@ -257,8 +260,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   // about whether the product itself is doing its job — the fact the reference
   // design leads with and this page, until now, never asked.
   const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
+  // By role rather than by the literal word "succeeded", so a runtime that
+  // finishes cleanly under either of its two spellings — the older one the
+  // fixtures still carry, and the one it actually emits — counts toward the
+  // same figure instead of quietly dragging it down.
   const succeededRuns = settledRuns.filter(
-    (record) => text(record, 'status') === 'succeeded',
+    (record) => roleFor(text(record, 'status')) === 'success',
   );
   const successRate =
     settledRuns.length === 0

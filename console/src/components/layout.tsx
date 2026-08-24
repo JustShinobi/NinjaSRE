@@ -12,6 +12,12 @@ import { useId } from 'react';
 
 export interface PageHeaderProps {
   readonly title: string;
+  /**
+   * The full title, when `title` is a clipped version of something longer.
+   * Absent for an ordinary title — a tooltip repeating exactly what is
+   * already on the screen teaches a reader to stop trusting tooltips.
+   */
+  readonly titleTooltip?: string | undefined;
   readonly context: string;
   readonly icon?: ReactNode;
   readonly actions?: ReactNode;
@@ -26,6 +32,7 @@ export interface PageHeaderProps {
  */
 export function PageHeader({
   title,
+  titleTooltip,
   context,
   icon,
   actions,
@@ -38,7 +45,9 @@ export function PageHeader({
         </span>
       )}
       <div className="min-w-0">
-        <h1 className="text-title">{title}</h1>
+        <h1 className="text-title truncate" title={titleTooltip}>
+          {title}
+        </h1>
         <p className="text-meta text-muted">{context}</p>
       </div>
       {actions === undefined ? null : (

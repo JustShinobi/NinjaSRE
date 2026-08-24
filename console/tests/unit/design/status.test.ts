@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEMANTIC_ROLES } from '@/design/tokens';
 import {
+  isLiveRun,
   isRunStatus,
   isSettled,
   ATTENTION_STATUSES,
@@ -81,12 +82,51 @@ describe('the status mapping', () => {
     }
   });
 
-  it('settles only the three statuses that will not change again', () => {
+  it('settles every terminal word the declared list carries', () => {
     expect(RUN_STATUSES.filter((status) => isSettled(status))).toEqual([
       'succeeded',
+      'completed',
+      'partial',
       'failed',
       'cancelled',
     ]);
+  });
+
+  // The runtime's own enumeration — `RunStatus` in the runtime port the
+  // gateway drives an investigation through — enunciated here as data rather
+  // than imported: the console boundary forbids reaching into any Python
+  // package, this file included, so the fact this test holds the console to
+  // has to be a literal a reader can check against that enumeration by eye.
+  const RUNTIME_STATUS_WORDS = ['completed', 'partial', 'cancelled', 'failed'] as const;
+  const RUNTIME_TERMINAL_WORDS = RUNTIME_STATUS_WORDS;
+
+  it('names every status word the runtime actually emits on a finish', () => {
+    for (const status of RUNTIME_STATUS_WORDS) {
+      expect(RUN_STATUSES, status).toContain(status);
+      expect(statusPresentation(status).known, status).toBe(true);
+    }
+  });
+
+  it('treats every one of the runtime’s own terminal words as settled', () => {
+    for (const status of RUNTIME_TERMINAL_WORDS) {
+      expect(isSettled(status), status).toBe(true);
+      expect(isLiveRun(status), status).toBe(false);
+    }
+  });
+
+  it('treats an in-flight word as live, never as settled', () => {
+    for (const status of ['queued', 'running', 'waiting']) {
+      expect(isLiveRun(status), status).toBe(true);
+      expect(isSettled(status), status).toBe(false);
+    }
+  });
+
+  it('treats a status neither list has ever heard of as neither live nor settled', () => {
+    // The regression this exists to catch: the old decision was the negation
+    // of "settled", so an unrecognised word fell through to "live" and a
+    // screen offered to stop an investigation it did not understand.
+    expect(isLiveRun('quiesced')).toBe(false);
+    expect(isSettled('quiesced')).toBe(false);
   });
 
   it('recognises the outcomes an audit event can carry', () => {

@@ -5,7 +5,6 @@ import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { readFailure } from '../failures';
 import { FilterBar } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -20,6 +19,7 @@ import {
   text,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
+import { subjectOf } from '../run-subject';
 import { triggerLabel } from '../run-trigger';
 import { readViewState, type FilterName } from '../url-state';
 
@@ -41,11 +41,6 @@ function durationOf(record: unknown): number {
   const finished = Date.parse(text(record, 'finished_at'));
   if (Number.isNaN(started) || Number.isNaN(finished)) return 0;
   return Math.max(0, (finished - started) / 1000);
-}
-
-/** `value`, or the sentence that says nothing was recorded. */
-function orNone(value: string, none: string): string {
-  return value === '' ? none : value;
 }
 
 export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
@@ -82,22 +77,22 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   const none = message(locale, 'surface.none');
   const rows: readonly ListRow[] = sorted.map((record) => {
     const id = text(record, 'run_id');
-    const subject = orNone(readFailure(text(record, 'summary'), locale).title, none);
+    const subject = subjectOf(record, locale);
     const trigger = text(record, 'trigger');
     const seconds = durationOf(record);
     return {
       id,
       href: `/runs/${id}`,
       cells: [
-        // The identity of an investigation is its subject, not the 32-character
-        // hex the deployment happened to assign it. A run that failed because
-        // nothing is configured used to fill this cell with the deployment's own
-        // exception, repeated on every row it happened to; the deployment's
-        // words are still on the run itself, behind the translation.
+        // The identity of an investigation is its subject, not the
+        // 32-character hex the deployment happened to assign it — read from
+        // the one place that decides a run's name, which is always
+        // computable and never the "not recorded" fallback: a run with no
+        // headline is still named by its trigger and its own short id.
         {
           kind: 'text',
-          text: subject,
-          title: subject,
+          text: subject.text,
+          title: subject.full,
         },
         { kind: 'status', text: text(record, 'status') },
         { kind: 'text', text: triggerLabel(locale, trigger) },

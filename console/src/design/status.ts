@@ -16,17 +16,43 @@
 
 import type { SemanticRole } from './tokens';
 
-/** The statuses the gateway reports for a run. */
+/**
+ * The statuses the gateway reports for a run.
+ *
+ * `completed` and `partial` are the words the runtime itself emits on an
+ * ordinary and a degraded finish; `succeeded` stays declared alongside them
+ * rather than being replaced, because the fixtures and the visual baselines
+ * that already use it are not this feature's to move. A run this console
+ * reads may carry either spelling for the same fact.
+ */
 export const RUN_STATUSES = [
   'queued',
   'running',
   'waiting',
   'succeeded',
+  'completed',
+  'partial',
   'failed',
   'cancelled',
 ] as const;
 
 export type RunStatus = (typeof RUN_STATUSES)[number];
+
+/**
+ * Every word that means a run is still doing something — including one
+ * waiting on a person, which is as much "not finished" as one still taking
+ * tool calls.
+ */
+const LIVE_RUN_STATUSES: readonly string[] = ['queued', 'running', 'waiting', 'awaiting_approval'];
+
+/** Every word that means a run has finished and will not change again. */
+const SETTLED_RUN_STATUSES: readonly string[] = [
+  'succeeded',
+  'completed',
+  'partial',
+  'failed',
+  'cancelled',
+];
 
 /** The statuses a resource, detector or dependency reports. */
 export const RESOURCE_STATUSES = [
@@ -192,6 +218,14 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   running: { role: 'info', shape: 'rotated-square' },
   waiting: { role: 'warning', shape: 'triangle' },
   succeeded: { role: 'success', shape: 'filled-circle' },
+  // The runtime's own word for the same fact `succeeded` already draws —
+  // same role, same shape, because the two are one outcome under two
+  // spellings, not two outcomes.
+  completed: { role: 'success', shape: 'filled-circle' },
+  // The degraded finish: evidence intact, the answer is whatever could be
+  // said from it. Distinct from both a clean finish and a failure, so it
+  // gets warning's shape rather than borrowing either of theirs.
+  partial: { role: 'warning', shape: 'triangle' },
   failed: { role: 'danger', shape: 'square' },
   cancelled: { role: 'neutral', shape: 'dash' },
   // Resources.
@@ -331,5 +365,18 @@ export function roleFor(status: string): SemanticRole {
 
 /** Whether a run in `status` has finished and will not change again. */
 export function isSettled(status: string): boolean {
-  return status === 'succeeded' || status === 'failed' || status === 'cancelled';
+  return SETTLED_RUN_STATUSES.includes(status);
+}
+
+/**
+ * Whether a run in `status` is live: steerable, watchable, worth a stream.
+ *
+ * Affirmative rather than "not settled" — the decision this replaces treated
+ * every status neither list had a word for as live by default, which is how
+ * a run whose status the console had never seen ended up offered a stop
+ * button. A status this function has not declared is neither live nor
+ * settled; it is drawn as the unknown word it is, and offered nothing.
+ */
+export function isLiveRun(status: string): boolean {
+  return LIVE_RUN_STATUSES.includes(status);
 }
