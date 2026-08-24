@@ -345,13 +345,13 @@ presente e a par.
 **Nenhuma tarefa desta fase altera infraestrutura.** Cada uma confere a evidência
 e registra o estado real.
 
-- [ ] T064 [P] Resolução de nomes: conferir, de dentro de **cada** contêiner de
+- [x] T064 [P] Resolução de nomes: conferir, de dentro de **cada** contêiner de
       monitoração, que um nome do domínio do deployment resolve. Anexar a saída
       por contêiner. Estado real registrado, feito ou não.
-- [ ] T065 [P] Sincronização de segredos: conferir se os recursos de segredo
+- [x] T065 [P] Sincronização de segredos: conferir se os recursos de segredo
       gerenciado estão sincronizando, ou registrar a decisão explícita de
       conviver com o segredo escrito à mão. Anexar a saída.
-- [ ] T066 [P] Chave do gateway de modelos: conferir se o provider correspondente
+- [x] T066 [P] Chave do gateway de modelos: conferir se o provider correspondente
       aparece **Verified** no console. Screenshot. Se não, registrar o estado
       real.
 - [x] T067 Para cada uma das três que **não** estiver feita, escrever a entrada

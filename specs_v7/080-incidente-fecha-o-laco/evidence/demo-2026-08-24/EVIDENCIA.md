@@ -322,3 +322,52 @@ Um defeito mais antigo foi encontrado no mesmo exame e **não** foi consertado:
 a 320px a tabela de recursos ainda desenha sete colunas, com os rótulos do
 cabeçalho sobrepostos em "RESOURKINDZONE" e cada célula cortada a uma letra e
 reticências. É anterior a esta onda e não é o que estas baselines tratam.
+
+## As três tarefas operacionais, medidas
+
+Estavam abertas desde antes da onda, citadas no backlog como "estado
+desconhecido". Agora não estão.
+
+### T064 — resolução de nomes de dentro de cada contêiner de monitoração
+
+    CT137  prometheus              ;; connection timed out; no servers could be reached
+    CT136  prometheus-alertmanager 10.20.20.17   stg-ninjasre.lan.kyo.ninja
+    CT138  gatus                   10.20.20.17   stg-ninjasre.lan.kyo.ninja
+
+**Feito para dois dos três; o Prometheus não resolve.** E qual dos três importa
+mais que a contagem: quem entrega o webhook é o **Alertmanager**, e ele resolve.
+É por isso que a entrega funciona apesar disto — a demo mediu `202` e sete
+entregas ao mesmo incidente ao longo do dia.
+
+O Prometheus não precisa alcançar este deployment: ele raspa exportadores e
+avalia regras. A falta ali não quebra nada hoje, mas é assimetria não declarada
+entre contêineres da mesma pilha, e o dia em que alguém apontar um receptor a
+partir do Prometheus ela custa uma tarde.
+
+Os dois que resolvem apontam `10.20.20.17`, que é o endereço de entrada que
+preserva o IP de origem — o certo dos dois.
+
+### T065 — sincronização de segredos
+
+Nenhum recurso de segredo gerenciado existe neste namespace: sem
+`InfisicalSecret`, sem `ExternalSecret`, sem `SealedSecret`. Os três segredos
+que existem:
+
+    ninjasre-encryption-key   Opaque                              1 chave
+    ninjasre-local-account    Opaque                              1 chave
+    ninjasre-stg-db-conn      connection.crossplane.io/v1alpha1   4 chaves
+
+**Estado real: parcialmente gerenciado.** A conexão do banco é provisionada
+pelo Crossplane e sincroniza; a chave de cifra e a conta local são escritas à
+mão. Não há decisão registrada em lugar nenhum de conviver com isso — havia a
+ausência de qualquer registro, que é o que esta tarefa existe para acabar.
+
+### T066 — a chave do gateway de modelos
+
+    Google Gemini   ●Verified
+    Provider        Google Gemini
+    Model           Gemini Flash Latest
+    Set at: default
+
+Captura em `antes-01-modelos.png`. **Verified**, e foi esse provider que
+conduziu as investigações da demo e as sete do laço de leitura.
