@@ -213,3 +213,40 @@ POST /auth/sign-in {"username":"admin","password":"<a mesma de T066>"}
 
 Nem apagou o administrador, nem trocou a recusa que já existia — a mesma
 credencial de antes ainda entra.
+
+## T070 — a migração de e-mail, contra o banco com dados
+
+Estado do banco antes: dois principals sem endereço (`bootstrap-administrator`
+e `second-service-account`, de T068) — exatamente o dado que deveria impedir
+a volta. `downgrade_to`/`upgrade_to_head`
+(`platform/persistence/postgres/migrations.py`) chamados diretamente contra o
+Postgres real deste deployment, mesmo mecanismo que o boot usa sob o lock
+consultivo.
+
+**Descer, com o lock, contra dado real**:
+
+```
+BEFORE: 0019_users_email_optional
+Running downgrade 0019_users_email_optional -> 0018_local_sign_in_opening
+DOWNGRADE REFUSED: RuntimeError: cannot restore email uniqueness: the
+following organisations hold more than one principal with no address
+(organisation 'default': bootstrap-administrator, second-service-account).
+Give every principal but one, in each organisation listed, an address of
+its own, then run this downgrade again.
+AFTER DOWNGRADE ATTEMPT: 0019_users_email_optional
+```
+
+Recusa nomeada: os dois principals exatos que impedem a volta, e o que fazer
+com eles — sem apagar nenhuma linha. O esquema continua em
+`0019_users_email_optional` depois da tentativa recusada — a transação da
+migração recusada não deixa o banco pela metade.
+
+**Subir, confirmando que nada ficou comprometido**:
+
+```
+UPGRADE RESULT: now at 0019_users_email_optional
+FINAL: 0019_users_email_optional
+```
+
+Já estava na cabeça (a descida foi recusada antes de mudar qualquer coisa),
+então subir é um no-op confirmado — o mesmo estado, medido antes e depois.

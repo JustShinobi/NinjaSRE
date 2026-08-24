@@ -375,7 +375,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       capturar as três recusas locais, mais a tela que deixa de nomear o
       comando.
 
-- [ ] T070 **[serving]** No mesmo deployment, subir e descer a migração de
+- [x] T070 **[serving]** No mesmo deployment, subir e descer a migração de
       e-mail contra o banco com dados, capturando os dois resultados —
       inclusive a recusa nomeada, se for o caso.
 
