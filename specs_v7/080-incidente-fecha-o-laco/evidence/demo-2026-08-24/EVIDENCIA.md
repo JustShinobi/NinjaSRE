@@ -192,3 +192,75 @@ Nada do que está afirmado neste documento depende da largura — nenhuma alega�
 Mas as capturas não substituem uma corrida a 1920 para as alegações que forem
 sobre isso, e este parágrafo existe para que ninguém as tome como se
 substituíssem.
+
+## O ciclo de publicação, executado depois da demo
+
+Esta seção existe porque as tarefas T001–T006 são passos do orquestrador, e o
+orquestrador os executou **depois** de o verificador desta feature ter
+entregado. Sem isto no arquivo, elas ficariam abertas por defasagem e não por
+falta.
+
+**T001 — a onda inteira mergeada.** As dez features estão em `master`, árvore
+limpa, nenhuma worktree de agente com commit pendente. 233 commits desde a base
+`abbc418`.
+
+**T002 — o portão antes de publicar.** Verde, medido peça a peça porque tarefas
+de fundo desta sessão morriam sempre no mesmo ponto e o primeiro plano corta em
+dez minutos:
+
+| peça | resultado |
+|---|---|
+| estáticos | exit 0 — lint, formato, mypy, 7 contratos de importação, constantes, protocolos, dependências, deriva de documentação |
+| `tests/unit` + `tests/architecture` | 8288 passed, 1 skipped |
+| `tests/contract` (sem console) + security + chaos + corpus + synthetic + e2e | 4001 passed, 29 skipped, exit 0 |
+| `tests/contract/console` | 483 passed; única falha é `test_the_untouched_baselines_still_match` |
+| benchmarks | 37 passed |
+| console vitest | 170 arquivos, 2802 testes; 93,77% de sentenças, 90,08% de ramos |
+| console build | verde |
+| console e2e | exit 0 — 335 no projeto `behaviour`, 20 no `first-day` |
+| console visual | 14 baselines divergentes, **nenhuma aceita** |
+| `verify_integrations` | 15 integrações em paridade completa |
+
+Duas falhas foram encontradas e consertadas no caminho: uma deriva do documento
+OpenAPI que **só existe com duas features na mesma árvore** — nenhum portão
+estático a pegava — e uma varredura que caminhava sobre a saída do próprio
+Playwright.
+
+**T003 — publicado sem `COMPONENTS=`.** `make deploy-stg`, exit 0, componentes
+`app proxy web`. A tarefa exigia isso e estava certa: a publicação anterior
+levara só `app` e `web`, deixando o proxy de credencial trinta horas atrasado.
+
+Ela revelou um bloqueio real: o manifesto declarava **quatro** componentes e o
+cluster roda três. O quarto, `console`, é a mesma roda que o `app` iniciada
+noutro ponto de entrada — uma segunda cópia inteira da aplicação, não um
+front-end — e a cópia que este cluster rodava tinha derivado dezoito horas
+enquanto o `web` apontava para ela. Retirado do manifesto de staging, com a
+compensação escrita no lugar: tráfego de navegador e de agente passam a dividir
+um gateway.
+
+**T004 — Argo reconciliou.** `Synced/Healthy`, commit GitOps `83d7ef9b8bde`.
+
+**T005 — o serviço responde, confirmado à parte.** `Synced + Healthy` diz que o
+cluster é o que o Git pediu, não que a aplicação funciona. Então:
+
+    GET /                      -> HTTP 307 para /sign-in em 0,03s
+    POST /api/session          -> sessão obtida
+    POST .../proxmox/verify/report -> ok: True, "Proxmox accepted the token."
+    select count(*) estate     -> 100 recursos, sobreviveram ao deploy
+
+**T006 — o digest e o estado.** GitOps `83d7ef9b8bde`; os três pods subiram
+juntos e os três antigos saíram; `app`, `proxy` e `web` em `1/1 Running`.
+
+### E a correção da 070, provada contra o deployment novo
+
+O defeito que esta demo encontrou era que uma declaração de confiança só valia
+depois de reiniciar o processo. Contra o código publicado agora, **sem reiniciar
+nada**:
+
+| ação | resultado |
+|---|---|
+| declarar o fingerprint errado | `ok: False` na chamada seguinte, nomeando os dois fingerprints |
+| restaurar o correto | `ok: True`, também imediato |
+
+Antes, as duas transições exigiam um `rollout restart`. É a única estação da
+demo cujo achado já está fechado e reverificado no ambiente real.
