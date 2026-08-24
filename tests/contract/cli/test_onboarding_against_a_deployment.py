@@ -46,11 +46,13 @@ from config.constants.llm import DEFAULT_MODEL_ID, SUPPORTED_PROVIDERS
 from core.llm.verification import ModelVerdict
 from gateway.http.app import create_app
 from gateway.http.state import GatewayState
+from gateway.http.verifications import recorded_checks
 from platform.identity.permissions import Role
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
 from platform.persistence.ports.transaction import TenantScope
+from platform.persistence.ports.verification_ledger import VerificationSubject
 from platform.startup.checklist import build_checklist
 from surfaces.cli.client import Endpoint, RemoteClient
 from surfaces.cli.wizard.flow import onboard
@@ -256,24 +258,33 @@ def test_the_key_is_asked_for_without_echo_and_with_somewhere_to_get_it(
 def test_the_deployment_reads_as_ready_once_the_flow_has_run(
     remote: RemoteClient, deployment: _Deployment
 ) -> None:
-    """The checklist a console branches on moves through its three provider states."""
+    """The checklist a console branches on moves through its three provider states.
+
+    The checklist itself never calls a provider's endpoint -- it reads the last
+    recorded verdict, handed to it by a caller who already read the verification
+    ledger. The ``verified`` case below reads that ledger the same way the real
+    checklist route does, through ``recorded_checks``, against the record
+    onboarding's own call to the real verify endpoint actually wrote -- not a
+    synthetic verdict standing in for one.
+    """
     before = deployment.run(build_checklist(deployment.gateway, organisation_id=ORG))
 
     asyncio.run(onboard(remote, _prompter(), provider_id="anthropic"))
 
     after = deployment.run(build_checklist(deployment.gateway, organisation_id=ORG))
+    provider_checks = deployment.run(
+        recorded_checks(
+            deployment.gateway, TenantScope(org_id=ORG), kind=VerificationSubject.MODEL_PROVIDER
+        )
+    )
     verified = deployment.run(
-        build_checklist(deployment.gateway, organisation_id=ORG, verify_model=_ready)
+        build_checklist(deployment.gateway, organisation_id=ORG, provider_checks=provider_checks)
     )
 
     assert before.provider_readiness == SETUP_READINESS_ABSENT
     assert after.provider_readiness == SETUP_READINESS_CONFIGURED
+    assert provider_checks["anthropic"].verified, "onboarding's own verify call did not persist"
     assert verified.provider_readiness == SETUP_READINESS_VERIFIED
-
-
-async def _ready() -> ModelVerdict:
-    """The verdict a deployment whose provider answered would produce."""
-    return await _verifier("anthropic")
 
 
 def test_doctor_reports_on_the_deployment_the_flow_just_configured(
