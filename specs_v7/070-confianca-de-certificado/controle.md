@@ -423,3 +423,123 @@ material de sessão.
 
 **Nenhuma.** Nenhum arquivo de catálogo tocado, e por desenho: a frase da recusa
 é do servidor.
+
+---
+
+# Terceira janela — o formulário de confiança no painel (T039, T040)
+
+Retomada sobre `master` já mergeado, worktree `.claude/worktrees/agent-a7b534f2ce83afd7c`,
+partindo de `be87b53`. Este era o único item da feature nomeado como não feito
+nas duas janelas anteriores.
+
+## O que a tela ganhou
+
+Nada de tela nova, nenhum mockup — a spec já dizia isso (`Referência visual
+(DoD)`). O que muda é o painel da integração
+(`console/src/surfaces/integration-panel.tsx`): um grupo "Certificate trust"
+com dois campos sempre visíveis para quem tem `integration.manage`
+(fingerprints pinados, um por linha; autoridade em PEM) e um terceiro campo —
+a razão — visível só para quem tem `integration.trust_unverified`.
+Independente de `showForm`/`connected`: um pin pode precisar ser declarado ou
+reparado numa integração cuja credencial já está guardada, então o grupo não
+fica escondido atrás de "Replace credential".
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T039 — teste do painel, vermelho primeiro | FEITO | `console/tests/unit/surfaces/integration-panel-trust-form.test.tsx`, 12 casos. **Vermelho genuíno, reproduzido depois do fato**: implementação isolada com `git stash push -u` (só nos arquivos de implementação; os testes ficaram de fora do stash), suíte rodada contra o painel antigo — **10 failed / 2 passed** de 12; `trust-route.test.ts` **falhou ao carregar o módulo**: `Error: Failed to resolve import "@/app/api/trust/route". Does the file exist?`. Os 2 que passaram vazios são os dois de ausência ("does not show accepting unverified as available without the permission", "sees no certificate trust group at all") — não distinguem "ausente porque não existe nada ainda" de "ausente porque o gate funcionou", e ficam nomeados aqui por isso. Implementação restaurada com `git stash pop` logo em seguida, antes de qualquer outro trabalho |
+| T040 — implementação, sem componente novo | FEITO | `integration-panel.tsx` — grupo `data-testid="certificate-trust"`, campos pelos controles já existentes (`Textarea` de `@/components/form`), courier novo `console/src/app/api/trust/route.ts` (`TRUST_ENDPOINT = '/api/trust'`), permissão lida via prop `mayTrustUnverified` computada em `console/src/surfaces/screens/integrations.tsx:248` (`may(viewer, 'integration.trust_unverified')`) |
+| O portão, no cliente | FEITO | o subgrupo `trust-unverified` (reason field) só é renderizado quando `mayTrustUnverified` é `true` — "absent, not disabled", `integration-panel.tsx:718` |
+| O portão, no servidor (o que decide de fato) | **FEITO — já existia, verificado nesta janela** | `gateway/http/integration_endpoints.py:153` `StampedTrust.refuse_unless_permitted`, chamado em `gateway/http/routes/integrations.py:875` **antes** de qualquer escrita no documento. `tests/unit/gateway/http/test_certificate_trust_write.py` rodado nesta janela — **15 passed**; `test_accepting_unverified_without_the_dedicated_permission_is_refused` prova a recusa, com `Permission.INTEGRATION_TRUST_UNVERIFIED.value` presente na mensagem de `PermissionDenied` |
+| O portão, na volta ao cliente | FEITO | o courier lê `error.message` do envelope real que o gateway produz (`{"error":{"message":...}}`, confirmado contra `platform/identity/errors.py:53` `PermissionDenied.__str__` e `tests/contract/console/test_incident_public_id_contract.py:167`), com `detail` como rede de segurança. Coberto em `trust-route.test.ts` ("forwards a permission refusal in the gateway's own words, naming the permission") e em `integration-panel-trust-form.test.tsx` ("shows the server's own reason, naming the missing permission, unchanged") |
+| Fechar o laço | FEITO | uma declaração aceita chama `testNow(name)` de novo (`integration-panel.tsx:391`), o mesmo courier `/api/verify` que "Test again" já usa — declarar e ver Verified é um clique, não dois. Coberto por "re-tests the connection once a declaration is accepted, closing the loop in one click" |
+
+## Achado: a mensagem de erro real do backend não é `{"detail": ...}`
+
+Os couriers mais antigos (`credential/route.ts`, `verify/route.ts`) leem
+`Reflect.get(Object(written), 'detail')` para extrair o corpo de erro.
+Conferido contra `gateway/http/errors.py:113` `_envelope` — todo handler
+instalado por `install_error_handlers` (`ApiProblem`, `PermissionDenied`,
+`RequestValidationError`, e até `StarletteHTTPException`) produz
+`{"error": {"type", "message", "correlation_id"}}`, nunca `{"detail": ...}`
+sozinho. `test_incident_public_id_contract.py:167` confirma isso contra o app
+real (`response.json()["error"]["message"]`). O courier novo (`trust/route.ts`)
+lê `error.message` primeiro e cai para `detail` só como rede de segurança.
+**Não mudei os couriers antigos** — não é escopo desta tarefa, e um deles
+(`credential/route.ts`) tem os próprios testes travando o comportamento atual
+com corpos `{"detail": ...}` fabricados; nomeado aqui para quem for mexer
+neles a seguir, porque parece ser o mesmo tipo de fixture-concorda-com-o-código-
+e-os-dois-discordam-do-backend que a casa já persegue noutro lugar.
+
+## Achado: a baseline visual do painel está desatualizada, e não a toquei
+
+`console/visual/screens.json` declara `integrations-panel-1440-light` em
+`/integrations/alertmanager` — exatamente o painel onde o grupo novo agora
+aparece para qualquer viewer com `integration.manage`. A captura commitada é
+de antes desta mudança. **Não rodei `make console-visual-accept` nem toquei
+nenhum PNG em `console/visual/baselines/`** — a regra contra evidência
+manufaturada é explícita e nenhuma tarefa deste arquivo a nomeia. A baseline
+precisa ser recapturada deliberadamente por quem possuir esse gate a seguir.
+Nesta worktree o gate de conteúdo já não roda por outro motivo preexistente
+(`console/.next/standalone/server.js is missing; run the build before
+capturing`), então não há como observar o diff de pixel a partir daqui — só
+nomear que ele existirá.
+
+## As chaves de i18n que criei — dono desde esta tarefa, ambos os catálogos
+
+Quatorze chaves novas, sob `catalogue.integrations.panel.trust.*`, em
+`console/src/i18n/en.ts` e `console/src/i18n/pt-BR.ts`:
+
+| Chave | EN | pt-BR |
+|---|---|---|
+| `...trust.heading` | Certificate trust | Confiança de certificado |
+| `...trust.intro` | What this deployment accepts from the certificate this address presents. Declared for this address only — moving the address starts over. | O que este deployment aceita do certificado que este endereço apresenta. Declarado para este endereço apenas — trocar o endereço reinicia a decisão. |
+| `...trust.fingerprintsLabel` | Pinned fingerprints | Fingerprints pinados |
+| `...trust.fingerprintsHelp` | One SHA-256 fingerprint per line, copied from the node's own interface. A cluster lists one fingerprint per node in the same declaration. | Um fingerprint SHA-256 por linha, copiado da própria interface do nó. Um cluster lista um fingerprint por nó na mesma declaração. |
+| `...trust.certificateLabel` | Certificate authority (PEM) | Autoridade do certificado (PEM) |
+| `...trust.certificateHelp` | The authority the cluster minted for itself. Covers every node whose certificate chains to it — the form a cluster usually wants. | A autoridade que o cluster mintou para si mesmo. Cobre todo nó cujo certificado encadeia até ela — a forma que um cluster costuma preferir. |
+| `...trust.submit` | Declare trust | Declarar confiança |
+| `...trust.sending` | Declaring… | Declarando… |
+| `...trust.saved` | Declared. Testing the connection now. | Declarado. Testando a conexão agora. |
+| `...trust.refused` | The deployment refused it: | O deployment recusou: |
+| `...trust.unreachable` | The deployment could not be reached. | Não foi possível alcançar o deployment. |
+| `...trust.unverifiedHeading` | Accept without verifying | Aceitar sem verificar |
+| `...trust.unverifiedReasonLabel` | Why | Por quê |
+| `...trust.unverifiedReasonHelp` | Recorded with your name and the moment you accept, because giving up certificate verification is a decision, not a setting. | Registrado com seu nome e o instante da aceitação, porque abrir mão da verificação de certificado é uma decisão, não um ajuste. |
+
+`tests/unit/i18n/` — 24 passed depois das duas edições, catálogo sem lacuna.
+
+## Recursos compartilhados tocados nesta janela — declarados
+
+| Recurso | O que fiz |
+|---|---|
+| `console/src/i18n/en.ts`, `console/src/i18n/pt-BR.ts` | **Editados** — dono desde esta tarefa, por instrução do orquestrador |
+| `console/src/shell/routes.ts` | **Não tocado** — nenhuma rota nova; o painel já existia em `/integrations/[name]` |
+| `console/visual/screens.json` | **Não tocado** — ver achado acima |
+| Quatro arquivos de teste pré-existentes | `integration-panel.test.tsx`, `integration-panel-certificate.test.tsx`, `where-to-get-it-consistency.test.tsx`, `integration-direction.test.tsx` — cada um ganhou o bloco `trust: {...}` no seu `LABELS`, porque `IntegrationPanelLabels.trust` é campo obrigatório agora. `mayTrustUnverified` ficou **opcional, default `false`**, exatamente para não precisar tocar as dezenas de chamadas `<IntegrationPanel writable .../>` desses mesmos arquivos, que não têm opinião sobre essa permissão |
+
+## Gates rodados nesta janela
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Vermelho genuíno | `pnpm exec vitest run` dos dois arquivos novos, contra a implementação isolada por `git stash` | 10 failed / 2 passed, mais 1 arquivo que não carregou — mensagens na tabela acima |
+| Vitest, os dois arquivos novos | `pnpm exec vitest run tests/unit/surfaces/integration-panel-trust-form.test.tsx tests/unit/surfaces/trust-route.test.ts` | **27 passed** — 26 do vermelho genuíno (tabela acima) mais 1 acrescentado depois ("does not let whitespace in the reason field stand in for a written one"), **verificado só verde**: a propriedade que ele trava já valia na implementação quando o caso foi escrito, então este caso específico não tem vermelho próprio — dito aqui em vez de contado junto com os outros doze |
+| Vitest, os quatro arquivos pré-existentes tocados | mesmo comando, os quatro caminhos | **44 passed** |
+| Vitest, `IntegrationsScreen` (a fiação) | `tests/unit/surfaces/integrations.test.tsx` | **41 passed** |
+| Vitest, catálogo i18n | `tests/unit/i18n/` | **24 passed** |
+| `console_gate typecheck` | `uv run python -m tools.console_gate typecheck` | **exit 0** |
+| `console_gate lint` | `uv run python -m tools.console_gate lint` | exit 1 na primeira rodada — `@typescript-eslint/no-base-to-string` (`input.toString()` num tipo `Request \| URL`) e `no-unnecessary-type-assertion`, os dois no meu arquivo de teste. Corrigido (extração de URL por `instanceof URL`/`.url`; cast removido) → **exit 0** |
+| Backend, o portão de permissão | `uv run pytest tests/unit/gateway/http/test_certificate_trust_write.py -v` | **15 passed** |
+| Transversal, na fronteira do slot | `uv run python -m tools.spec_validation browser --feature specs_v7/070-confianca-de-certificado --test console/tests/e2e/transversal-rules.spec.ts` | **exit 0 — 45 passed, 7 skipped**, nenhuma falha nova |
+
+Soma dos casos vitest tocados nesta janela: 27 + 44 + 41 + 24 = **136 passed**,
+mais os 15 do backend e os 45 da transversal.
+
+## O que ainda fica pendente depois desta janela
+
+| Item | Estado | Dono |
+|---|---|---|
+| Baseline visual `integrations-panel-1440-light` | **desatualizada, nomeada, não tocada** — ver achado acima | quem possuir `make console-visual-accept` a seguir |
+| **T030** — teste da invalidação por troca de endereço | PARCIAL, sem mudança nesta janela | próxima sessão |
+| **T046 — `make verify` inteiro** | NÃO RODADO — do orquestrador | orquestrador |
+| **T002, T047–T053 — evidência de staging** | NÃO INICIADO — do orquestrador | orquestrador |
+| `console_gate test` (suíte vitest inteira do console) | NÃO RODADO por inteiro nesta janela — rodei os arquivos afetados e adjacentes (136 casos, todos verdes) em vez da suíte inteira, por custo de turno | orquestrador, se quiser a suíte inteira antes do merge |

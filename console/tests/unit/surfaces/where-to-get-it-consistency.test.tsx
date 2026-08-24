@@ -121,6 +121,22 @@ describe('the same phrase reaches both screens that ask for a credential', () =>
           docsHeading: 'Package documentation',
           docsToggle: 'Read the package documentation',
           docsUnreadable: "This vendor's own documentation could not be read.",
+          trust: {
+            heading: 'Certificate trust',
+            intro: 'What this deployment accepts from the presented certificate.',
+            fingerprintsLabel: 'Pinned fingerprints',
+            fingerprintsHelp: 'One SHA-256 fingerprint per line.',
+            certificateLabel: 'Certificate authority (PEM)',
+            certificateHelp: 'The authority the cluster minted for itself.',
+            submit: 'Declare trust',
+            sending: 'Declaring…',
+            saved: 'Declared. Testing the connection now.',
+            refused: 'The deployment refused it:',
+            unreachable: 'The deployment could not be reached.',
+            unverifiedHeading: 'Accept without verifying',
+            unverifiedReasonLabel: 'Why',
+            unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
+          },
         }}
       />,
     );

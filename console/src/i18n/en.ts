@@ -1634,6 +1634,26 @@ export const EN = {
   'catalogue.integrations.panel.disconnect': 'Disconnect',
   'catalogue.integrations.panel.disconnect.consequence':
     'This removes the stored credential from the vault. The integration returns to Available until it is reconnected.',
+  // --- Certificate trust: what this deployment checks the endpoint against ---------
+  'catalogue.integrations.panel.trust.heading': 'Certificate trust',
+  'catalogue.integrations.panel.trust.intro':
+    'What this deployment accepts from the certificate this address presents. Declared for this address only — moving the address starts over.',
+  'catalogue.integrations.panel.trust.fingerprintsLabel': 'Pinned fingerprints',
+  'catalogue.integrations.panel.trust.fingerprintsHelp':
+    "One SHA-256 fingerprint per line, copied from the node's own interface. A cluster lists one fingerprint per node in the same declaration.",
+  'catalogue.integrations.panel.trust.certificateLabel': 'Certificate authority (PEM)',
+  'catalogue.integrations.panel.trust.certificateHelp':
+    'The authority the cluster minted for itself. Covers every node whose certificate chains to it — the form a cluster usually wants.',
+  'catalogue.integrations.panel.trust.submit': 'Declare trust',
+  'catalogue.integrations.panel.trust.sending': 'Declaring…',
+  'catalogue.integrations.panel.trust.saved': 'Declared. Testing the connection now.',
+  'catalogue.integrations.panel.trust.refused': 'The deployment refused it:',
+  'catalogue.integrations.panel.trust.unreachable':
+    'The deployment could not be reached.',
+  'catalogue.integrations.panel.trust.unverifiedHeading': 'Accept without verifying',
+  'catalogue.integrations.panel.trust.unverifiedReasonLabel': 'Why',
+  'catalogue.integrations.panel.trust.unverifiedReasonHelp':
+    'Recorded with your name and the moment you accept, because giving up certificate verification is a decision, not a setting.',
 
   // --- The reference page for vendors this catalogue does not cover ----------------
   'catalogue.notCovered.title': 'Not covered, and why',

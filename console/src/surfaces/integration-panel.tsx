@@ -5,8 +5,11 @@ import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/action';
+import { Textarea } from '@/components/form';
 import { ConfirmDestructive, Drawer } from '@/components/overlay';
 import { StatusChip } from '@/components/status';
+import { cx } from '@/design/cx';
+import { AlertTriangleIcon } from '@/design/icons';
 import { credentialStatus } from '@/design/status';
 import type { Locale } from '@/i18n/messages';
 import {
@@ -18,6 +21,9 @@ import {
 import { VERIFY_ENDPOINT } from './first-run/verify';
 import { Report } from './report';
 import { consumeScrollPosition, peekScrollPosition } from './scroll-memory';
+
+/** Where a certificate trust declaration is written. Forwards once, to the proxy's own address. */
+export const TRUST_ENDPOINT = '/api/trust';
 
 /**
  * The credential panel: a slide-over on the catalogue, one integration at a
@@ -116,6 +122,32 @@ export interface IntegrationPanelItem {
   readonly docsReadable: boolean;
 }
 
+/**
+ * What the certificate trust group says — the write path onto
+ * `CertificateTrust` (pinned fingerprint, supplied authority, or an audited
+ * "accept without verifying"), reached through {@link TRUST_ENDPOINT} rather
+ * than {@link CREDENTIAL_ENDPOINT}: a certificate is not a secret, and this
+ * declares what the deployment checks a connection against rather than
+ * storing something read back never again.
+ */
+export interface TrustFormLabels {
+  readonly heading: string;
+  readonly intro: string;
+  readonly fingerprintsLabel: string;
+  readonly fingerprintsHelp: string;
+  readonly certificateLabel: string;
+  readonly certificateHelp: string;
+  readonly submit: string;
+  readonly sending: string;
+  readonly saved: string;
+  readonly refused: string;
+  readonly unreachable: string;
+  /** The heading over the reason field — present only for a viewer this component is handed as `mayTrustUnverified`. */
+  readonly unverifiedHeading: string;
+  readonly unverifiedReasonLabel: string;
+  readonly unverifiedReasonHelp: string;
+}
+
 export interface IntegrationPanelLabels {
   readonly close: string;
   /** `submit`/`sending` here are "Save and test" / "Saving and testing…". */
@@ -160,6 +192,7 @@ export interface IntegrationPanelLabels {
   readonly docsToggle: string;
   /** Shown in place of the document when this deployment could not read it. */
   readonly docsUnreadable: string;
+  readonly trust: TrustFormLabels;
 }
 
 export interface IntegrationPanelProps {
@@ -179,6 +212,21 @@ export interface IntegrationPanelProps {
    * second time, for a viewer this component is handed directly by a test.
    */
   readonly writable: boolean;
+  /**
+   * Whether this viewer holds `integration.trust_unverified`.
+   *
+   * Pinning a fingerprint or supplying an authority needs only `writable`
+   * above — they narrow verification rather than giving anything up. Only the
+   * reason field that accepts an unverified certificate is gated on this: a
+   * viewer without the permission does not see that action as available
+   * ("absent, not disabled"), and a request sent anyway is still refused by
+   * the server, naming the permission.
+   *
+   * Optional, defaulting to `false` — the fail-closed reading for the many
+   * call sites (most of this component's own tests among them) that render a
+   * panel with no opinion about this permission at all.
+   */
+  readonly mayTrustUnverified?: boolean;
   readonly labels: IntegrationPanelLabels;
 }
 
@@ -192,6 +240,17 @@ interface Verdict {
   readonly detail: string;
 }
 
+/** What a certificate trust declaration attempt produced, in the words the panel renders. */
+type TrustOutcome = { readonly role: 'success' | 'danger'; readonly message: string } | null;
+
+/** `raw` split into the fingerprints an operator meant, one per line. */
+function fingerprintsOf(raw: string): readonly string[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+}
+
 /** The slide-over drawer: category, state, the write-only form, and its test. */
 export function IntegrationPanel({
   locale,
@@ -201,6 +260,7 @@ export function IntegrationPanel({
   notCoveredHref,
   intakeHref,
   writable,
+  mayTrustUnverified = false,
   labels,
 }: IntegrationPanelProps): ReactNode {
   const router = useRouter();
@@ -221,6 +281,16 @@ export function IntegrationPanel({
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectFailure, setDisconnectFailure] = useState('');
+
+  // The certificate trust group: independent of the credential above and of
+  // `connected`/`showForm` below. A pin can break — or need setting for the
+  // first time — for an integration whose credential is already stored, so
+  // this is never hidden behind "replace credential".
+  const [trustFingerprints, setTrustFingerprints] = useState('');
+  const [trustCertificatePem, setTrustCertificatePem] = useState('');
+  const [trustUnverifiedReason, setTrustUnverifiedReason] = useState('');
+  const [trustSending, setTrustSending] = useState(false);
+  const [trustResult, setTrustResult] = useState<TrustOutcome>(null);
 
   // Two corrections, one effect. On mount: the RSC swap that brought this
   // panel in can leave the browser having clamped `window.scrollY` down to a
@@ -282,6 +352,55 @@ export function IntegrationPanel({
     setTesting(false);
   }
 
+  /**
+   * Declare what this integration's endpoint certificate is checked against.
+   *
+   * `unverifiedReason` is sent only when this viewer holds
+   * `mayTrustUnverified` — never what makes the write insecure client-side,
+   * since the server re-checks the permission on every request regardless of
+   * what this component renders; this is what keeps a blank reason from ever
+   * reaching the wire for a viewer who could not act on the field anyway.
+   * A successful declaration re-runs the connectivity test immediately, the
+   * same way storing a credential does, so the loop this feature exists to
+   * close — declare, then Verified — closes without a second click.
+   */
+  async function submitTrust(name: string): Promise<void> {
+    setTrustSending(true);
+    setTrustResult(null);
+    let answer: Response;
+    try {
+      answer = await fetch(TRUST_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          integration: name,
+          fingerprints: fingerprintsOf(trustFingerprints),
+          certificatePem: trustCertificatePem.trim(),
+          unverifiedReason: mayTrustUnverified ? trustUnverifiedReason.trim() : '',
+        }),
+      });
+    } catch {
+      setTrustSending(false);
+      setTrustResult({ role: 'danger', message: labels.trust.unreachable });
+      return;
+    }
+    const written: unknown = await answer.json().catch(() => ({}));
+    setTrustSending(false);
+    if (answer.ok) {
+      setTrustResult({ role: 'success', message: labels.trust.saved });
+      void testNow(name);
+      return;
+    }
+    const reason: unknown = Reflect.get(Object(written), 'reason');
+    const reachable = Reflect.get(Object(written), 'reachable') !== false;
+    setTrustResult({
+      role: 'danger',
+      message: reachable
+        ? `${labels.trust.refused} ${typeof reason === 'string' ? reason : ''}`.trim()
+        : labels.trust.unreachable,
+    });
+  }
+
   /** Remove the stored credential, every version, after the confirmation. */
   async function disconnect(name: string): Promise<void> {
     if (disconnecting) return;
@@ -326,6 +445,10 @@ export function IntegrationPanel({
   const connected =
     item !== null && credentialStatus(item.health) !== 'not_connected' && !disconnected;
   const showForm = item !== null && (!connected || replacing);
+  const trustEmpty =
+    trustFingerprints.trim() === '' &&
+    trustCertificatePem.trim() === '' &&
+    (!mayTrustUnverified || trustUnverifiedReason.trim() === '');
 
   return (
     <Drawer
@@ -566,6 +689,82 @@ export function IntegrationPanel({
                   setConfirmingDisconnect(false);
                 }}
               />
+
+              {/* Independent of the credential above: a pin can need setting,
+                  or can break, for an integration whose credential is already
+                  stored — so this is never hidden behind "Replace credential"
+                  or shown only while `showForm` is. */}
+              <div className="flex flex-col gap-3" data-testid="certificate-trust">
+                <h3 className="text-micro uppercase tracking-wide text-muted">
+                  {labels.trust.heading}
+                </h3>
+                <p className="text-meta text-muted">{labels.trust.intro}</p>
+                <Textarea
+                  label={labels.trust.fingerprintsLabel}
+                  name="trust-fingerprints"
+                  description={labels.trust.fingerprintsHelp}
+                  rows={3}
+                  value={trustFingerprints}
+                  onValueChange={setTrustFingerprints}
+                />
+                <Textarea
+                  label={labels.trust.certificateLabel}
+                  name="trust-certificate-pem"
+                  description={labels.trust.certificateHelp}
+                  rows={5}
+                  value={trustCertificatePem}
+                  onValueChange={setTrustCertificatePem}
+                />
+                {mayTrustUnverified ? (
+                  <div
+                    className="flex flex-col gap-2 rounded-2 edge px-3 py-2"
+                    data-testid="trust-unverified"
+                  >
+                    <h4 className="text-micro uppercase tracking-wide text-muted">
+                      {labels.trust.unverifiedHeading}
+                    </h4>
+                    <Textarea
+                      label={labels.trust.unverifiedReasonLabel}
+                      name="trust-unverified-reason"
+                      description={labels.trust.unverifiedReasonHelp}
+                      rows={2}
+                      value={trustUnverifiedReason}
+                      onValueChange={setTrustUnverifiedReason}
+                    />
+                  </div>
+                ) : null}
+                <div>
+                  <Button
+                    variant="secondary"
+                    data-testid="trust-submit"
+                    state={trustSending ? 'loading' : trustEmpty ? 'disabled' : 'default'}
+                    onClick={() => {
+                      void submitTrust(item.name);
+                    }}
+                  >
+                    {trustSending ? labels.trust.sending : labels.trust.submit}
+                  </Button>
+                </div>
+                {trustResult === null ? null : (
+                  <p
+                    role={trustResult.role === 'success' ? 'status' : 'alert'}
+                    data-testid="trust-result"
+                    className={cx(
+                      'flex items-center gap-2 rounded-2 edge px-3 py-2 text-meta',
+                      trustResult.role === 'success'
+                        ? 'bg-success-bg text-success border-success'
+                        : 'bg-danger-bg text-danger border-danger',
+                    )}
+                  >
+                    {trustResult.role === 'success' ? null : (
+                      <span aria-hidden="true">
+                        <AlertTriangleIcon />
+                      </span>
+                    )}
+                    {trustResult.message}
+                  </p>
+                )}
+              </div>
             </>
           ) : (
             // Absent, not disabled: the same rule the area's own gate already

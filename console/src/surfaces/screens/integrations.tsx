@@ -245,6 +245,7 @@ export async function IntegrationsScreen(
   const state = readViewState(search, INTEGRATIONS_FILTERS);
   const init = authorised(credential);
   const writable = may(viewer, 'integration.manage');
+  const mayTrustUnverified = may(viewer, 'integration.trust_unverified');
   const configWritable = may(viewer, CONFIG_WRITE);
 
   const integrations = await panelRead<unknown>('/v1/integrations', () =>
@@ -529,6 +530,7 @@ export async function IntegrationsScreen(
           notCoveredHref={notCoveredHref}
           intakeHref={ALERT_INTAKE_HREF}
           writable={writable}
+          mayTrustUnverified={mayTrustUnverified}
           labels={{
             close: message(locale, 'catalogue.integrations.panel.close'),
             credential: {
@@ -591,6 +593,46 @@ export async function IntegrationsScreen(
               locale,
               'catalogue.integrations.panel.docs.unreadable',
             ),
+            trust: {
+              heading: message(locale, 'catalogue.integrations.panel.trust.heading'),
+              intro: message(locale, 'catalogue.integrations.panel.trust.intro'),
+              fingerprintsLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.fingerprintsLabel',
+              ),
+              fingerprintsHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.fingerprintsHelp',
+              ),
+              certificateLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.certificateLabel',
+              ),
+              certificateHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.certificateHelp',
+              ),
+              submit: message(locale, 'catalogue.integrations.panel.trust.submit'),
+              sending: message(locale, 'catalogue.integrations.panel.trust.sending'),
+              saved: message(locale, 'catalogue.integrations.panel.trust.saved'),
+              refused: message(locale, 'catalogue.integrations.panel.trust.refused'),
+              unreachable: message(
+                locale,
+                'catalogue.integrations.panel.trust.unreachable',
+              ),
+              unverifiedHeading: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedHeading',
+              ),
+              unverifiedReasonLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedReasonLabel',
+              ),
+              unverifiedReasonHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedReasonHelp',
+              ),
+            },
           }}
         />
       )}
