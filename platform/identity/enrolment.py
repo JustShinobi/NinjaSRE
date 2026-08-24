@@ -120,12 +120,21 @@ async def enrol_local_administrator(
     opened_via: str,
     recorder: AuditRecorder | None = None,
     clock: Callable[[], datetime] = _utc_now,
+    user_id: str | None = None,
+    display_name: str | None = None,
 ) -> EnrolledAdministrator:
     """Create or rotate a local administrator, opening the door on the way if needed.
 
     Two clients share this: the CLI's administrator command, and the route
     that exchanges the bootstrap credential. Both end up here so that "how a
     local administrator is created" has exactly one answer.
+
+    ``user_id`` and ``display_name`` are for the second of those two
+    callers, which already has its own identifier for the principal — the
+    one the durable token it issues alongside this call has to share — and
+    its own display name from the request that reached it. The CLI supplies
+    neither: a freshly generated id, and ``name`` doubling as the display
+    name, are exactly what creating an administrator from a terminal needs.
 
     Raises:
         LocalEnrolmentBlockedBySso: this deployment's identity provider is
@@ -162,12 +171,15 @@ async def enrol_local_administrator(
             user_id = existing.user_id
             rotated = True
         else:
-            user_id = secrets.token_hex(_USER_ID_BYTES)
+            if user_id is None:
+                user_id = secrets.token_hex(_USER_ID_BYTES)
+            if display_name is None:
+                display_name = name
             await uow.identity.upsert_user(
                 User(
                     user_id=user_id,
                     email=name,
-                    display_name=name,
+                    display_name=display_name,
                     kind=PrincipalKind.USER,
                 )
             )

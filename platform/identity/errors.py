@@ -231,6 +231,25 @@ class LocalAdministratorNameTaken(IdentityError):
         self.name = name
 
 
+class LocalSignInAlreadyOpen(IdentityError):
+    """The bootstrap credential was exchanged, but this deployment is already administered.
+
+    Distinct from the bootstrap credential simply being spent or missing —
+    ``TokenRejected`` already covers that. This is the case where the
+    credential file is still on the host, still authenticates, and the
+    exchange would otherwise mint a second, unintended administrator: a
+    stale file left over from before somebody ran the CLI command, or from
+    an identity provider that was activated afterwards.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "this deployment already has a local administrator. Use "
+            "'ninjasre setup admin --rotate' to change a passphrase, or "
+            "create another administrator with a different name."
+        )
+
+
 class LocalEnrolmentBlockedBySso(IdentityError):
     """A local administrator cannot be created or rotated while SSO is active.
 
@@ -312,6 +331,7 @@ __all__ = [
     "LastOwnerRemoval",
     "LocalAdministratorNameTaken",
     "LocalEnrolmentBlockedBySso",
+    "LocalSignInAlreadyOpen",
     "LocalSignInRejected",
     "PermissionDenied",
     "SessionRejected",
