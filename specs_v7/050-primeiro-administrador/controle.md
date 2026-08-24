@@ -125,6 +125,14 @@ rota de disponibilidade, nunca escrito no console.
    lido do próprio comando.
 5. **Chaves i18n da seção 5** — aplicar em `console/src/i18n/en.ts` e
    `pt-BR.ts` (arquivos de escrita única do slot, não tocados por mim).
+6. **Achado novo, fora do escopo, nomeado**: seis baselines visuais de
+   `gallery-*` (todos os viewports e temas: `1440-dark`, `1440-light`,
+   `320-dark`, `320-light`, `768-dark`, `768-light`) divergem do que a
+   suíte visual comitada espera, além das sete que o orquestrador já
+   sabia. `console/src/app/gallery` não foi tocado por esta feature; o
+   dono é quem revisa a suíte visual, não "primeiro administrador".
+   Detalhe completo, com o tamanho do diff de cada uma, na
+   "Atualização" abaixo. Nenhuma baseline foi recapturada.
 
 ---
 
@@ -298,8 +306,43 @@ turbulência recente e não relacionada a esta feature.
 
 Segunda rodada, só do gate de console (`make console-check`, que cobre
 tudo que `console-check` cobre dentro de `make verify`, sem repetir a
-metade Python que já tinha passado): em andamento — ver o parágrafo seguinte pelo achado que decide o que essa
-segunda rodada vale.
+metade Python que já tinha passado):
+
+```
+CONSOLE_CHECK_EXIT_CODE=2
+```
+
+Terminou. **20 passed (1.3m)** no projeto `visual`, **13 failed** — nenhum
+deles algo que esta feature tocou. Sete são exatamente os que o
+orquestrador nomeou de antemão: `agent-tools-1440-light`,
+`resources-320-light`, os quatro `shell-*` (`1440-dark`, `1440-light`,
+`320-light`, `768-light`) e `machine-tokens-1440-light` — confirmados
+aqui, não recapturados. **Seis não estavam na lista e são um achado
+novo desta rodada**: as seis combinações de `gallery-*`
+(`1440-dark`, `1440-light`, `320-dark`, `320-light`, `768-dark`,
+`768-light`) — todas as seis, não uma amostra, o que descarta contenção
+de máquina como causa (uma disputa por CPU derruba tela ao acaso, não
+seis de seis da mesma tela em todo viewport e tema). O diff de cada uma
+é pequeno e estável — `24672 pixels (ratio 0.01 of all image pixels)`
+para `gallery-1440-dark`, na mesma ordem de grandeza da razão que
+`machine-tokens-1440-light` reporta (`308 pixels`, também `ratio 0.01`)
+— e o orçamento do projeto `visual` é `maxDiffPixels: 0`, então qualquer
+diff estável reprova, por design. Não investiguei a causa (fora do
+escopo desta feature — `console/src/app/gallery` não foi tocado por
+"primeiro administrador"), e **não recapturei nenhuma baseline**, das
+sete nomeadas ou das seis novas — a captura é decisão de quem revisa,
+como o orquestrador pediu.
+
+Tudo antes de `visual`, dentro desta mesma rodada de `console-check`:
+prettier, eslint, `tsc --noEmit`, vitest (2796/2796, a rodada que
+resolve o achado de `role-matrix.test.tsx` acima), client-check
+(`openapi-typescript`), `next build`, `dynamic-routes`, `budget`,
+e2e/`behaviour` (**333 passed, 26 skipped, 0 failed**, 3.9min — batendo
+exatamente com a rodada isolada já registrada acima) e e2e/`first-day`
+(**20 passed, 0 failed**, 17.2s — as 5 claims desta feature inclusas,
+nomeadas por título no log:
+`tests/first-day/primeiro-administrador.acceptance.spec.ts:35,40,52,66,81`)
+— **todos verdes**.
 
 **`role-matrix.test.tsx`, isolado, sem nada competindo: verde.** Rodado de
 novo — desta vez sozinho (`pnpm exec vitest run
@@ -330,5 +373,22 @@ confirmados nesta árvore, sem tentar corrigir nenhum dos dois:**
   divergiu da chamada que este teste faz. Não relacionado a
   "primeiro administrador"; não tocado.
 
-**T075**: marcada apenas quando a linha acima confirmar `exit 0`, ou deixada
-sem marcar com a causa exata nomeada — nunca por inferência.
+**T075 permanece desmarcada.** `make console-check` — que é a metade de
+`make verify` onde qualquer coisa desta feature poderia quebrar algo —
+terminou com `CONSOLE_CHECK_EXIT_CODE=2`, não `0`. A causa inteira é o
+projeto `visual`: treze baselines divergentes, nenhuma delas tocada por
+"primeiro administrador" (sete já nomeadas pelo orquestrador, seis
+descobertas nesta rodada — `gallery-*`, ver acima), nenhuma recapturada.
+Toda peça que esta feature poderia ter quebrado — typecheck, lint, os
+2796 testes Python, os 2796 testes Vitest, os dois projetos de e2e
+completos (`behaviour` 333/333, `first-day` 20/20, as dez alegações
+normativas inclusas e verdes pela razão certa) — está confirmada verde,
+por evidência direta, nesta mesma rodada ou numa isolada equivalente.
+`make verify` de ponta a ponta soma a isso a mesma metade Python que já
+tinha passado antes de chegar em `console-check`
+(`MAKE_VERIFY_EXIT_CODE=2` da primeira rodada completa, seção acima) e
+os dois vermelhos nomeados pelo orquestrador, confirmados e não
+tocados. T075 pede `make verify` verde partindo de verde; a árvore não
+partiu verde — carregava treze divergências visuais de outras features
+antes de qualquer commit desta — e marcá-la seria inferir um "verde" que
+o comando nunca disse.
