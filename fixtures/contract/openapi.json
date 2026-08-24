@@ -2216,6 +2216,11 @@
             "title": "Name",
             "type": "string"
           },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
           "user_id": {
             "title": "User Id",
             "type": "string"
@@ -2224,7 +2229,8 @@
         "required": [
           "user_id",
           "email",
-          "display_name"
+          "display_name",
+          "password"
         ],
         "title": "DurableCredentialRequest",
         "type": "object"
@@ -4087,6 +4093,20 @@
           "live"
         ],
         "title": "LivenessView",
+        "type": "object"
+      },
+      "LocalAdministratorAvailabilityView": {
+        "description": "The one fact the sign-in and first-run screens need before anybody is signed in.\n\nTernary, and nothing else: no deployment name, no version, no\norganisation, no count of anything. ``state`` is one of ``\"unclaimed\"``\n(no local administrator and no identity provider — the CLI's own\ncommand is the way in), ``\"administered\"`` (a local administrator\nalready exists, whether from the environment or a deliberate\nenrolment), or ``\"identity_provider\"`` (this deployment's identity\nprovider is its way in).",
+        "properties": {
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "LocalAdministratorAvailabilityView",
         "type": "object"
       },
       "MaintenanceRequest": {
@@ -15431,7 +15451,7 @@
     },
     "/v1/setup/durable-credential": {
       "post": {
-        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke.",
+        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke. The passphrase is the opposite\ncase: it is the caller's own, chosen for the first time, and the request\nbody is the only place it could come from.",
         "operationId": "durable_credential_v1_setup_durable_credential_post",
         "parameters": [
           {
@@ -15484,6 +15504,28 @@
           }
         },
         "summary": "Durable Credential",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/local-administrator": {
+      "get": {
+        "description": "Return the ternary fact the sign-in and first-run screens read.\n\nPublic by declaration: it is what tells an unauthenticated visitor\nwhether there is a way in at all, and revealing that is the whole point\nof the route — see ``LocalAdministratorAvailabilityView`` for what it\ndeliberately does not also reveal.",
+        "operationId": "local_administrator_availability_v1_setup_local_administrator_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAdministratorAvailabilityView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Local Administrator Availability",
         "tags": [
           "setup"
         ]
