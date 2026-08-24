@@ -200,6 +200,18 @@ E5 = Station(
             needs=("org", "run"),
             baseline="every recent summary opened with ###, and no separate sentence existed",
         ),
+        _query(
+            "E5",
+            "headline-coverage",
+            asks=(
+                "how much of this deployment's history predates the sentence column; a run "
+                "backfilled with an empty one is the case the read path has to synthesise a "
+                "name for, and the likeliest reason a screen rule holds against a fixture "
+                "and fails against real history"
+            ),
+            needs=("org",),
+            baseline="every run, because the column did not exist",
+        ),
     ),
 )
 
