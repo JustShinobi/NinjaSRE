@@ -96,10 +96,15 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
         },
         { kind: 'status', text: text(record, 'status') },
         { kind: 'text', text: triggerLabel(locale, trigger) },
-        // The id, demoted to metadata. Short enough to be a label rather than a
-        // block of hex nobody can hold in their head, and it is still what
-        // somebody pastes into a support channel.
-        { kind: 'identifier', text: id.slice(0, 8) },
+        // The id, demoted to metadata. Short enough to be a label rather than
+        // a block of hex nobody can hold in their head, and it is still what
+        // somebody pastes into a support channel. Marked with '#' rather than
+        // left bare: a real id is uuid4().hex (platform/runs/recorder.py), so
+        // the eight characters below are always pure hexadecimal — nothing
+        // in this cell's own text says "this is a fragment", and a reader
+        // who never sees the column header reads a bare hex string as a
+        // name standing in for the one the subject column already gives it.
+        { kind: 'identifier', text: `#${id.slice(0, 8)}` },
         {
           kind: 'muted',
           text: timestamp(locale, text(record, 'started_at'), now, zone).relative,
