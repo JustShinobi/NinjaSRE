@@ -16,8 +16,10 @@ import pytest
 from typer.testing import CliRunner
 
 from config.constants.first_run import NINJASRE_STATE_DIR_ENV
+from platform.config_service.service import ConfigService
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
+from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.transaction import TenantScope
 from platform.startup.bootstrap import bring_up
@@ -26,6 +28,7 @@ from platform.startup.errors import ConfigurationInvalid
 from surfaces.cli import app as cli_app
 from surfaces.cli.commands import setup as setup_commands
 from surfaces.cli.output.schemas import COMMAND_SCHEMAS, validate
+from surfaces.cli.wizard.prompts import ScriptedPrompter
 from tools.mockplane.seed import DEMONSTRATION_ORGANISATION
 
 pytestmark = pytest.mark.unit
@@ -325,3 +328,170 @@ def test_forcing_it_seeds_anyway(runner: CliRunner, store: FakePersistence) -> N
     result = _invoke(runner, "setup", "load-demo", "--force")
 
     assert result.exit_code == 0
+
+
+# --- The administrator command --------------------------------------------------
+
+
+def _seed_org(store: FakePersistence, org_id: str) -> None:
+    async def _seed() -> None:
+        async with store.begin_system() as system:
+            await system.orgs.create_organisation(org_id, "Acme")
+
+    asyncio.run(_seed())
+
+
+@pytest.fixture
+def admin_org(store: FakePersistence) -> str:
+    """Seed the organisation ``organisation_id()`` resolves to, by default."""
+    org_id = "default"
+    _seed_org(store, org_id)
+    return org_id
+
+
+@pytest.fixture
+def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the command believe it has a real terminal to prompt through."""
+    monkeypatch.setattr(setup_commands, "interactive_input", lambda: True)
+
+
+def _scripted(monkeypatch: pytest.MonkeyPatch, *answers: str) -> ScriptedPrompter:
+    prompter = ScriptedPrompter(answers=list(answers))
+    monkeypatch.setattr(setup_commands, "prompter_factory", lambda: prompter)
+    return prompter
+
+
+def test_the_command_is_registered_in_the_shipped_cli(runner: CliRunner) -> None:
+    result = _invoke(runner, "setup", "--help")
+    assert "admin" in _text(result)
+
+
+def test_creating_the_first_administrator_opens_the_door(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _scripted(monkeypatch, "a very long passphrase", "a very long passphrase")
+
+    result = _invoke(runner, "setup", "admin", "--name", "admin")
+
+    assert result.exit_code == 0, _text(result)
+
+    async def _opened() -> bool:
+        async with store.begin(TenantScope(org_id=admin_org)) as uow:
+            return await uow.identity.local_sign_in_opening() is not None
+
+    assert asyncio.run(_opened()) is True
+
+
+def test_the_passphrase_never_appears_in_the_output(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secret = "a passphrase that must never be echoed back"
+    _scripted(monkeypatch, secret, secret)
+
+    result = _invoke(runner, "--json", "setup", "admin", "--name", "admin")
+
+    assert secret not in _text(result)
+    document = json.loads(result.stdout)
+    assert secret not in json.dumps(document)
+
+
+def test_mismatched_passphrases_are_refused(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _scripted(monkeypatch, "first passphrase entered", "a different one entirely")
+
+    result = _invoke(runner, "setup", "admin", "--name", "admin")
+
+    assert result.exit_code != 0
+    assert "match" in _text(result).lower()
+
+
+def test_without_an_interactive_terminal_the_command_names_the_alternative(
+    runner: CliRunner, store: FakePersistence, admin_org: str
+) -> None:
+    """No ``interactive`` fixture here: the runner's own stdin is not a tty."""
+    result = _invoke(runner, "setup", "admin", "--name", "admin")
+
+    assert result.exit_code != 0
+    text = _text(result).lower()
+    assert "terminal" in text
+    assert "docker compose exec" in text or "bootstrap credential" in text
+
+
+def test_an_existing_name_without_rotate_says_how_to_rotate(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _scripted(monkeypatch, "the first passphrase used", "the first passphrase used")
+    first = _invoke(runner, "setup", "admin", "--name", "admin")
+    assert first.exit_code == 0, _text(first)
+
+    _scripted(monkeypatch, "a second attempt passphrase", "a second attempt passphrase")
+    second = _invoke(runner, "setup", "admin", "--name", "admin")
+
+    assert second.exit_code != 0
+    assert "rotat" in _text(second).lower()
+
+
+def test_rotate_replaces_the_passphrase(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _scripted(monkeypatch, "the original passphrase here", "the original passphrase here")
+    created = _invoke(runner, "setup", "admin", "--name", "admin")
+    assert created.exit_code == 0, _text(created)
+
+    _scripted(monkeypatch, "the rotated passphrase here", "the rotated passphrase here")
+    rotated = _invoke(runner, "setup", "admin", "--name", "admin", "--rotate")
+
+    assert rotated.exit_code == 0, _text(rotated)
+
+
+def test_an_active_identity_provider_blocks_the_command_with_no_override(
+    runner: CliRunner,
+    store: FakePersistence,
+    admin_org: str,
+    interactive: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _activate_sso() -> None:
+        service = ConfigService(gateway=store, scope=TenantScope(org_id=admin_org))
+        await service.set_settings(
+            admin_org,
+            {"policies": {"sso": {"is_active": True}}},
+            actor_id="test",
+            actor_kind=ActorKind.SYSTEM,
+        )
+
+    asyncio.run(_activate_sso())
+    _scripted(monkeypatch, "a very long passphrase", "a very long passphrase")
+
+    result = _invoke(runner, "setup", "admin", "--name", "admin")
+
+    assert result.exit_code != 0
+    text = _text(result)
+    assert "--force" not in text
+    assert "identity provider" in text.lower()
+
+
+def test_the_help_text_never_offers_a_force_flag(runner: CliRunner) -> None:
+    result = _invoke(runner, "setup", "admin", "--help")
+    assert "--force" not in _text(result)

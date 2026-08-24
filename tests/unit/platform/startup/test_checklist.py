@@ -168,6 +168,7 @@ async def test_the_credential_step_is_done_when_a_person_holds_a_live_token(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
         environ=environ,
     )
 
@@ -486,6 +487,7 @@ async def test_a_finished_deployment_reports_the_checklist_complete(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
         environ=environ,
     )
     async with store.begin(SCOPE) as uow:

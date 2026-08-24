@@ -121,6 +121,7 @@ async def test_spending_the_credential_writes_neither_it_nor_its_replacement(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
         environ=environ,
     )
 
@@ -144,6 +145,7 @@ async def test_a_refusal_names_no_credential(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
         environ=environ,
     )
 

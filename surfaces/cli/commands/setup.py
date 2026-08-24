@@ -21,21 +21,27 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import typer
 
-from config.constants.first_run import SUPPORT_BUNDLE_FILENAME
+from config.constants.first_run import LOCAL_SIGN_IN_OPENED_VIA_CLI, SUPPORT_BUNDLE_FILENAME
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
+from platform.identity.audit.recorder import AuditRecorder
+from platform.identity.enrolment import enrol_local_administrator
+from platform.identity.errors import LocalAdministratorNameTaken, LocalEnrolmentBlockedBySso
+from platform.identity.tokens import TokenService
 from platform.persistence.ports.transaction import PersistenceGateway
-from platform.startup.bootstrap import credential_path, read_credential
+from platform.startup.bootstrap import credential_path, organisation_id, read_credential
 from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
 from platform.startup.diagnostics import last_failure, support_bundle
 from platform.startup.selfcheck import SelfCheckReport, self_check
-from surfaces.cli.errors import CliError, ConfigurationError
+from surfaces.cli.errors import CliError, ConfigurationError, DeniedError, UnavailableError
 from surfaces.cli.invocation import Invocation, Output, run_command
 from surfaces.cli.output.tables import Column, Detail, bullet_list, table_of
+from surfaces.cli.wizard.prompts import Prompter, TyperPrompter
 
 app = typer.Typer(help="Bring-up, the self-check, and the demonstration deployment.")
 
@@ -75,6 +81,20 @@ def _default_store() -> PersistenceGateway:
 #: because typer owns the signatures and threading a factory through six of them
 #: would put a test seam in the operator's ``--help``.
 store_factory: StoreFactory = _default_store
+
+
+def _stdin_is_a_terminal() -> bool:
+    return sys.stdin.isatty()
+
+
+#: Swapped by a test, the same way ``store_factory`` is. The default asks the
+#: only question that matters for a passphrase prompt: can this process hide
+#: what is typed and read it back reliably.
+interactive_input: Callable[[], bool] = _stdin_is_a_terminal
+
+#: Swapped by a test to hand back a ``ScriptedPrompter`` instead of one that
+#: reads a real terminal.
+prompter_factory: Callable[[], Prompter] = TyperPrompter
 
 
 def _report_text(report: SelfCheckReport, invocation: Invocation) -> str:
@@ -280,6 +300,96 @@ def remove_demo(ctx: typer.Context) -> None:
         )
 
     raise typer.Exit(run_command(invocation, "setup.remove-demo", body))
+
+
+@app.command("admin")
+def admin(
+    ctx: typer.Context,
+    name: str = typer.Option(..., "--name", help="The administrator's sign-in name."),
+    rotate: bool = typer.Option(
+        False,
+        "--rotate",
+        help="Replace an existing administrator's passphrase instead of refusing.",
+    ),
+) -> None:
+    """Create this deployment's administrator, or rotate one that already exists.
+
+    The canonical way in on the first day, and the answer to the two
+    questions that come after it: this same command, run again with a new
+    name, creates a second administrator; run again with the same name and
+    ``--rotate``, it replaces that administrator's passphrase and revokes
+    whatever sessions were open with the old one.
+
+    Asks for the passphrase twice, without echoing it. Never accepts one as
+    an argument or reads one from the environment — a passphrase on the
+    command line is a passphrase in the shell history and in the process
+    table, and one read from the environment by this command's own choice is
+    one more place an operator has to remember to unset it.
+    """
+    invocation: Invocation = ctx.obj
+
+    async def body() -> Output:
+        if not interactive_input():
+            raise CliError(
+                "this command needs an interactive terminal to ask for a passphrase "
+                "without echoing it",
+                remedy=(
+                    "run it with a real terminal attached to this deployment's app "
+                    "container — for example 'docker compose exec -it app ninjasre "
+                    "setup admin --name ...', or your deployment's equivalent — or "
+                    "exchange the bootstrap credential printed at first start through "
+                    "the console's sign-in form instead"
+                ),
+            )
+
+        prompter = prompter_factory()
+        password = prompter.secret(f"Passphrase for {name!r}")
+        confirmation = prompter.secret("Confirm passphrase")
+        if password != confirmation:
+            raise CliError("the two passphrases did not match", remedy="run the command again")
+
+        store = store_factory()
+        health = await store.health()
+        if not health.connected:
+            raise UnavailableError(
+                f"could not reach the database: {'; '.join(health.reasons)}",
+                remedy=(f"check the database is up and {NINJASRE_DATABASE_URL_ENV} points at it"),
+            )
+
+        tokens = TokenService(gateway=store, recorder=AuditRecorder(gateway=store))
+        try:
+            enrolled = await enrol_local_administrator(
+                store,
+                tokens,
+                org_id=organisation_id(),
+                name=name,
+                password=password,
+                rotate=rotate,
+                opened_via=LOCAL_SIGN_IN_OPENED_VIA_CLI,
+                recorder=AuditRecorder(gateway=store),
+            )
+        except LocalAdministratorNameTaken as taken:
+            raise CliError(
+                str(taken), remedy="pass --rotate to replace that administrator's passphrase"
+            ) from taken
+        except LocalEnrolmentBlockedBySso as blocked:
+            raise DeniedError(str(blocked)) from blocked
+
+        verb = "rotated" if enrolled.rotated else "created"
+        return Output(
+            command="setup.admin",
+            data={
+                "name": enrolled.name,
+                "rotated": enrolled.rotated,
+                "opened": enrolled.opened,
+            },
+            text=(
+                f"{invocation.terminal.glyph('ok')} {enrolled.name!r} {verb}. Sign in at the "
+                f"console with that name and the passphrase you just entered."
+            ),
+        )
+
+    raise typer.Exit(run_command(invocation, "setup.admin", body))
 
 
 def run_self_check_now(store: PersistenceGateway) -> SelfCheckReport:

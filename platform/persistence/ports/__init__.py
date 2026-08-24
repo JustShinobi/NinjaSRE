@@ -93,6 +93,7 @@ from platform.persistence.ports.health import (
 from platform.persistence.ports.identity_repository import (
     ApiToken,
     IdentityRepository,
+    LocalSignInOpening,
     PrincipalKind,
     RoleBinding,
     TokenDirectory,
@@ -244,6 +245,7 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeDocument",
     "KnowledgeStore",
+    "LocalSignInOpening",
     "MigrationStatus",
     "NodeKind",
     "OrgDirectory",

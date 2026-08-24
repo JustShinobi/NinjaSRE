@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 import uvicorn
 
 from config.constants.deployment import NINJASRE_ADMIN_TOKEN_ENV
+from config.constants.first_run import LOCAL_ADMIN_SETUP_COMMAND
 from config.constants.surfaces import DEFAULT_API_HOST, DEFAULT_API_PORT
 from core.llm.factory import publish_configured_bindings
 from gateway.http.app import create_app
@@ -193,15 +194,26 @@ async def _serve(host: str, port: int, *, migrate_only: bool) -> None:
         # credential written for a deployment that is about to exit; after,
         # because the operator must not meet a sign-in page there is no way past.
         entry = await bring_up(deployment.state.gateway, deployment.state.tokens)
-        print(  # noqa: T201 — the credential is printed, never logged (FR-004)
-            announcement(entry.credential, path=credential_path())
-            if entry.issued
-            else (
-                f"Already brought up. The credential is unchanged and readable at "
-                f"{credential_path()}; it expires at {entry.credential.expires_at.isoformat()}."
-            ),
-            file=sys.stderr,
-        )
+        if entry.credential is not None:
+            message = (
+                announcement(entry.credential, path=credential_path())
+                if entry.issued
+                else (
+                    f"Already brought up. The credential is unchanged and readable at "
+                    f"{credential_path()}; it expires at "
+                    f"{entry.credential.expires_at.isoformat()}."
+                )
+            )
+        else:
+            # This deployment already has a way in — a local administrator,
+            # or an identity provider — so there is nothing to invite anybody
+            # with.
+            message = (
+                "Already brought up, and administered: nothing to print. Sign in "
+                "with an existing administrator, or run "
+                f"{LOCAL_ADMIN_SETUP_COMMAND!r} to create or rotate one."
+            )
+        print(message, file=sys.stderr)  # noqa: T201 — the credential is printed, never logged (FR-004)
 
         # Cleared once the deployment is genuinely up. Otherwise the console
         # shows yesterday's failure to somebody whose deployment is working,

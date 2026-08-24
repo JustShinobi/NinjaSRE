@@ -22,13 +22,17 @@ from config.constants.first_run import (
     BOOTSTRAP_PRINCIPAL_ID,
     DEFAULT_ORGANISATION_ID,
     DURABLE_CREDENTIAL_LIFETIME_DAYS,
+    LOCAL_ADMIN_SETUP_COMMAND,
     NINJASRE_ORGANISATION_ENV,
     NINJASRE_STATE_DIR_ENV,
 )
-from platform.identity.errors import TokenRejected
+from platform.config_service.service import ConfigService
+from platform.identity.errors import LocalSignInAlreadyOpen, TokenRejected
+from platform.identity.local_accounts import LocalSignIn
 from platform.identity.permissions import Permission
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
+from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.transaction import TenantScope
 from platform.startup.bootstrap import (
     BootstrapCredential,
@@ -37,6 +41,7 @@ from platform.startup.bootstrap import (
     bring_up,
     credential_path,
     establish_durable_credential,
+    organisation_id,
     read_credential,
 )
 
@@ -68,6 +73,7 @@ async def test_bring_up_creates_the_organisation_the_credential_belongs_to(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     assert result.organisation_id == DEFAULT_ORGANISATION_ID
     async with store.begin_system() as system:
@@ -78,6 +84,7 @@ async def test_the_organisation_can_be_named(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ={**environ, NINJASRE_ORGANISATION_ENV: "acme"})
+    assert result.credential is not None
 
     assert result.organisation_id == "acme"
 
@@ -88,6 +95,7 @@ async def test_the_credential_authenticates_through_the_identity_system(
     """FR-001. Not a magic header and not an environment variable the gateway
     special-cases: an ordinary token the token service resolves."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     authenticated = await tokens.authenticate(result.credential.secret)
 
@@ -101,6 +109,7 @@ async def test_the_credential_is_short_lived(
     """FR-003. An hour, not the identity layer's default year."""
     before = datetime.now(UTC)
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     lifetime = result.credential.expires_at - before
     assert lifetime <= timedelta(seconds=BOOTSTRAP_CREDENTIAL_LIFETIME_SECONDS + 5)
@@ -118,6 +127,7 @@ async def test_the_credential_carries_one_purpose_and_not_the_owner_role(
     on top of the grant.
     """
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     authenticated = await tokens.authenticate(result.credential.secret)
     held = authenticated.permissions.permissions_at(None)
@@ -135,6 +145,7 @@ async def test_the_credential_is_written_where_the_operator_reads_it(
 ) -> None:
     """FR-002. A file, so closing the terminal is not a lost deployment."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     path = credential_path(environ)
     assert path.name == BOOTSTRAP_CREDENTIAL_FILENAME
@@ -156,6 +167,7 @@ async def test_the_credential_reads_back_from_the_host_without_a_restart(
 ) -> None:
     """FR-002. Same object, read off the disk rather than out of the process."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     again = read_credential(environ)
 
@@ -174,6 +186,7 @@ async def test_the_announcement_states_the_expiry_and_where_to_read_it_again(
 ) -> None:
     """FR-002. An expiry a person can act on, and the path, in the printed block."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     printed = announcement(result.credential, path=credential_path(environ))
 
@@ -190,7 +203,9 @@ async def test_bringing_up_twice_changes_nothing(
 ) -> None:
     """FR-005. No reset, no wipe, no second credential."""
     first = await bring_up(store, tokens, environ=environ)
+    assert first.credential is not None
     second = await bring_up(store, tokens, environ=environ)
+    assert second.credential is not None
 
     assert second.credential == first.credential
     assert second.issued is False
@@ -237,12 +252,14 @@ async def test_a_second_container_does_not_revoke_the_first_ones_credential(
     spend. The rows `supersede` exists to clear are the expired ones.
     """
     first = await bring_up(store, tokens, environ=environ)
+    assert first.credential is not None
 
     # A second container: same database, its own empty credential file.
     other_environ = dict(environ)
     other_environ[NINJASRE_STATE_DIR_ENV] = str(tmp_path / "second-container")
 
     second = await bring_up(store, tokens, environ=other_environ)
+    assert second.credential is not None
 
     assert second.issued is True, "the second container has no credential of its own"
     assert second.credential.secret != first.credential.secret
@@ -258,6 +275,7 @@ async def test_a_credential_that_expired_is_replaced_rather_than_reused(
     """Idempotent is not "never issue again". A deployment restarted a day later
     has to be enterable, and the hour-old credential in the file is not."""
     first = await bring_up(store, tokens, environ=environ)
+    assert first.credential is not None
 
     stale = BootstrapCredential(
         secret=first.credential.secret,
@@ -268,6 +286,7 @@ async def test_a_credential_that_expired_is_replaced_rather_than_reused(
     credential_path(environ).write_text(json.dumps(stale.to_record()), encoding="utf-8")
 
     second = await bring_up(store, tokens, environ=environ)
+    assert second.credential is not None
 
     assert second.issued is True
     assert second.credential.secret != first.credential.secret
@@ -279,6 +298,7 @@ async def test_a_credential_the_store_no_longer_holds_is_replaced(
     """The file is a copy, not the record. If the two disagree the store wins —
     otherwise a restored backup would leave a file nobody can sign in with."""
     first = await bring_up(store, tokens, environ=environ)
+    assert first.credential is not None
     await tokens.revoke(
         TenantScope(org_id=DEFAULT_ORGANISATION_ID),
         _context(),
@@ -286,6 +306,7 @@ async def test_a_credential_the_store_no_longer_holds_is_replaced(
     )
 
     second = await bring_up(store, tokens, environ=environ)
+    assert second.credential is not None
 
     assert second.issued is True
     assert second.credential.secret != first.credential.secret
@@ -299,6 +320,7 @@ async def test_establishing_a_durable_credential_expires_the_bootstrap_one(
 ) -> None:
     """FR-003, SC-002. It establishes one thing and then it is over."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     durable = await establish_durable_credential(
         store,
@@ -307,6 +329,7 @@ async def test_establishing_a_durable_credential_expires_the_bootstrap_one(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
     )
 
     assert durable.secret != result.credential.secret
@@ -318,6 +341,7 @@ async def test_the_durable_credential_is_a_full_owner(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     durable = await establish_durable_credential(
         store,
@@ -326,6 +350,7 @@ async def test_the_durable_credential_is_a_full_owner(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
     )
 
     authenticated = await tokens.authenticate(durable.secret)
@@ -338,6 +363,7 @@ async def test_the_durable_credential_outlives_the_bootstrap_one_by_months(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
 
     durable = await establish_durable_credential(
         store,
@@ -346,6 +372,7 @@ async def test_the_durable_credential_outlives_the_bootstrap_one_by_months(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
     )
 
     remaining = durable.expires_at - datetime.now(UTC)
@@ -357,6 +384,7 @@ async def test_the_bootstrap_credential_file_is_removed_once_it_is_spent(
 ) -> None:
     """A dead credential left on disk is a credential somebody tries for an hour."""
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
     assert credential_path(environ).exists()
 
     await establish_durable_credential(
@@ -366,6 +394,7 @@ async def test_the_bootstrap_credential_file_is_removed_once_it_is_spent(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
         environ=environ,
     )
 
@@ -376,6 +405,7 @@ async def test_establishing_twice_with_the_same_bootstrap_credential_is_refused(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
     await establish_durable_credential(
         store,
         tokens,
@@ -383,6 +413,7 @@ async def test_establishing_twice_with_the_same_bootstrap_credential_is_refused(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
     )
 
     with pytest.raises(TokenRejected):
@@ -393,6 +424,7 @@ async def test_establishing_twice_with_the_same_bootstrap_credential_is_refused(
             user_id="grace",
             email="grace@example.test",
             display_name="Grace",
+            password="a very long passphrase",
         )
 
 
@@ -403,6 +435,7 @@ async def test_both_halves_of_the_exchange_are_audited(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:
     result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
     await establish_durable_credential(
         store,
         tokens,
@@ -410,6 +443,7 @@ async def test_both_halves_of_the_exchange_are_audited(
         user_id="ada",
         email="ada@example.test",
         display_name="Ada",
+        password="a very long passphrase",
     )
 
     async with store.begin(TenantScope(org_id=DEFAULT_ORGANISATION_ID)) as uow:
@@ -440,6 +474,117 @@ def test_a_bring_up_result_says_whether_it_issued_anything() -> None:
     )
 
     assert BringUp(credential=credential, issued=True).issued is True
+
+
+# --- The invitation, and the gate in front of it --------------------------------
+
+
+async def test_the_announcement_names_the_command_and_does_not_claim_sign_in_works(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str]
+) -> None:
+    """The block used to say 'Sign in with this credential', which was false:
+    the exchange route wants a name and a passphrase, not this token."""
+    result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
+
+    printed = announcement(result.credential, path=credential_path(environ))
+
+    assert LOCAL_ADMIN_SETUP_COMMAND in printed
+    assert "sign in with this credential" not in printed.lower()
+
+
+async def test_no_credential_is_issued_once_the_local_sign_in_is_open(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str]
+) -> None:
+    org_id = organisation_id(environ)
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation(org_id, "Acme")
+    async with store.begin(TenantScope(org_id=org_id)) as uow:
+        await uow.identity.open_local_sign_in(opened_at=datetime.now(UTC), opened_via="cli")
+
+    result = await bring_up(store, tokens, environ=environ)
+
+    assert result.issued is False
+    assert result.credential is None
+    assert read_credential(environ) is None
+
+
+async def test_no_credential_is_issued_while_the_identity_provider_is_active(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str]
+) -> None:
+    org_id = organisation_id(environ)
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation(org_id, "Acme")
+    service = ConfigService(gateway=store, scope=TenantScope(org_id=org_id))
+    await service.set_settings(
+        org_id,
+        {"policies": {"sso": {"is_active": True}}},
+        actor_id="test",
+        actor_kind=ActorKind.SYSTEM,
+    )
+
+    result = await bring_up(store, tokens, environ=environ)
+
+    assert result.issued is False
+    assert result.credential is None
+    assert read_credential(environ) is None
+
+
+# --- The seam: an exchange the sign-in form accepts ------------------------------
+
+
+async def test_the_exchange_creates_an_administrator_the_sign_in_form_accepts(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str]
+) -> None:
+    result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
+
+    durable = await establish_durable_credential(
+        store,
+        tokens,
+        bootstrap=result.credential,
+        user_id="ada",
+        email="ada@example.test",
+        display_name="Ada",
+        password="the passphrase ada chose",
+    )
+
+    assert durable.user_id == "ada"
+
+    sign_in = LocalSignIn(gateway=store, tokens=tokens, account=None)
+    issued = await sign_in.sign_in(
+        "ada@example.test", "the passphrase ada chose", org_id=organisation_id(environ)
+    )
+    assert issued.token.user_id == "ada"
+
+
+async def test_the_exchange_is_refused_without_a_password() -> None:
+    import inspect
+
+    signature = inspect.signature(establish_durable_credential)
+    assert "password" in signature.parameters
+    assert signature.parameters["password"].default is inspect.Parameter.empty
+
+
+async def test_the_exchange_refuses_a_stale_credential_on_an_administered_deployment(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str]
+) -> None:
+    org_id = organisation_id(environ)
+    result = await bring_up(store, tokens, environ=environ)
+    assert result.credential is not None
+    async with store.begin(TenantScope(org_id=org_id)) as uow:
+        await uow.identity.open_local_sign_in(opened_at=datetime.now(UTC), opened_via="cli")
+
+    with pytest.raises(LocalSignInAlreadyOpen):
+        await establish_durable_credential(
+            store,
+            tokens,
+            bootstrap=result.credential,
+            user_id="ada",
+            email="ada@example.test",
+            display_name="Ada",
+            password="a very long passphrase",
+        )
 
 
 def _context() -> object:

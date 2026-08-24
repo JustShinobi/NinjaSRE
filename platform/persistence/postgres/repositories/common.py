@@ -52,6 +52,25 @@ def check_limit(limit: int, *, parameter: str = "limit") -> int:
     return limit
 
 
+def sqlstate_of(error: IntegrityError) -> str | None:
+    """Return the PostgreSQL error code an ``IntegrityError`` carries, if any.
+
+    The async driver wraps the real ``asyncpg`` exception rather than
+    subclassing it, so the code lives one level down, on ``__cause__``.
+    """
+    return getattr(getattr(error.orig, "__cause__", None), "sqlstate", None)
+
+
+def constraint_name_of(error: IntegrityError) -> str | None:
+    """Return the name of the constraint an ``IntegrityError`` violated, if reported.
+
+    For a caller that has to tell *which* of two unique constraints on the
+    same table fired — never for a message: naming a constraint to an
+    operator is exactly what ``translating`` below refuses to do.
+    """
+    return getattr(getattr(error.orig, "__cause__", None), "constraint_name", None)
+
+
 @contextmanager
 def translating(
     *,
@@ -71,7 +90,7 @@ def translating(
     try:
         yield
     except IntegrityError as error:
-        code = getattr(getattr(error.orig, "__cause__", None), "sqlstate", None)
+        code = sqlstate_of(error)
         if code == "23505":  # unique_violation
             raise DuplicateRecord(kind=kind, identifier=identifier) from error
         if code == "23503":  # foreign_key_violation
@@ -139,7 +158,9 @@ __all__ = [
     "as_tuple",
     "as_utc",
     "check_limit",
+    "constraint_name_of",
     "rows_affected",
+    "sqlstate_of",
     "utc_now",
     "translating",
 ]

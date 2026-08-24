@@ -764,6 +764,7 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "setup.bundle": _object({"path": _STRING}),
     "setup.load-demo": DEMO_SEED,
     "setup.remove-demo": DEMO_REMOVAL,
+    "setup.admin": _object({"name": _STRING, "rotated": _BOOLEAN, "opened": _BOOLEAN}),
 }
 
 #: The envelope every document is wrapped in, whatever the command.
