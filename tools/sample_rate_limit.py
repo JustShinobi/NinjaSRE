@@ -62,10 +62,10 @@ def _report() -> int:
     minutes = (
         datetime.fromisoformat(str(last["at"])) - datetime.fromisoformat(str(first["at"]))
     ).total_seconds() / 60
-    spent = last["session"]["used_percent"] - first["session"]["used_percent"]  # type: ignore[index]
-    left = last["session"]["resets_in_minutes"]  # type: ignore[index]
+    spent = last["session"]["used_percent"] - first["session"]["used_percent"]
+    left = last["session"]["resets_in_minutes"]
     print(f"  samples          {len(session)} over {minutes:.0f} min")
-    print(f"  used now         {last['session']['used_percent']}%")  # type: ignore[index]
+    print(f"  used now         {last['session']['used_percent']}%")
     print(f"  resets in        {left} min")
     if minutes <= 0:
         return 0
@@ -74,7 +74,7 @@ def _report() -> int:
     if rate > 0:
         # The only question worth asking: does this pace reach the cap before
         # the window resets? A percentage without that answer is not a signal.
-        to_cap = (100 - last["session"]["used_percent"]) / rate  # type: ignore[index,operator]
+        to_cap = (100 - last["session"]["used_percent"]) / rate
         print(f"  cap reached in   {to_cap:.0f} min")
         print(f"  verdict          {'SLOW DOWN' if to_cap < left else 'pace is fine'}")
     return 0
