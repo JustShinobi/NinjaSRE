@@ -408,6 +408,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="whether this team's credential for an integration is present and usable",
     ),
     ConsoleEndpoint(
+        method="GET",
+        path="/v1/integrations/{name}/docs",
+        slug="integration-docs",
+        source=_GATEWAY,
+        summary="the vendor package's own documentation, as its docs.md reads",
+    ),
+    ConsoleEndpoint(
         method="POST",
         path="/v1/providers/{provider_id}/verify",
         slug="provider-verify",
