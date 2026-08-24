@@ -274,7 +274,15 @@ class ProxyEngine:
         injected = self._inject(request.outbound(), rule, credential)
         try:
             return await self._sender.send(injected, timeout_seconds=self._timeout_seconds)
-        except ProxyError:
+        except ProxyError as refused:
+            # Already classified, so it goes up as it stands. The sender is
+            # handed a request rather than the rule that authenticated it, so it
+            # cannot name the integration; naming it here is the one thing added,
+            # and it leaves the reason, the message and the detail untouched.
+            # Re-wrapping would turn a refused certificate back into whatever
+            # the outer handler happened to guess.
+            if not refused.integration:
+                refused.integration = request.integration
             raise
         except Exception as error:  # noqa: BLE001 — a transport fails how it likes
             raise UpstreamUnreachable(

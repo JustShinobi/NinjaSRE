@@ -56,6 +56,14 @@ STATUS_FOR_REASON: Mapping[ProxyErrorReason, int] = {
     ProxyErrorReason.REFRESH_FAILED: 502,
     ProxyErrorReason.RATE_LIMITED: 429,
     ProxyErrorReason.UPSTREAM_UNREACHABLE: 502,
+    # 412 rather than 502, and the difference is the whole point of the reason.
+    # A refused certificate is not "the vendor did not answer" — the vendor
+    # answered, and a precondition this deployment owns is unmet: nobody has
+    # declared what to trust at that address. That is the same class of answer
+    # as a credential nobody has stored, so it takes the same status, and a
+    # caller that reads only the number is led to configuration rather than to
+    # a retry that will fail identically for ever.
+    ProxyErrorReason.CERTIFICATE_UNTRUSTED: 412,
 }
 
 
