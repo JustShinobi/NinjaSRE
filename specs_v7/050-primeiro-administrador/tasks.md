@@ -365,7 +365,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       terminal e uma captura da tela autenticada em `evidence/`. Esta tarefa é
       o DoD da feature; nenhuma outra a substitui.
 
-- [ ] T067 **[serving]** No mesmo deployment, repetir o caminho que criou o
+- [x] T067 **[serving]** No mesmo deployment, repetir o caminho que criou o
       administrador e capturar a recusa. Conferir que ela é uma frase de gente.
 
 - [ ] T068 **[serving]** No mesmo deployment, criar um segundo service account

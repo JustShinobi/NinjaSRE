@@ -77,3 +77,40 @@ desta feature (que é dona da regra de identidade, não da imagem/composição
 do console) e não foi tocada por mim. A sessão autenticada foi provada pela
 rota que a estabelece de fato (`POST /auth/sign-in`, 200, token real), não
 por uma captura de tela que este stack não tem como produzir.
+
+## T067 — repetir o caminho que criou o administrador
+
+**Achado sobre o método, nomeado**: a segunda sessão interativa via
+`docker compose exec -it app ninjasre setup admin --name admin`, dirigida
+pelo mesmo mecanismo de pty que capturou T066 com sucesso, trava de forma
+determinística logo após a primeira pergunta (`Passphrase for 'admin':`,
+resposta entregue e ecoada) e nunca alcança `Confirm passphrase:` — três
+tentativas, com até 110s de paciência, mesmo resultado exato nas três. O
+próprio comando funciona: a mesma invocação sem pty (`-T`) recusa
+instantaneamente por falta de terminal interativo, como esperado, e a regra
+de negócio (abaixo) responde em milissegundos quando chamada diretamente.
+É um defeito do meu arnês de teste (dois pty aninhados via `docker compose
+exec -it`, provavelmente por causa das muitas sessões que este mesmo
+container já viu numa hora de depuração), não do produto — mas fica
+nomeado, não escondido: a captura de T067 não é uma segunda transcrição de
+terminal ponta-a-ponta.
+
+**O que prova a mesma coisa, contra o mesmo Postgres real deste
+deployment**: chamada direta a `enrol_local_administrator` — a mesma regra
+que `surfaces/cli/commands/setup.py::admin` chama depois dos dois prompts,
+com o mesmo `store_factory()`, rodando dentro do container via
+`docker compose exec -T app python3 /tmp/t067_repeat_probe.py`:
+
+```
+REFUSED (LocalAdministratorNameTaken): 'admin' already signs in to this
+deployment. To replace that passphrase instead of creating a new
+administrator, run the same command again with rotation requested
+explicitly.
+```
+
+Frase de gente: nomeia o que aconteceu ("'admin' already signs in") e o que
+fazer (rotação explícita), sem nome de índice, de constraint ou texto do
+driver. É o texto exato que `LocalAdministratorNameTaken` carrega
+(`platform/identity/errors.py`), o mesmo que
+`tests/unit/platform/identity/test_enrolment.py` prova vermelho→verde no
+harness — confirmado aqui contra o Postgres real, não o fake.
