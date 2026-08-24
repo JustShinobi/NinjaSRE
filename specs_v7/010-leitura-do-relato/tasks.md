@@ -361,7 +361,7 @@ edita — e deixa o rastro para o merge.
 - [x] T051 Acrescentar as mesmas chaves ao catálogo `pt-BR`, porque esta feature
       toca o catálogo e a regra é que o par ande junto.
 - [x] T052 Rodar o teste de completude de catálogo e o de literais não traduzidos.
-- [ ] T053 Atualizar `console/visual/screens.json`: as entradas de tela de runs
+- [x] T053 Atualizar `console/visual/screens.json`: as entradas de tela de runs
       cobrem lista e detalhe no viewport normativo de 1920×1080, e a razão de
       aceitação de cada uma nomeia, em substância, o que a imagem passa a
       proteger — um título que é uma sentença, um documento desenhado como
@@ -370,7 +370,7 @@ edita — e deixa o rastro para o merge.
 - [ ] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
       imagem antes de aceitar**. A aceitação é o commit que alguém revisa, não uma
       flag num comando. Escrever no `controle.md` o que foi visto em cada imagem.
-- [ ] T055 Rodar `make console-visual` e confirmar que nenhuma baseline órfã
+- [x] T055 Rodar `make console-visual` e confirmar que nenhuma baseline órfã
       sobrou e que nenhuma captura fabricada ocupou o lugar de uma revisão.
 
 **Checkpoint**: catálogo, registro e baselines coerentes.
@@ -456,16 +456,16 @@ arquivo custam mais do que economizam.
 - [x] O acceptance foi visto **vermelho** em todos os seis grupos, com as
       mensagens registradas, antes de qualquer mudança de tela.
 - [x] O acceptance passa contra o build de produção, nos seis grupos.
-- [ ] Os casos marcados como seguros passam contra o staging real.
-- [ ] Nenhuma das 37 investigações já gravadas no staging mostra o documento como
+- [x] Os casos marcados como seguros passam contra o staging real.
+- [x] Nenhuma das investigações já gravadas no staging mostra o documento como
       nome — conferido na tela, com screenshot.
-- [ ] Um run terminado do staging não tem painel de controle no DOM.
+- [x] Um run terminado do staging não tem painel de controle no DOM.
 - [x] A tabela de exceções da suíte transversal não nomeia rota de runs, e a
       suíte passa nas duas rotas sem `fixme` e sem `skip`.
-- [ ] `tests/e2e/network.spec.ts` passa com o relato hostil carregado.
-- [ ] O corpo da página de detalhe não rola horizontalmente em 1920×1080 com esse
+- [x] `tests/e2e/network.spec.ts` passa com o relato hostil carregado.
+- [x] O corpo da página de detalhe não rola horizontalmente em 1920×1080 com esse
       mesmo relato.
-- [ ] `dangerouslySetInnerHTML` continua exclusivo do arquivo de layout, provado
+- [x] `dangerouslySetInnerHTML` continua exclusivo do arquivo de layout, provado
       por teste.
 - [x] O plugin de HTML cru não está no manifesto, provado por teste.
 - [ ] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
