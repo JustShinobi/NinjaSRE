@@ -332,3 +332,51 @@ o arquivo nunca esteve rastreado.
   (`gateway/http/routes/integrations.py::integration_docs` — `entry(name)`
   resolve contra o catálogo instalado antes de qualquer acesso a disco; nome
   desconhecido é 404 antes disso).
+
+## A comparação com a linha de base — 2026-08-24
+
+Três tarefas desta onda pediam um log do portão na árvore intacta e a comparação
+contra ele. Elas tinham sido dadas como impossíveis, com a justificativa de que
+a árvore intacta já não existe.
+
+**Ela existe: é o commit `abbc418`, e o git a guarda.** O portão foi rodado lá,
+num worktree separado, e o log está em
+`evidence/baseline-abbc418-make-verify.log.gz`.
+
+### Os dois lados
+
+| | `abbc418` (antes da onda) | hoje |
+|---|---|---|
+| `make verify` | **exit 0** | verde, medido peça a peça |
+| suíte Python | 12.247 passed · 27 skipped · **0 failed** | ~12.772 passed · **0 failed** |
+| benchmarks | 37 passed | 37 passed |
+| console (vitest) | incluído no total acima | 170 arquivos · 2.802 testes · cobertura de ramos 90,08% |
+| console e2e | — | exit 0 · 335 (`behaviour`) + 20 (`first-day`) |
+| console visual | — | exit 0 · 33 |
+| `verify_integrations` | paridade | **15 em paridade, nenhum campo sem orientação** |
+
+### O que a comparação diz
+
+**Todo alvo que passava continua passando.** Nenhum alvo verde na linha de base
+está vermelho hoje, e é isso que a tarefa pede que se afirme.
+
+**A suíte cresceu cerca de 525 testes.** Não é uma diferença a explicar: é o que
+dez features acrescentaram. Um alvo que não existia em `abbc418` não é uma
+divergência, é um portão novo — o `console-visual` e o `console-e2e` são desse
+tipo, e a comparação os registra como acréscimo, não como mudança de resultado.
+
+**As diferenças que apareceram no caminho até aqui foram consertadas, não
+omitidas**, que é o que a tarefa exige: uma deriva do documento OpenAPI que só
+existe com duas features na mesma árvore, uma varredura que caminhava sobre a
+saída do próprio Playwright, o anonimizador que comia a documentação do Proxmox,
+e um teste de checklist que lia um argumento removido. Cada uma está no commit
+que a corrige.
+
+### Um achado da própria medição
+
+`console/.toolchain/tree-writing-suite.lock` guarda um PID e **não confere se
+esse processo ainda vive**. Toda corrida interrompida deixa a sua para trás, e a
+seguinte recusa-se a rodar citando um processo que já não existe. Bloqueou o
+portão quatro vezes seguidas durante esta medição, cada uma exigindo apagar o
+arquivo à mão. É defeito de robustez da ferramenta, não do produto, e não foi
+consertado aqui.
