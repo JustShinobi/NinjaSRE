@@ -445,3 +445,98 @@ A coluna que a auditoria de regras exigiu, respondida por feature na tabela
 acima. Onde a resposta honesta era "ninguém ainda", ela foi escrita assim: o
 pipeline por estágios declara-se dormente **nomeando o que o ligaria**, em vez
 de fingir que está composto.
+
+---
+
+## A demo, executada · 2026-08-24
+
+A 080 não era mais uma feature: era a pergunta se as outras nove somam alguma
+coisa. Foi respondida contra o hipervisor real, com um contêiner de verdade
+parado por dezoito minutos.
+
+### O laço, do gatilho ao fecho
+
+Contêiner CT122 (`redis`, nó `pve01`) parado às **10:26:29Z** e religado às
+**10:44:47Z**. Nada foi emitido à mão depois disso; cada passo aconteceu porque
+o anterior aconteceu.
+
+| | | UTC |
+|---|---|---|
+| E1 | o alerta dispara sozinho | 10:29:34 |
+| E2 | a entrega chega, autenticada, `202` | 10:29:45 |
+| E3 | incidente `inc_05328c58ca88676b` abre | 10:29:45 |
+| E4 | a investigação grava 13 eventos | 10:29:45 |
+| E5 | conclui em 23s, manchete legível | 10:30:08 |
+| E10 | o incidente fecha sozinho | 10:50:06 |
+
+**Nove das dez features aparecem nessa tabela.** A identidade endereçável da
+020 é o `inc_…` sem percent-encoding. A gravação da 001 são os 13 eventos e a
+repartição de custo por turno. O relato legível da 010 é a manchete que é uma
+frase. A fonte-por-fato da 030 é o `501` do hipervisor mostrado verbatim em vez
+de virar prosa. A confiança de certificado da 070 é o que faz a chamada chegar
+ao hipervisor autoassinado. O catálogo da 060 é o painel que ofereceu
+OpenObserve e SigNoz por tê-los achado nos recursos descobertos.
+
+### O que o produto se recusou a fingir
+
+Três recusas, e cada uma vale mais que um sucesso:
+
+- `changes_in_window` respondeu que *"whether anything changed before this
+  incident is **unknown rather than answered**"* — não inventou um "nada mudou";
+- `proxmox_guest_tasks` mostrou o `501 Method not implemented` do hipervisor
+  literal, sem traduzir para uma falha genérica;
+- o incidente fechou com `close_reason: "ProxmoxGuestStopped was resolved
+  upstream"` e `self_resolved: true`. **O produto não reivindicou o conserto.**
+  Quem religou foi um humano, e o registro diz isso.
+
+### Onde o laço para, e por quê
+
+E7, E8 e E9 — propor, aprovar, executar — não correram. A razão não é ambiente
+nem tela.
+
+O catálogo inteiro tem **três** capacidades de escrita:
+`alertmanager/acknowledge_incident`, `pushover/post_message`,
+`telegram/post_message`. As três são aviso. **Nada, em lugar nenhum do
+catálogo, atua sobre infraestrutura.** As vinte capacidades do Proxmox são de
+leitura; até `proxmox_guest_start_diagnosis` diagnostica uma partida que
+falhou, não a executa.
+
+A maquinaria em volta está pronta e provada: o balcão compôs 20 capacidades, o
+portão se registra por run em `pre_tool_use`, o teto de ferramentas é 40 e só 4
+foram usadas — nada foi cortado por orçamento.
+
+**O agente estava certo em não propor nada.** O laço fecha até *"entendi,
+gravei e registrei o desfecho"*. Não fecha em *"agi"*, porque o vocabulário de
+ação está vazio. Isso é escopo de produto por decidir, não defeito por
+consertar, e é a coisa mais importante que esta onda descobriu sobre si mesma.
+
+### Achados de produto, sem dono ainda
+
+1. **O título do incidente é o nome do alerta**, `ProxmoxGuestStopped`, não uma
+   frase — e o próprio produto produz a frase certa na tela seguinte.
+2. **O cabeçalho do incidente diz `node pve02`; os rótulos na mesma tela dizem
+   `node=pve01`.** O cabeçalho lê `instance` — o endereço de quem raspou a
+   métrica — e o apresenta como o nó do sujeito. Um operador vai ao nó errado
+   com o dado certo três linhas abaixo.
+3. **A descoberta não resolve o nó do convidado**: todo `native_id` sai como
+   `lxc/HAL9000/unknown/122`, embora o exportador carregue `node=pve01`.
+   Provável causa do item 2.
+4. **O custo aparece de duas formas para o mesmo run**: `Not recorded` no
+   painel do incidente, `$0.00` repartido por turno na tela do run.
+5. **`prometheus_metric_statistics` devolve 400** com `start` vazio — visto
+   antes, não reincidiu na demo.
+
+### Um erro meu, registrado como erro
+
+Antes de parar o contêiner procurei uma regra que o vigiasse. Não achei nenhuma
+sobre `pve_up` de convidado e concluí que *nada* o vigiava — escrevi uma regra
+para preencher a lacuna.
+
+Quatro regras já o cobriam pelo lado do serviço e **as quatro dispararam antes
+da minha**. O alerta teria chegado sem eu escrever linha alguma.
+
+A regra continua correta, e foi verificada silenciosa contra as séries vivas
+antes de carregar. Mas eu afirmei mais do que havia medido: *"nenhuma regra
+sobre a métrica do convidado"* era um achado; *"nada vigia este contêiner"* era
+palpite com roupa de achado. É a mesma família de defeito que esta onda passou
+a semana fechando nas telas, cometida no relatório de quem a conduzia.
