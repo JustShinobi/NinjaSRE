@@ -412,6 +412,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'palette.group.actions': 'Acções',
   'palette.close': 'Fechar a paleta',
 
+  'noAdministrator.title': 'Este deployment ainda não tem administrador',
+  'noAdministrator.body': 'Rode o comando abaixo no host para criar um.',
   'signIn.title': 'Entrar',
   'signIn.context': 'Esta consola contacta a sua instalação e mais nada.',
   'signIn.username': 'Utilizador',

@@ -300,3 +300,25 @@ complete one that never arrives.
 Understate rather than overstate. The orchestrator commits on the strength of
 this answer, so a completion you cannot evidence costs them more than an
 admission you could not finish.
+
+## What your report costs
+
+You run the cheaper model; the orchestrator that reads you runs the expensive
+one and resends a growing conversation on every turn. That asymmetry is why a
+few habits matter more than they look:
+
+- **A stopping report is two lines, not two pages.** When you are asked to stop
+  at a clean boundary, answer with the one fact that decides what can be merged
+  — "the binding is up, I stopped at phase eight" — and leave the ledger in the
+  control file where it costs nothing to read later.
+- **Do not run `make verify`.** The orchestrator owns the full gate and runs it
+  on the merged tree, where the failures that matter actually appear. Run the
+  narrow suites for what you touched.
+- **Do not re-run a long suite to confirm what you just confirmed.** A browser
+  sweep you already have a green result for is minutes of clock and a rebuild.
+- **Ask once, with everything.** If you need three decisions, ask for the three
+  together rather than stopping three times.
+
+None of this trades honesty for economy. A named gap in two lines beats a
+polished page that omits it, and "I could not verify this" is always worth the
+words.

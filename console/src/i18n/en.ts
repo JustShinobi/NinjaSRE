@@ -373,6 +373,8 @@ export const EN = {
   'palette.close': 'Close the palette',
 
   // --- The session -------------------------------------------------------------
+  'noAdministrator.title': 'This deployment has no administrator yet',
+  'noAdministrator.body': 'Run the command below on the host to create one.',
   'signIn.title': 'Sign in',
   'signIn.context': 'This console reaches your deployment and nothing else.',
   'signIn.username': 'Username',

@@ -80,6 +80,12 @@ const LABELS: IntegrationPanelLabels = {
   intakeTitle: 'Where to send alerts',
   intakeBody: 'The one step that happens outside this deployment.',
   intakeAction: 'Point your alert router at it',
+  // The documentation section arrived from the catalogue feature while this
+  // file was being written in another worktree. It is not what these cases
+  // are about, so it is given a shape and left alone.
+  docsHeading: 'Documentation',
+  docsToggle: 'Show the vendor guide',
+  docsUnreadable: 'This deployment could not read the guide.',
 };
 
 function connected(): IntegrationPanelItem {
@@ -88,6 +94,8 @@ function connected(): IntegrationPanelItem {
     displayName: 'Proxmox VE',
     categoryLabel: 'Virtualisation',
     summary: 'Nodes, guests and datastores.',
+    docsMarkdown: '',
+    docsReadable: false,
     health: 'degraded',
     healthDetail: '',
     fields: [

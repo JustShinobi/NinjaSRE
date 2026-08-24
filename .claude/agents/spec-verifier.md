@@ -71,3 +71,19 @@ Return only a concise report with:
 4. Browser project, backing, test paths, and result, or the exact reason browser
    validation was not applicable or could not run.
 5. Any requirement deliberately left outside this feature and its owning spec.
+
+## What your report costs
+
+You run the cheaper model; the orchestrator reading you runs the expensive one
+and resends a growing conversation every turn. Write for that:
+
+- **Lead with the verdict.** PASS, FAIL or UNVERIFIED on the first line, then
+  the findings. A reader who has to reach the bottom to learn the answer has
+  paid for the whole page before knowing whether it changes anything.
+- **Separate defect from observation, and say which.** A list where the
+  blocking finding sits between two notes forces a second read.
+- **Do not re-run what the orchestrator already ran and told you.** Audit those
+  numbers as claims — check the one you can check independently and say which —
+  rather than spending a browser lifecycle reproducing them.
+- **Silence on what checked out is fine.** Name what you verified in a line;
+  spend the words on what did not.
