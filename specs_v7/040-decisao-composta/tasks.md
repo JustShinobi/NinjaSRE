@@ -360,9 +360,20 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
       gateway traz a proposta com o plano de reversão junto.
       → **A investigação real rodou** (demo de 2026-08-24, incidente
       `inc_05328c58ca88676b`) e a lista de aprovações está vazia. Não há
-      proposta para trazer: ver S02. A metade desta alegação que dependia do
-      portão — que a proposta, quando existir, viaje com seu plano de reversão —
-      continua provada só pelos testes, não contra o ambiente.
+      proposta para trazer: ver S02.
+
+      A outra metade — que a proposta viaje com seu plano de reversão — está
+      provada, e mais forte do que a tarefa pede. Não é que o plano acompanhe
+      quando existe: **uma aprovação sem plano armazenado é recusada**
+      (`platform/remediation/errors.py::NoRollbackPlan`,
+      `tests/contract/remediation/test_proposed_action_decision.py::
+      test_approving_without_a_stored_rollback_plan_is_refused`, com as 33 do
+      arquivo verdes em 2026-08-24). O erro diz por quê: uma ação cujo desfazer
+      ninguém consegue escrever é mais arriscada do que parecia quando foi
+      proposta, e a hora de notar isso é antes de ela rodar.
+
+      O que falta é a instância viva, e ela não pode existir enquanto nada puder
+      ser proposto.
 - [ ] S02 Contar no banco de staging: pedidos de aprovação de remediação maior
       que zero; planos de reversão maior que zero, com ao menos um
       correspondendo a um daqueles pedidos.
