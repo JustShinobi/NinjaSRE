@@ -655,6 +655,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.chip.state.resolved': 'Resolvido',
   'incident.chip.state.suppressed': 'Suprimido',
   'incident.chip.state.closedWithoutAction': 'Encerrado sem ação',
+  'incident.chip.state.unknown': 'Desconhecido',
+  'incident.chip.state.unknown.explain':
+    'Não foi possível ler este incidente, então também não foi possível saber o seu estado.',
   'incident.chip.investigation.none': 'Sem investigação',
   'incident.chip.investigation.running': 'Investigação em andamento',
   'incident.chip.investigation.finished': 'Investigação concluída',

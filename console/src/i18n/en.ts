@@ -846,6 +846,12 @@ export const EN = {
   'incident.chip.state.resolved': 'Resolved',
   'incident.chip.state.suppressed': 'Suppressed',
   'incident.chip.state.closedWithoutAction': 'Closed without action',
+  // Distinct from every named state above: this incident's own detail failed
+  // to load, so its state was never learned — never the same chip as `.open`,
+  // which is a claim about the incident rather than an admission the read
+  // never answered.
+  'incident.chip.state.unknown': 'Unknown',
+  'incident.chip.state.unknown.explain': 'This incident could not be read, so its state could not be told.',
   // Whether an investigation has run against this incident at all, and
   // whether it has delivered its report — read from the timeline itself
   // rather than from a run status this route does not carry.

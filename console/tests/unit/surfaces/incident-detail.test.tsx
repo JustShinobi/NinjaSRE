@@ -417,6 +417,18 @@ describe('a detail read that failed', () => {
     expect(states.filter((state) => state === 'empty')).toHaveLength(1);
   });
 
+  it('the incident state chip says Unknown rather than asserting Open on a failed read', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    const chips = screen.getAllByTestId('incident-chip');
+    const stateChip = chips[0];
+    expect(stateChip).toHaveTextContent('Unknown');
+    expect(stateChip).not.toHaveTextContent('Open');
+    // The dependency that failed, named in the tooltip — the same technique
+    // the investigation chip beside it already uses.
+    expect(stateChip?.getAttribute('title')).toMatch(/incident/i);
+  });
+
   it('renders no subtitle at all, rather than the same fallback word on more than one of its five slots', async () => {
     await renderIncident('inc-unreadable-01');
 
