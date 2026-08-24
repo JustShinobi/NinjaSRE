@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { signIn } from './session';
 
 /**
- * The thirteen normative claims of this feature's specification, one
- * assertion each.
+ * The catalogue's field-level guidance: what an embedded vendor's own screen
+ * teaches an operator who has never opened its console before, one assertion
+ * per claim the specification makes testable.
  *
  * **Two vendors carry this file's read claims: `grafana` and `prometheus`.**
  * Both are real, embedded, unconfigured in the `populated` dataset — which is
@@ -16,23 +17,23 @@ import { signIn } from './session';
  * orientation separately, now that the certificate-trust feature sharing
  * these files has merged and closed this feature's own boundary around them.
  *
- * **AN-07 and AN-08 render the package documentation for real.** The
- * sanitised renderer they depend on (`console/src/surfaces/report.tsx`)
- * landed from the "leitura do relato" feature after this file's first
- * version was written against a repository that had none. AN-09 (a failed
- * read says so, not that the document is absent) is proven at the unit
- * layer instead of here —
+ * **The package documentation renders for real.** The sanitised renderer it
+ * depends on (`console/src/surfaces/report.tsx`) landed from the
+ * report-reading feature after this file's first version was written against
+ * a repository that had none. That a failed read says so, rather than that
+ * the document is absent, is proven at the unit layer instead of here —
  * `console/tests/unit/surfaces/integration-panel.test.tsx` — because every
  * vendor in this dataset reads successfully and this file does not
  * fabricate a read failure the mock backing cannot produce.
  *
- * **AN-10 and AN-11 are `test.skip`, named, not silently absent, in this
- * run.** Both need a deployment whose credential proxy actually enforces the
- * clear-text refusal against a live write — the `compose` backing, not the
- * static `mock` one this file otherwise runs against, which answers every
- * write with the same canned response regardless of what was sent. The
- * refusal itself is proven at the platform layer, including across the ASGI
- * wire boundary a capability actually reads it through, in
+ * **The clear-text credential refusal, as the panel would show it, is
+ * `test.skip`, named, not silently absent, in this run.** It needs a
+ * deployment whose credential proxy actually enforces the clear-text refusal
+ * against a live write — the `compose` backing, not the static `mock` one
+ * this file otherwise runs against, which answers every write with the same
+ * canned response regardless of what was sent. The refusal itself is proven
+ * at the platform layer, including across the ASGI wire boundary a
+ * capability actually reads it through, in
  * `tests/unit/platform/credentials/test_proxy_engine.py`. What is not proven
  * here is the console rendering that sentence as the panel's verdict detail
  * — a real gap, named as one rather than assumed from the backend proof.
@@ -48,8 +49,8 @@ test.beforeEach(async ({ context, baseURL }) => {
 });
 
 // =============================================================================
-// AN-01 / AN-02 / AN-12 — minimum permission: present on every secret field,
-// absent everywhere else, never rendered as an empty line
+// Minimum permission: present on every secret field, absent everywhere
+// else, never rendered as an empty line
 // =============================================================================
 
 test.describe('minimum permission: on every secret field, on no other, never blank', () => {
@@ -99,8 +100,8 @@ test.describe('minimum permission: on every secret field, on no other, never bla
 });
 
 // =============================================================================
-// AN-03 / AN-04 / AN-13 — guide: on every field, every one an absolute
-// address, never a link with nothing behind it
+// Guide: on every field, every one an absolute address, never a link with
+// nothing behind it
 // =============================================================================
 
 test.describe('guide: on every field, always a real address', () => {
@@ -173,7 +174,8 @@ test.describe("proxmox's own orientation, now that the shared boundary has close
 });
 
 // =============================================================================
-// AN-05 / AN-06 — "where to get it", shown, and identical on both screens
+// "Where to get it": shown, and identical on both screens that ask for a
+// credential
 // =============================================================================
 
 test.describe('where to obtain the credential: shown, and the same phrase everywhere', () => {
@@ -218,7 +220,7 @@ test.describe('where to obtain the credential: shown, and the same phrase everyw
 });
 
 // =============================================================================
-// AN-07 / AN-08 — the package's own documentation, rendered in the panel
+// The package's own documentation, rendered in the panel
 // =============================================================================
 
 test.describe('the package documentation section', () => {
@@ -257,8 +259,8 @@ test.describe('the package documentation section', () => {
 });
 
 // =============================================================================
-// AN-10 / AN-11 — the clear-text credential refusal, on screen — not
-// staging-safe, and not runnable against the static mock backing either
+// The clear-text credential refusal, on screen — not staging-safe, and not
+// runnable against the static mock backing either
 // =============================================================================
 
 test.describe('the clear-text credential refusal, as the panel shows it', () => {

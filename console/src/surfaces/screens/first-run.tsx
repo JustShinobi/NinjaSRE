@@ -307,6 +307,10 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
         (entry) => entry.name === name && entry.readiness !== 'absent',
       ),
       suggested: suggestionOf(record),
+      // The same declaration the integration panel reads for this vendor —
+      // never a copy, so the two screens that ask for a credential cannot
+      // drift apart on where it comes from.
+      whereToGetIt: text(record, 'where_to_get_it'),
     };
   });
 

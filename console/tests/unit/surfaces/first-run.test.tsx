@@ -155,6 +155,46 @@ describe('the wizard screen', () => {
     expect(within(one(offer)).getByLabelText('API token')).toBeInTheDocument();
   });
 
+  it('shows the catalogue’s declared where-to-get-it phrase on the integrations step, from the catalogue payload', async () => {
+    // The integration panel (`/integrations/{name}`) and this step read the
+    // same vendor declaration. This drives the fixture the way the deployment
+    // actually would — a `where_to_get_it` string on the catalogue record —
+    // rather than building the offer by hand the way the component-level
+    // tests below do, so a composition that drops the field on the floor is
+    // caught here even though `IntegrationsStep` itself renders it correctly.
+    const phrase =
+      'Create a read-only service account token from Prometheus’s own reverse proxy.';
+    const origin = ['http:', '//fixtures.invalid'].join('');
+    serveScenario('first-run');
+    const withoutOverride = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), origin).pathname;
+      const answer = await withoutOverride(input as never, init);
+      if (path !== '/v1/integrations') return answer;
+      const body = (await answer.json()) as {
+        integrations: readonly Record<string, unknown>[];
+      };
+      const patched = {
+        ...body,
+        integrations: body.integrations.map((entry) =>
+          entry.name === 'prometheus' ? { ...entry, where_to_get_it: phrase } : entry,
+        ),
+      };
+      return new Response(JSON.stringify(patched), {
+        status: answer.status,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+
+    render(await FirstRunScreen(await surfaceContext({ step: 'integrations' })));
+
+    const offer = screen
+      .getAllByTestId('integration-offer')
+      .find((each) => each.getAttribute('data-integration') === 'prometheus');
+    expect(offer).toBeDefined();
+    expect(within(one(offer)).getByTestId('where-to-get-it')).toHaveTextContent(phrase);
+  });
+
   it('keeps every step of the deployment’s own checklist visible, marking exactly one as where you are', async () => {
     await firstRun();
 

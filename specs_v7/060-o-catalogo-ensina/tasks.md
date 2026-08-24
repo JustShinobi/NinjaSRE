@@ -183,7 +183,7 @@ partida, não a autoridade.
 - [x] T029 [P] **prometheus** — guia para `endpoint` e para `token`. A permissão
       mínima de `token` já existe e diz que depende do proxy reverso à frente;
       confirmar e citar a fonte.
-- [ ] T030 [P] **proxmox** — o vendor com mais campos e o mais delicado. Guia
+- [x] T030 [P] **proxmox** — o vendor com mais campos e o mais delicado. Guia
       para `endpoint` e `username`; permissão mínima **e** guia para `password`,
       `ticket` e `csrf_token`. A permissão mínima de `api_token` já existe e nomeia
       privilégios de auditoria concretos; confirmar e citar a fonte. `ticket` e
@@ -227,7 +227,7 @@ partida, não a autoridade.
       deixa em branco" — deixa de ser verdade nesta feature, e um comentário que
       mente sobre o dado ao lado é a próxima pessoa tomando a decisão errada.
       T013 passa a verde.
-- [ ] T039 Levar a mesma frase à oferta de integração do primeiro acesso e ao
+- [x] T039 Levar a mesma frase à oferta de integração do primeiro acesso e ao
       passo que a renderiza. Duas edições localizadas: o bloco que monta as
       ofertas e a chamada do passo. **Declará-las no relatório final** — o arquivo
       que compõe os passos do primeiro acesso é tocado também pela feature
@@ -295,7 +295,7 @@ partida, não a autoridade.
       para violar.
 - [ ] T054 Rodar as suítes unitárias do console e a suíte Python inteira, e
       confirmar verde.
-- [ ] T055 Depois do merge do slot e do deploy de staging feito pelo orquestrador,
+- [x] T055 Depois do merge do slot e do deploy de staging feito pelo orquestrador,
       rodar contra `https://stg-ninjasre.lan.kyo.ninja` as alegações marcadas como
       seguras, abrindo `grafana`, `prometheus` e `proxmox`, e guardar screenshot
       full-page de cada uma no `evidence/` da feature. As duas alegações da recusa
@@ -304,9 +304,9 @@ partida, não a autoridade.
       alvo que passava continua passando; a verificação de integrações reporta as
       15 em paridade e nenhum campo sem orientação. Qualquer diferença é explicada
       ou corrigida, nunca omitida.
-- [ ] T057 Conferir que o `console/package.json` declara exatamente um
+- [x] T057 Conferir que o `console/package.json` declara exatamente um
       renderizador de markdown, o mesmo que a Fase 0 registrou.
-- [ ] T058 Conferir que nenhum arquivo committed desta feature cita identificador
+- [x] T058 Conferir que nenhum arquivo committed desta feature cita identificador
       de requisito, número de artigo, número de feature ou caminho de documento de
       planejamento, e que nenhum teste lê arquivo fora do repositório.
 - [x] T059 Atualizar o `controle.md` desta feature com o que o código prova: o
