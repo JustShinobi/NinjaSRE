@@ -300,13 +300,13 @@ que depois de três camadas de carregamento prontas.
       confiança em vigor (`gateway/http/deep_verification.py`), reusando a
       descrição de uma linha que o vocabulário já produz.
 
-- [ ] **T039** [Teste] Em `console/tests/unit/`, o teste do painel: os campos de
+- [x] **T039** [Teste] Em `console/tests/unit/`, o teste do painel: os campos de
       confiança aparecem pelo mecanismo de campos declarados; a ação de aceitar
       não verificado exige razão escrita e não é uma caixa de seleção; quem não
       tem a permissão não a vê disponível; e a frase da recusa exibida é a que o
       servidor mandou, não uma genérica. Confirmar vermelho.
 
-- [ ] **T040** Implementar no painel da integração, sem componente novo. As
+- [x] **T040** Implementar no painel da integração, sem componente novo. As
       chaves de i18n usadas são referenciadas no código e **declaradas no
       relatório final** — não editar o catálogo.
 
