@@ -322,6 +322,12 @@ check-literals: ## Reject a missing comma that merges two capability metadata en
 check-raw-sql: ## Reject SQL, Cypher, or a database driver outside platform/persistence/
 	$(RUN) python tools/check_raw_sql.py
 
+# Run as a module for the same reason check-integrations is: it imports the
+# persistence store's own status enumeration, and `platform/` only wins its
+# name over the stdlib module when the repository root leads sys.path.
+check-run-status-vocabulary: ## Reject a fixture or console run status the persistence store does not declare
+	$(RUN) python -m tools.check_run_status_vocabulary
+
 check-credentials: ## Reject a credential read outside the vault and the proxy (FR-017)
 	$(RUN) python tools/check_direct_credentials.py
 
@@ -509,6 +515,7 @@ backup-cycle: ## Back up, restore into a clean database, and verify the result
 
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
+	check-run-status-vocabulary \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
 	console-check test ## The single quality gate
