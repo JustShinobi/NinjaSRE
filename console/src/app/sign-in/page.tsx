@@ -9,6 +9,8 @@ import {
 } from '@/session/cookies';
 import { safeReturnTo } from '@/session/cookies';
 import { requestLocale } from '@/shell/request';
+import { NoAdministratorNotice } from '@/surfaces/no-administrator-notice';
+import { localAdministratorAvailability } from '@/surfaces/read';
 
 /**
  * The only thing an unauthenticated visitor sees, and it says nothing.
@@ -54,6 +56,7 @@ export default async function SignIn({
   const returnTo = safeReturnTo(typeof raw === 'string' ? raw : null);
   const reasonRaw = parameters[SESSION_REASON_PARAM];
   const reason = typeof reasonRaw === 'string' ? reasonRaw : null;
+  const availability = await localAdministratorAvailability();
 
   return (
     <main data-testid="sign-in" className="mx-auto flex max-w-prose flex-col gap-4 p-7">
@@ -70,6 +73,13 @@ export default async function SignIn({
           {message(locale, REASON_MESSAGE[reason])}
         </p>
       ) : null}
+      <NoAdministratorNotice
+        command={availability.command}
+        labels={{
+          title: message(locale, 'noAdministrator.title'),
+          body: message(locale, 'noAdministrator.body'),
+        }}
+      />
       <form
         method="post"
         action="/api/session"
