@@ -842,7 +842,7 @@
             "display_name": "Proxmox VE",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/",
                 "help": "Where a node of your cluster answers, port included — https://moss.example.invalid Any node will do: the API answers cluster-wide questions from whichever one is asked.",
                 "label": "Proxmox node address",
                 "min_scope": "",
@@ -860,7 +860,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "Login name with its realm, such as ninjasre@pve. Only for deployments that cannot issue an API token.",
                 "label": "Login name",
                 "min_scope": "",
@@ -869,28 +869,28 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "Password for the ticket login. Exchanged for a two-hour ticket on the proxy side and never read here.",
                 "label": "Password",
-                "min_scope": "",
+                "min_scope": "Sys.Audit on /, VM.Audit on /vms and Datastore.Audit on /storage — granted together by the PVEAuditor role on /, for the login name this password authenticates",
                 "name": "password",
                 "required": false,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "The short-lived ticket the proxy exchanged the password for. Written by the refresher, never by an operator.",
                 "label": "Session ticket",
-                "min_scope": "",
+                "min_scope": "the same access as the login (username and password) that was exchanged for it — session material the proxy writes, never a scope an operator sets",
                 "name": "ticket",
                 "required": false,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "The CSRF prevention token that accompanies a ticket. Written by the refresher, never by an operator.",
                 "label": "CSRF token",
-                "min_scope": "",
+                "min_scope": "the same as the ticket it accompanies — session material, not an operator-set scope",
                 "name": "csrf_token",
                 "required": false,
                 "secret": true
@@ -935,7 +935,7 @@
               "self-hosted"
             ],
             "summary": "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication, at whichever addresses the operator declared.",
-            "where_to_get_it": ""
+            "where_to_get_it": "Generate an API token from Proxmox's own Datacenter → Permissions → API Tokens, with the PVEAuditor role — or, where a token cannot be issued, authenticate with a login that holds it."
           },
           {
             "capabilities": [

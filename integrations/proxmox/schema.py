@@ -85,6 +85,7 @@ SCHEMA: Final = credential_schema(
         "https://proxmox.example.com:8006. Any node will do: the API answers cluster-"
         "wide questions from whichever one is asked.",
         label="Proxmox node address",
+        guide_url="https://pve.proxmox.com/pve-docs/",
     ),
     secret(
         "api_token",
@@ -106,6 +107,7 @@ SCHEMA: Final = credential_schema(
         "Login name with its realm, such as ninjasre@pve. Only for deployments "
         "that cannot issue an API token.",
         label="Login name",
+        guide_url="https://pve.proxmox.com/pve-docs/chapter-pveum.html",
     ),
     secret(
         "password",
@@ -114,6 +116,12 @@ SCHEMA: Final = credential_schema(
         required=False,
         alternatives=("api_token",),
         label="Password",
+        min_scope=(
+            "Sys.Audit on /, VM.Audit on /vms and Datastore.Audit on /storage — "
+            "granted together by the PVEAuditor role on /, for the login name "
+            "this password authenticates"
+        ),
+        guide_url="https://pve.proxmox.com/pve-docs/chapter-pveum.html",
     ),
     secret(
         "ticket",
@@ -121,6 +129,12 @@ SCHEMA: Final = credential_schema(
         "the refresher, never by an operator.",
         required=False,
         label="Session ticket",
+        min_scope=(
+            "the same access as the login (username and password) that was "
+            "exchanged for it — session material the proxy writes, never a "
+            "scope an operator sets"
+        ),
+        guide_url="https://pve.proxmox.com/pve-docs/chapter-pveum.html",
     ),
     secret(
         "csrf_token",
@@ -128,6 +142,10 @@ SCHEMA: Final = credential_schema(
         "refresher, never by an operator.",
         required=False,
         label="CSRF token",
+        min_scope=(
+            "the same as the ticket it accompanies — session material, not an operator-set scope"
+        ),
+        guide_url="https://pve.proxmox.com/pve-docs/chapter-pveum.html",
     ),
 )
 
