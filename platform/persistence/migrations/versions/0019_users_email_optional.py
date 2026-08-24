@@ -40,7 +40,17 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Apply the change."""
+    """Apply the change.
+
+    The column has to become nullable *before* anything writes ``NULL`` into
+    it — reversed, the fold below is a write of ``NULL`` into a column still
+    declared ``NOT NULL``, which PostgreSQL refuses. A database with no
+    addressless principal never took the failing path, which is exactly how
+    this order shipped unnoticed: the first deployment that had one row with
+    ``email_folded = ''`` failed to migrate at all.
+    """
+    op.alter_column("users", "email_folded", nullable=True)
+
     connection = op.get_bind()
     users = sa.table(
         "users",
@@ -49,8 +59,6 @@ def upgrade() -> None:
         sa.column("email_folded", sa.String),
     )
     connection.execute(users.update().where(users.c.email_folded == "").values(email_folded=None))
-
-    op.alter_column("users", "email_folded", nullable=True)
 
 
 def downgrade() -> None:
