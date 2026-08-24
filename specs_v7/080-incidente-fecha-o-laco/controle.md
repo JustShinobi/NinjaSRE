@@ -1180,3 +1180,432 @@ foi sondada), T049 (os dois achados de produto no cabeçalho do incidente) e
 o bloco T053–T056/T061–T063 (propor, aprovar, executar, rejeitar — nunca
 exercidos, e a razão é o catálogo não ter nenhuma capacidade que aja sobre
 infraestrutura, um fato de escopo de produto, não um buraco da demo).
+
+---
+
+## Quarta auditoria — 2026-08-24, o laço de leitura rodou de verdade
+
+Worktree `agent-a783807ead5c7f0f5`. **Nota de proveniência**: nasceu apontada
+para o commit raiz (`c789c2d`, "Add initial README") — a nona ocorrência do
+mesmo defeito de provisionamento. Corrigida com `git merge --ff-only master`
+antes de qualquer leitura, chegando em `8837163` — a ponta real de `master`
+no instante em que esta auditoria começou, já incluindo o commit do operador
+que mediu as três tarefas operacionais (ver abaixo).
+
+**O que motivou esta passagem.** Dois diretórios novos de evidência, nenhum
+deles conhecido pela terceira auditoria:
+
+1. `evidence/laco-de-leitura-2026-08-24/` — o roteiro de leitura executado do
+   começo ao fim contra `RestoreDrillStale`, com **seis screenshots reais a
+   1920×1080** (conferido com `file`, não presumido: `e2-01-alert-intake.png`
+   1920×1080, `e3-01-incidentes.png` 1920×1530, `e3-02-detalhe.png` 1920×1080,
+   `e4-01-run-primeiro.png` 1920×1988, `e4-02-run-setimo.png` 1920×2314,
+   `e7-01-decisoes.png` 1920×1080) — o viewport que `spec.md` exige, ao
+   contrário das onze capturas da demo do laço inteiro, que continuam a
+   1280px, como a terceira auditoria já havia apurado.
+2. `evidence/demo-2026-08-24/EVIDENCIA.md` cresceu três seções desde a
+   terceira auditoria: "O portão visual, depois da revisão das baselines"
+   (fecha o vermelho que bloqueava T002), a seção T014 ("o webhook recusa o
+   que não se autentica") e "As três tarefas operacionais, medidas"
+   (T064–T066).
+
+Todos os seis screenshots novos foram **abertos e lidos diretamente por esta
+auditoria**, não inferidos do nome do arquivo — a mesma disciplina que a
+terceira auditoria aplicou às onze capturas antigas.
+
+### T002 — o vermelho que bloqueava fechou, confirmado por fora da prosa
+
+**FEITO.** `EVIDENCIA.md`, seção nova: "O `test_the_untouched_baselines_still_match`
+que bloqueava o T002 passa agora... `make console-visual` exit 0 — 33 passed
+... `make console-e2e` exit 0 — 335 (behaviour) + 20 (first-day)". Duas
+regressões reais foram encontradas na revisão imagem a imagem e consertadas;
+oito baselines foram aceitas depois.
+
+Não tomado de palavra: `git log 68e13d9..HEAD` mostra os commits reais, e
+cada um foi aberto —
+
+- `0fc8b8c6` `fix(fixtures): give the two hand-triggered runs the sentence a
+  real one has` — `fixtures/scenarios/populated/{run-detail,runs}.json`,
+  exatamente a "manchete virou rótulo" que `EVIDENCIA.md` descreve;
+- `2149b44a` `fix(layout): let a page say its own name on a narrow screen` —
+  `console/src/components/layout.tsx`, exatamente o truncamento a 320px que
+  `EVIDENCIA.md` descreve;
+- `20397a68` `chore(visual): accept eight baselines, reviewed image by
+  image` — a mensagem do commit nomeia as mesmas quatro categorias
+  (`shell-*`, `machine-tokens`, `resources-320`, os dois `gallery-320`) e o
+  mesmo defeito **não** consertado (a tabela de recursos a 320px, sete
+  colunas, `RESOURKINDZONE`) que `EVIDENCIA.md` também nomeia como não
+  consertado.
+
+As três coincidem, palavra por palavra, com a narrativa. Nenhum destes três
+commits toca `specs_v7/080-incidente-fecha-o-laco/` — reparo de outra
+superfície, corretamente fora da lane desta feature.
+
+**Não refeito nesta auditoria**: `make console-visual`/`make console-e2e`
+não foram executados de novo por esta passagem — o mesmo motivo de
+contenção de recursos que já limitava a terceira auditoria (23 worktrees de
+agente ainda presentes em `.claude/worktrees/` no instante desta leitura).
+A verificação desta auditoria é por commit real, não por replay do gate.
+
+### T014 — a metade que faltava, agora com duas fontes concordantes
+
+**FEITO.** Duas sondas reais contra `POST /webhooks/alertmanager`, com corpo
+de alerta válido, narradas em dois lugares que concordam palavra por
+palavra: `evidence/laco-de-leitura-2026-08-24/EVIDENCIA.md` ("E2 — a entrega,
+e a recusa") e `evidence/demo-2026-08-24/EVIDENCIA.md` ("T014 — o webhook
+recusa o que não se autentica"). Sem `Authorization` → `401`; `Bearer` com
+token inventado → `401`; corpo idêntico nos dois casos
+(`{"error":{"type":"unverified","message":"this alertmanager webhook did not
+verify against any configured route"}}`) — deliberadamente idêntico, porque
+uma mensagem diferente por caso diria a quem sonda qual metade acertou.
+Conferido depois no banco: nenhum incidente foi aberto no intervalo das
+sondas. A aceitação já estava provada ao vivo (`202`, terceira auditoria); a
+metade que faltava está provada agora.
+
+### T015 — dezessete alertas, um escolhido, a razão escrita
+
+**FEITO.** `laco-de-leitura-2026-08-24/EVIDENCIA.md`, "E1 — o alerta, e por
+que este": dezessete alertas ativos no Alertmanager; escolhido
+`RestoreDrillStale` (severidade `critical`, início `2026-08-24 11:08:43Z`,
+alvo `192.168.68.159:9100`); a razão escrita: "o critério do roteiro é que
+um alerta cujo sujeito o estate conhece dá uma travessia mais rica em E3...
+ao contrário de, por exemplo, o `ContainerMemoryHigh` sobre o convidado 184,
+que o estate não tem". Cumpre as três partes da tarefa — listar, escolher,
+registrar por quê — a última das quais faltava havia duas auditorias.
+
+### T037 — o laço de leitura, executado do começo ao fim
+
+**FEITO.** As seis estações (E1 alerta já ativo; E2 entrega+recusa; E3
+incidente; E4–E6 investigação; E7 decisões) têm evidência de tela real,
+aberta por esta auditoria (ver abaixo, T038 e T039/T040/T042). O próprio
+`EVIDENCIA.md` declara a natureza da travessia: "Travessia não destrutiva,
+sobre um alerta que já existia. Nada foi derrubado, nada foi emitido à
+mão." A lacuna que bloqueava esta tarefa nas duas auditorias anteriores —
+"a cadeia de banco rodou, mas os passos de tela nunca foram capturados" —
+está fechada.
+
+### T038 — três de quatro critérios cumprem; o título continua sendo o achado 1
+
+**PARCIAL — não marcada, porque um dos quatro critérios da própria tarefa
+falha de verdade.** `e3-01-incidentes.png` e `e3-02-detalhe.png`, abertos
+diretamente:
+
+| critério do T038 | resultado, visto na tela |
+|---|---|
+| nenhuma URL com `%3A`/`%40`/`%2B` | **cumpre** — endereço citado em `EVIDENCIA.md` é `/incidents/inc_5c836cbc6d57e28a` |
+| zero painéis "não foi possível preencher" | **cumpre** — a tela renderiza inteira |
+| sujeito resolvido | **cumpre** — cabeçalho diz "node pve02", e o alerta é mesmo sobre o node-exporter do pve02 (sem o descompasso do achado 2 da demo) |
+| título legível | **NÃO cumpre** — `RestoreDrillStale`, não uma frase |
+
+A própria `laco-de-leitura-2026-08-24/EVIDENCIA.md` já registra este mesmo
+veredito na sua tabela interna ("o título é uma frase | NÃO cumpre — mostra
+RestoreDrillStale"). Rastreado à fonte nesta auditoria, e não apenas
+observado na tela: `platform/incidents/detection.py:296-303`
+(`_raise_for`) —
+
+```python
+return IncidentRaise(
+    ...
+    title=f"{detector.name} is flapping" if flapping else detector.name,
+    ...
+)
+```
+
+O próprio docstring da função explica a escolha: "The title is the
+detector's name and the summary counts the subjects, which is what makes
+one incident about fifty resources readable in a list." É um defeito real,
+com uma razão de design real por trás — exatamente o par que `backlog.md`
+passa a carregar (ver abaixo). A tela de lista (`e3-01-incidentes.png`)
+mostra o mesmo incidente aparecendo com o rótulo `RestoreDrillStale` em
+três linhas diferentes (`7 hours ago`, `8 hours ago`, `14 hours ago`),
+consistente com o título vindo do detector, não do run.
+
+Não marcada: a tarefa pede "título legível" como um dos quatro fatos a
+conferir, e um deles é falso, do mesmo jeito que a terceira auditoria não
+marcou T049 com dois de quatro fatos falsos. A caixa fica aberta com a
+razão exata, não aprovada por arredondamento.
+
+### T039 — E4, e T040 — E5: a mesma tela serve às duas
+
+**FEITO, para as duas.** `e4-01-run-primeiro.png` e `e4-02-run-setimo.png`
+são a mesma página (`/runs/{runId}`) e cobrem T039 e T040 ao mesmo tempo,
+porque a página mostra a investigação (E4) e o relato (E5) juntos:
+
+- **T039 (E4)**: transcript real — `prometheus_active_alerts` SUCCEEDED,
+  `search_knowledge_base` FAILED ("not configured for this deployment"),
+  `changes_in_window`/`recall_similar_incidents` FAILED (mensagem real do
+  upstream), `assess_evidence_sufficiency`/`prometheus_metric_statistics`
+  (a última falhou com `400` do Prometheus por parâmetro `start` vazio — a
+  mesma falha que a segunda auditoria via candidato a achado sem dono,
+  **reproduzida de novo** no sétimo run); custo por turno numa tabela
+  própria (`Turn 2` a `Turn 6`, com `Calls` e `Cost`); chip `COMPLETED`, não
+  um controle de run vivo; "What this investigation touched" preenchido
+  para o primeiro run (`Incident: RestoreDrillStale`, `Resources: pve02`).
+- **T040 (E5)**: título do **run** — não do incidente — é uma frase nos dois
+  casos: "The weekly restore drill cron jobs on node pve02 exceeded their
+  maximum scheduled execution window without completing successfully"
+  (primeiro run) e "Weekly restore drill jobs on node pve02 exceeded their
+  maximum healthy execution window without a successful run" (sétimo run,
+  frase diferente, também correta). O relato renderiza como documento —
+  "Findings & Root Cause", "Alert Trigger:", "Affected Cron Jobs:" em
+  negrito, nenhum `**`/`##` cru visível como texto.
+
+**Distinção que importa entre T038 e T040**: são dois campos de título
+diferentes. T038 confere o título do **incidente** (`detector.name`,
+falha). T040 confere o título do **run** (a manchete que a investigação
+escreve, cumpre). O mesmo produto, no mesmo incidente, tem a frase certa
+numa tela e o identificador errado na tela ao lado — exatamente o que o
+`backlog.md` novo (abaixo) registra.
+
+**Uma imprecisão residual, nomeada e não bloqueante**: o sétimo run mostra
+"What this investigation touched — Nothing linked yet" (nada preenchido),
+diferente do primeiro run. `laco-de-leitura-2026-08-24/EVIDENCIA.md` não
+nomeia esta variação especificamente ao afirmar "as sete investigações...
+produzem a mesma forma". A alegação central de T044 (repetibilidade de
+forma e de manchete-como-frase) se sustenta nos dois runs abertos; este
+painel específico não. Não bloqueia T039 (que pede o painel preenchido para
+**a** captura, e a primeira captura cumpre) nem T044 (ver abaixo), mas fica
+registrado porque uma varredura de rigor deveria notar em vez de deixar
+passar.
+
+### T042 — E7, o estado correto de "nada proposto"
+
+**FEITO.** `e7-01-decisoes.png` é a tela `/decisions`, aba **Actions**:
+"Nothing is waiting on a decision / A change that needs a person appears
+here with its blast radius and its rollback plan. None does. The active
+rule asks for approval for actions at write_reversible and above." E
+`e3-02-detalhe.png` mostra o painel "Proposed action" do próprio incidente:
+"Nothing proposed yet / No investigation has concluded with a remediation
+to decide on for this incident." Nada foi aprovado nesta captura — as duas
+telas mostram o estado de espera, não uma decisão.
+
+O mesmo desfecho "nada proposto, e está correto" que a terceira auditoria já
+aceitou para T053 (laço inteiro) se aplica aqui pela mesma razão de escopo:
+o catálogo inteiro não tem capacidade de remediação de infraestrutura. A
+tarefa pede a captura das duas telas mostrando "a proposta, o plano de
+reversão..." — o que existe é a captura das duas telas mostrando a ausência
+correta e explicada, que é a evidência real desta execução específica.
+
+### T044 — repetibilidade, respondida pela própria ocorrência
+
+**FEITO.** Sete investigações do mesmo incidente em seis horas e meia (11:08
+a 17:38), confirmadas em duas capturas abertas nos extremos (primeira e
+sétima): mesma contagem de blocos de transcript, manchete em forma de frase
+nos dois casos (frases diferentes, ambas corretas), custo e turnos
+presentes nos dois, chip `COMPLETED` nos dois. Isto cumpre o propósito da
+tarefa — "conferir que produz a mesma evidência" — por um caminho mais
+forte do que rodar o roteiro duas vezes à mão: sete execuções
+independentes, não duas, e a variação real que existe (o painel "o que esta
+investigação tocou", ver T039 acima) é pequena o bastante para não abalar a
+alegação central, ainda que não tenha sido nomeada no arquivo de evidência.
+
+### T068 — as três tarefas operacionais medidas; nenhuma bloqueia estação nenhuma
+
+**FEITO.** `EVIDENCIA.md`, "As três tarefas operacionais, medidas" — T064
+(resolução de nomes: Alertmanager e Gatus resolvem, Prometheus não, e
+Prometheus não precisa alcançar este deployment); T065 (segredos: parcialmente
+gerenciado, conexão de banco via Crossplane sincroniza, chave de cifra e
+conta local são manuais); T066 (Google Gemini **Verified**, é o provider que
+conduziu as duas travessias). Cruzado com "Estações NÃO exercidas, e por
+quê", que atribui E7–E9 exclusivamente ao catálogo não ter capacidade de
+escrita sobre infraestrutura — **nenhuma das três tarefas operacionais** é
+citada como razão de nenhuma estação não exercida. A premissa da tarefa
+("registrar quais estações dependiam de uma tarefa pendente") agora tem uma
+resposta real e verificável: zero.
+
+**Uma reserva sobre T065, nomeada e não decidida unilateralmente por esta
+auditoria.** O texto diz "Não há decisão registrada em lugar nenhum de
+conviver com isso — havia a ausência de qualquer registro, que é o que esta
+tarefa existe para acabar." Isto é lido de duas formas defensáveis: (a) o
+próprio parágrafo, ao ser escrito, **é** o registro que FR-043 pede; ou (b)
+o parágrafo apenas **observa** a ausência de decisão, sem que ninguém
+realmente decida algo. `backlog.md` — não editado por esta auditoria nesse
+item específico — continua com "The managed-secret operator in the cluster
+cannot authenticate... What this product needs is a decision recorded
+either way", o que pesa para a leitura (b). A caixa T065 já estava marcada
+`[x]` em `tasks.md` antes desta auditoria começar (o operador a marcou no
+mesmo commit que escreveu a seção nova) — não desmarcada aqui, porque a
+leitura (a) é genuinamente defensável e desfazer a marca de quem escreveu o
+texto original, numa ambiguidade real de 50/50, não é o mesmo que corrigir
+um erro provado. Nomeado para quem fechar isto em seguida.
+
+### T077 — as entradas do backlog escritas, e uma correção real a um achado anterior
+
+**FEITO.** Três entradas novas em `backlog.md`, na forma que o arquivo já
+pratica (o que acontece hoje / por que não é trivial / como seria julgado):
+
+1. **"An alert-raised incident's title is the alert's own name, not a
+   sentence"** — achado 1, com a fonte (`platform/incidents/detection.py`)
+   e a razão de design documentada no próprio código (título estável por
+   toda a vida do incidente, ao contrário de uma manchete de investigação
+   que muda a cada corrida — este incidente teve sete).
+2. **"An incident's header can name the wrong host"** — achado 2, com a
+   fonte (`console/src/surfaces/screens/incident-detail.tsx:141-153,256-261`:
+   o cabeçalho lê `kind`/`display_name` do recurso que `incident.subjects[0]`
+   resolve) e o mecanismo por trás (um alerta cujo próprio exportador é
+   local ao sujeito resolve certo; um alerta raspado por um exportador
+   central, que descreve todos os convidados de um nó só, resolve para o
+   nó do exportador).
+3. **"A run's cost is reported two different ways on two different
+   screens"** — achado 4, ao nível de comportamento observado (sem
+   `file:line`, porque esta auditoria não abriu o código de nenhuma das
+   duas telas para a origem exata do número).
+
+**Uma correção, não uma quarta entrada.** O achado 3 das três auditorias
+anteriores — "todo convidado descoberto tem `native_id` na forma
+`lxc/HAL9000/unknown/122`, o segmento do nó é literalmente `unknown`...
+provável causa do achado 2" — **está errado**, e esta auditoria rastreou o
+motivo até o código em vez de repetir a leitura anterior. Lido
+`integrations/proxmox/identity.py:32-58`:
+
+```python
+NO_DISCRIMINATOR: Final = "unknown"
+
+def guest_identity(cluster: str, kind: str, vmid: int, *, created_at: str) -> str:
+    """Return a guest's identity: cluster, kind, VMID, and when it was created."""
+    return f"{kind}/{cluster}/{created_at or NO_DISCRIMINATOR}/{vmid}"
+```
+
+O terceiro segmento de `lxc/HAL9000/unknown/122` não é o nó — é o
+**discriminador de criação** (`meta: creation-lxc=...` que o Proxmox grava
+e nunca mais toca), e `unknown` é o que aparece quando o provedor não
+devolveu esse campo. O próprio docstring do módulo explica por que o nó
+**nunca** entra na identidade de um convidado: "Migration is a normal
+operation, and a guest that changed identity on migration would be a guest
+whose history restarts every time the cluster balances itself. The node is
+the *parent*" — carregado à parte, em `parent_native_id`, presente e
+correto. As três auditorias anteriores leram a posição do segmento como se
+fosse `kind/cluster/node/vmid`: uma suposição razoável, nunca conferida
+contra a fonte, e falsa.
+
+Isto não muda o veredito do achado 2 (o cabeçalho continua nomeando o nó
+errado, verificado agora contra `incident-detail.tsx`, não apenas contra a
+tela) — muda **por quê**. A entrada nova de `backlog.md` para o achado 2
+registra a correção explicitamente, para que ninguém a reintroduza.
+
+**Deliberadamente não tocado**: `evidence/demo-2026-08-24/EVIDENCIA.md` e
+`evidence/demo-2026-08-24/achados.md`, onde o achado 3 original está
+escrito, continuam exatamente como estavam — são evidência datada de uma
+travessia que a instrução desta sessão declara encerrada e que não deve se
+mover. A correção vive em `backlog.md` (que esta feature já teria escrito
+de qualquer forma) e neste arquivo, não como uma edição do registro
+histórico de quem escreveu a leitura original.
+
+Também atualizada, por precisão e não por pedido de nenhuma tarefa
+específica: a entrada de `backlog.md` sobre resolução de nomes, que dizia
+"every name... returns nothing from inside them" — falso desde que T064
+mediu dois de três contêineres resolvendo. E a entrada final do arquivo,
+"No deployment has been observed acting on its own diagnosis", que descrevia
+o laço inteiro como nunca tendo sido tentado — falso desde a demo de 24/08.
+As duas foram reescritas para o estado real, sem inventar nada que a
+evidência já lida não sustente.
+
+### Gates próprios desta auditoria, rodados na árvore `1df87db`
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Teste do coletor | `uv run pytest tests/unit/tools/test_demo_evidence.py -q` | **31 passed in 0.22s** |
+| Ferramentas + arquitetura | `uv run pytest tests/unit/tools tests/architecture -q` | **752 passed, 3 warnings in 47.41s** — idêntico à terceira auditoria, zero regressões |
+| Guarda de SQL cru, teste estrito | `uv run pytest tests/unit/tools/test_check_raw_sql.py -q` | **53 passed in 4.04s** |
+| Lint | `uv run ruff check tools/demo_evidence tests/unit/tools/test_demo_evidence.py` | All checks passed! |
+| Formatação | `uv run ruff format --check tools/demo_evidence tests/unit/tools/test_demo_evidence.py` | 5 files already formatted |
+| Tipos | `uv run mypy tools/demo_evidence tests/unit/tools/test_demo_evidence.py` | Success: no issues found in 5 source files |
+| Constantes, credencial direta, protocolos, dependências, SQL cru (CLI) | `uv run python tools/check_*.py` | exit 0, todos |
+| Deriva de documentação | `uv run python -m tools.check_docs_drift` | exit 0 (rodado duas vezes, antes e depois das edições de `backlog.md`) |
+| Exemplos documentados | `uv run python -m tools.test_doc_examples` | 29 documented example(s) check out |
+| Paridade do catálogo | `uv run python -m tools.verify_integrations` | 15 integration(s) at full parity |
+| Contratos de import | `PYTHONPATH=$(pwd) uv run lint-imports` | Contracts: 7 kept, 0 broken |
+| Varredura de padrão proibido em `backlog.md` | `grep -nE "FR-[0-9]\|SC-[0-9]\|specs_v[0-9]\|Article [IVXLC]\|constitution\|080-incidente\|feature 0[0-9]{2}" backlog.md` | exit 1 — zero ocorrências |
+
+Zero regressões contra os números da terceira auditoria. **Não rodado nesta
+quarta passagem, pela mesma razão de contenção de recursos já dada duas
+vezes**: a suíte pytest geral fora de `tools`/`architecture`, `console-check`
+e `console-visual` — 23 worktrees de agente ainda presentes no host no
+instante desta leitura, e o estado real de `console-visual` já está
+verificado por commit real (ver T002 acima), não por replay do gate.
+
+### T034, T035, T036 — o momento passou, e não é aproximável
+
+**Reconfirmado NÃO FEITO, sem qualificação.** `ls evidence/consultas/` e
+`ls evidence/consultas/000-partida.txt` devolvem "No such file or
+directory" — conferido diretamente por esta auditoria, não herdado. O
+coletor nunca rodou **antes** da demo, contra um run pré-onda, e a demo já
+aconteceu — duas vezes, contando o laço de leitura. Rodar o coletor agora,
+contra qualquer run, não reconstituiria o vermelho que T035 pede: mediria
+um "antes" que já é depois. Estas três caixas ficam abertas não por lacuna
+de evidência recuperável, mas porque a janela em que elas faziam sentido já
+fechou — a mesma leitura que a instrução desta sessão pediu, confirmada
+pelo estado real do diretório, não presumida.
+
+### T053–T056, T061–T063 — reconfirmadas, sem exercício, escopo de produto
+
+**Reconfirmado NÃO FEITO / NÃO EXERCIDA para as sete, sem mudança de
+veredito.** A única capacidade de escrita já catalogada continua sendo
+notificação (`alertmanager_acknowledge_incident`, `pushover_post_message`,
+`telegram_post_message`) — nenhuma delas religa um convidado, reinicia um
+serviço ou muda estado de sistema. `e7-01-decisoes.png` e
+`e3-02-detalhe.png` (o laço de leitura, abertos nesta auditoria) mostram o
+mesmo desfecho "nada para decidir" que os screenshots do laço inteiro já
+mostravam. A entrada nova de `backlog.md` ("A deployment has been watched
+acting on its own diagnosis once, and stopped short of the last three
+steps") nomeia isto como o que falta para fechar o laço inteiro: uma
+capacidade que realmente aja sobre infraestrutura, não uma falha de
+ambiente ou de demo.
+
+### T049 — reconfirmado uma terceira vez, agora com um segundo incidente parecido e um traço de código
+
+**NÃO FEITO, confirmado duas vezes nesta auditoria — uma vez pelo mesmo
+screenshot que as auditorias anteriores já leram, outra vez por um segundo
+incidente inteiramente diferente.** `e3-02-incidente.png` (o laço inteiro,
+CT122): título `ProxmoxGuestStopped`, cabeçalho "node pve02" três linhas
+acima de "node=pve01" no corpo do alerta. `e3-02-detalhe.png` (o laço de
+leitura, `RestoreDrillStale`, nome de arquivo parecido mas não igual, em
+outro diretório): título `RestoreDrillStale`, mas desta vez o cabeçalho
+**acerta** o nó ("node pve02", e o alerta é mesmo sobre pve02) — a frase que
+a própria investigação escreve, uma tela adiante, nunca sobe para o título
+do incidente. Rastreado
+ao código (`platform/incidents/detection.py:298`,
+`console/src/surfaces/screens/incident-detail.tsx:141-153,256-261`): o
+título vem de `detector.name`, sempre; o cabeçalho de nó vem do primeiro
+subject resolvido, que erra especificamente quando o exportador não é
+local ao sujeito. Os dois são achados de produto reais, com dona nomeável
+(nenhuma atribuída ainda), e T049 continua sem marcar pela mesma razão que
+já a mantinha aberta — duas de quatro sub-alegações falham, agora provadas
+em dois incidentes e no código-fonte, não só numa tela.
+
+### O que permanece sem tocar, e por quê
+
+- `evidence/EVIDENCIA.md` (o gabarito original) — continua inteiramente em
+  branco. T016, T034–T036, T074 dependem dele literalmente e continuam sem
+  marcar por isso.
+- `evidence/consultas/` e `evidence/telas/` — continuam inexistentes. T070
+  (largura certa só para as seis capturas novas, não para as onze antigas)
+  e T071 (o coletor nunca rodou contra nenhum dos dois runs "manchete" desta
+  onda — nem o do CT122, nem o novo `inc_5c836cbc6d57e28a`) continuam sem
+  marcar.
+- `specs_v7/CONFRONTO.md` — lido, não editado, pela mesma razão que a
+  segunda e a terceira auditorias já deram: o cabeçalho do próprio arquivo
+  reserva isso ao orquestrador.
+- `T073` — sem evidência nova em nenhum dos dois diretórios novos; a última
+  medição continua sendo a de 23/08.
+- `T089` — `make verify` completo continua nunca tendo rodado como um
+  comando só. Ver os gates próprios desta auditoria, acima, como a fatia
+  que **foi** reconfirmada de forma independente.
+- Nenhuma sessão de staging, cluster, hipervisor ou Alertmanager foi aberta
+  por esta auditoria — toda leitura veio dos dois `EVIDENCIA.md` e dos
+  dezessete screenshots (onze antigos, reabertos parcialmente por
+  amostragem; seis novos, todos abertos), por instrução direta de não
+  tocar em nenhum dos quatro.
+
+### Estado final desta auditoria (quarta passagem, 24/08)
+
+**71 de 92 caixas marcadas — dez a mais que a terceira passagem.** T002,
+T014, T015, T037, T039, T040, T042, T044, T068 e T077 fecharam nesta
+passagem, cada uma com evidência aberta diretamente (screenshot, commit ou
+código-fonte), nunca com a palavra de quem a relatou. T034–T036, T049,
+T053–T056 e T061–T063 continuam abertas por instrução direta, reconfirmadas
+e não aproximadas. T016, T041, T038, T070, T071, T073, T074, T078, T079 e
+T089 continuam abertas por lacuna real, cada uma com a razão exata na sua
+própria seção acima ou nas tabelas de fase mais antigas, não reescritas
+aqui pela mesma razão que a terceira auditoria já deu para não reescrever a
+segunda: preservar o registro de quando cada fato ficou disponível.
