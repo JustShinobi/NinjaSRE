@@ -12,15 +12,22 @@ components:
     platforms:
       - linux/amd64
 
-  - name: console
-    context: .
-    dockerfile: deploy/images/console.Dockerfile
-    image: registry.lan.kyo.ninja/ninjasre/console
-    workload: console
-    container: console
-    rolloutProfile: deployment
-    platforms:
-      - linux/amd64
+  # There is no `console` component here, and its absence is a decision rather
+  # than an omission. That image is the same wheel as `app` started at a second
+  # entry point — a whole second copy of the deployment, not a front end — and
+  # the copy this cluster ran drifted eighteen hours behind while `web` pointed
+  # at it, so a browser read pages the running code had stopped producing.
+  # `web` now calls `app`, which serves the identical API, and every screen and
+  # the whole incident demo have run through that path since.
+  #
+  # What it costs: browser traffic and agent traffic share one gateway, where
+  # the retired shape kept them apart. If that isolation is wanted back, the
+  # workload has to return to the GitOps image patch as well — a component this
+  # file names and the patch does not is a digest the cluster never reads, which
+  # is exactly how this was found.
+  #
+  # The compose and LXC shapes still build that image; this file is only the
+  # staging cluster's.
 
   # The console a browser loads. A separate component from `console`, which is
   # the gateway it calls: one answers requests, the other renders what a person
