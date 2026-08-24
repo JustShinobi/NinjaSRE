@@ -86,6 +86,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     discoveredAddress: '',
     direction: 'outbound',
     intakePath: '',
+    whereToGetIt: '',
     ...overrides,
   };
 }

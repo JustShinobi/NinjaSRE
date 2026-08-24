@@ -237,6 +237,12 @@ class IntegrationView(BaseModel):
     #: Set when the estate holds something this vendor plainly runs on. Absent
     #: otherwise, and absent is the ordinary case.
     suggested: SuggestionView | None = None
+    #: One sentence naming where an operator obtains this vendor's credential,
+    #: read from the vendor's own profile. The same declaration the guided
+    #: first run reads for the same vendor, so the two screens that ask for a
+    #: credential never disagree about where it comes from. Empty where a
+    #: vendor has not declared one.
+    where_to_get_it: str = ""
 
 
 class IntegrationList(BaseModel):
@@ -411,6 +417,7 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
         missing_artefacts=[artefact.value for artefact in entry.parity.missing],
         direction=direction,
         intake_path=intake_path,
+        where_to_get_it=entry.profile.where_to_get_it,
         suggested=(
             None
             if suggested is None

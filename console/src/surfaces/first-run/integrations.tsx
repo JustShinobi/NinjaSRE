@@ -53,6 +53,13 @@ export interface IntegrationOffer {
    */
   readonly suggested?:
     { readonly address: string; readonly because: string } | undefined;
+  /**
+   * Where an operator obtains this vendor's credential, in one sentence. The
+   * same declaration the integration's own catalogue panel shows, so an
+   * operator does not learn something here that the other screen does not
+   * also know. Empty where a vendor has not declared one.
+   */
+  readonly whereToGetIt?: string | undefined;
 }
 
 export interface IntegrationsStepLabels {
@@ -131,6 +138,7 @@ export function IntegrationsStep({ offers, labels }: IntegrationsStepProps): Rea
               <CredentialField
                 integration={offer.name}
                 fields={offer.fields}
+                whereToGetIt={offer.whereToGetIt ?? ''}
                 labels={labels.credential}
                 onStored={(name) => {
                   // Collected rather than acted on. One vendor's write does not
