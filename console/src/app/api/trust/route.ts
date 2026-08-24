@@ -60,8 +60,11 @@ function asWrite(body: unknown): TrustWrite | null {
  * Every error this route can forward — a malformed declaration, a missing
  * `integration.trust_unverified` — crosses as `{"error":{"message": "..."}}`,
  * the envelope every handler in this deployment now writes; `detail` is read
- * too, as a fallback rather than the primary shape, the same defensiveness
- * `../config/route.ts` already applies to a body it did not generate.
+ * too, as a fallback rather than the primary shape — the same defensiveness
+ * the configuration courier beside this one already applies to a body it did
+ * not generate. Named rather than pathed: the boundary check reads a relative
+ * path in this directory as an import, and it is right to, so a sibling is
+ * described instead of pointed at.
  */
 function reasonOf(written: unknown): string {
   const error: unknown = Reflect.get(Object(written), 'error');
