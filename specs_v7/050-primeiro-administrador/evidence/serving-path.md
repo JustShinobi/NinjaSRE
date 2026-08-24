@@ -150,3 +150,66 @@ na coluna `email_folded` (registrado no `controle.md` da feature). Hoje os
 dois `email_folded` são `NULL`, e o índice único do Postgres nunca trata dois
 `NULL` como colisão — confirmado, não inferido, contra o mesmo `ix_users_email`
 que causava o defeito.
+
+## T069 — identity provider ativo, mesmo deployment
+
+`policies.sso.is_active` gravado como `true` pelo mesmo `ConfigService` que o
+console lê (a mesma fonte que `identity_provider_is_active()` consulta,
+FR-066) — não pela rota `/identity/sso/activate`, que exige um teste de
+verdade passando contra um provedor real antes de ativar, e este ambiente não
+tem um IdP de verdade para testar. Confirmado logo em seguida,
+`identity_provider_is_active() == True`, contra o mesmo deployment.
+
+**Recusa 1 — o comando, sessão de terminal real** (mesmo deployment,
+`docker compose exec -it`):
+
+```
+Passphrase for 'idp-attempt':
+Confirm passphrase:
+✗ This deployment's identity provider is its way in. Local administrator
+  accounts cannot be created or changed while it is active. If you are
+  locked out, use POST /auth/break-glass instead.
+```
+
+Nomeia o identity provider como a porta e o caminho de emergência
+(`POST /auth/break-glass`) — exatamente o que FR-027 exige.
+
+**A tela deixa de nomear o comando**: `GET /v1/setup/local-administrator`,
+sem autenticação, contra o mesmo deployment:
+
+```
+{"state":"identity_provider","command":""}
+```
+
+`command` vazio — é o que `NoAdministratorNotice` lê para decidir se
+renderiza (`if (!command) return null`); com identity provider ativo, o
+bloco não tem o que mostrar. Antes de ativar, este mesmo endpoint devolvia
+`{"state":"administered","command":""}` — o único campo que muda é `state`.
+
+**Recusa 2 e o que este deployment genuinamente não consegue mostrar**: a
+troca da credencial de bootstrap (`POST /v1/setup/durable-credential`) exige
+apresentar a credencial de bootstrap como Bearer token, e este deployment não
+tem mais uma viva — foi emitida no primeiro boot (T066), mas o container
+`app` precisou ser recriado durante a recuperação de T066 (o arquivo
+`/var/lib/ninjasre/bootstrap-credential.json` não sobrevive a uma recriação
+de container, só o Postgres sobrevive), e `bring_up()` não reemite uma
+credencial para um deployment já administrado, com ou sem identity provider —
+o teste de unidade (`test_bootstrap.py`, T022) já prova esse ramo isolado no
+harness. Não recriei o stack do zero só para esta combinação; documentado,
+não escondido.
+
+**Recusa 3, e a preservação que a spec exige (FR-069) ao mesmo tempo**: este
+deployment já tinha um administrador local antes de o identity provider ser
+ativado — não é o cenário "nenhum administrador local" do terceiro critério
+de aceite, que precisaria de um deployment novo. O que É verdade sobre ESTE
+deployment, e é a garantia que protege o staging real (T072): o sign-in do
+administrador existente continua funcionando depois de ativar o identity
+provider — não é regressão, é o requisito.
+
+```
+POST /auth/sign-in {"username":"admin","password":"<a mesma de T066>"}
+→ HTTP 200
+```
+
+Nem apagou o administrador, nem trocou a recusa que já existia — a mesma
+credencial de antes ainda entra.
