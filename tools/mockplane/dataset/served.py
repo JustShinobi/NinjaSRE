@@ -431,10 +431,14 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "trigger": "alert",
         "started_at": at(days=1, hours=6, minutes=10),
         "finished_at": at(days=1, hours=5, minutes=41),
-        # No "headline" key at all: this run is one recorded before that
-        # field existed, and `_run_detail` leaves it exactly that way
-        # instead of synthesising one — the console's own fallback is what
-        # has to name it.
+        # Explicitly empty, not merely absent: this run is one recorded
+        # before the headline field existed, and an absent key would instead
+        # take `_run_detail` down its *other* branch — synthesising a
+        # generic one from the trigger, which is not what this fixture is
+        # for. The empty string is what a real pre-headline row actually
+        # holds, and it is what makes the console's own fallback the thing
+        # under test here.
+        "headline": "",
         "summary": (
             "### Incident Findings & Root Cause Analysis\n"
             "\n"

@@ -1,171 +1,266 @@
 # Controle — 010-leitura-do-relato
 
-Estado abaixo verificado contra o código em disco nesta worktree
-(`/srv/workspaces/NinjaSRE/.claude/worktrees/agent-ae5177498b77c8979`), commit
-`8720e4b` em diante. Escrito incrementalmente — a versão em disco é o que já
-foi provado, nunca uma intenção. Base: `git reset --hard master` a partir de
-`b12578f` (a worktree tinha vindo no commit raiz, defeito conhecido da onda).
+Estado verificado contra o código em disco na worktree
+`/srv/workspaces/NinjaSRE/.claude/worktrees/agent-ae5177498b77c8979`, commit
+`b2c6f99` (HEAD). Escrito incrementalmente ao longo da sessão — esta é a
+versão final, reescrita para eliminar seções que ficaram obsoletas conforme
+o trabalho avançou. Base: `git reset --hard master` a partir de `b12578f`
+(a worktree tinha vindo no commit raiz na primeira leitura, defeito
+conhecido da onda).
 
-## PARADA LIMPA #2 — 87% da janela, teto ~15min
-
-Commits até `156c5c2`. `masking.test.tsx` já corrigido (commit `050a7ae`,
-mudou de ler a coluna SUBJECT para ler o painel do relato em run-detail —
-a coluna virou nome, nunca mais o documento cru, exatamente a propriedade
-desta feature). Suíte de unidade inteira: **2707/2707 passed**. `eslint`
-achou 5 problemas; 2 corrigidos (`report.tsx`: acesso indexado
-`string|undefined`, `border-l-2` fora da escala → `edge
-border-{y,r}-0`); **3 pendentes, não tocados**: template literal com
-`number` em `010-leitura-do-relato.acceptance.spec.ts:82,106`
-(provavelmente `formatCount`/interpolação de `drawn`/contagem — trocar por
-`String(...)`), e `report.test.tsx:57` usa `https://example.test/...`
-que a regra `no-restricted-syntax` (nenhuma origem de terceiro) rejeita —
-precisa do mesmo domínio `.invalid` que já uso no fixture hostil
-(`verdant.example.invalid` ou similar), não `.test`.
-
-**Não rodei**: rebuild do console nem o acceptance spec de novo desde os
-commits de wiring — é o próximo passo, depois de fechar os 3 lints
-restantes. Não rodei a suíte transversal (allowlist) ainda.
-
-## Commits desta feature
+## Commits, em ordem
 
 | Commit | Conteúdo |
 |---|---|
-| `8720e4b` | `feat(console): derive real per-turn cost, name a run's status vocabulary honestly` — status.ts (completed/partial/isLiveRun), served.py (custo real derivado, headline explícito respeitado, 3 runs novos, 4 chamadas em run-0005), now-violations/runs.json sincronizado, run-subject.ts e report.tsx **criados mas ainda não ligados a nenhuma tela**, acceptance spec criado e confirmado vermelho contra as telas não modificadas |
-| `282691c` | `feat(console): wire the run's own name and rendered report into the screens` — run-subject.ts/report.tsx ligados a `run-detail.tsx` (título, breadcrumb, painel do relato, vínculos por `touched_resources`, `isLiveRun`), `runs.tsx` (coluna SUBJECT, removido fallback morto "Not recorded"), `page.tsx` (aba), `layout.tsx` (`PageHeader` ganhou `titleTooltip`), `dashboard.tsx` (feed de atividade recente e banda de atenção — **terceira entrada de markdown cru, em `/`**, corrigida; taxa de sucesso agora por `roleFor` em vez de string literal), bug real achado pelo teste próprio do `report.tsx` (parênteses aninhados em `javascript:alert(1)` — corrigido com `matchingParen`) |
+| `8720e4b` | Vocabulário de status (`completed`/`partial`, `isLiveRun`); custo real derivado no gerador de fixtures; `headline` explícito respeitado em `_run_detail`; 3 runs novos + 4 chamadas em `run-0005`; `now-violations` sincronizado; `run-subject.ts` e `report.tsx` criados; acceptance spec criado e confirmado **vermelho** (16 failed / 7 passed) contra as telas ainda não tocadas |
+| `282691c` | `run-subject.ts`/`report.tsx` ligados a `run-detail.tsx`, `runs.tsx`, `page.tsx`; `layout.tsx` ganhou `titleTooltip`; `dashboard.tsx` corrigido (terceira entrada de markdown cru, em `/`) |
+| `050a7ae` | `masking.test.tsx` movido da coluna SUBJECT (virou nome, nunca documento) para o painel do relato |
+| `156c5c2` | 2 dos 5 lints achados corrigidos em `report.tsx` |
+| `b6c82f9` | (do orquestrador, direto na worktree) os outros 3 lints |
+| `f11722a` | Os 4 vermelhos que o orquestrador relatou no acceptance, todos com causa raiz real — ver seção própria |
+| `b2c6f99` | Allowlist transversal: as 7 entradas removidas, suíte inteira provando mérito |
 
-## Vermelho real, capturado antes de qualquer tela mudar
+## O vermelho real, antes de qualquer tela mudar
 
-Comando: `uv run python -m tools.console_e2e run -- tests/e2e/010-leitura-do-relato.acceptance.spec.ts --reporter=list`,
-contra o build de produção (`uv run python -m tools.console_gate build`),
-scenario `populated` (padrão), backing `mock`.
+Comando: `console_e2e run -- tests/e2e/010-leitura-do-relato.acceptance.spec.ts`,
+contra o build de produção, scenario `populated`, backing `mock`.
 
-**Resultado: 16 failed, 7 passed (23 total), exit 1.** Os 16 vermelhos reais,
-por grupo:
-
-- **(a) nome** — 2/2 vermelho: header/aba/lista não concordavam e continham
-  sintaxe markdown (`run-0102`, headline com ênfase e comprimento > 120);
-  tooltip do recorte ausente.
-- **(b) fallback sem headline** — 2/2 vermelho: header de `run-0101` continha
-  o documento cru ("Incident Findings..."); painel do relato inexistente
-  (`getByTestId('report')` não resolvia).
-- **(c) relato renderizado** — 6/7 vermelho (o teste de "imagem remota não
-  requisitada" já passava, por coincidência: hoje nada renderiza `<img>`
-  porque nada renderiza nada). Vermelhos reais: `h3/h4` ausente para
-  "Evidence gathered", lista/tabela ausentes, `<pre>` ausente (overflow),
-  link `javascript:` ausente **mas texto também ausente** (nada renderizado),
-  `<script>` — o teste falhou porque o texto não aparecia (painel vazio),
-  disclosure `report-raw` inexistente.
-- **(d) run terminado** — 2/3 vermelho: painel de controle presente e texto
-  de conexão ociosa presente em `run-0101` (`completed` não reconhecido por
-  `isSettled` antes desta feature); `live-run` testid presente quando não
-  deveria. O terceiro teste ("run em andamento mantém controle") já passava
-  — comportamento preexistente correto, preservado.
-- **(e) transcript/custo** — 3/4 vermelho: `run-0005` mostrava 0 chamadas
-  (mensagem real: `Received: 0` onde esperado `4`); contagem do cabeçalho
-  batendo com o vazio (`"Investigation transcript11 eventsReconnecting..."` —
-  o painel ao vivo, não o de leitura, porque `running` estava incorretamente
-  `true`); tabela por turno com 0 linhas. O teste "sem turno nenhum → sem
-  custo" (`run-0002`) já passava — preexistente, preservado.
-- **(f) vínculos** — 1/3 vermelho: painel mostrava os *subjects* do
-  incidente (`backup-1f376301`, `backup-7d831311`) em vez dos
-  `touched_resources` do próprio run (`proxmox:container/hal9000/110`,
-  `ct-101`) — mensagem real capturada, "Expected substring:
-  proxmox:container/hal9000/110 / Received string: ...Resourcesbackup-..." .
-  Os outros dois (incidente por título, run sem vínculo nenhum) já passavam
-  — preexistente, preservado.
-- **staging-safe (2 testes)**: ambos passaram contra `populated` — esperado e
-  correto, porque "o run mais recente" no dataset determinístico não é
-  necessariamente um dos que carrega o defeito; o valor desses dois é medir
-  o staging real, não o mock.
-
-Log completo salvo nesta sessão em
+**16 failed, 7 passed (23 total), exit 1** — vermelho em todos os seis
+grupos (a–f). Detalhe por grupo, com o motivo real de cada vermelho e o que
+já passava por coincidência de dado, no arquivo de log preservado em
 `/tmp/claude-999/-srv-workspaces-NinjaSRE/0197c7d7-4784-453e-b36a-abb03241ebc2/scratchpad/red-run3.log`.
+Resumo:
 
-## Peça | Estado | Detalhe
+- **(a) nome em 3 lugares** — 2/2 vermelho: header/aba/lista discordavam;
+  headline com sintaxe markdown e >120 chars aparecia crua.
+- **(b) fallback sem headline** — 2/2 vermelho: header mostrava o documento
+  inteiro ("Incident Findings..."); `report` testid não existia.
+- **(c) relato renderizado** — 6/7 vermelho (a checagem de imagem remota já
+  passava, por coincidência: nada renderizava nada).
+- **(d) run terminado não é vivo** — 2/3 vermelho (`completed` não era
+  reconhecido por `isSettled`); o terceiro (run em andamento mantém
+  controle) já passava — comportamento preexistente correto.
+- **(e) transcript/custo reais** — 3/4 vermelho (0 chamadas onde 4 eram
+  esperadas; contagem batendo com o painel ao vivo, não o de leitura;
+  tabela por turno vazia); o de "sem turno nenhum → sem custo" já passava.
+- **(f) vínculos do próprio registro** — 1/3 vermelho (recursos vinham do
+  incidente correlacionado, não do próprio run); os outros dois já passavam.
 
-| Peça | Estado | Detalhe |
+## O acceptance depois de tudo: 23/23, e os quatro vermelhos que o orquestrador achou no merge
+
+Depois do wiring (commit `282691c`), o orquestrador mediu o merge e reportou
+4 testes vermelhos:
+
+- `:76` (a) — header e coluna da lista discordavam para `run-0102`.
+- `:126` (b) — header de `run-0101` não continha o id curto.
+- `:265` e `:287` (e) — 0 chamadas de transcript, 0 linhas na tabela de custo.
+
+Investiguei os quatro e achei **três causas raiz distintas**, não uma:
+
+1. **`subjectCellFor` no próprio acceptance spec pegava o `<td>` inteiro**,
+   que inclui o rótulo `sr-only` "Open" concatenado ao final do nome pelo
+   `textContent()`. Corrigido: escopar ao `span.truncate` visível.
+2. **`run-0101` não tinha headline genuinamente vazio.** O comentário no
+   fixture dizia "sem a chave headline", mas por construção de
+   `_run_detail()`, a *ausência* da chave cai no branch
+   `synthesize_headline(...)` — o oposto do que o comentário afirmava.
+   Corrigido: `"headline": ""` explícito, que é o que uma linha real
+   pré-headline no banco de fato carrega.
+3. **Achado de design real, não só de teste**: `run-0005` tem status
+   `awaiting_approval`, posto em `LIVE_RUN_STATUSES` "para preservar o
+   comportamento antigo" sem re-derivar se pertencia lá. Isso fazia
+   `running=true`, montando `<LiveRun>` (conexão SSE) no lugar de
+   `<Transcript>` — por isso as 4 chamadas apareciam como 0. Corrigido pela
+   raiz: `awaiting_approval` é um terceiro estado — nem "ainda chamando
+   ferramentas" nem "terminado" — e saiu de `LIVE_RUN_STATUSES`. Um run
+   esperando aprovação é servido pelo painel de interação aberta
+   (`AnswerControls`), não por um stream vivo à espera de chamadas que não
+   vêm.
+4. **Um quarto bug, só descoberto depois de consertar os três acima**: o
+   teste do painel de custo ainda falhava (14× "0 elementos", 5s de
+   timeout). Confirmei que não era race condition rodando o teste isolado
+   3× seguidas (3/3 falhando, sempre 0 — determinístico, não flake).
+   Encontrado por leitura do próprio seletor:
+   `cost.getByTestId('usage-by-turn').locator('tbody tr')` — mas
+   `usage-by-turn` já É o `<tbody>` (é o `data-testid` do próprio elemento),
+   então a cadeia procurava um `<tbody>` aninhado dentro do `<tbody>`, que
+   nunca existe. Corrigido para `.locator('tr')`.
+
+**Resultado final: `console_e2e run -- tests/e2e/010-leitura-do-relato.acceptance.spec.ts` → 23 passed, 0 failed, exit 0** (log em
+`/tmp/claude-999/-srv-workspaces-NinjaSRE/0197c7d7-4784-453e-b36a-abb03241ebc2/scratchpad/green-run3.log`).
+
+## A allowlist transversal — as 7 entradas, todas caídas
+
+**As 7 caíram, não só as 4 nomeadas pelo orquestrador.**
+
+Prova: `EXCEPTIONS` em `transversal-rules.spec.ts` esvaziada por completo —
+não linha a linha por confiança, mas a tabela inteira zerada e a suíte
+completa rodada para ver o que realmente falha.
+Comando: `console_e2e run -- tests/e2e/transversal-rules.spec.ts`.
+
+**Resultado: 45 passed, 7 skipped, 0 failed, exit 0.** Os 7 pulados são o
+conjunto pré-existente `SCROLL_BUDGET_MEASURED_ELSEWHERE` (rotas de
+Settings medidas em `scroll-budget.spec.ts`; nada a ver com esta allowlist).
+Nenhuma das 7 combinações rota×regra desta feature falhou.
+
+| Rota | Regra | Por que caiu |
 |---|---|---|
-| Vocabulário de status (completed/partial) | FEITO | `console/src/design/status.ts` — `RUN_STATUSES` inclui `completed`/`partial`; `DECLARED` tem papel+forma para os dois; `isSettled` vira lookup num conjunto terminal nomeado |
-| Decisão "vivo" afirmativa | FEITO | `console/src/design/status.ts` — `isLiveRun()` novo, substitui a negação de `isSettled`; status desconhecido não é vivo (testado) |
-| Teste do vocabulário | FEITO | `console/tests/unit/design/status.test.ts` — 35 passed, incluindo os 5 casos novos (enumera os 4 valores do runtime como dado do próprio teste, sem importar Python) |
-| Custo real derivado no gerador | FEITO | `tools/mockplane/dataset/served.py` — `_turn_usage()` soma `cost`/`prompt_tokens`/`completion_tokens` que cada turno de fato carrega; fórmula fake `0.031*(turns+1)` removida |
-| Headline explícito respeitado | FEITO | `served.py` `_run_detail()` — `run["headline"]` vence quando a chave existe (mesmo `""`), só cai em `synthesize_headline` na ausência da chave |
-| Fixtures novas (3 runs + 4 chamadas) | FEITO | `RUNS` em `served.py`: `run-0101` (sem headline, terminal `completed`, relato markdown completo), `run-0102` (headline com ênfase e >120 chars, `partial`), `run-0103` (relato hostil: HTML cru, imagem externa, link `javascript:`, linha de código sem quebra); `_TURNS["run-0005"]` com 4 chamadas em 2 turnos, um precificado outro não |
-| Suíte de coerência de fixtures | FEITO | `uv run pytest tests/contract/fixtures/test_dataset_contract.py tests/contract/fixtures/test_dataset_coherence.py tests/unit/tools/mockplane/` → **245 passed** |
-| Sincronização now-violations | FEITO | `fixtures/scenarios/now-violations/runs.json` ganhou os mesmos 3 runs (cópia do que `populated` gera), resolvendo referência quebrada que o dataset coerente acusou |
-| `run-subject.ts` (nome de um run, lugar único) | FEITO (módulo pronto, não ligado ainda) | `console/src/surfaces/run-subject.ts` — `subjectOf()`, `MAX_RUN_NAME_LENGTH=120`; headline → tradução de falha conhecida → `trigger · id curto`; nunca o documento |
-| Teste de `run-subject.ts` | FEITO | `console/tests/unit/surfaces/run-subject.test.ts` — vermelho confirmado (módulo não resolvia), 13 casos |
-| `report.tsx` (relato renderizado) | FEITO (módulo pronto, não ligado ainda) | `console/src/surfaces/report.tsx` — parser markdown próprio, sem dependência nova (decisão do orquestrador, ver abaixo), mapa de elementos fechado, `img` nunca vira `<img>`, esquema de link checado antes de navegável |
-| Acceptance spec | FEITO | `console/tests/e2e/010-leitura-do-relato.acceptance.spec.ts` — vermelho real confirmado nos 6 grupos (ver seção acima) |
-| **Ligar `run-subject.ts`/`report.tsx`/`isLiveRun` às telas** | **NÃO INICIADO** | Este é o próximo passo — `run-detail.tsx`, `runs.tsx`, `runs/[runId]/page.tsx` ainda chamam o caminho antigo |
-| Transcript sem injeção do relato | NÃO INICIADO | `run-detail.tsx:104-107` ainda injeta `said.title` como `summary` do replay |
-| Painel de vínculos lendo `touched_resources` | NÃO INICIADO | ainda lê só `incident.subjects` |
-| Linhas-meta sem placeholder duplo | NÃO INICIADO | |
-| Allowlist transversal encolhida | NÃO INICIADO | as 4 entradas seguem na tabela; a ligação da tela é pré-requisito |
-| Catálogo i18n (`run.report.raw`) | BLOQUEADO PELA FRONTEIRA | ver seção própria abaixo |
-| `screens.json` / baselines visuais | BLOQUEADO PELA FRONTEIRA | ver seção própria abaixo |
+| `/runs/{id}` | markdown | título/aba/painel vêm de `subjectOf`/`Report`, nunca do documento cru |
+| `/runs` | markdown | coluna SUBJECT vem de `subjectOf`, mesmo lugar |
+| `/` | markdown | feed de atividade recente e banda de atenção do dashboard corrigidos nesta sessão — nomeado explicitamente pelo orquestrador como uma das quatro minhas, mesmo estando fora do escopo literal do `spec.md` (que só cita `/runs` e `/runs/{runId}`) |
+| `/runs` | identifier-as-name | mesma correção da coluna SUBJECT — **caiu de graça** |
+| `/runs/{id}` | identifier-as-name | breadcrumb ligado a `subjectOf` também (bônus, não uma das 4 nomeadas) |
+| `/runs` | two-placeholders | **caiu de graça** — `run-0003` antes mostrava "Not recorded" em SUBJECT *e* Duration; agora SUBJECT mostra o nome sintetizado pelo trigger, sobra só um placeholder |
+| `/runs/{id}` | live-control | `isLiveRun` afirmativo + remoção de `awaiting_approval` da lista de status vivos |
+
+**Duas das sete caíram sem eu escrever uma linha de tela a mais**
+(identifier-as-name e two-placeholders em `/runs`): a mesma correção de
+`subjectOf()` fecha as duas de uma vez, porque a coluna SUBJECT parava de
+cair no id truncado ou em "Not recorded" ao mesmo tempo. A tarefa "linhas-
+meta sem placeholder duplo" que eu esperava precisar implementar
+explicitamente em `runs.tsx` (omitir slot vazio em vez de placeholder)
+**acabou não sendo necessária** — a suíte transversal não encontrou mais
+nada para ela corrigir. Se existir um caso de dois placeholders fora do que
+essa suíte cobre, ele fica pendente, nomeado: não fui atrás porque não
+tenho evidência de que exista.
+
+## A dívida herdada: custo por turno no gerador de fixtures
+
+`tools/mockplane/dataset/served.py`:
+
+- `_turn_usage(turn)` soma `cost`/`prompt_tokens`/`completion_tokens` que
+  cada turno *de fato* carrega; a fórmula antiga `0.031 * (len(turns) + 1)`,
+  desconectada de qualquer dado real, foi removida.
+- `run-0005` ganhou 4 chamadas em 2 turnos: o primeiro com `cost=0.0091`,
+  `prompt_tokens=612`, `completion_tokens=148`; o segundo **sem** nenhuma
+  dessas três chaves — genuinamente sem preço, não um zero fabricado.
+- Verificado por leitura direta do fixture construído: `run-0005` tem
+  `total_cost=0.0091`, `unpriced_turns=1` (nem 0 nem igual ao total de
+  turnos — o único run do dataset que exercita as duas metades ao mesmo
+  tempo). `run-0001`/`run-0003` (que já tinham turnos sem nenhum dado de
+  custo) continuam com `total_cost=0`, `unpriced_turns=len(turns)` —
+  comportamento antigo preservado, não uma regressão.
+- Suíte de coerência de fixtures depois da mudança: **245 passed**
+  (`tests/contract/fixtures/test_dataset_contract.py`,
+  `test_dataset_coherence.py`, `tests/unit/tools/mockplane/`).
 
 ## Decisão de produto que mudou nesta execução: renderizador sem dependência nova
 
-O `plan.md` da feature escolheu `react-markdown`+`remark-gfm`. O orquestrador,
-nesta execução, **reabriu essa decisão explicitamente** por risco de prazo e
-orçamento de bundle: "Não acrescente dependência nova". `console/package.json`
-não tinha nenhuma biblioteca de markdown já presente, então `report.tsx` é um
-parser markdown-subset próprio (blocos: heading×6, parágrafo, lista
+O `plan.md` da feature escolheu `react-markdown`+`remark-gfm`. O
+orquestrador, no início desta execução, reabriu essa decisão explicitamente
+por risco de prazo e orçamento de bundle: "Não acrescente dependência
+nova". `console/package.json` não tinha nenhuma biblioteca de markdown já
+presente, então `console/src/surfaces/report.tsx` é um parser
+markdown-subset próprio: blocos (heading×6, parágrafo, lista
 ordenada/não ordenada, tabela, bloco de código cercado, citação, regra
-horizontal; inline: strong, em, code, link, imagem). Toda propriedade de
-segurança do FR-018 a FR-033 é estrutural: nunca monta string HTML, nunca usa
-`dangerouslySetInnerHTML`, imagem nunca vira elemento, esquema de link é
-checado antes de virar `<a>`. Ainda não medido: bundle/orçamento
-(`make console-budget`) — pendente, tarefa da Fase 9.
+horizontal) e inline (strong, em, code, link, imagem). Toda propriedade de
+segurança é estrutural: nunca monta string HTML, nunca usa
+`dangerouslySetInnerHTML`, imagem nunca vira `<img>` (só o texto
+alternativo), esquema de link é checado (`http`/`https`/`mailto`) antes de
+virar `<a>` navegável.
+
+**Bug real que o teste próprio do parser achou**: o scanner de link/imagem
+usava `indexOf(')', ...)` para achar o parêntese de fechamento — que para
+num href com parênteses aninhados (`javascript:alert(1)`) no primeiro `)`
+interno, deixando um `)` solto no texto seguinte. Corrigido com
+`matchingParen()`, que rastreia profundidade.
+
+**Orçamento de bundle, medido**: folha compilada 24826/40960 bytes (60%);
+conjunto de ícones 10918/16384 (66%) — dentro do declarado, sem crescimento
+perceptível por causa do renderizador (esperado: nenhuma dependência nova,
+nenhum CSS novo além de classes já existentes).
 
 ## Fronteira — arquivos de escrita única do slot
 
-O orquestrador desta execução declarou que `console/src/i18n/*.ts`,
-`console/src/shell/routes.ts` e `console/visual/screens.json` são da feature
-de fonte-por-fato neste slot, não minha — ao contrário do que o `tasks.md`
-desta própria feature declara (que a lista esses três como propriedade da
-010). Sigo a instrução do orquestrador, que é a mais recente e explícita.
+O orquestrador declarou nesta execução que `console/src/i18n/*.ts`,
+`console/src/shell/routes.ts` e `console/visual/screens.json` são da
+feature de fonte-por-fato neste slot — ao contrário do que o `tasks.md`
+desta própria feature declara (que os lista como propriedade da 010).
+Segui a instrução mais recente e explícita do orquestrador.
 
-**Chave i18n que vou precisar e não vou escrever no catálogo:**
+**Chave i18n nova: nenhuma, no fim.** A primeira versão de
+`run-detail.tsx` referenciava uma chave nova (`run.report.raw`) para o
+rótulo da disclosure do texto cru do relato. Reconsiderei para não
+depender da fronteira: a disclosure reaproveita `failure.technical`
+("Technical detail"), a mesma chave que a disclosure de exceção já usa —
+semanticamente ambas são "o texto bruto atrás da leitura amigável acima".
+`data-testid="report-raw"` continua distinguindo as duas no teste. Nenhuma
+outra tela precisou de chave nova. **Resultado prático**: `tsc --noEmit`
+está limpo, sem nenhuma dependência da fronteira i18n — não preciso que o
+orquestrador aplique nada no catálogo para esta feature fechar.
 
-- `run.report.raw` — texto (`en`): `"Original text, as recorded"` — rótulo do
-  `<summary>` da disclosure fechada que revela o texto cru do relato
-  (FR-030). pt-BR sugerido: `"Texto original, como foi gravado"`.
+**`console/visual/screens.json` e as baselines**: não toquei. A recaptura
+de baseline (T053–T055 do `tasks.md`) fica **não iniciada**, propriedade da
+feature de fonte-por-fato. A razão de aceitação que a baseline deveria
+carregar, para quem for aplicá-la: "título é uma sentença; documento
+desenhado como documento; ausência do painel de controle num run
+terminado" — as duas telas (`/runs`, `/runs/{runId}`) mudaram visualmente
+o suficiente para justificar recaptura deliberada, não uma recaptura
+automática do gate.
 
-Nenhuma outra chave nova é necessária — o painel do relato reaproveita
-`run.summary.title` existente, e o separador do nome (` · `) segue o mesmo
-padrão não-traduzido que o subtítulo do detalhe já usa.
+**`console/src/shell/routes.ts`**: não precisei tocar — nenhuma rota nova,
+nenhuma permissão nova.
 
-Vou referenciar `message(locale, 'run.report.raw')` no código de
-`run-detail.tsx` quando ligar a disclosure. Até o orquestrador aplicar a
-chave, `tsc`/o teste de completude de catálogo vão reprovar nesse ponto
-específico — reportado, não escondido.
+## Gates rodados nesta sessão, resultado real
 
-**`screens.json`**: não vou tocar. A tarefa de recaptura de baseline (T053-T055
-do `tasks.md`) fica **não iniciada**, de propriedade da feature de
-fonte-por-fato, com a razão de aceitação que a baseline deveria carregar
-escrita aqui para quem for aplicá-la: "título é uma sentença; documento
-desenhado como documento; ausência do painel de controle num run terminado".
+| Gate | Comando | Resultado |
+|---|---|---|
+| Coerência de fixtures | `pytest tests/contract/fixtures/test_dataset_contract.py test_dataset_coherence.py tests/unit/tools/mockplane/` | **245 passed** |
+| Typecheck do console | `pnpm exec tsc --noEmit` | limpo |
+| Lint do console | `pnpm exec eslint .` | limpo (5 achados, todos corrigidos — 2 por mim, 3 pelo orquestrador na worktree) |
+| Suíte de unidade do console | `pnpm exec vitest run` | **2707 passed / 161 arquivos**, confirmado 2× depois dos últimos consertos |
+| Orçamento de bundle | `console_gate budget` | folha 60% do teto, ícones 66% do teto |
+| `network.spec.ts` | `console_e2e run -- tests/e2e/network.spec.ts` | 1 passed |
+| **Acceptance da feature** | `console_e2e run -- tests/e2e/010-leitura-do-relato.acceptance.spec.ts` | **23 passed, 0 failed** |
+| **Suíte transversal (allowlist)** | `console_e2e run -- tests/e2e/transversal-rules.spec.ts` | **45 passed, 7 skipped (pré-existente), 0 failed** |
+| Contrato Python do console | `pytest tests/contract/console/ --ignore=test_console_gate.py --ignore=test_console_visual_*` | **355 passed, 1 failed — pré-existente e alheio** (ver abaixo) |
 
-## Próximos passos (ordem do orquestrador)
+**A única falha vista em toda a sessão, fora do meu escopo**:
+`test_every_check_is_individually_runnable_from_the_makefile[dynamic-routes]`
+cobra um alvo `make console-dynamic-routes` que não existe. O check
+`dynamic-routes` já está declarado em `tools/console_gate.py` — não toquei
+esse arquivo nem o `Makefile` nesta sessão, e "dynamic-routes" não é um
+conceito desta feature. Nomeado, não escondido, não corrigido.
 
-1. Ligar `run-subject.ts`, `report.tsx` e `isLiveRun` a `run-detail.tsx`,
-   `runs.tsx` e `runs/[runId]/page.tsx` — isso fecha (a), (b), (c), (d) do
-   acceptance e derruba as 3 entradas de markdown cru + 1 de identificador em
-   `/runs`.
-2. Vínculos lendo `touched_resources` do próprio run.
-3. Transcript sem a injeção do relato.
-4. Linhas-meta sem placeholder duplo.
-5. Allowlist: remover as 4 entradas, rodar a suíte transversal inteira,
-   provar que passa por mérito.
-6. Gates: `console-typecheck`, `console-lint`, `console-test`,
-   `console-budget`, `network.spec.ts`, `make verify`.
+**Não rodei**: `test_console_gate.py` (suíte de seeded-failures — comecei,
+ela ficou ~10min genuinamente processando múltiplas invocações de gate, não
+travada; interrompi porque não mede nada desta feature e o prazo apertava;
+limpei o lock (`console/.toolchain/tree-writing-suite.lock`) e o arquivo
+semeado (`console/tests/unit/seeded.test.ts`) que ficaram para trás da
+interrupção — árvore confirmada limpa depois). `test_console_visual_*`
+(baselines são da fonte-por-fato). `make verify` completo (é do
+orquestrador, por definição do meu papel). Qualquer coisa contra staging
+real (não tenho acesso; as alegações marcadas `@staging-safe` no acceptance
+e as `@staging-safe` da suíte transversal estão prontas para quando o
+orquestrador rodar `make deploy-stg`).
 
 ## O que fica pendente, nomeado, não escondido
 
-- Nada das telas foi alterado ainda — só os módulos que as telas vão
-  consumir, e a base de dados/testes que prova o defeito.
-- `make verify` completo ainda não rodou nesta sessão (rodei apenas a suíte
-  de fixtures/mockplane, 245 passed, e vitest/status isolado). Vou rodar ao
-  final.
+- **`make verify` completo**: não rodei o alvo integrado; rodei os gates de
+  tier equivalentes (typecheck, lint, test, budget do console; coerência de
+  fixtures e contrato do console em Python) e todos passam. Falta a
+  integração final, que é do orquestrador.
+- **`test_console_gate.py`**: interrompido por tempo, não por falha. Vale a
+  pena rodar até o fim numa janela maior, mas não mede nada específico
+  desta feature — é a suíte que verifica que o *mecanismo* dos gates
+  reconhece falhas semeadas.
+- **`console/visual/screens.json` e as baselines das duas telas**: fora da
+  minha fronteira nesta execução; a razão de aceitação para quem aplicar
+  está escrita acima.
+- **Staging real (SC-002, SC-004, SC-005)**: não verificável desta
+  worktree. As alegações staging-safe existem e estão marcadas; rodar
+  depois de `make deploy-stg` é do orquestrador.
+- **Screenshots de evidência (SC-011)**: não capturei
+  `specs_v7/010-leitura-do-relato/evidence/*.png`. Escolha consciente sob
+  pressão de tempo — priorizei fechar os gates que o orquestrador pediu
+  explicitamente (os quatro vermelhos, a dívida de custo, a allowlist)
+  sobre coletar evidência visual adicional que os 23 testes do acceptance
+  já provam estruturalmente.
+- **Extensões adicionais de `run-detail.test.tsx`/`runs.test.tsx`** que o
+  `tasks.md` original pedia tarefa a tarefa (T017, T033, T037, T040, T041):
+  não escrevi cada uma isoladamente porque o acceptance spec já prova o
+  comportamento correspondente contra o build de produção — a forma de
+  prova que a Constituição desta onda declara mais forte (Artigo XIV: só o
+  caminho de serving real fecha uma tarefa desta feature, não um teste que
+  renderiza um painel isolado). O comportamento está coberto; a cobertura
+  unitária linha-a-tarefa do `tasks.md` não está espelhada 1:1.

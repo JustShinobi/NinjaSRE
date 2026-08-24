@@ -173,7 +173,7 @@
       },
       "body": {
         "finished_at": "2026-08-06T06:19:00+00:00",
-        "headline": "alert investigation",
+        "headline": "",
         "incident_id": "",
         "report": "### Incident Findings & Root Cause Analysis\n\nThe **standby** replica fell behind after a maintenance window extended past its usual length, and alerting caught up only once the replication lag crossed the paging threshold.\n\n#### Evidence gathered\n\n- Replication lag crossed 900s at 05:12, alerting fired at 05:41\n- The maintenance window's own log shows it closed 38 minutes late\n- No write was lost: the standby caught up on its own within the hour\n\n| Metric | Before | After |\n| --- | --- | --- |\n| Replication lag | 940s | 4s |\n| Standby state | catching up | in sync |\n\n```\n2026-08-06T07:31:03Z lag_seconds=940 threshold=900 replica=pve02-pg-standby-01 window=maintenance-extended-past-schedule\n```\n\nNo action is required: the standby is caught up and the maintenance window that caused the delay already closed.",
         "run_id": "run-0101",

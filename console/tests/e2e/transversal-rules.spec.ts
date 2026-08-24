@@ -197,14 +197,21 @@ interface Exception {
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
  *
- * The seven entries below are the five "Now" rules' own debt, each confirmed
- * red against the dataset built to reproduce it before this line existed.
- * Six were named ahead of time, from a diagnosis of the running deployment;
- * one (`/` + `markdown`) was not — the dashboard's own recent-activity
- * feed reads every run's raw summary with the identical, unfiltered
- * mechanism the runs list and the run detail screen already carried an
- * entry for, and the violating dataset that gives the other six their red
- * gives this one too, because it is the same defect, read a third time.
+ * `/runs`, `/runs/{id}` and `/` carried seven entries between them — three
+ * `markdown` (the run detail screen's title and summary panel, the runs
+ * list's subject column, and the dashboard's recent-activity feed, all
+ * printing a run's raw report where a name or a rendered document belonged),
+ * two `identifier-as-name` (the runs list's subject column and the run
+ * detail breadcrumb, both showing a run's hex id for want of anything else
+ * to call it), one `two-placeholders`, and one `live-control`. All seven are
+ * gone: a run's name is read from its own record everywhere it is shown,
+ * its report is rendered rather than printed raw, a run's own status —
+ * including the two words the runtime actually emits on a finish that this
+ * console did not used to know — decides whether it is offered a live
+ * control, and a metadata line no longer repeats the same fallback word
+ * twice. Proved by the suite below running these two routes without a
+ * `test.fixme` in the way, not by deleting the table entries — see the
+ * transversal run recorded for this change.
  *
  * `/incidents/{id}` carries none of `identifier-as-name`, `negative-assertion`
  * or `two-placeholders` any more: an opaque, short incident id decoded once
@@ -216,71 +223,7 @@ interface Exception {
  * all once the read has failed, rather than repeating the same fallback
  * word across the facts that read never answered.
  */
-const EXCEPTIONS: readonly Exception[] = [
-  {
-    path: '/runs/{id}',
-    rule: 'markdown',
-    reason:
-      "the run detail screen prints the investigation's raw report verbatim " +
-      'as its title, its tab title, and its summary panel body — removed by ' +
-      'the separation between the headline sentence and the report document',
-  },
-  {
-    path: '/runs',
-    rule: 'markdown',
-    reason:
-      'the runs list truncates the same raw report into the subject column — ' +
-      'the same headline/report separation, read by the list',
-  },
-  {
-    path: '/',
-    rule: 'markdown',
-    reason:
-      "the dashboard's recent-activity feed reads every run's raw summary " +
-      'the same unfiltered way the runs list and the run detail screen do — ' +
-      'the same headline/report separation, read a third time',
-  },
-  {
-    path: '/runs',
-    rule: 'identifier-as-name',
-    reason:
-      'the investigation column shows the first eight characters of the run ' +
-      'id with nothing else standing for the row — removed once the run ' +
-      'carries a headline the column can show instead',
-  },
-  {
-    path: '/runs/{id}',
-    rule: 'identifier-as-name',
-    reason:
-      "the breadcrumb's current crumb is the run id in full, because no " +
-      'shorter name for a run exists yet — the same headline that removes ' +
-      'the id from the runs list',
-  },
-  {
-    path: '/runs',
-    rule: 'two-placeholders',
-    reason:
-      'a run with no summary yet and no recorded finish shows the same ' +
-      'fallback word in both its subject and its duration cell — a distinct ' +
-      'word for "in progress" instead of the generic fallback for "unknown"',
-  },
-  {
-    path: '/runs/{id}',
-    rule: 'live-control',
-    reason:
-      'confirmed against a run whose own status is already terminal ' +
-      '("succeeded") in the fixture: the control panel still offers to stop ' +
-      "it. The badge is not reading the run's status at all — it is a label " +
-      'for the live-connection state, and shows regardless of whether the ' +
-      'run underneath it has settled. Composing the recorder in production ' +
-      '(so a run really does close with a terminal status and a logged end ' +
-      'event) does not touch this: that fact was already true of a ' +
-      'completed run before and remains true after, and this screen simply ' +
-      'is not conditioning the control on it — removed by the console ' +
-      "gating the control on the run's own status alongside the connection " +
-      'state, not on the connection state alone',
-  },
-];
+const EXCEPTIONS: readonly Exception[] = [];
 
 function exceptionFor(path: string, rule: Rule): Exception | undefined {
   return EXCEPTIONS.find((entry) => entry.path === path && entry.rule === rule);
