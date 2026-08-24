@@ -346,7 +346,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
 - [x] T063 Acrescentar o mesmo bloco à tela de first-run, no mesmo estado, pela
       **mesma chave** — não por uma segunda redação.
 
-- [x] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
+- [ ] T064 Confirmar T032–T034 verdes contra o backing de compose. As alegações
       que dependem de um deployment sem administrador não rodam contra o
       staging, e o spec as marca.
 
@@ -399,7 +399,7 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       se algum principal ficou sem grant. As consultas exatas vão no
       `controle.md` junto dos resultados.
 
-- [x] T075 Rodar `make verify` e comparar com a linha de base de T001. Verde,
+- [ ] T075 Rodar `make verify` e comparar com a linha de base de T001. Verde,
       tendo partido de verde.
 
 - [x] T076 Escrever o relatório final: o bloco de chaves i18n de T065, as

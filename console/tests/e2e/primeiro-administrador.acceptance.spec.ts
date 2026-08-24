@@ -3,31 +3,27 @@ import { expect, test, type Page } from '@playwright/test';
 import { signIn } from './session';
 
 /**
- * The ten normative claims of "primeiro administrador", encoded one
- * assertion per claim.
+ * Six of the ten normative claims of "primeiro administrador" — the ones
+ * about a deployment that already has an administrator, or that names no
+ * mechanism at all. Encoded one assertion per claim.
  *
- * **Two states this file needs, and one mock plane serves one scenario at a
- * time** — the same constraint `030-uma-fonte-por-fato` and `first-day`
- * document. Claims 1, 2, 3, 4 and 9 are about a deployment that has never
- * been claimed: no administrator, no identity provider. Claims 5, 6, 7, 8
- * and 10 are about a deployment that already has one — the ordinary state
- * of every fixture this repository ships, and of staging.
+ * **Two states this file's claims need, and one mock plane serves one
+ * scenario at a time** — the same constraint `030-uma-fonte-por-fato`
+ * documents and resolves the same way `first-day` already does. Claims 5,
+ * 7, 8 and 10 are about a deployment that already has an administrator —
+ * the `behaviour` project's own committed dataset, and the ordinary state
+ * of every fixture this repository ships, and of staging. Claims 1, 2, 3,
+ * 4 and 9 are about a deployment nobody has claimed yet, and live in
+ * `console/tests/first-day/primeiro-administrador.acceptance.spec.ts`
+ * instead, against the `first-run` dataset — the one committed scenario
+ * that reports `unclaimed` for `GET /v1/setup/local-administrator`,
+ * following the same project split
+ * `010-provider-out-of-the-box.acceptance.spec.ts` already uses for a
+ * claim that needs that same dataset. Moving the block there rather than
+ * asserting it here is what lets this file's dataset stay administered,
+ * which claims 5, 7, 8 and 10 depend on.
  *
- * The `behaviour` project's committed dataset is already administered, so
- * this file's "unclaimed" block runs against a scenario that reports
- * `unclaimed` for `GET /v1/setup/local-administrator` — which, at the time
- * this spec was written, no mock scenario does yet: the route is new. That
- * block is therefore expected to be red here, honestly, until either the
- * mock plane's dataset is extended with this endpoint (generated through
- * `tools/mockplane/dataset/served.py`, never hand-edited — see
- * `fixtures/scenarios/**`) or the assertions run against a compose backing
- * with a genuinely fresh deployment, as the specification calls for. The
- * failure this file captures for that block is the real one: the notice
- * this feature adds is absent, because the fact it depends on answers
- * `administered` (or 404s) against every dataset that exists today, not
- * `unclaimed`.
- *
- * **This block cannot be faked with `page.route()`.** Both screens read
+ * **This fact cannot be faked with `page.route()`.** Both screens read
  * `GET /v1/setup/local-administrator` from a Server Component, on the
  * console's own server process — the request never reaches the browser's
  * network stack, so nothing a browser-side interception installs is ever
@@ -35,82 +31,10 @@ import { signIn } from './session';
  * the incidents list, for the same reason.
  */
 
-const COMMAND_TESTID = 'no-administrator-command';
 const NOTICE_TESTID = 'no-administrator-notice';
 const STAGING_SAFE_TAG = '@staging-safe';
 
 test.use({ viewport: { width: 1920, height: 1080 } });
-
-// =============================================================================
-// Claims 1-4 and 9: a deployment nobody has claimed yet
-// =============================================================================
-
-test.describe('the sign-in screen, before anybody has claimed this deployment', () => {
-  test('claim 1: shows an identifiable warning block', async ({ page }) => {
-    await page.goto('/sign-in');
-    await expect(page.getByTestId(NOTICE_TESTID)).toBeVisible();
-  });
-
-  test('claim 2: the block contains the command, literal, in a region that selects and copies', async ({
-    page,
-  }) => {
-    await page.goto('/sign-in');
-    const command = page.getByTestId(COMMAND_TESTID);
-    await expect(command).toBeVisible();
-    const className = (await command.getAttribute('class')) ?? '';
-    expect(className).toContain('select-all');
-    const text = (await command.textContent())?.trim() ?? '';
-    expect(text).toMatch(/^ninjasre setup admin\b/);
-  });
-
-  test('claim 3: the block sits above the form, not inside it', async ({ page }) => {
-    await page.goto('/sign-in');
-    const notice = page.getByTestId(NOTICE_TESTID);
-    const form = page.getByTestId('sign-in-form');
-    await expect(form.getByTestId(NOTICE_TESTID)).toHaveCount(0);
-    const noticeBox = await notice.boundingBox();
-    const formBox = await form.boundingBox();
-    expect(noticeBox, 'the notice did not render').not.toBeNull();
-    expect(formBox, 'the form did not render').not.toBeNull();
-    if (noticeBox !== null && formBox !== null) {
-      expect(noticeBox.y).toBeLessThan(formBox.y);
-    }
-  });
-
-  test('claim 4: the form still has exactly two fields and one button', async ({
-    page,
-  }) => {
-    await page.goto('/sign-in');
-    const form = page.getByTestId('sign-in-form');
-    await expect(form.locator('input:not([type="hidden"])')).toHaveCount(2);
-    await expect(form.locator('button')).toHaveCount(1);
-  });
-});
-
-test.describe('the first-run screen, before anybody has claimed this deployment', () => {
-  test.beforeEach(async ({ context, baseURL }) => {
-    await signIn(context, baseURL ?? 'http://127.0.0.1:8423');
-  });
-
-  test('claim 9: shows the same command, from the same key as the sign-in screen', async ({
-    page,
-  }) => {
-    await page.goto('/sign-in');
-    const onSignIn = (
-      (await page.getByTestId(COMMAND_TESTID).textContent()) ?? ''
-    ).trim();
-
-    await page.goto('/first-run');
-    const onFirstRun = (
-      (await page.getByTestId(COMMAND_TESTID).textContent()) ?? ''
-    ).trim();
-
-    expect(onFirstRun, 'first-run named a different command than sign-in did').toBe(
-      onSignIn,
-    );
-    expect(onFirstRun).not.toBe('');
-  });
-});
 
 // =============================================================================
 // Claims 5, 7, 8: a deployment that already has an administrator
