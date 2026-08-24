@@ -17,12 +17,24 @@ it reads that tuple.
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | A node's address, port included — https://pve01.internal:8006 | no | yes |
-| `api_token` | Proxmox API token as one line: user@realm!tokenid=secret | yes | yes (or `username`+`password`) |
-| `username` | Login name with its realm, for the ticket path | no | no |
-| `password` | Password for the ticket login | yes | no (or `api_token`) |
+| `endpoint` | A node's address, port included — https://pve01.internal:8006. Any node will do: the API answers cluster-wide questions from whichever one is asked. | — | [Proxmox VE Administration Guide](https://pve.proxmox.com/pve-docs/) |
+| `api_token` | Proxmox API token as one line, exactly as the header wants it: `user@realm!tokenid=secret` | Sys.Audit on `/`, VM.Audit on `/vms` and Datastore.Audit on `/storage` — granted together by the `PVEAuditor` role on `/` | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `username` | Login name with its realm, such as `ninjasre@pve`. Only for deployments that cannot issue an API token. | — | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `password` | Password for the ticket login. Exchanged for a two-hour ticket on the proxy side and never read here. | Same as `api_token`, for the login name this password authenticates | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `ticket` | The short-lived ticket the proxy exchanged the password for. Written by the refresher, never by an operator. | The same access as the login (`username` and `password`) that was exchanged for it — session material the proxy writes, never a scope an operator sets | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `csrf_token` | The CSRF prevention token that accompanies a ticket. Written by the refresher, never by an operator. | The same as `ticket` — session material, not an operator-set scope | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+
+Sources: all six from Proxmox's own Administration Guide, current as of this
+feature. `ticket` and `csrf_token` are session material Proxmox itself issues
+at login rather than a value an operator requests, so their minimum permission
+is the login that produced them, not an invented scope.
 
 `endpoint` goes to the configuration tree rather than the vault — it is where
 the credential proxy reads its egress allow-list from. The port, `8006`, is
