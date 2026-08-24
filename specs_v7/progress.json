@@ -93,7 +93,7 @@
     "020-identidade-enderecavel"
   ],
   "current_feature": null,
-  "last_verdict": "S1: 001 PASS e 020 PASS, ambos por verifier independente em contexto limpo.",
+  "last_verdict": "S1 fechado (001 e 020 PASS). S2: 040 entregue com make verify exit 0 (12376 passed, +98 reconciliados); 030 em execucao.",
   "decisions_taken_during_generation": [
     "Vocabulário de status: a enumeração do STORE (run_trace_store.py:30) é a servida por summary_of; o console aprende (010) e o gate bidirecional + purga das fixtures ('succeeded', 'awaiting_approval') é da 030 (Phase 2b, T060-T069, ordem rígida). Unificar runtime×store NÃO é desta onda (recusa registrada no plan da 030).",
     "Canônico de runtime: ReActLoop; build_pipeline declara-se dormente nomeando o harness (040). zero_integration_outcome vira função com dois chamadores.",
@@ -144,7 +144,7 @@
       "T032: a lista de constantes ganha uma quarta variavel (usuario), declarada no mesmo tier."
     ]
   },
-  "last_gate": "make verify exit 0 — 12278 passed / 27 skipped, na arvore mergeada do S1",
+  "last_gate": "S2: 040 fechada — make verify exit 0, 12386 passed / 27 skipped (+10 exato da Fase 8; suite marcada 253 -> 263).",
   "slot_results": {
     "S0": {
       "feature": "000-regras-e-governanca",
@@ -214,10 +214,14 @@
   ],
   "divida_para_a_010": "O dataset simulado nao carrega custo por turno: derivar era impossivel sem dado real, e inventar cifra era o padrao a evitar. Todo turno fica 'sem custo', entao a tela sempre dira 'nao registrado'. A 010 promete 'transcript e custo reais' e vai precisar de turnos com custo no cenario — pre-requisito dela, nao descoberta no meio.",
   "bloqueio_descoberto_no_S1": {
-    "o_que": "O console serve /incidents e /runs inteiramente do cache de rota do Next: carregar as duas paginas produz ZERO requisicoes a /v1/incidents e /v1/runs no servico, que registra as suas requisicoes. A lista de incidentes desenha 19 links todos vazios, embora banco, API e o pacote compilado do console todos carreguem o campo.",
-    "de_quem_e": "Defeito pre-existente, ja registrado no diagnostico da onda e atribuido a 030 (listas dinamicas, fim do Full Route Cache congelado). NAO e regressao do S1.",
-    "consequencia": "Enquanto durar, nenhuma tela de lista pode ser validada contra staging — o que se mede la e uma pagina que nao consultou o produto. Duas regras transversais falham contra staging por isso, e a falha e verdadeira.",
-    "alcanca_o_checkpoint": "O checkpoint do laco minimo declarado para o fim do S2 exige alerta real virando investigacao legivel no ambiente real. Com listas congeladas ele nao tem como passar."
+    "CORRECAO": "A conclusao anterior — 'o console serve as listas do cache de rota congelado' — estava ERRADA. Registrada aqui como erro do orquestrador, nao apagada.",
+    "o_que_eu_media": "Carreguei /incidents e /runs no staging e grepei o log do pod 'app' por requisicoes a /v1/incidents. Zero. Conclui cache congelado.",
+    "por_que_estava_errado": "O console nao fala com o 'app'. NINJASRE_CONSOLE_API_URL=http://console:8421 aponta para o deployment 'console' LEGADO — outra imagem (ninjasre/console), subido 02:59Z, 18h antes do deploy do slot, nunca redeployado por 'deploy-stg app web'. As requisicoes existiam; iam para outro pod, e eu grepava o log errado.",
+    "o_que_isso_explica_de_verdade": "Os 19 links de incidente vazios: o backend legado nao serve public_id, porque e anterior ao merge do S1. E ele responde 400 a /v1/incidents?limit=1 — nem a mesma forma de API.",
+    "o_manifesto_desmente_o_cache": "prerender-manifest.json do build implantado lista apenas /gallery como pre-renderizada. Nem /incidents nem /runs. A borda tambem repassa cache-control: no-store, sem Age nem X-Cache. Nao ha cache congelado em lugar nenhum.",
+    "quem_achou": "A 030, ao nao conseguir reproduzir o defeito localmente e pedir a comparacao entre a borda e o pod. Ela estava certa em duvidar da premissa que eu dei.",
+    "o_conserto": "Apontar NINJASRE_CONSOLE_API_URL para app:8420 e remover o deployment 'console' legado. E trabalho no repositorio GitOps, fora desta arvore. A remocao ja estava documentada pela 000 (T048) como workload legado a remover — agora sabemos que ele nao esta so ocioso, esta SERVINDO dados velhos ao console.",
+    "dono": "operador / infra."
   },
   "troca_S2_S3": {
     "decidido": "2026-08-23, pelo orquestrador, apos o achado do cache congelado no S1.",
@@ -225,10 +229,38 @@
     "porque": "030 desfaz o cache de rota congelado. Enquanto ele durar, nenhuma tela de lista pode ser validada contra staging — carregar /incidents e /runs produz zero requisicoes ao servico. A 010 e a feature cuja tese e 'o console le o registro'; valida-la contra paginas que nao leem nada nao prova nada. 030 e pre-condicao de prova das outras no ambiente real.",
     "pareamento_preservado": "A regra do EXECUCAO.md e um lado console x um lado backend. 030 e console e 040 e backend, entao S2 continua disjunto. No S3, 010 e console e 070 e credential proxy mais integracao — tambem disjunto. Parear 010 com 030 teria colidido: as duas sao console.",
     "dependencias_conferidas": "030 depende de 020 (feita). 040 depende de 001 (feita). 010 depende de 001 (feita). 070 depende de 000 (feita). 060 depende de 010, que agora fecha no S3 — S4 segue valido. 080 depende de 001,010,020,030,040,070, todas fechadas ate o fim do S3.",
-    "consequencia": "O checkpoint do laco minimo, declarado para o fim do S2, move para o fim do S3: ele exige investigacao LEGIVEL, e legibilidade e da 010."
+    "consequencia": "O checkpoint do laco minimo, declarado para o fim do S2, move para o fim do S3: ele exige investigacao LEGIVEL, e legibilidade e da 010.",
+    "revisao": "A troca continua valendo, mas a razao que eu dei para ela estava errada. Movi a 030 para o S2 alegando que o cache congelado bloqueava a validacao em ambiente real. Nao havia cache congelado. O que bloqueava — e ainda bloqueia — e o console falar com um backend legado. A 030 entregou valor real de qualquer forma (gate de rota dinamica, chip Unknown, contador de requisicoes, allowlist 8->7), entao a troca nao custou nada; mas a premissa era falsa e fica registrada como tal."
   },
   "achados_de_infraestrutura": [
     "PROVISIONAMENTO DE WORKTREE: as tres worktrees da onda (001, 020, 030) nasceram no commit RAIZ do repositorio (c789c2d, 'Add initial README') em vez da ponta da master. Cada implementer consertou sozinho com fast-forward ou reset e relatou como nota de rodape, entao passou duas vezes como curiosidade. Tres de tres e defeito sistematico do isolation: worktree. Custo por ocorrencia: o implementer gasta turnos diagnosticando uma arvore sem codigo antes de comecar. Mitigacao ate haver conserto: o dispatch deve mandar conferir 'git log --oneline -1' antes de qualquer trabalho e corrigir para a ponta se necessario.",
     "RELATORIO DE AGENTE PODE VOLTAR VAZIO: o relatorio de um verifier voltou sem conteudo apos 118 chamadas de ferramenta. Mitigacao adotada no S2 e obrigatoria daqui em diante: todo implementer grava o controle.md incrementalmente num arquivo em /tmp/.../scratchpad/controle/<feature>.md, fora do repositorio e da worktree, ao fim de cada fase junto com o commit. Provou-se no mesmo dia: a 030 bateu o teto sem relatorio e o arquivo em disco tinha o ledger inteiro."
+  ],
+  "defeitos_nomeados_com_dono": [
+    {
+      "o_que": "O registro de hooks nao distingue observador de portao, e trata os dois como observador. core/agent/hooks/registry.py:139: quando um hook de PRE_TOOL_USE levanta excecao, ele loga 'agent.hook_failed' e faz continue — a chamada de ferramenta segue. O comentario declara a intencao ('a crash is not a decision'), que e correta para o gravador e errada para um portao: um portao cujo corpo quebra deve NEGAR, nao deixar passar.",
+      "descoberto_por": "040, medido (nao inferido): o hook levantou e a chamada prosseguiu.",
+      "por_que_nao_e_catastrofico_hoje": "a rede e a recusa dentro do corpo da propria capacidade — por isso ela nunca pode ser afrouxada. Mas a defesa em profundidade tem uma camada a menos do que o desenho supoe.",
+      "recomendacao": "O registro precisa saber que tipo de hook esta despachando: observador falha aberto (o turno nao pode cair porque o gravador caiu), portao falha fechado. Nao e edicao avulsa — muda o modelo de seguranca e precisa de ciclo test-first proprio, com o vermelho capturado.",
+      "dono": "080 (incidente fecha o laco) ou feature propria pos-onda. NAO e da 040, que o encontrou e o nomeou corretamente sem expandir escopo."
+    },
+    {
+      "o_que": "Sem plano de controle vinculado, o balcao de remediacao nao compoe: RequestBuilder le um instantaneo ilegivel, PlanFactory nao deriva plano, e a chamada e recusada por falta de plano. Compor um balcao nessa condicao seria compor um que so sabe recusar, entao compose_remediation nao compoe e escreve remediation.desk_skipped nomeando o que falta.",
+      "consequencia_medivel": "No staging, 'select count(*) from approvals where ... remediation' da ZERO por construcao. Medir mesmo assim: o numero e a evidencia de que a causa e essa, e o log dira desk_skipped ou desk_composed.",
+      "caminho_mais_curto": "Vincular ProxmoxControlPlane (capabilities/tools/remediation/proxmox/plane.py:124) a partir do cliente que compose_discovery_sources ja constroi; treze capacidades de hipervisor ja tem componentes registrados.",
+      "por_que_a_040_nao_fez": "Vincular e decidir que o agente proponha escritas contra o hipervisor real. A 040 nomeou e nao decidiu — correto.",
+      "dono": "070 (confianca de certificado) conecta o Proxmox de verdade, e a 080 depende disso para o laco fechar. O vinculo cai naturalmente ali, nao na 040."
+    },
+    {
+      "o_que": "Quatro escritas fora do pacote de remediacao deixam de ser oferecidas com o balcao composto: alertmanager_acknowledge_incident, propose_knowledge, pushover_post_message, telegram_post_message. E o filtro fazendo o que a spec pede (capacidade acima de leitura sensivel sem componentes nao e oferecida), e e mudanca de comportamento visivel — o agente perde notificacao e proposta de conhecimento.",
+      "recomendacao": "Se nao for desejado, o conserto e registrar componentes ou rebaixar o nivel declarado. NUNCA afrouxar o filtro.",
+      "dono": "operador decide; 060 (o catalogo ensina) e onde o nivel declarado de cada capacidade vive."
+    },
+    {
+      "o_que": "O corpus sintetico nao passa pelo caminho de selecao de ferramentas do investigador de serving. make test-synthetic roda tests/harness sobre tests/corpus/, e o harness constroi o proprio laco e o proprio catalogo — entao o estreitamento por integracao configurada nunca e exercitado por ele.",
+      "o_que_a_040_fechou": "A composicao de serving esta provada ponta a ponta por tests/synthetic/test_the_proposal_and_the_act.py, com o estreitamento lido de verdade da arvore de configuracao, e com fio-cortado medido (3/10, 6/10, 1/10 conforme o fio).",
+      "o_que_continua_aberto": "Fazer o corpus dirigir o investigador de serving em vez do proprio laco. E trabalho de instrumento no harness.",
+      "dono": "trabalho de instrumento pos-onda; NAO e da 040, que fechou o que a fase pedia e nomeou o resto."
+    }
   ]
 }
