@@ -228,13 +228,35 @@ complete one that never arrives.
   changes and nothing staged.
 
   **The exception, and it is a requirement rather than a permission: in an
-  isolated worktree you commit, at the end of every phase.** The orchestrator
-  merges a slot from commits, so uncommitted work in a worktree is work that
-  disappears when the worktree is discarded — and you will hit a turn ceiling
-  before you finish. A phase that ends in a commit turns that ceiling into a
-  message you resume from; a phase that does not turns it into losing the lot.
+  isolated worktree you commit, at every point where the tree is coherent.**
+  The orchestrator merges a slot from commits, so uncommitted work in a
+  worktree is work that disappears when the worktree is discarded — and you
+  will hit a turn ceiling before you finish.
+
+  Not "at the end of every phase". Four agents in one wave were told exactly
+  that, and four of them hit the ceiling holding uncommitted work — nineteen
+  files, twenty, sixteen, three. Two stopped mid-sentence on the words *"Now
+  let's commit"*. **The ceiling does not arrive at a phase boundary; it
+  arrives wherever it arrives.** Assume you will hit one and work so that it
+  costs a resume message rather than a day.
+
+  An unfinished commit that says it is unfinished is worth more than perfect
+  work that vanishes: commit it, say `wip(...)` and why in the body, and amend
+  it once the tests exist. Split anything a human must review — a visual
+  baseline above all — into its own commit, so accepting or reverting it stays
+  a decision of its own.
+
   Conventional commits, imperative, English, and never a `Co-Authored-By:` or
   any other attribution trailer.
+
+- **First, confirm your worktree has the repository in it.** If
+  `git log --oneline -1` is not a recent commit, or `git status` shows a tree
+  with no source directories, your branch was seeded at an ancestor rather
+  than at `master`. This has happened repeatedly: three agents in one wave
+  opened worktrees holding a `README.md` and nothing else, one of them 757
+  commits behind. Recover with `git merge --ff-only master` and say so in your
+  report. An agent that works silently in an empty tree produces a report full
+  of "not found", and every one of those readings is wrong.
 
   A worktree is also where `specs_v7/`, `specs_v6/`, `.specify/` and everything
   else in `.git/info/exclude` **do not exist**. Read the planning documents from

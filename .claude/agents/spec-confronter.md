@@ -107,13 +107,31 @@ shown, with the error, that it is not.
 
 ## Never
 
-- **Never commit, stage, or run `git add`.** The orchestrator commits. Your job
-  ends at a clean working tree full of your changes.
+- **Never commit, stage, or run `git add` in a shared tree.** The orchestrator
+  owns that branch and its commits. Your job ends at a clean working tree full
+  of your changes.
+
+  **In an isolated worktree the opposite holds, and it is a requirement: you
+  commit at every point where the tree is coherent.** The orchestrator merges
+  a slot from commits, so uncommitted work there is work that disappears when
+  the worktree is discarded — and you will hit a turn ceiling before you
+  finish. Not "at the end of every phase": the ceiling arrives wherever it
+  arrives, and four agents in one wave proved it, each stopped holding files
+  nobody had committed. An unfinished commit that says it is unfinished beats
+  perfect work that vanishes.
+
+- **First, confirm your worktree has the repository in it.** If
+  `git log --oneline -1` is not a recent commit, or `git status` shows a tree
+  with no source directories, your branch was seeded at an ancestor rather
+  than at `master`. Three agents in one wave opened worktrees holding a
+  `README.md` and nothing else. Recover with `git merge --ff-only master` and
+  say so in your report — a confrontation run against an empty tree marks
+  every item "not found", and every one of those readings is a lie.
+
 - Never cite requirement identifiers, specification numbers, criteria codes, or
   planning-document paths in committed source, tests, or comments. State the
   substance instead — a contributor cloning this repository does not have those
   documents.
-- Never name an upstream or prior-art project anywhere in the repository.
 - Never add AI-attribution trailers or "generated with" footers.
 - Never touch files the specification does not reach.
 
