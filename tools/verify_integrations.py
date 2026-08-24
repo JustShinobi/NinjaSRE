@@ -22,6 +22,12 @@ without them, which is what this runs by default:
     permission pointing at a renamed tool produces a failure message that sends
     an operator looking for something that is not there.
 
+``credential field guidance``
+    Every secret field declares the minimum permission its value needs, no
+    address or public-configuration field declares one, and every field of
+    every kind declares a guide. See ``integrations._catalogue.guidance`` for
+    why presence and form are all this checks, never reachability.
+
 ``--live`` adds the vendor calls, for the scheduled job. A failure there does
 *not* fail the build (FR-016): a vendor's breaking change is not the operator's
 fault, and a red build tells them nothing about which of eighty-five vendors
@@ -51,6 +57,7 @@ from dataclasses import dataclass
 
 from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.entry import CatalogueEntry
+from integrations._catalogue.guidance import guidance_problems
 from integrations._catalogue.health import HealthLedger
 from integrations._verification.framework import IntegrationVerifier
 
@@ -158,6 +165,24 @@ def binding_problems(entry: CatalogueEntry) -> list[Problem]:
     return found
 
 
+def credential_guidance_problems(entry: CatalogueEntry) -> list[Problem]:
+    """Return a problem per credential field of ``entry`` missing its own orientation.
+
+    Adapts ``GuidanceProblem`` — which names the field — into this module's own
+    ``Problem`` shape by folding the field name into the message, so a caller
+    reading this report never has to know the guidance module has a type of its
+    own.
+    """
+    return [
+        Problem(
+            rule=found.rule,
+            integration=entry.name,
+            message=f"{found.field}: {found.message}",
+        )
+        for found in guidance_problems(entry.descriptor.schema)
+    ]
+
+
 def problems(entries: Sequence[CatalogueEntry]) -> list[Problem]:
     """Return everything wrong with the catalogue that needs no credentials."""
     found: list[Problem] = []
@@ -165,6 +190,7 @@ def problems(entries: Sequence[CatalogueEntry]) -> list[Problem]:
         found.extend(parity_problems(entry))
         found.extend(verifier_problems(entry))
         found.extend(binding_problems(entry))
+        found.extend(credential_guidance_problems(entry))
     return sorted(found)
 
 
