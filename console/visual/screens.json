@@ -293,35 +293,50 @@
     {
       "id": "run-detail-1440-dark",
       "route": "/runs/run-0001",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "dark",
       "accepted": {
         "against": "08-theme-dark.png",
         "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
-      }
+      },
+      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
     },
     {
       "id": "run-detail-1440-light",
       "route": "/runs/run-0001",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "04-screen-incident.png",
         "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch."
-      }
+      },
+      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
+    },
+    {
+      "id": "run-detail-live-1440-light",
+      "route": "/runs/run-0003",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach."
+      },
+      "pending_because": "Registered so the live state is not forgotten, and left for a deliberate first capture and review rather than the gate manufacturing one — this is the state the report-reading feature's live-control rule (a settled run offers no live-only control) exists to hold apart from the settled run-detail baselines above."
     },
     {
       "id": "runs-1440-light",
       "route": "/runs",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it — the design documents the list in prose — so this baseline is what makes a change to the columns or their order deliberate."
-      }
+      },
+      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
     },
     {
       "id": "shell-1440-dark",
