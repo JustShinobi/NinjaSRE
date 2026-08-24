@@ -41,7 +41,7 @@ de a evidência ser considerada entregue.
       da árvore em `evidence/EVIDENCIA.md` (seção "A versão que a demo mediu").
       Se alguma feature não estiver PASS, a demo não começa — reportar ao
       orquestrador e parar.
-- [ ] T002 Rodar `make verify` na árvore da onda **antes** de publicar, e
+- [x] T002 Rodar `make verify` na árvore da onda **antes** de publicar, e
       registrar exit code, número de testes e duração. Um vermelho aqui é
       bloqueio: publicar uma árvore que não passa transforma qualquer falha da
       demo em ambiguidade.
@@ -99,10 +99,10 @@ Nenhuma tarefa desta fase altera infraestrutura.
       ativa no Prometheus, e que a rota do Alertmanager casa a severidade que ela
       emite. Registrar a expressão da regra e o `for`. Sem isso, a estação E1
       falharia por ausência de regra e alguém leria isso como defeito do produto.
-- [ ] T014 [P] Conferir que o webhook aceita entrega autenticada e recusa sem
+- [x] T014 [P] Conferir que o webhook aceita entrega autenticada e recusa sem
       credencial — a sonda de recusa, não a de aceitação, porque ela não cria
       dado. Registrar o código de resposta.
-- [ ] T015 [P] Listar os alertas que **já estão** disparando agora no
+- [x] T015 [P] Listar os alertas que **já estão** disparando agora no
       Alertmanager. Escolher um deles como matéria-prima do laço de leitura, e
       registrar qual e por quê.
 - [ ] T016 Registrar em `evidence/EVIDENCIA.md` a tabela de aptidão: cada item
@@ -236,27 +236,27 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 
 ## Fase 6: O laço de leitura, executado (E1 a E7, sem escrita)
 
-- [ ] T037 Executar `runbooks/laco-de-leitura.md` do começo ao fim, contra
+- [x] T037 Executar `runbooks/laco-de-leitura.md` do começo ao fim, contra
       `https://stg-ninjasre.lan.kyo.ninja`, com o alerta já ativo escolhido em
       T015.
 - [ ] T038 [P] E2/E3 — screenshot full-page da lista de incidentes e do detalhe do
       incidente escolhido. Conferir: título legível, zero painéis "não foi
       possível preencher", nenhuma URL com `%3A`/`%40`/`%2B`, sujeito resolvido.
-- [ ] T039 [P] E4 — screenshot full-page do detalhe do run: transcript com as
+- [x] T039 [P] E4 — screenshot full-page do detalhe do run: transcript com as
       chamadas reais e o que cada uma devolveu, custo por turno, "o que esta
       investigação tocou" preenchido, e nenhum controle de run vivo num run
       terminado.
-- [ ] T040 [P] E5 — screenshot full-page do relato: título é uma sentença, report
+- [x] T040 [P] E5 — screenshot full-page do relato: título é uma sentença, report
       renderizado, nenhum caractere de sintaxe markdown visível como texto.
 - [ ] T041 E6 — conferir que o conjunto de ferramentas oferecido condiz com as
       integrações que este deployment conectou, e que nenhuma capacidade de
       remediação foi oferecida só para devolver recusa. Evidência: o transcript e
       a tela de ferramentas do agente.
-- [ ] T042 [P] E7 — screenshot full-page de `/decisions` e do painel de ação
+- [x] T042 [P] E7 — screenshot full-page de `/decisions` e do painel de ação
       proposta no incidente: a proposta, o plano de reversão, o alcance, a
       postura, e o chip aguardando decisão. **Nada é aprovado aqui.**
 - [x] T043 Rodar o coletor para o run deste laço e anexar as saídas por estação.
-- [ ] T044 Executar o laço de leitura **uma segunda vez** e conferir que produz a
+- [x] T044 Executar o laço de leitura **uma segunda vez** e conferir que produz a
       mesma evidência — ou nomear, na saída, qual passo variou e por quê. É o que
       prova a repetibilidade que o laço inteiro não pode provar.
 
@@ -357,7 +357,7 @@ e registra o estado real.
 - [x] T067 Para cada uma das três que **não** estiver feita, escrever a entrada
       correspondente do backlog novo com o estado real e o que falta — a redação
       final entra em T086. Nenhuma some.
-- [ ] T068 Registrar, por estação da demo, quais dependiam de uma tarefa
+- [x] T068 Registrar, por estação da demo, quais dependiam de uma tarefa
       operacional não concluída, e marcá-las **não exercidas** em vez de
       aprovadas por omissão.
 
@@ -393,7 +393,7 @@ e registra o estado real.
 - [x] T076 Para cada achado de produto com dona: entregar ao orquestrador com a
       estação e a evidência. **Não consertar aqui.** A decisão de gastar um ciclo
       de reparo é dele.
-- [ ] T077 Para cada achado sem dona na onda: redigir a entrada do backlog novo,
+- [x] T077 Para cada achado sem dona na onda: redigir a entrada do backlog novo,
       na forma que o arquivo já pratica — o que acontece hoje, por que não é
       trivial, e o desfecho pelo qual seria julgado.
 - [ ] T078 Depois de qualquer reparo aceito, **reexecutar a estação afetada e
