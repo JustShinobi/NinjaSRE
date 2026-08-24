@@ -162,7 +162,8 @@ describe('the wizard screen', () => {
     // rather than building the offer by hand the way the component-level
     // tests below do, so a composition that drops the field on the floor is
     // caught here even though `IntegrationsStep` itself renders it correctly.
-    const phrase = "Create a read-only service account token from Prometheus’s own reverse proxy.";
+    const phrase =
+      'Create a read-only service account token from Prometheus’s own reverse proxy.';
     const origin = ['http:', '//fixtures.invalid'].join('');
     serveScenario('first-run');
     const withoutOverride = globalThis.fetch;
@@ -176,7 +177,7 @@ describe('the wizard screen', () => {
       const patched = {
         ...body,
         integrations: body.integrations.map((entry) =>
-          entry['name'] === 'prometheus' ? { ...entry, where_to_get_it: phrase } : entry,
+          entry.name === 'prometheus' ? { ...entry, where_to_get_it: phrase } : entry,
         ),
       };
       return new Response(JSON.stringify(patched), {
