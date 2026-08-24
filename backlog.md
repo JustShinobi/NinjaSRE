@@ -233,20 +233,24 @@ the fact, as one run that finished.
 
 ---
 
-## Three monitoring containers point at a resolver that no longer exists
+## One of three monitoring containers points at a resolver that no longer exists
 
-**What happens today.** The nameserver configured in the monitoring containers
-stopped existing. Every name in this deployment's domain returns nothing from
-inside them. They keep working because everything they talk to is reached by
-address; the first one that is given a name fails the same way the alert router
-did, and the failure looks like the receiving service being down.
+**What happens today.** Checked from inside each of the three: the deployment's
+own domain resolves from the Alertmanager container and from the Gatus
+container, both against the address that preserves the caller's source IP. It
+does not resolve from the Prometheus container. Which one matters more than the
+count — Alertmanager is what delivers the webhook, and it resolves, which is
+why delivery keeps working in spite of the third container's gap.
 
-**Why it stays here.** It is not code in this repository. It is a change to
-three containers an operator owns, and until it is made, any instruction that
-says "point this at `https://<name>/...`" is an instruction that will not work.
+**Why it stays here.** It is not code in this repository. It is a change to a
+container an operator owns, and nothing today asks Prometheus to reach this
+deployment by name — it scrapes exporters and evaluates rules — so the gap costs
+nothing until the day somebody points a receiver at this deployment from
+Prometheus's own configuration, and it costs that day an afternoon instead of
+five minutes.
 
 **How it should be judged.** A name in this deployment's domain resolves from
-inside each of the three containers.
+inside all three containers, not two.
 
 ---
 
@@ -282,30 +286,134 @@ having reached the gateway with a key the vault holds.
 
 ---
 
-## No deployment has been observed acting on its own diagnosis
+## An alert-raised incident's title is the alert's own name, not a sentence
 
-**What happens today.** Every piece of the loop is composed and each has been
-exercised on its own: an alert arrives authenticated, an incident opens, an
-investigation runs and records its turns and calls, the report reads as a
-document, a proposal can be queued with the plan that would undo it, and an
-approved change executes through the gate. What has not been watched, once, is
-all of it in sequence against a real failure — so "the deployment can act on
-what it found" remains an argument assembled from parts rather than something
-anybody has seen.
+**What happens today.** An incident opened from a detector shows the detector's
+bare name as its title — `RestoreDrillStale`, `ProxmoxGuestStopped` — never a
+sentence, in every incident this deployment has raised. This is not an
+accident of rendering: the title is set to `detector.name` at the moment the
+incident is raised, and the choice is a deliberate, documented one — a title
+that has to stay readable for an incident naming one resource has to stay
+readable for the same incident naming fifty, and a name is what does that.
 
-**Why it is not just a matter of trying it.** It needs a target that is at the
-same time disposable and observed. Most containers in a homelab are only the
-first: there is no rule that fires when an arbitrary container stops, so
-stopping a disposable one produces no alert and proves nothing. It also needs a
-person present — the execution is authorised by a human looking at a proposal,
-and an approval made by an API call is one the product could have made to itself
-— and it needs the hypervisor token to hold power-management rights, which is a
-security decision an operator makes deliberately.
+The gap is not that no sentence exists. The investigation attached to the same
+incident writes one, correctly, every time — "The weekly restore drill cron
+jobs on node pve02 exceeded their maximum scheduled execution window without
+completing successfully" sits one screen away from the incident whose title
+still reads `RestoreDrillStale`. The product produces the sentence this wave
+exists to surface everywhere an identifier used to be, and then does not carry
+it up to the one field a list of incidents is read by.
 
-**How it should be judged.** A container that is both disposable and covered by
-an alert rule is stopped by hand; the alert fires on its own; the incident opens
-with a legible title; the investigation records what it did; a proposal appears
-with its rollback plan and waits; a person approves it; the container comes
-back; and the outcome, the episode and the incident's own timeline all say so —
-each of those read back from storage rather than from the process that produced
-them.
+**Why it is not simply reading the investigation's headline back.** An
+incident can outlive several investigations — this deployment watched one
+incident absorb the same alert seven times over six and a half hours, each
+delivery producing its own investigation — and a title sourced from "the last
+investigation's headline" would rewrite itself out from under an operator
+mid-read, and would be blank for the entire window between an incident opening
+and its first investigation concluding. The detector's name is stable for the
+whole of an incident's life for a reason; a sentence would need its own
+lifecycle to be that reliable, not a straight substitution.
+
+**How it should be judged.** An incident's title, read at any point in its
+life including before an investigation concludes, is a sentence a person can
+act on without opening anything else — not the identifier a detector happens
+to be named.
+
+---
+
+## An incident's header can name the wrong host
+
+**What happens today.** The header under an incident's title shows the host of
+the resource the incident's first subject resolves to
+(`console/src/surfaces/screens/incident-detail.tsx`: the resource is fetched by
+the incident's own `subjects[0]`, and its `kind`/`display_name` become the
+"node" text). For an alert whose own metric is scraped by the resource it is
+about — a node's own `node-exporter` — that resolution lands correctly, because
+the two coincide. For an alert whose metric was scraped by one exporter on
+behalf of every guest in the cluster — Proxmox's own guest-power metric, read
+from `pve-exporter`, which runs on one node and describes all of them — the
+same resolution lands on the exporter's own host, not on the guest the alert is
+actually about. A guest stopped on `pve01`, reported through an exporter
+running on `pve02`, opens an incident whose header reads `node pve02`, three
+lines above the alert's own labels correctly saying `node=pve01` — and the
+investigation attached to the same incident, on the very next screen, also
+says `pve01`, correctly. The product has the right answer in two other places
+on the same incident and puts the wrong one in the header a person reads first.
+
+*A prior reading of this deployment's data attributed this to a Proxmox guest's
+stored identity carrying a literal `unknown` in place of its node
+(`lxc/HAL9000/unknown/122`). That is not the mechanism: a guest's identity is
+`kind/cluster/creation-discriminator/vmid` by explicit design
+(`integrations/proxmox/identity.py`, `guest_identity` and the module's own
+docstring — the node is deliberately excluded from a guest's identity because
+migration must not restart its history), and the `unknown` segment is the
+fallback for a missing creation timestamp, not for a missing node. The node
+travels as the discovered resource's *parent*, a separate field, and is
+present. The header's own resolution — which subject a detector's finding
+names, and which exporter's labels a detector correlates that finding against —
+is the actual mechanism, and this entry replaces the earlier, incorrect one.*
+
+**Why it is not simply reading a different label.** The header cannot switch to
+"whichever label looks like a node" without knowing, per alert source, which
+label names the scraping exporter and which (if any) names the actual subject —
+that knowledge is exactly what a per-source correlation rule is for, and a
+guest-level alert sourced from a cluster-wide exporter needs a rule that
+resolves to the guest, not to whatever host happened to answer the scrape.
+
+**How it should be judged.** An incident opened from an alert whose exporter is
+not local to its subject shows the subject's own host in its header, matching
+what the alert's labels and the investigation both already say.
+
+---
+
+## A run's cost is reported two different ways on two different screens
+
+**What happens today.** The same completed run shows `Not recorded` for its
+cost on the incident's own panel, and a real per-turn dollar-and-token
+breakdown on the run's own detail screen. Both describe the same run, read
+moments apart.
+
+**How it should be judged.** The incident panel and the run's own screen agree
+on whether a run's cost was recorded, and when it was, on what it was.
+
+---
+
+## A deployment has been watched acting on its own diagnosis once, and stopped short of the last three steps
+
+**What happens today.** A container that was both disposable and covered by an
+alert rule was stopped by hand, once, in a combined window with an operator
+present. The alert fired on its own within the rule's `for` window; the webhook
+accepted an authenticated delivery; an incident opened; an investigation ran and
+recorded its turns, its calls, and what each call returned — including two
+honest, verbatim upstream failures rather than an invented negative; the report
+rendered as a sentence naming the correct host; and the incident closed itself
+when the underlying condition cleared, recording that a human restarted the
+container rather than claiming the product had. All of that is read back from
+storage, not from the process that produced it.
+
+What did not happen is the last three steps: propose, approve, execute. Not
+because nothing was watched, and not because the approval machinery is
+missing — the gate, the audit trail, and the decision-recording order are all
+composed and reachable. Nothing proposed anything, because the catalogue this
+deployment composed has exactly three capabilities above read level, all three
+notifications (acknowledge an incident, post to Pushover, post to Telegram),
+and none of them acts on infrastructure. The hypervisor token this deployment
+holds does carry power-management rights — checked directly against the vendor's
+own access log and ACLs, not assumed — so the gap is not permission. It is that
+the vocabulary of *action* is empty: no capability restarts a service, starts a
+guest, or changes system state, so an investigation that diagnosed a stopped
+guest correctly had nothing to propose about it.
+
+**Why it is not just a matter of trying again.** Trying again reproduces the
+same outcome, because the outcome follows from what the catalogue can do, not
+from what happened during one window. Closing this needs a remediation
+capability that actually changes infrastructure state — starting a stopped
+guest is the obvious first one, since it is the exact shape this run already
+diagnosed — built with the same declared side-effect level, rollback plan, and
+approval requirement every write capability in this catalogue already carries.
+
+**How it should be judged.** The same shape of run — a disposable, alerted
+resource stopped by hand, diagnosed correctly — produces a proposal with a
+rollback plan, waiting on `/decisions`; a person approves it; the resource
+comes back through the gate rather than by hand; and the outcome, the episode,
+and the incident's own timeline all say so.
