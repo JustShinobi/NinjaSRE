@@ -884,3 +884,80 @@ Detalhado por inteiro na seção desta janela, acima.
 5. **T030** (teste da invalidação por troca de endereço) segue **PARCIAL**,
    como a segunda e a terceira janela já registraram — sem mudança nesta
    janela, que não tocou esse caminho.
+
+## O caminho Proxmox, provado contra infraestrutura real — não mais pendente
+
+Registrado aqui porque muda uma afirmação anterior desta janela e das
+anteriores: até este ponto, "o caminho Proxmox funciona" era medido por
+testes de contrato contra um servidor TLS local e pela validação read-only
+descrita acima — nunca por uma investigação inteira, de ponta a ponta, contra
+o hipervisor real. Isso deixou de ser verdade depois que esta janela começou.
+O operador rodou a demonstração da feature 080 contra o staging e o hipervisor
+reais, com o fingerprint pinado por esta feature em vigor: um agente leu
+alertas do Prometheus, chamou `proxmox_guest_tasks` através do proxy de
+credencial pinado — que o Proxmox real respondeu com
+`501: Method 'GET /nodes/pve01/lxc/122/status/tasks' not implemented`,
+registrado verbatim em vez de mascarado — e escreveu uma conclusão correta
+nomeando o nó certo. Evidência em
+`specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/EVIDENCIA.md`
+(linha 54 para a chamada e sua resposta), de propriedade da 080 — citada
+aqui, não copiada, porque é o registro de outra feature.
+
+O que isto prova para a 070 especificamente: a âncora de confiança que este
+recurso declara e aplica (`TrustAnchor.PINNED_FINGERPRINT`) não é só o que os
+testes de contrato desta feature exercitam contra um servidor sintético — é o
+que uma investigação real, de ponta a ponta, atravessou para alcançar um
+hipervisor de verdade. Não muda nenhuma linha do que está implementado; muda
+a força da evidência atrás de "o caminho Proxmox funciona" de "provado contra
+um servidor de teste" para "provado contra a coisa real".
+
+## T046 — `make verify` inteiro, rodado por esta janela
+
+**`exit 2`** — lido do próprio arquivo de log
+(`/tmp/claude-999/.../scratchpad/logs/T046-verify-070.log:25930`,
+`EXIT_CODE=2`, escrito por `$?` logo depois do comando, não por um
+resumo de wrapper — o aviso desta rodada era exatamente que um resumo já
+mentiu isso duas vezes nesta onda). Linha final do próprio `make`:
+`7 failed, 12736 passed, 28 skipped, 31 warnings in 1680.91s (0:28:00)`,
+seguida de `make: *** [Makefile:71: test] Error 1`.
+
+**As sete falhas, cada uma conferida contra sua própria mensagem — nenhuma
+toca um arquivo que esta janela mudou:**
+
+| Teste | Causa medida | É desta feature? |
+|---|---|---|
+| `tests/contract/cli/test_onboarding_against_a_deployment.py::test_the_deployment_reads_as_ready_once_the_flow_has_run` | `TypeError: build_checklist() got an unexpected keyword argument 'verify_model'` — assinatura de `surfaces.cli`, fora de `platform/credentials/proxy`, `gateway/proxy`, `gateway/http/routes/integrations.py`, `gateway/http/control_plane.py` | Não |
+| `tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed` | **Nomeada pelo orquestrador como de outro agente**, ainda vermelha nesta rodada | Não — confirmado pelo orquestrador |
+| `tests/unit/tools/mockplane/test_verification.py::test_the_committed_document_is_what_the_application_generates` | `openapi.json` committed divergiu do que as rotas geram; o diff mostra `/audit/events`, `/v1/agent/pipeline` e outras — **nenhuma menção a `trust` ou a `/v1/integrations/.../trust`** em toda a seção do teste (conferido por busca) | Não |
+| `tests/contract/console/test_console_gate.py::test_the_same_check_passes_once_the_fixture_is_gone[test]@console-tree` | falhas pré-existentes em `grants.test.tsx`/`object-list.test.tsx`, sob `console/` — nenhum arquivo ali tocado nesta janela | Não |
+| `tests/contract/console/test_console_gate.py::test_a_seeded_end_to_end_failure_fails_the_gate@console-tree` | `console/.next/standalone/server.js is missing; run make console-build first` — **a mesma causa exata** que T001 já registrou na linha de base (`console/.next/standalone/server.js is missing; run the build before capturing` — a worktree não tem o build do console) | Não |
+| `tests/contract/console/test_console_visual_regression.py::test_a_seeded_pixel_change_fails_the_run_and_emits_a_diff@console-tree` | mesma causa: build do console ausente nesta worktree | Não |
+| `tests/contract/console/test_console_visual_regression.py::test_the_untouched_baselines_still_match@console-tree` | mesma causa: build do console ausente nesta worktree | Não |
+
+Nenhuma das sete cita `platform/credentials/proxy`, `gateway/proxy`,
+`integrations/proxmox`, `platform/config_service`, nem os dois arquivos de
+`gateway/http` que esta janela tocou. As quatro de `console/` batem com a
+mesma causa que T001 já tinha registrado (build ausente nesta worktree) ou
+com falhas de teste já presentes no `console/` que nenhum commit desta janela
+alcança — nenhum arquivo sob `console/` foi tocado, nem nesta janela nem em
+nenhuma das quatro.
+
+**Não vi, nesta rodada, as quatro falhas de
+`console/tests/e2e/primeiro-administrador.acceptance.spec.ts` que o
+orquestrador nomeou como de outro agente** — não aparecem como `FAILED` no
+log de `pytest`; a suíte Playwright em si não roda dentro do `make verify`
+padrão desta worktree (o mesmo `server.js` ausente que barra os dois testes
+de visual acima também barra qualquer coisa que dependa de um servidor
+Next.js real). Registrado como não observado a partir daqui, não como
+confirmado — a instrução do orquestrador foi para não persegui-las, e não a
+persegui.
+
+**Comparação com a linha de base de T001** (7 failed / 12407 passed, do
+início da primeira janela): a contagem de falhas é igual (**7**), a de
+sucessos cresceu (**12736**, +329 — o que quatro janelas desta feature mais
+o resto do que fundiu em `master` desde então produziriam), e **nenhum dos
+sete nomes de teste se repete** entre as duas listas — o conjunto mudou
+porque a árvore mudou muito desde T001, não porque esta janela quebrou algo
+novo e um outro item parou de falhar por acaso. A régua que importa, como o
+próprio T046 pede, é o nome de cada falha, não o número — e nenhum nome novo
+aponta para um arquivo que esta janela escreveu.
