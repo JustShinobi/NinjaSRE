@@ -21,6 +21,7 @@ import {
   type IconProps,
 } from '@/design/icons';
 import { BoundedPayload, type PayloadLabels } from './payload';
+import { renderReport } from './report';
 import { KIND_ROLE, type TranscriptEvent, type TranscriptKind } from './transcript';
 
 /**
@@ -64,6 +65,19 @@ const ROLE_WELL: Readonly<Record<string, string>> = {
   warning: 'bg-warning-bg text-warning border-warning',
   success: 'bg-success-bg text-success border-success',
 };
+
+/**
+ * The kinds whose `detail` can be a whole document rather than a short aside.
+ *
+ * `reasoning` is a turn's rationale — and on the turn where the model stops
+ * calling capabilities, that rationale is its final answer, written in the
+ * same markdown the report document is. `report` is the transcript's own
+ * (ordinarily unreached — see `eventsFromReplay`) copy of that same document.
+ * Every other kind's detail is a short, deployment-written aside — an error
+ * message, a guardrail's reason, a question's text — never a model's prose,
+ * so it keeps rendering as the plain text it is.
+ */
+const DOCUMENT_KINDS: ReadonlySet<TranscriptKind> = new Set(['reasoning', 'report']);
 
 /**
  * One event's instant and its duration, formatted on the server.
@@ -152,7 +166,9 @@ function Entry({
             </time>
           )}
         </span>
-        {event.detail === '' ? null : (
+        {event.detail === '' ? null : DOCUMENT_KINDS.has(event.kind) ? (
+          renderReport(event.detail)
+        ) : (
           <p className={cx('text-small', guardrail ? 'text-danger' : '')}>
             {event.detail}
           </p>

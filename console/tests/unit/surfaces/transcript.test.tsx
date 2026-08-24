@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -15,6 +15,8 @@ import {
   type TranscriptKind,
 } from '@/surfaces/transcript';
 import { Transcript, TRANSCRIPT_WINDOW } from '@/surfaces/transcript-view';
+
+import { rawMarkdown } from '../../e2e/bans';
 
 /**
  * The transcript: one component, every event kind, and a cost that does not grow
@@ -176,6 +178,46 @@ describe('every kind of event', () => {
     render(<Transcript events={[]} labels={LABELS} times={{}} />);
 
     expect(screen.getByTestId('transcript')).toHaveTextContent(LABELS.empty);
+  });
+});
+
+describe('a reasoning entry that is the model’s final answer', () => {
+  // On the turn where the model stops calling capabilities, the rationale the
+  // loop records for that turn is not a short aside — it is the model's whole
+  // answer, in the same markdown the report document is written in
+  // (`core/agent/react_loop.py` records `rationale=result.text`, and
+  // `selection_rationale` is that same field replayed). A staging run proved
+  // this reaches the screen raw: `### Investigation Summa"` printed as text
+  // in the transcript, on a run whose report panel renders the identical
+  // document correctly.
+  it('draws a heading and emphasis instead of printing the marks themselves', () => {
+    const rationale = '### Investigation Summary\n\nThe **primary** node lost quorum.';
+    render(
+      <Transcript
+        events={[
+          {
+            id: 'turn-1-reasoning',
+            kind: 'reasoning',
+            rawKind: 'turn',
+            at: '',
+            title: '1',
+            detail: rationale,
+            payload: '',
+            status: '',
+            durationMs: 0,
+          },
+        ]}
+        labels={LABELS}
+        times={{}}
+      />,
+    );
+
+    const entry = screen.getByTestId('transcript-event');
+    expect(rawMarkdown(entry.textContent || '')).toBeNull();
+    expect(
+      within(entry).getByRole('heading', { level: 3, name: 'Investigation Summary' }),
+    ).toBeInTheDocument();
+    expect(within(entry).getByText('primary').tagName).toBe('STRONG');
   });
 });
 

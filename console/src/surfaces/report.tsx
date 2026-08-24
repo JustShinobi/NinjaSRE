@@ -484,6 +484,24 @@ export interface ReportProps {
 }
 
 /**
+ * `text`, parsed and drawn as a document — the same blocks `Report` draws,
+ * with none of `Report`'s own framing.
+ *
+ * Exported so a caller that already owns its layout can draw a document
+ * inline without nesting `Report`'s own scrolling frame and its
+ * `data-testid="report"`, which a page carries once, for the panel that is
+ * *the* report. A model's turn-by-turn reasoning is written in the same
+ * markdown a report is — on the turn where it stops calling capabilities,
+ * the recorded rationale *is* its final answer — and the transcript entry
+ * that draws it (`transcript-view.tsx`) is exactly this second caller.
+ */
+export function renderReport(text: string): ReactNode {
+  return parseBlocks(text).map((block, index) =>
+    renderBlock(block, `block-${String(index)}`),
+  );
+}
+
+/**
  * The report, rendered as a document.
  *
  * A server component: the parse runs once, on the server, over text the
@@ -493,13 +511,12 @@ export interface ReportProps {
  * measures instead of the page.
  */
 export function Report({ text }: ReportProps): ReactNode {
-  const blocks = parseBlocks(text);
   return (
     <div
       data-testid="report"
       className="flex max-h-prose flex-col gap-3 overflow-y-auto"
     >
-      {blocks.map((block, index) => renderBlock(block, `block-${String(index)}`))}
+      {renderReport(text)}
     </div>
   );
 }
