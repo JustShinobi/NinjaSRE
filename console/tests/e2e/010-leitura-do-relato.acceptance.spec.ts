@@ -78,12 +78,20 @@ test.describe('(a) the name of a run is a sentence, everywhere it is shown', () 
   }) => {
     await page.goto('/runs/run-0102');
     const header = await headerText(page);
-    expect(header, `header "${header}" carries markdown syntax`).not.toMatch(MARKDOWN_SYNTAX);
-    expect(header.length, `header is ${header.length} characters`).toBeLessThanOrEqual(120);
+    expect(header, `header "${header}" carries markdown syntax`).not.toMatch(
+      MARKDOWN_SYNTAX,
+    );
+    expect(
+      header.length,
+      `header is ${String(header.length)} characters`,
+    ).toBeLessThanOrEqual(120);
     expect(header, 'header carries a line break').not.toMatch(/[\r\n]/);
 
     const title = await page.title();
-    expect(title.startsWith(header), `tab "${title}" does not start with the header`).toBe(true);
+    expect(
+      title.startsWith(header),
+      `tab "${title}" does not start with the header`,
+    ).toBe(true);
 
     await page.goto('/runs');
     const cell = subjectCellFor(page, 'run-0102');
@@ -92,9 +100,10 @@ test.describe('(a) the name of a run is a sentence, everywhere it is shown', () 
     expect(cellText, `list cell "${cellText}" carries markdown syntax`).not.toMatch(
       MARKDOWN_SYNTAX,
     );
-    expect(cellText, 'the list cell and the detail header disagree about the same run').toBe(
-      header,
-    );
+    expect(
+      cellText,
+      'the list cell and the detail header disagree about the same run',
+    ).toBe(header);
   });
 
   test('a headline longer than the display limit is clipped, with the full sentence in a tooltip', async ({
@@ -103,9 +112,10 @@ test.describe('(a) the name of a run is a sentence, everywhere it is shown', () 
     await page.goto('/runs/run-0102');
     const header = page.getByTestId('page-header').getByRole('heading', { level: 1 });
     const text = (await header.textContent())?.trim() ?? '';
-    expect(text.length, `header is ${text.length} characters, over the 120 limit`).toBeLessThanOrEqual(
-      120,
-    );
+    expect(
+      text.length,
+      `header is ${String(text.length)} characters, over the 120 limit`,
+    ).toBeLessThanOrEqual(120);
     const title = await header.getAttribute('title');
     expect(title, 'no tooltip carries the full headline').not.toBeNull();
     expect((title ?? '').length).toBeGreaterThan(text.length - 2);
@@ -126,7 +136,9 @@ test.describe('(b) a run with no recorded headline is named by trigger and short
     const cell = subjectCellFor(page, 'run-0101');
     const cellText = (await cell.textContent())?.trim() ?? '';
     expect(cellText, 'list cell reads "Not recorded"').not.toBe('Not recorded');
-    expect(cellText, 'list cell prints the raw report').not.toContain('Incident Findings');
+    expect(cellText, 'list cell prints the raw report').not.toContain(
+      'Incident Findings',
+    );
   });
 
   test('the report panel still shows the recorded document, even though the name did not use it', async ({
@@ -138,10 +150,14 @@ test.describe('(b) a run with no recorded headline is named by trigger and short
 });
 
 test.describe('(c) the report renders as a document, sanitised', () => {
-  test('a third-level heading becomes a heading element, not literal "###"', async ({ page }) => {
+  test('a third-level heading becomes a heading element, not literal "###"', async ({
+    page,
+  }) => {
     await page.goto('/runs/run-0101');
     const report = page.getByTestId('report');
-    await expect(report.locator('h3, h4').filter({ hasText: 'Evidence gathered' })).toBeVisible();
+    await expect(
+      report.locator('h3, h4').filter({ hasText: 'Evidence gathered' }),
+    ).toBeVisible();
     await expect(report).not.toContainText('###');
   });
 
@@ -177,29 +193,41 @@ test.describe('(c) the report renders as a document, sanitised', () => {
     await page.goto('/runs/run-0103');
     await page.waitForLoadState('networkidle');
     expect(await page.locator('[data-testid="report"] img').count()).toBe(0);
-    expect(external.some((url) => url.includes('track.png')), external.join(', ')).toBe(false);
+    expect(
+      external.some((url) => url.includes('track.png')),
+      external.join(', '),
+    ).toBe(false);
   });
 
   test('a link whose scheme is executable is not navigable', async ({ page }) => {
     await page.goto('/runs/run-0103');
     const report = page.getByTestId('report');
     const link = report.getByRole('link', { name: /open the dashboard/i });
-    expect(await link.count(), 'a javascript: link was rendered as a navigable anchor').toBe(0);
+    expect(
+      await link.count(),
+      'a javascript: link was rendered as a navigable anchor',
+    ).toBe(0);
     await expect(report).toContainText('open the dashboard');
   });
 
-  test('raw HTML in the document reads as text, never as an element', async ({ page }) => {
+  test('raw HTML in the document reads as text, never as an element', async ({
+    page,
+  }) => {
     await page.goto('/runs/run-0103');
     const report = page.getByTestId('report');
     expect(await report.locator('script').count()).toBe(0);
     await expect(report).toContainText("<script>alert('not really')</script>");
   });
 
-  test('the recorded text is available in a disclosure that opens closed', async ({ page }) => {
+  test('the recorded text is available in a disclosure that opens closed', async ({
+    page,
+  }) => {
     await page.goto('/runs/run-0101');
     const disclosure = page.getByTestId('report-raw');
     await expect(disclosure).toBeVisible();
-    expect(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+    expect(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(
+      false,
+    );
     await disclosure.locator('summary').click();
     await expect(disclosure).toContainText('### Incident Findings');
   });
@@ -218,7 +246,9 @@ test.describe('(d) a run that has settled is not offered as a live one', () => {
     await expect(badge.first()).toHaveAttribute('data-known', 'true');
   });
 
-  test('the transcript rendered is the read-back one, not the live stream', async ({ page }) => {
+  test('the transcript rendered is the read-back one, not the live stream', async ({
+    page,
+  }) => {
     await page.goto('/runs/run-0101');
     await expect(page.getByTestId('live-run')).toHaveCount(0);
   });
@@ -237,7 +267,9 @@ test.describe('(e) the transcript and the cost panel report what the record hold
   }) => {
     await page.goto('/runs/run-0005');
     const calls = page.locator('[data-testid="transcript-event"][data-kind="call"]');
-    const results = page.locator('[data-testid="transcript-event"][data-kind="result"]');
+    const results = page.locator(
+      '[data-testid="transcript-event"][data-kind="result"]',
+    );
     await expect(calls).toHaveCount(4);
     await expect(results).toHaveCount(4);
   });
@@ -256,7 +288,10 @@ test.describe('(e) the transcript and the cost panel report what the record hold
     page,
   }) => {
     await page.goto('/runs/run-0005');
-    const cost = page.getByTestId('panel').filter({ hasText: 'Cost and tokens' }).first();
+    const cost = page
+      .getByTestId('panel')
+      .filter({ hasText: 'Cost and tokens' })
+      .first();
     await expect(cost).not.toContainText('No cost recorded');
     await expect(cost.getByTestId('usage-by-turn').locator('tbody tr')).toHaveCount(2);
   });
@@ -265,7 +300,10 @@ test.describe('(e) the transcript and the cost panel report what the record hold
     page,
   }) => {
     await page.goto('/runs/run-0002');
-    const cost = page.getByTestId('panel').filter({ hasText: 'Cost and tokens' }).first();
+    const cost = page
+      .getByTestId('panel')
+      .filter({ hasText: 'Cost and tokens' })
+      .first();
     await expect(cost).toContainText('No cost recorded');
   });
 });
@@ -275,7 +313,10 @@ test.describe('(f) what an investigation touched is read from its own record', (
     page,
   }) => {
     await page.goto('/runs/run-0005');
-    const links = page.getByTestId('panel').filter({ hasText: 'What this investigation touched' }).first();
+    const links = page
+      .getByTestId('panel')
+      .filter({ hasText: 'What this investigation touched' })
+      .first();
     await expect(links).not.toContainText('Nothing linked yet');
     // The run's own record named these two — not the incident's subjects
     // ("backup-1f376301", "backup-7d831311"), which is what this panel used
@@ -284,17 +325,26 @@ test.describe('(f) what an investigation touched is read from its own record', (
     await expect(links).toContainText('ct-101');
   });
 
-  test('the same run names its incident by title, not by identifier', async ({ page }) => {
+  test('the same run names its incident by title, not by identifier', async ({
+    page,
+  }) => {
     await page.goto('/runs/run-0005');
-    const links = page.getByTestId('panel').filter({ hasText: 'What this investigation touched' }).first();
+    const links = page
+      .getByTestId('panel')
+      .filter({ hasText: 'What this investigation touched' })
+      .first();
     await expect(links.getByTestId('run-incident-link')).toBeVisible();
-    const incidentLinkText = (await links.getByTestId('run-incident-link').textContent()) ?? '';
+    const incidentLinkText =
+      (await links.getByTestId('run-incident-link').textContent()) ?? '';
     expect(incidentLinkText).not.toMatch(/^inc-|^inc_/);
   });
 
   test('a run with no vinculo at all says nothing was linked', async ({ page }) => {
     await page.goto('/runs/run-0101');
-    const links = page.getByTestId('panel').filter({ hasText: 'What this investigation touched' }).first();
+    const links = page
+      .getByTestId('panel')
+      .filter({ hasText: 'What this investigation touched' })
+      .first();
     await expect(links).toContainText('Nothing linked yet');
   });
 });
@@ -315,7 +365,9 @@ test.describe('staging-safe: name and terminal-state claims, against whatever th
       await expect(page.getByTestId('page-header')).toBeVisible();
 
       const header = await headerText(page);
-      expect(header, `header "${header}" carries markdown syntax`).not.toMatch(MARKDOWN_SYNTAX);
+      expect(header, `header "${header}" carries markdown syntax`).not.toMatch(
+        MARKDOWN_SYNTAX,
+      );
       expect(header.length).toBeLessThanOrEqual(120);
       expect(header).not.toMatch(/[\r\n]/);
       expect(header, 'header prints the raw report').not.toContain('###');
@@ -336,7 +388,9 @@ test.describe('staging-safe: name and terminal-state claims, against whatever th
         const row = rows.nth(index);
         const statusCell = row.locator('td[data-label="Status"]');
         const status = ((await statusCell.textContent()) ?? '').trim().toLowerCase();
-        if (!['completed', 'partial', 'failed', 'cancelled', 'succeeded'].includes(status)) {
+        if (
+          !['completed', 'partial', 'failed', 'cancelled', 'succeeded'].includes(status)
+        ) {
           continue;
         }
         await row.locator('a').first().click();

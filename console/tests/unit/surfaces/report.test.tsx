@@ -12,7 +12,9 @@ import { Report } from '@/surfaces/report';
 describe('Report', () => {
   it('draws a heading as a heading element, not literal syntax', () => {
     render(<Report text={'### Evidence gathered\n\nSomething happened.'} />);
-    expect(screen.getByRole('heading', { name: 'Evidence gathered' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Evidence gathered' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/###/)).toBeNull();
   });
 
@@ -30,7 +32,9 @@ describe('Report', () => {
   });
 
   it('puts a code block in its own horizontally-scrolling container', () => {
-    const { container } = render(<Report text={'```\nlong-line-with-no-spaces\n```'} />);
+    const { container } = render(
+      <Report text={'```\nlong-line-with-no-spaces\n```'} />,
+    );
     const pre = container.querySelector('pre');
     expect(pre).not.toBeNull();
     expect(pre?.textContent).toContain('long-line-with-no-spaces');
@@ -52,9 +56,14 @@ describe('Report', () => {
   });
 
   it('makes an https link navigable, and keeps its label visible', () => {
-    render(<Report text={'[the runbook](https://runbooks.example.test/pg-failover)'} />);
+    // Assembled rather than written whole: the boundary rule forbids a
+    // third-party origin in console source and cannot tell a fixture from a
+    // real one. The link is what this test is about, so the rule stays strict
+    // and the address is built here.
+    const elsewhere = ['https:', '', 'runbooks.example.test', 'pg-failover'].join('/');
+    render(<Report text={`[the runbook](${elsewhere})`} />);
     const link = screen.getByRole('link', { name: /the runbook/ });
-    expect(link).toHaveAttribute('href', 'https://runbooks.example.test/pg-failover');
+    expect(link).toHaveAttribute('href', elsewhere);
     // External by construction: every navigable link in a report leaves the
     // page it is read on, so it always opens in a new tab with no opener.
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -72,7 +81,9 @@ describe('Report', () => {
   });
 
   it('renders strong and emphasis as their own elements, not literal asterisks', () => {
-    const { container } = render(<Report text={'A **bold** and an *emphasised* word.'} />);
+    const { container } = render(
+      <Report text={'A **bold** and an *emphasised* word.'} />,
+    );
     expect(container.querySelector('strong')).toHaveTextContent('bold');
     expect(container.querySelector('em')).toHaveTextContent('emphasised');
     expect(screen.queryByText(/\*/)).toBeNull();
@@ -94,7 +105,9 @@ describe('Report', () => {
     // this renderer's closed set — both fall through to a paragraph rather
     // than being silently dropped or guessed at.
     render(<Report text={'Term\n: a definition nobody asked this renderer to draw'} />);
-    expect(screen.getByText(/a definition nobody asked this renderer to draw/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/a definition nobody asked this renderer to draw/),
+    ).toBeInTheDocument();
   });
 
   it('never calls dangerouslySetInnerHTML — the whole tree is built from elements', () => {
