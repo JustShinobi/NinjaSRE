@@ -296,3 +296,114 @@ Nada mudou na conclusão já reportada: localmente, com este build, as
 listas **não** estão congeladas — o defeito observado em staging precisa
 de uma causa que só existe lá (proxy/CDN de borda é a hipótese mais forte,
 não verificada).
+
+---
+
+## Atualização final desta sessão — prova definitiva da allowlist, gates limpos
+
+**Commit 9**: `49a5ff8` fix(console): let the honest Unknown chip pass the negative-assertion rule
+
+### O achado que o orquestrador antecipou, e que eu já tinha pego
+
+`negativeAssertionAfterFailedRead` (o detector puro de `console/tests/e2e/bans.ts`,
+dono da feature de governança) sinalizava **qualquer texto não vazio** mostrado
+sobre uma leitura que falhou — o que teria banido exatamente o estado que esta
+feature introduz: "Unknown" não é uma afirmação sobre o mundo, é a admissão de
+que a leitura nunca respondeu. Corrigido: o detector agora isenta a palavra
+"unknown" por nome, e continua acusando qualquer outra coisa ("No investigation",
+"Investigation finished", etc.) — 2 casos novos em `bans.test.ts`, vermelho real
+confirmado antes (`AssertionError: expected '"Unknown" is asserted...' to be
+null`), verde depois (18/18).
+
+**E mais**: o próprio exercício dessa regra em `transversal-rules.spec.ts` para
+`/incidents/{id}` estava **vazio de propósito** — abria o primeiro incidente da
+lista, que é um incidente comum, com leitura bem-sucedida, contra o dataset
+padrão. A regra passava sem o caminho de falha nunca rodar. Corrigido: agora
+navega para o endereço de falha forçada (`inc_0000000000000000`, o mesmo
+mecanismo que a feature de identidade endereçável já usa), e afirma
+explicitamente que a leitura falhou antes de checar o que o chip disse — se o
+mecanismo de falha parar de funcionar, o teste avisa por si, não fica
+silenciosamente vácuo de novo.
+
+### Prova definitiva, rodada limpa, sem contaminação
+
+Rebuild de produção (`pnpm run build`, exit 0), servido do zero (processos
+antigos derrubados por PID, confirmados mortos antes de subir os novos) contra
+mock real também do zero. Rodei a suíte transversal inteira:
+
+```
+pnpm exec playwright test tests/e2e/transversal-rules.spec.ts --project=behaviour
+```
+
+**Resultado: exit 0 — 38 passed, 14 skipped, 0 failed.**
+
+Os 14 pulados, contados um a um: **7 são delegação de scroll-budget** (não são
+allowlist, são um outro instrumento medindo a mesma coisa em outro arquivo) e
+**7 são as entradas de allowlist restantes**:
+1. `/` markdown cru (dashboard, feed de atividade recente)
+2. `/runs` markdown cru
+3. `/runs/{id}` markdown cru
+4. `/runs` identificador como nome
+5. `/runs/{id}` identificador como nome
+6. `/runs` dois placeholders
+7. `/runs/{id}` controle de run vivo
+
+**Nenhuma dessas sete foi tocada.** Todas são de `/runs`, `/runs/{id}` ou `/`
+(dashboard) — a feature de relato/headline (010), fora do escopo desta spec
+por decisão explícita ("Out of Scope: renderização de markdown... de outra
+feature").
+
+**A entrada que caiu**: `/incidents/{id}` × dois placeholders. Já reportado
+antes nesta sessão, reconfirmado agora com a suíte inteira rodando limpa.
+
+**A entrada que já estava marcada como caída (S1) e que eu reconfirmei estar
+passando pelo motivo certo, não vácuo**: `/incidents/{id}` × afirmação
+negativa — teste #52 do relatório acima, sem tag `@staging-safe` (a mesma
+cautela que a feature de identidade endereçável já aplica a esse mecanismo),
+**agora força a falha de verdade e confirma explicitamente que ela aconteceu**
+antes de checar o chip. Passa porque "Unknown" é isento do detector pela razão
+certa, não porque não há nada para medir.
+
+### Contagem final: 8 → 7. Exatamente uma caiu por conserto real desta sessão.
+
+### Gates rodados nesta sessão, limpos, sem contaminação (última rodada)
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Lint do console | `python -m tools.console_gate lint` | **exit 0**, limpo |
+| Typecheck do console | `python -m tools.console_gate typecheck` | **exit 0**, limpo |
+| Testes unitários do console | `python -m tools.console_gate test` (vitest + cobertura) | **exit 0 — 2675/2675, cobertura 93.47% stmts / 90.04% branches / 90.61% funcs / 95.4% linhas** |
+| Build de produção | `pnpm run build` | **exit 0**, todas as rotas do shell `ƒ Dynamic` |
+| Gate de rotas dinâmicas (novo, desta feature) | `python -m tools.console_gate dynamic-routes` | **exit 0** |
+| Ruff + mypy (arquivos Python tocados) | `uv run ruff check` / `uv run mypy` nos 4 arquivos Python que toquei | **limpos** |
+| Suíte transversal completa | `playwright test transversal-rules.spec.ts` | **38 passed / 14 skipped / 0 failed** |
+| Meu próprio acceptance spec | `playwright test 030-uma-fonte-por-fato.acceptance.spec.ts` | **11 passed / 8 skipped / 0 failed** (última rodada antes desta, mesma árvore) |
+
+**Não rodado até o fim, por tempo**: `tests/contract/console/test_console_gate.py`
+(suíte Python que exercita o gate via subprocesso real — pesada, cada caso
+sobe `pnpm`/`node` de verdade). Tentei duas vezes; a primeira foi interrompida
+por mim mesmo e deixou um lock (`console/.toolchain/tree-writing-suite.lock`)
+que limpei; a segunda rodou concorrente com edições minhas no mesmo diretório
+e um resultado (`reaching.ts` "quebrado") era claramente contaminação de uma
+suíte irmã que espalha e recolhe arquivos quebrados de propósito (confirmado:
+o arquivo apontado não existe no disco fora dessas janelas, e uma rodada de
+lint limpa e isolada depois não mostrou nada). Não tive tempo de rodar essa
+suíte específica do início ao fim sem interferência. **Isto é o que falta
+verificar, nomeado, não escondido** — o resto dos gates (lint, typecheck,
+vitest com cobertura, build, o gate novo, e as duas suítes Playwright
+inteiras) rodou limpo e sem essa suíte por perto.
+
+### Prova de que a lista deixou de ser servida de cache — resumo final
+
+Já reportado em detalhe nas seções anteriores. Resumo para quem lê só esta
+seção: **localmente, com o build atual, carregar `/incidents` de qualquer
+jeito (primeira visita, reload duro, navegação suave, navegação suave
+repetida) produz uma requisição real ao backing, toda vez, sem exceção — a
+listagem não é servida de cache algum neste ambiente.** O contador que prova
+isso está construído, testado e commitado (`/__mockplane__/requests`,
+`NINJASRE_CONSOLE_BACKING_URL`). O que continua sem explicação é por que o
+staging real mostrou zero requisições — a hipótese mais forte é uma camada de
+borda (proxy reverso / CDN) na frente do console em staging que ignora o
+`Cache-Control: no-store` que a aplicação já envia; **não verificado, precisa
+do orquestrador** (`curl -I` direto no pod vs. através do que serve o
+domínio público).
