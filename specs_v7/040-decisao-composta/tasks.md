@@ -314,23 +314,36 @@ real.
 
 ## Phase 9: Fechamento
 
-- [ ] T067 Rodar a suíte de cenários sintéticos e comparar com T003, cenário a
+- [x] T067 Rodar a suíte de cenários sintéticos e comparar com T003, cenário a
       cenário. Reportar o efeito da mudança de seleção de ferramentas.
       "Nenhum efeito" só é resposta aceitável saindo desta comparação; "não
-      medido" não é resposta.
-- [ ] T068 Rodar a verificação completa do repositório e comparar, alvo por
+      medido" não é resposta. **Reconfirmado 2026-08-24**: `pytest -m
+      synthetic` → 263 passed (igual ao registrado); `make test-synthetic` →
+      5/5 (igual). Ver `controle.md` §10.
+- [x] T068 Rodar a verificação completa do repositório e comparar, alvo por
       alvo, com o log de T001. Toda diferença é explicada ou corrigida, nunca
-      omitida.
-- [ ] T069 Refazer a varredura de T004 e registrar o inventário novo: cada
+      omitida. **Reconfirmado 2026-08-24**: estático limpo; `make test` → 2
+      failed / 12720 passed / 45 skipped, as duas isoladas e nenhuma nasce
+      nesta feature (ver `controle.md` §10); console estático limpo,
+      `test` (vitest) → 170 arquivos / 2796 testes, todos passando;
+      `build`/`e2e`/`visual` não rodados, motivo registrado.
+- [x] T069 Refazer a varredura de T004 e registrar o inventário novo: cada
       construção dos dois portões, com arquivo e linha, e o que ela é. Ao menos
       uma tem de ser produção, alcançável da composition root de serving.
-- [ ] T070 Reconfirmar T005: toda capacidade de escrita embarcada, invocada
+      **Reconfirmado 2026-08-24**: inventário idêntico ao da seção 1; uma
+      ocorrência de produção de cada portão, alcançável da composition root.
+      Ver `controle.md` §10.
+- [x] T070 Reconfirmar T005: toda capacidade de escrita embarcada, invocada
       diretamente, continua recusando com a mesma frase. Se esta tarefa
       falhar, a feature afrouxou o que existia para não afrouxar.
-- [ ] T071 Declarar no relatório final, para o merge do slot: qualquer chave de
+      **Reconfirmado 2026-08-24**: 43 passed, mesma contagem. Ver
+      `controle.md` §10.
+- [x] T071 Declarar no relatório final, para o merge do slot: qualquer chave de
       catálogo de mensagens que a implementação tenha descoberto precisar, com o
       texto proposto; e a confirmação de que nenhum arquivo de escrita única do
-      console foi tocado.
+      console foi tocado. **Nenhuma chave nova**; confirmado de novo por diff
+      que `console/src/i18n/`, `console/src/shell/routes.ts` e
+      `console/visual/screens.json` seguem intocados. Ver `controle.md` §10.
 - [x] T072 Atualizar o `controle.md` desta feature com o que o código prova: o
       inventário antes e depois dos construtores dos portões, o vermelho
       capturado de cada teste da Fase 1, as contagens no armazenamento depois do
