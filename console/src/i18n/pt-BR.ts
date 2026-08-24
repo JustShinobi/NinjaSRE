@@ -1356,6 +1356,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.',
   'catalogue.integrations.panel.saveAndTest': 'Salvar e testar',
   'catalogue.integrations.panel.testing': 'Salvando e testando…',
+  'catalogue.integrations.panel.docs.heading': 'Documentação do pacote',
+  'catalogue.integrations.panel.docs.toggle': 'Ler a documentação do pacote',
+  'catalogue.integrations.panel.docs.unreadable':
+    'A documentação deste fornecedor não pôde ser lida.',
   // --- Painel de uma integração conectada: estado e ações, nunca um formulário vazio ---
   'catalogue.integrations.panel.storedInVault':
     'Esta credencial está guardada no vault.',

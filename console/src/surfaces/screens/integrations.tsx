@@ -362,6 +362,23 @@ export async function IntegrationsScreen(
   const panelItem =
     name === undefined ? null : (installed.find((item) => item.name === name) ?? null);
 
+  // Read only when a panel is actually open — never on the plain /integrations
+  // list, which never shows this section and would otherwise pay for a read
+  // nothing on the page uses. A failed request and a body that says
+  // `readable: false` are folded into the same outcome here: either way, the
+  // panel says it could not read the document, never that the document does
+  // not exist.
+  const docs =
+    name === undefined
+      ? null
+      : await panelRead<unknown>('/v1/integrations/{name}/docs', () =>
+          read('/v1/integrations/{name}/docs', { ...init, params: { name } }),
+        );
+  const docsRecord = docs === null ? undefined : dataOf(docs);
+  const docsMarkdown = text(docsRecord, 'markdown');
+  const docsReadable =
+    docs !== null && docs.status === 'ready' && flag(docsRecord, 'readable');
+
   const connectedItems: readonly CatalogueConnectedItem[] = visibleConnected.map(
     (item) => ({
       name: item.name,
@@ -504,6 +521,8 @@ export async function IntegrationsScreen(
                   direction: panelItem.direction,
                   intakePath: panelItem.intakePath,
                   whereToGetIt: panelItem.whereToGetIt,
+                  docsMarkdown,
+                  docsReadable,
                 }
           }
           closeHref={closeHref}
@@ -566,6 +585,12 @@ export async function IntegrationsScreen(
             intakeTitle: message(locale, 'ingress.title'),
             intakeBody: message(locale, 'ingress.body'),
             intakeAction: message(locale, 'catalogue.integrations.panel.intake.action'),
+            docsHeading: message(locale, 'catalogue.integrations.panel.docs.heading'),
+            docsToggle: message(locale, 'catalogue.integrations.panel.docs.toggle'),
+            docsUnreadable: message(
+              locale,
+              'catalogue.integrations.panel.docs.unreadable',
+            ),
           }}
         />
       )}

@@ -70,6 +70,9 @@ const LABELS: IntegrationPanelLabels = {
   intakeTitle: 'Where to send alerts',
   intakeBody: 'The one step that happens outside this deployment.',
   intakeAction: 'Point your alert router at it',
+  docsHeading: 'Package documentation',
+  docsToggle: 'Read the package documentation',
+  docsUnreadable: "This vendor's own documentation could not be read.",
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -94,6 +97,8 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     direction: 'outbound',
     intakePath: '',
     whereToGetIt: '',
+    docsMarkdown: '',
+    docsReadable: true,
     ...overrides,
   };
 }
@@ -321,6 +326,51 @@ describe('where to obtain the credential', () => {
     );
 
     expect(screen.queryByTestId('where-to-get-it')).toBeNull();
+  });
+});
+
+describe('the package documentation section', () => {
+  it('renders the document as read text when this deployment could read it', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({
+          docsMarkdown: '# Alertmanager\n\nWhat it holds.',
+          docsReadable: true,
+        })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    const section = screen.getByTestId('integration-docs');
+    expect(within(section).getByTestId('report')).toHaveTextContent('What it holds.');
+    expect(within(section).queryByTestId('integration-docs-unreadable')).toBeNull();
+  });
+
+  it('says it could not read the document when this deployment could not, never that it does not exist', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ docsMarkdown: '', docsReadable: false })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    const section = screen.getByTestId('integration-docs');
+    expect(
+      within(section).getByTestId('integration-docs-unreadable'),
+    ).toHaveTextContent(LABELS.docsUnreadable);
+    expect(within(section).queryByTestId('report')).toBeNull();
   });
 });
 

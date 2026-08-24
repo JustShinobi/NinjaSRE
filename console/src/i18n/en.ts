@@ -1612,6 +1612,10 @@ export const EN = {
     'Stored in the vault; never shown again. Testing it makes a real request — stored and working are different states.',
   'catalogue.integrations.panel.saveAndTest': 'Save and test',
   'catalogue.integrations.panel.testing': 'Saving and testing…',
+  'catalogue.integrations.panel.docs.heading': 'Package documentation',
+  'catalogue.integrations.panel.docs.toggle': 'Read the package documentation',
+  'catalogue.integrations.panel.docs.unreadable':
+    "This vendor's own documentation could not be read.",
   // --- A connected integration's panel: state and actions, not an empty form ------
   'catalogue.integrations.panel.storedInVault':
     'This credential is stored in the vault.',
