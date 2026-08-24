@@ -42,11 +42,14 @@ MAY_NAME_THE_DEPLOYMENT = (MOCKPLANE, FIXTURES, REPO_ROOT / "tests")
 #: environment, and local reference material that is never committed.
 #: Directory names this sweep never walks into.
 #:
-#: Two kinds, and the second is the one that keeps being forgotten. Caches and
-#: installed dependencies hold nobody's decisions. Agent worktrees hold a whole
-#: second copy of this repository, so a sweep that walked one would find every
-#: file twice and call the duplicate a second deployment — which it did, on
-#: every run of the gate while a parallel slot was in flight.
+#: Three kinds, and the last two keep being forgotten. Caches and installed
+#: dependencies hold nobody's decisions. Agent worktrees hold a whole second
+#: copy of this repository, so a sweep that walked one would find every file
+#: twice and call the duplicate a second deployment — which it did, on every
+#: run of the gate while a parallel slot was in flight. And a browser run
+#: leaves its traces and screenshots behind: those are a recording of the
+#: dataset being served, not a second declaration of it, and the run that
+#: produced them is the same one this rule exists to protect.
 SKIPPED = frozenset(
     {
         ".git",
@@ -55,6 +58,8 @@ SKIPPED = frozenset(
         "__pycache__",
         "_research",
         "node_modules",
+        "test-results",
+        "playwright-report",
     }
 )
 

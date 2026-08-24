@@ -1552,9 +1552,11 @@ export interface paths {
          * @description Declare what this deployment accepts from ``name``'s endpoint certificate.
          *
          *     Written into the organisation's own configuration, beside the address, where
-         *     the credential proxy already reads from — the proxy applies it at the next
-         *     cycle, without a restart, because the same cycle that rebuilds the egress
-         *     allow-list rebuilds this.
+         *     the credential proxy already reads from. The write itself asks the proxy to
+         *     re-read it immediately rather than waiting for the periodic cycle that
+         *     rebuilds the egress allow-list — best-effort, and never a reason this write
+         *     fails: an unreachable proxy still applies the declaration on that cycle's
+         *     own next tick, without a restart, exactly as it always has.
          *
          *     Accepting an unverified certificate needs a permission of its own and a
          *     reason in writing, and the identity recorded is the authenticated one rather
@@ -4741,6 +4743,11 @@ export interface components {
             capabilities: string[];
             /** Category */
             category: string;
+            /**
+             * Credential Team Ambiguous
+             * @default false
+             */
+            credential_team_ambiguous: boolean;
             /**
              * Direction
              * @default outbound
