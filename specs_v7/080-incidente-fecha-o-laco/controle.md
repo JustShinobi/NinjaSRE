@@ -91,6 +91,17 @@ propor. Isto é o desfecho `REPROVOU (produto)` da tarefa T053 e não um
 `NÃO EXERCIDA` por falta de ambiente — a diferença que a tabela abaixo
 preserva.
 
+> **CORRIGIDO em 2026-08-24.** A afirmação acima está errada. O catálogo tem
+> **24** capacidades de escrita, **20** delas de remediação, e `proxmox_start_guest`
+> é uma delas. Eu a derivei de um `grep` dentro de `integrations/` que achou três
+> arquivos e generalizei para o catálogo inteiro. O run da demo recebeu **40**
+> capacidades oferecidas, **treze** delas ações de remediação. O que faltou foi
+> uma só: o seletor ofereceu sete maneiras de parar, desligar, suspender,
+> reiniciar, retomar, migrar e relocar um convidado — e cortou a única que
+> **liga** um, num incidente cujo conteúdo era um convidado que parou. Apuração
+> completa em `specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/T041-ferramentas-oferecidas.md`.
+
+
 **Quatro achados de produto, reais, sem dona atribuída ainda:**
 
 1. O título do incidente é `ProxmoxGuestStopped` — o nome do alerta —, não a

@@ -289,7 +289,8 @@
       "E9"
     ],
     "porque_E7_a_E9_nao_correram": "O catalogo inteiro tem tres capacidades de escrita — acknowledge_incident, pushover/post_message, telegram/post_message — e as tres sao aviso. Nenhuma capacidade atua sobre infraestrutura. O balcao compos 20 capacidades, o portao se registra por run, o teto de ferramentas e 40 e so 4 foram usadas: nada foi cortado por orcamento. O agente estava certo em nao propor nada.",
-    "o_laco_fecha_ate_onde": "Ate 'entendi, gravei e registrei o desfecho'. Nao fecha em 'agi'. O incidente encerrou-se sozinho com close_reason 'ProxmoxGuestStopped was resolved upstream' e self_resolved=true — o produto nao reivindica ter consertado nada, o que e a resposta honesta, porque quem religou foi um humano."
+    "o_laco_fecha_ate_onde": "A maquinaria fecha o laco inteiro: 20 acoes no balcao, portao por run, 13 acoes oferecidas ao run da demo. Esta demo nao fechou porque a acao que resolvia o incidente ficou de fora do corte de 40, nao porque faltasse vocabulario. E correcao com dono e uma linha, nao decisao de escopo de produto.",
+    "porque_E7_a_E9_nao_correram_CORRIGIDO": "A explicacao anterior estava errada e foi derivada de um grep em integrations/ que achou tres arquivos, generalizado para o catalogo inteiro. O catalogo tem 24 capacidades de escrita, 20 delas de remediacao, incluindo proxmox_start_guest. O run da demo recebeu 40 capacidades oferecidas, 13 delas acoes de remediacao. O seletor ofereceu sete maneiras de parar, desligar, suspender, reiniciar, retomar, migrar e relocar um convidado, e cortou a unica que liga um — num incidente cujo conteudo era um convidado que parou. O agente nao escolheu nao agir: nao tinha como. Causa em gateway/runtime/investigator.py::_select_tools, no ranqueamento contra o teto de 40. Evidencia: specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/T041-ferramentas-oferecidas.md"
   },
   "achados_da_demo": [
     {
