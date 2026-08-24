@@ -71,6 +71,21 @@ def _report() -> int:
         return 0
     rate = spent / minutes
     print(f"  rate             {rate * 60:+.1f} %/hour")
+    priced = [r for r in session if "sonnet" in r or "opus" in r]
+    if len(priced) >= 2:
+        # What a percent of the window actually buys. The percentage alone
+        # cannot answer "can this slot fit", and the answer changes with the
+        # plan and with whatever discount is running — so it is measured here
+        # rather than assumed.
+        spent_tokens = int(priced[-1]["tokens"]) - int(priced[0]["tokens"])
+        spent_share = priced[-1]["session"]["used_percent"] - priced[0]["session"]["used_percent"]
+        if spent_share > 0:
+            per_percent = spent_tokens / spent_share
+            print(f"  a percent costs  {per_percent:,.0f} tokens")
+            print(f"  window holds     {per_percent * 100:,.0f} tokens")
+            print(
+                f"  left to spend    {per_percent * (100 - last['session']['used_percent']):,.0f} tokens"
+            )
     if rate > 0:
         # The only question worth asking: does this pace reach the cap before
         # the window resets? A percentage without that answer is not a signal.
@@ -83,9 +98,32 @@ def _report() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", action="store_true", help="read the slope back")
-    if parser.parse_args().report:
+    parser.add_argument(
+        "--sonnet",
+        type=int,
+        default=None,
+        help="tokens spent by the cheaper model, in total so far",
+    )
+    parser.add_argument(
+        "--opus",
+        type=int,
+        default=None,
+        help="tokens spent by the orchestrator's own model, in total so far",
+    )
+    arguments = parser.parse_args()
+    if arguments.report:
         return _report()
     sample = _read()
+    if sample is not None:
+        # Two counts, never one total. A window is metered in money rather than
+        # in tokens, and a token of the orchestrator's model costs several of a
+        # subagent's — so a single figure would price a slot of five cheap
+        # agents the same as an afternoon of expensive turns, which is the
+        # mistake this file exists to stop somebody making twice.
+        if arguments.sonnet is not None:
+            sample["sonnet"] = arguments.sonnet
+        if arguments.opus is not None:
+            sample["opus"] = arguments.opus
     if sample is None:
         print("could not read the account's rate-limit state", file=sys.stderr)
         return 1

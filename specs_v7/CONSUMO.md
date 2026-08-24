@@ -27,6 +27,32 @@ vezes o implementer bateu o limite de turnos e precisou ser retomado.
 implementadas e 3 verificadas — sem contar as quatro que ainda rodavam quando
 esta tabela foi escrita.
 
+## A correção que a medição impôs
+
+A tabela acima conta tokens de agente, e por isso é enganosa sobre o que uma
+janela aguenta. Medido nesta onda: numa janela em que os quatro agentes
+gastaram **478 mil tokens**, a janela foi a **33%** — mas a onda inteira já
+tinha gasto **8,2 milhões** em tokens de agente. As duas contas não fecham com
+um preço único por token, e não deviam: **um token não custa o mesmo que
+outro.**
+
+Os implementadores rodam o modelo mais barato. O orquestrador roda o modelo
+caro com esforço de raciocínio alto, e cada turno dele reenvia o contexto
+inteiro da conversa — que cresce a onda toda. Cinco agentes em paralelo custam
+menos que uma tarde de turnos do orquestrador comentando o que eles fazem.
+
+Duas consequências práticas, e a segunda foi aprendida errando:
+
+- **A variável de controle não é quantos agentes rodam em paralelo. É quantos
+  turnos o orquestrador dá.** Despachar é barato; narrar o progresso é caro.
+- **Um vigia que acorda o orquestrador é um custo, não uma economia.** O
+  desta onda re-emitia a cada dois minutos porque deduplicava pela linha
+  inteira, que incluía a contagem regressiva — e cada despertar custava um
+  turno cheio do modelo caro. O medidor passou a custar mais que o medido.
+
+Agrupar notificações — três agentes voltando viram um turno, não três — vale
+mais que qualquer decisão sobre paralelismo.
+
 ## O que os números dizem
 
 **Uma feature custa entre 500k e 900k tokens**, e a variação não acompanha o
