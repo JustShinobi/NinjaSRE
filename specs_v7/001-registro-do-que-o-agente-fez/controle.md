@@ -83,9 +83,9 @@ no harness.
 1. **Contagens de partida do banco (o "antes") nunca foram capturadas** desta
    worktree, que não alcançava o banco. O "antes" usado acima é o do diagnóstico
    da onda, não uma medição desta feature. O "depois" é medido. Ver "Reconfronto
-   (2026-08-24)" abaixo: uma sessão seguinte, com alcance HTTP a staging,
-   reconfirmou que a lacuna é estrutural (sem credencial de banco, e a janela
-   do "antes" já fechada) e não uma limitação só daquela worktree.
+   (2026-08-24)" abaixo: o banco de staging é alcançável — `scripts/deploy/stg-psql`
+   é o caminho — e uma sessão seguinte confirmou isso. A lacuna não é de acesso;
+   é a janela do "antes" já ter fechado, o que nenhum acesso a mais consertaria.
 2. **Migração contra PostgreSQL real**: o implementer não a exercitou (sem
    Docker no ambiente dele). O verificador independente **fechou esta lacuna**:
    rodou a cadeia inteira contra PostgreSQL 16 com pgvector e AGE, subindo até
@@ -153,43 +153,42 @@ colisão de nome de módulo `conftest` entre `tests/unit/platform/runs/` e
 diretório roda limpo sozinho, e é assim que a suíte completa também os separa.
 Nenhuma das 53 peças foi encontrada regredida.
 
-**T003, resolução definitiva: continua sem poder ser feita, por duas razões
-que se somam, nenhuma das duas contornável por mais uma tentativa.**
+**T003, resolução definitiva: continua sem poder ser feita — por uma razão só,
+e ela é suficiente sozinha.**
 
-1. **Acesso.** A tarefa pede uma consulta direta ao Postgres de staging
-   (`ninjasre-stg-db`, `10.20.20.54` — os nomes de tabela e o `org_id`/`run_id`
-   estão na seção "Evidência exigida" da spec). Esta sessão recebeu apenas
-   credenciais HTTP da aplicação (`NINJASRE_STAGING_URL`,
-   `NINJASRE_STAGING_USERNAME`, `NINJASRE_STAGING_CREDENTIAL`, em `.env`,
-   confirmadas por leitura dos nomes das variáveis, não dos valores) — nenhuma
-   credencial de banco. A própria spec nomeia esse acesso como do
-   **orquestrador**, no ciclo que "roda ao fim do slot": "o orquestrador faz o
-   deploy, dispara uma investigação a partir de um alerta real do
-   Alertmanager, e coleta a evidência" — a leitura direta ao banco nunca foi
-   uma tarefa de sessão de implementer nem de verificador, mesmo uma com
-   alcance de rede até o staging (confirmado: `GET /health` no staging responde
-   200 depois de redirecionar para `/sign-in`, ou seja, o staging está de pé e
-   alcançável — só não pelo caminho que T003 pede).
-2. **Janela fechada.** Mesmo com acesso ao banco, o "antes" que T003 pede já
-   não existe para ser lido. As migrações `0014 → 0015 → 0016` já estão vivas
-   em staging e o recorder já vinha gravando havia mais de um dia quando esta
-   sessão começou — a própria seção "Evidência em staging" acima mede um run
-   específico saindo de zero para `run_turns=5, tool_calls=4, evidence=1`, num
-   deploy que já aconteceu. Rodar a consulta agora devolveria o total de
-   **hoje**, não o total de antes do deploy; rotular isso de "antes" seria uma
-   evidência fabricada — exatamente o que esta feature existe para recusar em
-   outro contexto (o custo ausente que não pode virar zero).
+**Correção.** Uma versão anterior desta seção, escrita mais cedo na mesma
+sessão, dizia que o bloqueio era de acesso: que nenhuma sessão deste slot
+tinha credencial de banco. Isso é falso e foi apontado pelo coordenador antes
+de endurecer no registro. O banco de staging **é** alcançável: o repositório
+carrega `scripts/deploy/stg-psql` (committed em `9f87ac6`), que lê
+`NINJASRE_DATABASE_URL` do pod em execução a cada chamada — via `kubectl exec
+-n k3s-stg-ninjasre deploy/app -- printenv NINJASRE_DATABASE_URL` — nunca
+grava a credencial em lugar nenhum porque nunca precisa, e encaminha o que
+sobra para `psql`. Uma sessão com acesso ao host de infraestrutura o usa
+normalmente contra `ninjasre-stg-db`. É o caminho a seguir da próxima vez que
+uma tarefa como esta aparecer, em vez de redescobrir que "não dá" quando dá.
 
-Não há tarefa de código para fechar essa lacuna: não é um defeito de
-implementação, é uma medição cuja janela passou antes que qualquer sessão com
-alcance a staging existisse. **Decisão que cabe a um humano ou ao
+**A razão real é a janela, não o acesso.** O "antes" que T003 pede já não
+existe para ser lido, mesmo com o banco alcançável. As migrações
+`0014 → 0015 → 0016` já estão vivas em staging e o recorder já vinha gravando
+havia mais de um dia quando esta rodada de auditoria começou — a própria
+seção "Evidência em staging" acima mede um run específico saindo de zero para
+`run_turns=5, tool_calls=4, evidence=1`, num deploy que já aconteceu. Rodar a
+consulta hoje devolveria o total de **hoje**, não o total de antes do deploy;
+rotular isso de "antes" seria uma evidência fabricada — exatamente o que esta
+feature existe para recusar em outro contexto (o custo ausente que não pode
+virar zero).
+
+Não há tarefa de código para fechar essa lacuna, e não há acesso que a feche
+tampouco: é uma medição cuja janela passou antes que qualquer sessão de
+auditoria existisse para olhar para ela. **Decisão que cabe a um humano ou ao
 orquestrador**: aceitar o "antes" já registrado na própria spec (seção "Onde o
 produto está hoje": 37 investigações `completed`, `run_turns=0`,
 `tool_calls=0`, `evidence=0`, `trace_events=73`, verificado em 2026-08-23
 contra o staging real) como o "antes" válido — é uma medição direta de banco,
-só que feita um dia antes de T003 ter sido escrita como tarefa própria, e
-nenhuma sessão futura terá como refazê-la de um jeito mais direto sem
-credencial de banco.
+só que feita um dia antes de T003 ter sido escrita como tarefa própria, e o
+banco de hoje não tem mais como reproduzi-la, por mais acesso que a próxima
+sessão tenha.
 
 ## Reconciliação de `tasks.md`
 

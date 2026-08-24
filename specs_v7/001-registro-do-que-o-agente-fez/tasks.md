@@ -56,10 +56,12 @@ cinco ondas com o harness verde.
       para os runs completed da última hora. É o "antes" que a evidência de
       fechamento compara.
       **Não feito — motivo em `controle.md`, seção "Reconfronto (2026-08-24)":
-      exige credencial direta de Postgres de staging, que nenhuma sessão deste
-      slot recebeu (só credencial HTTP da aplicação), e a janela do "antes" já
-      fechou porque o deploy deste slot já está vivo em staging. Reconfirmado
-      em duas sessões independentes; não é falta de tentativa.**
+      o banco de staging é alcançável (`scripts/deploy/stg-psql`, committed,
+      lê a connection string do pod em execução a cada chamada). A tarefa não
+      esbarra em acesso; esbarra na janela — o deploy deste slot já está vivo
+      em staging havia mais de um dia quando isto foi auditado, então uma
+      consulta hoje devolveria o total de hoje rotulado de "antes", o que
+      seria evidência fabricada. Não é falta de tentativa nem de acesso.**
 
 ## Phase 1: Gates primeiro, confirmados vermelhos
 
