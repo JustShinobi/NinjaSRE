@@ -38,6 +38,145 @@ tocou nenhum dos três, por instrução — o operador está executando
 `runbooks/navegador.md` à mão, e o passo destrutivo (`pct stop 122` na CT122)
 é dele, uma vez, olhando.
 
+### Atualização, mesmo dia: o laço fechou de verdade
+
+Enquanto esta auditoria trabalhava, o operador executou o roteiro do laço
+inteiro contra staging real e o hipervisor Proxmox real do cluster HAL9000.
+A evidência aterrissou em `evidence/demo-2026-08-24/` — um `EVIDENCIA.md`
+narrativo (151 linhas), `achados.md` (69 linhas, um rascunho anterior dos
+mesmos quatro achados), `marco-zero.txt` (os três instantes que ancoram a
+linha do tempo) e onze screenshots reais — na árvore compartilhada, não
+nesta worktree; lida em `/srv/workspaces/NinjaSRE/specs_v7/...` porque um
+`git reset --hard master` não a traria (ela não foi mergeada em `master`
+por este caminho, e operações git contra a árvore compartilhada são
+recusadas para uma worktree isolada). Onze screenshots foram abertos e
+lidos, não só listados; dois varredura de segredo (padrão estrutural + os
+dois valores reais de `.env` comparados por `grep -qF`, nunca impressos)
+rodaram contra os três arquivos de texto novos — limpos.
+
+**O que isso prova, e como.** CT122 parou às 10:26:29Z, confirmado sete
+segundos depois; `ProxmoxGuestStopped` ficou ativa às 10:27:34, disparou às
+10:29:34 (`for: 2m` cumprido); o webhook devolveu `202` autenticado às
+10:29:45; o incidente `inc_05328c58ca88676b` abriu na mesma hora; a
+investigação `d393d5d0…` gravou 13 eventos, 5 turnos, 44.746 tokens em 23s,
+com uma manchete que é frase completa e nomeia o nó certo (`pve01`) — vista
+diretamente no screenshot `e5-01-relato.png`, não só relatada. As quatro
+chamadas de ferramenta são honestas: duas falharam com a mensagem real do
+upstream verbatim (`proxmox_guest_tasks` → `501` do Proxmox; `changes_in_window`
+→ "no change source is configured"), e nenhuma afirma um negativo que não
+mediu. O contêiner foi religado à mão às 10:44:47Z, e o incidente **se
+fechou sozinho** às 10:50:06 com `state: resolved`, `self_resolved: true` e
+um `close_reason` que nomeia a causa real — o produto não reivindica ter
+consertado o que um humano consertou.
+
+**E7, E8 e E9 não aconteceram, e a razão está provada, não presumida.** Todo
+o catálogo tem exatamente três capacidades de escrita —
+`alertmanager_acknowledge_incident`, `pushover_post_message`,
+`telegram_post_message` — e as três são aviso, não ação sobre
+infraestrutura. Nenhuma capacidade liga um convidado, reinicia um serviço ou
+muda estado de sistema. O balcão compôs 20 capacidades e o portão se
+registra por run (`gateway/runtime/investigator.py:375`); o teto de
+ferramentas é 40 e só 4 foram usadas — nada foi cortado por orçamento. **A
+investigação estava certa em não propor nada**, porque não havia o que
+propor. Isto é o desfecho `REPROVOU (produto)` da tarefa T053 e não um
+`NÃO EXERCIDA` por falta de ambiente — a diferença que a tabela abaixo
+preserva.
+
+**Quatro achados de produto, reais, sem dona atribuída ainda:**
+
+1. O título do incidente é `ProxmoxGuestStopped` — o nome do alerta —, não a
+   frase que a própria investigação produziu como manchete. Visto nos dois
+   screenshots `e3-02-incidente.png` e `e10-01-incidente-fechado.png`.
+2. O cabeçalho do incidente diz `node pve02`; três linhas abaixo, na mesma
+   tela, o corpo do alerta diz `node=pve01` — o correto, porque a CT122 roda
+   no `pve01` e `192.168.68.159` é só onde o `pve-exporter` está hospedado.
+   O cabeçalho lê `instance` (quem raspou a métrica) e o apresenta como o nó
+   do sujeito. Visto nos mesmos dois screenshots; a própria investigação
+   (`e5-01-relato.png`) nomeia `pve01` corretamente na mesma execução.
+3. Todo convidado descoberto tem `native_id` no formato
+   `lxc/HAL9000/unknown/122` — o segmento do nó é literalmente `unknown`,
+   embora o exportador carregue `node=pve01`. Causa provável do achado 2.
+4. O custo aparece de duas formas: o painel do incidente diz `Not recorded`;
+   a tela do run mostra `$0.00` com a repartição real por turno — as duas
+   descrevendo o mesmo run. Visto em `e3-02-incidente.png` (painel) e
+   `e5-01-relato.png` (tela do run).
+
+Um começo de rastreio, não uma auditoria completa: `IncidentSubject` e
+`Incident` (`platform/persistence/ports/incident_store.py:148,188`) mostram
+que `title` é um campo dedicado, distinto de qualquer manchete de
+investigação — consistente com o achado 1 nascer de onde um incidente por
+alerta é aberto (`platform/incidents/detection.py` ou `ingestion.py`, os dois
+chamadores reais de `IncidentSubject` fora de teste), mas esta auditoria não
+abriu esses dois arquivos para confirmar a linha exata. Nomear a dona de
+cada achado fica para quem decide o ciclo de reparo, com o contexto completo
+da onda à vista — inclusive porque os achados 3 e 4 apontam para tiers
+diferentes (descoberta do Proxmox; gravação/leitura de custo) que esta
+auditoria não teria como avaliar sem repetir o mesmo trabalho de rastreio
+para cada um.
+
+**O candidato a achado da primeira passagem não se repetiu.** A chamada
+`prometheus_metric_statistics` (que devolveu `400` por parâmetro `start`
+vazio na investigação `RestoreDrillStale`) não apareceu nas quatro chamadas
+desta investigação nova. Continua aberto e sem dona — não corrigido, não
+descartado, apenas não reproduzido desta vez.
+
+**Uma imprecisão real no próprio roteiro**, registrada honestamente pelo
+operador em `EVIDENCIA.md`: `ssh root@192.168.68.159 'ssh pve01 "pct stop
+122"'` não resolve `pve01` a partir do host de entrada; o endereço que
+funciona é `192.168.68.149`. A primeira tentativa falhou sem parar nada —
+achado do próprio processo da demo, não do produto, e não desta auditoria
+(o roteiro `laco-inteiro.md` §1/§6 desta feature ainda escreve `ssh pve01`;
+corrigir o roteiro é reparo de texto desta própria feature e fica nomeado em
+"O que fica pendente" abaixo, não corrigido nesta passagem porque a
+substância factual mais importante — que o comando certo existe e foi usado
+— já está registrada por quem executou).
+
+**Correção que o operador pediu para refletir aqui também**: a spec e os
+roteiros desta feature (não escritos por esta auditoria) afirmam que
+"não existe regra que dispare quando um LXC qualquer para" e que por isso
+uma regra nova seria necessária. Isso continua verdade como afirmação geral
+— não existe uma regra genérica de "qualquer LXC parou" —, mas **não era a
+precondição correta para a CT122 especificamente**: quatro regras
+já cobrem o `redis` pelo lado do serviço —
+`DatabaseTcpProbeFailed` (10:28:15), `GatusEndpointHealthcheckFailed`
+(10:28:30), `InstanceDown` e `RedisExporterDown` (ambas 10:29:45) — e as
+quatro dispararam **antes** da regra nova que o operador escreveu
+(`ProxmoxGuestStopped`, commit `5cbeb0e` em `infra-cluster`). O alerta teria
+chegado sem regra nova nenhuma; o que faltava era cobertura do convidado
+*como convidado*, não cobertura alguma. A regra nova continua correta e
+soma uma sexta linha de defesa (verificada contra as séries vivas antes de
+carregar), só não era a precondição que o plano desta feature presumiu.
+Visível na lista de incidentes (`e3-01-lista-incidentes.png`): `InstanceDown`
+e `RedisExporterDown` aparecem como incidentes irmãos, 1 minuto atrás, ao
+lado de `ProxmoxGuestStopped`.
+
+**Uma imprecisão na cobertura desta própria feature, que esta auditoria
+descobre e nomeia**: os onze screenshots existem, são genuinamente
+full-page (alturas de até 2370px, muito além de um viewport), mas foram
+capturados em **1280px de largura**, não os 1920px que `spec.md`
+("Viewport normativo de medição e de screenshot: 1920×1080"), FR-023 e o
+cabeçalho de `tasks.md` exigem — conferido lendo `file` sobre os onze
+arquivos, não presumido. Isto é uma imprecisão do processo da demo (a
+janela do navegador não foi ajustada para 1920 antes de capturar), não um
+defeito de produto; nomeada aqui porque T070 não pode ser marcada feita
+sem isso. A estação E2 também não tem screenshot dedicado — a evidência de
+E2 é só a linha da tabela (`202`, autenticado), não uma foto de
+`/settings/alert-intake`.
+
+**Uma lacuna real da própria ferramenta desta feature, honestamente
+nomeada**: nenhuma consulta do coletor rodou contra o `run`/`incident` desta
+investigação nova (`d393d5d0…` / `inc_05328c58ca88676b`) — os oito arquivos
+em `evidence/*.txt` continuam datados `09:11:29Z`, para a investigação de
+leitura anterior (`RestoreDrillStale`). A evidência do laço inteiro é real e
+convincente (screenshots + a prosa de `EVIDENCIA.md`), mas **não** é a
+"consulta SQL exata e a saída literal" que FR-024 exige — é leitura de tela,
+que é diferente. Recomendação, não ação desta auditoria (que não toca
+staging): `uv run python -m tools.demo_evidence collect --org default --run
+d393d5d0<completo> --incident inc_05328c58ca88676b --out
+specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/consultas
+--exec <o mesmo --exec dos roteiros>` fecharia essa lacuna em um comando.
+
+
 ## A fronteira desta execução, declarada antes do trabalho
 
 - **Desta feature:** os três roteiros, o coletor de evidência com teste, a
@@ -87,29 +226,37 @@ que faltava ao lado da caixa, exatamente como pedido.
 
 ### Fase 1 — pré-voo (T001–T006)
 
+**Três destas o próprio operador nomeou, em mensagem direta, e pediu para
+ficarem honestamente abertas — registradas aqui como ele as descreveu, não
+como suposição desta auditoria.**
+
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T001 confirmar merges + PASS, registrar commit da onda | **Do orquestrador** | `evidence/EVIDENCIA.md` §1, linha "Commit da árvore da onda": `(a preencher)`. Exige julgar o veredito de verifier de cada feature — leitura que esta auditoria não refaz por cima da dele |
-| T002 `make verify` antes de publicar | **Do orquestrador** | `EVIDENCIA.md` §1: `(a preencher)`. É rodado no momento do `deploy-stg`, ação de infraestrutura fora desta auditoria |
-| T003 publicar com `make deploy-stg` | **Do orquestrador** | Mudança de infraestrutura; esta auditoria não publica nada |
-| T004 aguardar Argo `Synced + Healthy` | **Do orquestrador** | Leitura via `ssh root@192.168.68.159`; esta auditoria não abre sessão nos hosts |
-| T005 confirmar serviço respondendo, separado do Argo | **Do orquestrador** | Mesma razão de T004 |
-| T006 registrar digest + estado do Argo em `EVIDENCIA.md` | **Do orquestrador** | `EVIDENCIA.md` §1 permanece com todo campo `(a preencher)` |
+| T001 confirmar merges + PASS, registrar commit da onda | **Do orquestrador — NÃO FEITO, dito por ele** | "A onda não está totalmente mergeada ainda. Vários worktrees continuam abertos." Não há árvore final para nomear o commit ainda |
+| T002 `make verify` antes de publicar | **Do orquestrador — NÃO FEITO, dito por ele** | "`make verify` não está verde ainda. Quatro vermelhos separados estão sendo trabalhados agora." |
+| T003 publicar com `make deploy-stg` **sem** `COMPONENTS=` | **Do orquestrador — NÃO FEITO como a tarefa pede, e é achado contra o preparo da demo, não contra o produto** | O operador publicou com `COMPONENTS="app web"` — mais estreito do que **esta própria tarefa** manda ("sem `COMPONENTS=`, porque a onda mudou app e console"). O proxy de credencial ficou em código de trinta horas atrás e custou uma hora de diagnóstico errado até ser notado. A tarefa dizia a coisa certa; não foi seguida. Ele fará o deploy completo antes de a onda fechar |
+| T004 aguardar Argo `Synced + Healthy` | **Do orquestrador** | Não documentado no novo `evidence/demo-2026-08-24/`; nenhum texto ou screenshot de `kubectl get application`. O comportamento real do serviço ao longo de toda a demo (alerta → webhook → incidente → investigação, tudo respondendo) é indício forte de que o serviço estava servindo, mas não é o registro formal que a tarefa pede |
+| T005 confirmar serviço respondendo, separado do Argo | **Do orquestrador** | Mesma razão de T004 — implícito no sucesso da demo inteira, não registrado à parte |
+| T006 registrar digest + estado do Argo em `EVIDENCIA.md` | **Do orquestrador** | Não presente no novo `EVIDENCIA.md`, que é narrativo e não usa a estrutura §1 do gabarito original |
 
 ### Fase 2 — aptidão do ambiente (T007–T016)
 
+**Reaberta depois de o laço inteiro ter rodado de verdade — a maioria virou
+provável por screenshot real, aberto e lido nesta auditoria, não presumido
+do texto do operador.**
+
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T007 identificador da organização | **FEITO** | Não descoberto por esta auditoria, mas provado correto pelo uso: os oito arquivos reais em `evidence/` (coletados 2026-08-24T09:11:29Z pelo operador) usam `org=default` e devolvem linhas reais e não vazias em toda consulta escopada por ele — `evidence/E4-...txt` conta 5 turnos, 4 chamadas, 1 evidência para `org_id='default'`. Um `:org` errado devolveria zero em tudo |
-| T008 provider Verified, chave do cofre | **Do orquestrador** | Nenhuma screenshot de `/settings/models-providers` existe (`evidence/telas/` não existe). Indício indireto, não a prova exigida: `evidence/E4-...txt` mostra quatro chamadas reais ao Gemini (`"model": "gemini-flash-latest"`) com tokens e duração reais, o que exige um provider funcionando — mas não confirma o rótulo **Verified** nem que a chave veio do cofre |
-| T009 Proxmox conectado, confiança declarada, `/resources` real | **Do orquestrador** | `evidence/E3-...txt` (a única leitura real de `estate_resources` que existe) devolve **0** para `present_resources` no instante coletado (09:11:29Z de 24/08) — o mesmo valor de partida da onda, não o valor "depois". Se `/resources` está com 100 recursos agora, a mudança aconteceu **depois** desse instante; esta auditoria não tem uma leitura mais nova porque não toca staging. Nenhuma screenshot existe |
-| T010 privilégio do token do Proxmox | **Do orquestrador** | Leitura do console do Proxmox, decisão de fronteira de segurança do operador |
-| T011 operador confirma a vítima na abertura da janela | **Do orquestrador** | Confirmação verbal, por natureza fora do alcance de uma auditoria de código |
-| T012 vítima `running`, conferido | **Do orquestrador** | `pct status 122` via `ssh root@192.168.68.159`; não executado por esta auditoria |
-| T013 regra de alerta ativa + rota casando severidade | **Do orquestrador** | As regras do Alertmanager/Prometheus não estão neste repositório — busca confirmou zero arquivos citando `RestoreDrillStale` ou `RedisExporterDown` na árvore. Leitura obrigatoriamente contra a stack de monitoração real |
-| T014 webhook recusa sem credencial | **Do orquestrador** | Sonda HTTP contra a URL pública; esta auditoria não inicia requisição nenhuma contra staging, para não competir com a sessão ao vivo do operador |
-| T015 escolher o alerta já ativo do laço de leitura, e por quê | **Do orquestrador** | O alerta **foi** escolhido e exercitado — `RestoreDrillStale` sobre `192.168.68.159`, seis ciclos de correlação entre 03:38Z e 09:03Z de 24/08 em `evidence/E10-...txt`. O que falta é o registro do "por quê" em `EVIDENCIA.md`, que continua `(a preencher)` |
-| T016 registrar a tabela de aptidão em `EVIDENCIA.md` §2 | **Do orquestrador** | Doze linhas, todas com a coluna "Conferido?" vazia |
+| T007 identificador da organização | **FEITO** | `org=default`, usado com sucesso em toda consulta já coletada (ambas as investigações, a antiga e a nova) |
+| T008 provider Verified, chave do cofre | **FEITO** | `evidence/demo-2026-08-24/antes-01-modelos.png`, aberto e lido nesta auditoria: "Google Gemini · **Verified**". A origem-do-cofre não aparece como texto na tela (é fato de composição, já confirmado em `gateway/http/lifespan.py:74` `compose_provider_credentials` na auditoria de 23/08) |
+| T009 Proxmox conectado, confiança declarada, `/resources` real | **FEITO** | `evidence/demo-2026-08-24/antes-02-integracoes.png`: "Proxmox VE · **Verified**". `evidence/demo-2026-08-24/antes-03-recursos.png`: "100 watched · 71 healthy · 0 degraded · 14 unhealthy" — resolve a preocupação da primeira passagem desta auditoria (a leitura de banco das 09:11Z tinha pego o estate ainda vazio; o sync aconteceu depois). O fingerprint pinado especificamente não aparece nestes dois screenshots (fica atrás de "Manage") — não visto por esta auditoria, só relatado |
+| T010 privilégio do token do Proxmox | **NÃO FEITO por esta auditoria — a alegação do operador não está no registro escrito** | O operador relatou em mensagem que o token é `root@pam!infra` com `Administrator`. Varredura de `EVIDENCIA.md` e `achados.md` por `root@pam`, `Administrator` e `VM.PowerMgmt`: **zero ocorrências**. O próprio operador instruiu "não tome esta mensagem como fonte, tome o arquivo" — aplicado aqui de volta a ele mesmo: sem o fato no arquivo, a caixa não é marcada |
+| T011 operador confirma a vítima na abertura da janela | **FEITO** | `EVIDENCIA.md:4-5`: "Contêiner CT122 (`redis`, nó `pve01`) parado com **autorização explícita do operador**" |
+| T012 vítima `running`, conferido | **FEITO** | Não por `pct status` direto, mas pela própria investigação: `evidence/demo-2026-08-24/e5-01-relato.png` — "The LXC container `redis` (`lxc/122`) hosted on node `pve01` **transitioned from running** (`pve_up == 1`) to a stopped state (`pve_up == 0`)", lido com base em métrica real, não em suposição |
+| T013 regra de alerta ativa + rota casando severidade | **FEITO** | `evidence/demo-2026-08-24/e3-01-lista-incidentes.png` mostra `ProxmoxGuestStopped`, `RedisExporterDown`, `InstanceDown`, `GatusEndpointHea…`, `DatabaseTcpProbe…`, todas **CRITICAL**, abertas em minutos. Ver a correção do próprio operador sobre qual regra era a precondição, na seção de descobertas acima |
+| T014 webhook recusa sem credencial | **PARCIAL, não fechável** | O lado de aceitação está provado ao vivo: `202`, autenticado (`EVIDENCIA.md:14,29-30`). A sonda específica de recusa (sem credencial) não está registrada nesta rodada |
+| T015 escolher o alerta já ativo do laço de leitura, e por quê | **Do orquestrador** | Inalterado — é sobre o laço de **leitura** (`RestoreDrillStale`), um cenário diferente do laço inteiro que rodou agora |
+| T016 registrar a tabela de aptidão em `EVIDENCIA.md` §2 | **Do orquestrador** | O novo `EVIDENCIA.md` é narrativo; não tem a tabela de doze linhas do gabarito original, embora cubra a maioria dos mesmos fatos em prosa |
 
 ### Fase 3 — os roteiros e o gabarito (T017–T026, T033)
 
@@ -182,31 +329,45 @@ que faltava ao lado da caixa, exatamente como pedido.
 
 ### Fase 7 — a janela, o laço inteiro (T045–T060)
 
+**Rodou de verdade em 24/08, enquanto esta auditoria trabalhava.** As linhas
+abaixo citam `evidence/demo-2026-08-24/`, não mais os arquivos antigos em
+`evidence/*.txt` (que continuam sendo sobre a investigação de leitura
+anterior — ver a lacuna nomeada na atualização acima).
+
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T045 abrir a janela, confirmação da vítima | **Do orquestrador** | ação verbal ao vivo do operador |
-| T046 o passo destrutivo, digitado uma vez | **Do orquestrador — e corretamente assim** | esta auditoria foi instruída a não tocar CT122/`pve01`/`pve02`, e não tocou |
-| T047 E1 — o alerta dispara sozinho | **Do orquestrador** | `evidence/E8-...txt`/`E9-...txt`: zero linhas a jusante |
-| T048 E2 — entrega autenticada | **Do orquestrador** | mesma evidência de zero linhas |
-| T049 E3 — incidente abre legível | **Do orquestrador** | mesma evidência de zero linhas |
-| T050 E4 — investigação grava | **Do orquestrador** | mesma evidência de zero linhas |
-| T051 E5 — relato legível | **Do orquestrador** | mesma evidência de zero linhas |
-| T052 E6 — ferramentas condizentes | **Do orquestrador** | mesma evidência de zero linhas |
-| T053 E7 — proposta aguardando | **Do orquestrador** | `evidence/E7-...txt`: 0 linhas em `approvals` para qualquer run deste laço |
-| T054 conferir E4–E7 antes de aprovar | **Do orquestrador** | nada a conferir ainda |
-| T055 E8 — operador aprova pela interface | **Do orquestrador** | `evidence/E8-...txt`: `nothing-executed-unattended`=0; `decision`/`audit-of-the-decision`: `NOT COLLECTED`, sem `--approval` |
-| T056 E9 — execução pelo gate | **Do orquestrador** | `evidence/E9-...txt`: `outcome` `NOT COLLECTED`, `episode`: 0 linhas |
-| T057 E10 — incidente reflete o desfecho | **Do orquestrador** | `evidence/E3-...txt` mostra este mesmo incidente ainda `state=investigating`, nunca fechado |
-| T058 conferir que o alerta resolveu e fechou o incidente | **Do orquestrador** | mesmo estado `investigating` |
-| T059 reversão: confirmar `running` | **Do orquestrador** | `pct status` ao vivo, fora desta auditoria |
-| T060 fechar a janela, registrar instante + resumo | **Do orquestrador** | `EVIDENCIA.md` §4, E1–E10 todos em branco |
+| T045 abrir a janela, confirmação da vítima | **FEITO** | `EVIDENCIA.md:4-5`, autorização explícita registrada; `marco-zero.txt` ancora os instantes |
+| T046 o passo destrutivo, digitado uma vez | **FEITO** | `marco-zero.txt`: `pct stop 122` às 10:26:29Z, confirmado 10:26:36Z. A primeira tentativa (endereço errado no roteiro) falhou sem parar nada — evidência extra de que foi digitado à mão, não roteirizado |
+| T047 E1 — o alerta dispara sozinho | **FEITO** | `EVIDENCIA.md:12-13`: `activeAt` 10:27:34, disparo 10:29:34 (`for: 2m` cumprido); "Nenhum alerta foi emitido à mão" |
+| T048 E2 — entrega autenticada | **FEITO** | `EVIDENCIA.md:14,29-30`: `202` às 10:29:45, "the delivery was authenticated by alertmanager-delivery". Sem screenshot dedicado de `/settings/alert-intake` — a evidência é textual/linha do tempo |
+| T049 E3 — incidente abre legível, sujeito resolvido | **NÃO FEITO — a alegação normativa não se sustenta inteira, contra dois achados reais** | Abriu, é endereçável (`inc_05328c58ca88676b`), sem painel irrecuperável, chip correto (`Investigating`, não `Unknown`) — visto em `e3-02-incidente.png`. Mas o **título** é `ProxmoxGuestStopped` (não uma frase — Achado 1) e o **cabeçalho** atribui `node pve02` quando o convidado roda em `pve01` (Achado 2). Duas das quatro sub-alegações do próprio T049 falham, e são achados de produto nomeados, não falha desta estação em si |
+| T050 E4 — investigação grava | **FEITO, com uma lacuna nomeada** | `e5-01-relato.png`: 13 eventos, 5 turnos, 44.746 tokens, 4 chamadas de ferramenta com o resultado real de cada. O coletor **não** rodou contra este `run_id`/`incident_id` — ver a lacuna na atualização acima; a contagem vem da tela, não de uma consulta SQL literal |
+| T051 E5 — relato legível | **FEITO** | Manchete: "Proxmox LXC container redis on node pve01 stopped unexpectedly causing service and exporter outages" — frase completa, sem markdown, **nomeia o nó certo** (contraste direto com o Achado 2, no mesmo run) |
+| T052 E6 — ferramentas condizentes | **FEITO** | Tabela de 4 chamadas em `EVIDENCIA.md:48-56`, cada uma com o resultado real, incluindo dois `501`/mensagem de configuração ausente verbatim do upstream. Nenhuma capacidade de vendor não conectado foi oferecida. Não conferida a metade de log (`tool_selection`/`integrations_unresolved`) |
+| T053 E7 — proposta aguardando | **NÃO FEITO — não exercida, e a razão é do produto, não do ambiente** | O catálogo inteiro tem só três capacidades de escrita (`alertmanager_acknowledge_incident`, `pushover_post_message`, `telegram_post_message`), todas aviso — nenhuma atua sobre infraestrutura. O balcão compôs 20 capacidades, o portão registrou por run, o teto de 40 ferramentas não foi tocado (só 4 usadas): nada foi cortado por orçamento. **O agente estava certo em não propor nada** — é o desfecho `REPROVOU (produto)`/declarado, não `NÃO EXERCIDA` por ambiente |
+| T054 conferir E4–E7 antes de aprovar | **NÃO FEITO** | Não se aplica: sem proposta, não há o que confirmar antes de aprovar |
+| T055 E8 — operador aprova pela interface | **NÃO FEITO — não exercida, mesma razão de T053** | Sem proposta, não há decisão para tomar |
+| T056 E9 — execução pelo gate | **NÃO FEITO — não exercida, mesma razão de T053** | Sem aprovação, não há execução |
+| T057 E10 — incidente reflete o desfecho | **FEITO, por um caminho que a tarefa não previu** | Não pela execução (não houve). O incidente **se fechou sozinho**: `EVIDENCIA.md:62-70` — `state: resolved`, `close_reason: "ProxmoxGuestStopped was resolved upstream"`, `self_resolved: true`. O produto não reivindica ter consertado o que o operador consertou à mão — visto em `e10-01-incidente-fechado.png` (`Resolved`, chip trocado de `Investigating`) |
+| T058 conferir que o alerta resolveu e fechou o incidente | **FEITO** | Mesmo texto de T057: a resolução e o fechamento são o mesmo evento, no mesmo incidente que abriu |
+| T059 reversão: confirmar `running` | **FEITO** | `marco-zero.txt`: religada às 10:44:47Z, à mão — porque não havia caminho de produto que a religasse |
+| T060 fechar a janela, registrar instante + resumo | **FEITO, em substância** | O próprio `EVIDENCIA.md` é esse resumo; não há uma linha "janela fechada às HH:MM" separada do último evento (E10, 10:50:06) |
 
 ### Fase 8 — a rejeição (T061–T063)
 
+**Observação estrutural que a demo de 24/08 expõe, e que vale registrar para
+quem tentar esta fase em seguida**: as únicas três capacidades de escrita do
+catálogo inteiro são notificação (`alertmanager_acknowledge_incident`,
+`pushover_post_message`, `telegram_post_message`) — nenhuma atua sobre
+infraestrutura. Se nenhuma remediação de infraestrutura é jamais proposta (o
+que T053 acabou de provar para este cenário), a "ocorrência diferente"
+que FR-019 pede para a rejeição só pode nascer de uma dessas três, não de um
+segundo CT122. Não exercida nesta rodada; nomeada aqui para a próxima.
+
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T061 rejeitar sem motivo, em ocorrência diferente | **Do orquestrador** | `evidence/R-...txt`: 0 linhas em `approvals` com `state='rejected'` |
-| T062 rejeitar com motivo | **Do orquestrador** | Mesma evidência de T061 — nada decidido ainda |
+| T061 rejeitar sem motivo, em ocorrência diferente | **Do orquestrador** | `evidence/R-...txt`: 0 linhas em `approvals` com `state='rejected'`. Nenhuma proposta de nenhum tipo apareceu na demo de 24/08 para rejeitar |
+| T062 rejeitar com motivo | **Do orquestrador** | Mesma razão de T061 |
 | T063 conferir as duas decisões na auditoria | **Do orquestrador** | `evidence/R-...txt`, consulta `both-decisions-in-the-audit`: 0 linhas |
 
 ### Fase 9 — tarefas operacionais (T064–T068)
@@ -217,36 +378,36 @@ que faltava ao lado da caixa, exatamente como pedido.
 | T065 sincronização do segredo gerenciado | **Do orquestrador** | Leitura via `kubectl get infisicalsecret -A`; não executada. `backlog.md` ("The managed-secret operator in the cluster cannot authenticate") carrega o estado mais recente conhecido: ainda não |
 | T066 chave do gateway de modelos, Verified | **Do orquestrador** | Leitura de console; não executada. `backlog.md` ("One model gateway has no key, so its provider never verifies") carrega o estado mais recente conhecido: ainda não |
 | T067 escrever a entrada de cada uma não concluída no backlog novo | **FEITO** | As três estão em `backlog.md`, cada uma com "o que acontece hoje" e "como deveria ser julgado"; nenhuma foi omitida (ver T085) |
-| T068 marcar estações não exercidas por tarefa operacional pendente | **Do orquestrador** | `EVIDENCIA.md` §5, linha "Estações marcadas não exercidas": `(a preencher)` |
+| T068 marcar estações não exercidas por tarefa operacional pendente | **NÃO FEITO — e a premissa da tarefa não se confirmou** | E7/E8/E9 realmente ficaram não exercidas (`EVIDENCIA.md`, "Estações NÃO exercidas, e por quê"), mas por nenhuma das três tarefas operacionais desta fase — a razão é que o catálogo não tem capacidade de escrita sobre infraestrutura, um fato de produto, não um DNS/segredo/chave pendente |
 
 ### Fase 10 — a evidência consolidada (T069–T074)
 
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T069 preencher `EVIDENCIA.md` estação por estação | **Do orquestrador** | Todo campo de todas as 11 estações (E1–E10, R) continua `(a preencher)` |
-| T070 confirmar screenshot full-page 1920×1080 em toda estação-tela | **Do orquestrador** | `evidence/telas/` não existe |
-| T071 confirmar consulta + saída literal em toda estação-gravação | **PARCIAL, não fechável ainda** | E3/E4/E5/E7 têm; E8/E9/E10/R têm o arquivo mas com `NOT COLLECTED` ou zero linhas, porque essas estações não aconteceram — o que é o estado correto agora, não uma falha do coletor |
-| T072 varredura de credencial em texto e screenshot | **PARCIAL — a metade de texto, feita agora** | Esta auditoria varreu os oito `.txt` de evidência e `EVIDENCIA.md` contra um arquivo de padrões (`postgresql://`, `Authorization: Bearer`, `-----BEGIN`, `PGPASSWORD`, formatos de chave de API comuns) — **zero ocorrências** — e, à parte, comparou os dois valores reais de `.env` (usuário e credencial de staging) contra os mesmos arquivos por um `grep -qF` que nunca imprime o valor — **nenhum dos dois aparece**. `evidence/telas/` não existe, então a metade de screenshot não é aplicável ainda |
-| T073 rodar acceptance das donas + transversal contra staging | **Do orquestrador** | Precisa da demo completa para fazer sentido como fechamento; a rodada determinística já registrada em "Gates" (23/08) segue válida para o que ela mediu, mas não substitui esta tarefa |
-| T074 veredito de uma frase + veredito por estação no topo de `EVIDENCIA.md` | **Do orquestrador** | Linha do veredito e tabela da §7 continuam vazias |
+| T069 preencher `EVIDENCIA.md` estação por estação | **FEITO, em documento próprio** | `evidence/demo-2026-08-24/EVIDENCIA.md` amarra, por estação, expectativa/evidência/veredito em prosa — não usa os campos literais do gabarito original em `evidence/EVIDENCIA.md` (que continua em branco, intocado), mas cumpre o mesmo propósito: nenhuma alegação sem a evidência ao lado |
+| T070 confirmar screenshot full-page 1920×1080 em toda estação-tela | **NÃO FEITO — largura errada, conferida por esta auditoria** | Onze screenshots reais existem, genuinamente full-page (alturas até 2370px). `file` sobre os onze: todos **1280px de largura**, não 1920px. E2 não tem screenshot dedicado |
+| T071 confirmar consulta + saída literal em toda estação-gravação | **NÃO FEITO — lacuna nomeada** | O coletor nunca rodou contra `run=d393d5d0…`/`incident=inc_05328c58ca88676b`. A evidência do laço inteiro é screenshot + prosa, real e verificada por esta auditoria, mas não é "a consulta SQL exata e a saída literal" que FR-024 pede |
+| T072 varredura de credencial em texto e screenshot | **FEITO** | Texto: os oito `.txt` antigos **e** os três arquivos novos (`EVIDENCIA.md`, `achados.md`, `marco-zero.txt`) varridos contra um arquivo de padrões e contra os dois valores reais de `.env` (nunca impressos) — zero ocorrências em ambas as rodadas. Screenshots: os onze abertos e lidos diretamente nesta auditoria — nenhum mostra token, senha ou credencial |
+| T073 rodar acceptance das donas + transversal contra staging | **Do orquestrador** | Ainda não rodado por esta auditoria; a rodada de 23/08 (45 passed, 7 skipped) segue sendo o último registro |
+| T074 veredito de uma frase + veredito por estação no topo de `EVIDENCIA.md` | **NÃO FEITO — dois terços presentes, um falta** | Presente em prosa: "Estações cumpridas" e "Estações NÃO exercidas, e por quê" cobrem o veredito por estação. Ausente: uma frase única de veredito geral no topo do documento |
 
 ### Fase 11 — os achados (T075–T078)
 
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T075 listar achados em `EVIDENCIA.md` §6 | **Do orquestrador** | Tabela só com cabeçalho. Um candidato observado por esta auditoria, **não classificado nem escrito aqui** porque julgar ambiente-vs-produto é do orquestrador: em `evidence/E4-...txt`, a chamada `prometheus_metric_statistics` devolveu `400` do Prometheus — `invalid parameter "start": cannot parse "" to a valid timestamp` — um parâmetro de início vazio chegando à API. Relatado no `relatorio-confronto.md` desta auditoria para que o orquestrador decida dono e destino |
-| T076 entregar achados de produto ao orquestrador, sem consertar | **Do orquestrador** | Consequência de T075; o candidato acima é entregue, não corrigido, por esta mesma auditoria |
-| T077 redigir entrada de backlog para achado sem dono | **Do orquestrador** | Depende de T075 ter classificado algo primeiro |
-| T078 reexecutar e substituir evidência após reparo aceito | **Do orquestrador** | Nenhum reparo ocorreu dentro desta feature |
+| T075 listar achados em `EVIDENCIA.md` §6 | **FEITO, em documento próprio** | `evidence/demo-2026-08-24/EVIDENCIA.md`, seção "Achados de produto": quatro achados numerados, cada um com descrição e evidência — não a tabela `# / Descrição / Estação / Classificação / Dona / Destino` do gabarito original, mas a mesma substância. Nenhum dos quatro tem dona atribuída ainda |
+| T076 entregar achados de produto ao orquestrador, sem consertar | **FEITO** | Os quatro achados chegaram a esta auditoria por mensagem direta do operador, com instrução explícita de reconciliar sem consertar — nenhum arquivo de produto foi tocado (reconfirmado no fim desta atualização) |
+| T077 redigir entrada de backlog para achado sem dono | **NÃO FEITO** | Nomear a dona de cada um dos quatro (ou declarar genuinamente sem dono) é decisão do orquestrador, com o contexto da onda inteira — não desta auditoria, que rastreou só um começo de pista para os achados 1/2 (`platform/persistence/ports/incident_store.py:148,188` — ver a atualização acima) e não abriu o resto do código para confirmar |
+| T078 reexecutar e substituir evidência após reparo aceito | **Do orquestrador** | Nenhum reparo ocorreu ainda |
 
 ### Fase 14 — fechamento (T089–T092)
 
 | Tarefa | Estado | Detalhe |
 |---|---|---|
-| T089 `make verify` completo, exit code + testes + duração | **Do orquestrador** | Não rodado por esta auditoria: é a árvore inteira (12223+ testes por `specs_v7/CONFRONTO.md`), reservado ao orquestrador na árvore final pela mesma instrução já registrada em 23/08. Esta auditoria rodou os gates da própria superfície tocada — ver "Verificação" no relatório — todos verdes |
-| T090 nenhum arquivo de produto alterado | **FEITO — reconferido** | `git diff --stat a0bfa74~1 aeb0dd6` fora de `specs_v7/080-incidente-fecha-o-laco/`, `tools/demo_evidence/`, `tests/unit/tools/test_demo_evidence.py`, `backlog.md`, `specs_v7/CONFRONTO.md`: **zero arquivos**. Os próprios commits desta auditoria tocam apenas `tasks.md`, este arquivo e `relatorio-confronto.md`, todos dentro do diretório da feature |
-| T091 este arquivo | **FEITO** | Reescrito nesta auditoria com o ledger por tarefa que faltava |
-| T092 reportar ao orquestrador | **FEITO** | Entregue como a resposta final desta auditoria: veredito em uma frase, caminho da evidência, achado com candidato a dona, estado das três tarefas operacionais, decisões pendentes do operador |
+| T089 `make verify` completo, exit code + testes + duração | **Do orquestrador — dito por ele, não presumido**: "quatro vermelhos separados estão sendo trabalhados agora" | Não rodado por esta auditoria: é a árvore inteira, reservado ao orquestrador. Esta auditoria rodou os gates da própria superfície tocada — ver "Verificação" no relatório — todos verdes |
+| T090 nenhum arquivo de produto alterado | **FEITO — reconferido depois desta atualização também** | `git diff --stat a0bfa74~1 aeb0dd6` fora da lista declarada: zero arquivos. Os commits desta auditoria (a rodada de 23/08 e esta atualização) tocam apenas `tasks.md`, este arquivo e `relatorio-confronto.md` |
+| T091 este arquivo | **FEITO** | Atualizado nesta mesma passagem para refletir o laço fechado de verdade |
+| T092 reportar ao orquestrador | **FEITO** | Entregue como a resposta final desta auditoria, reconciliada com a evidência real do laço inteiro |
 
 ---
 
@@ -493,17 +654,26 @@ dona é o trabalho de T075, que é do orquestrador, com a demo inteira à vista.
 
 ## O que fica pendente, nomeado, não escondido
 
+**Reescrita depois de o laço inteiro ter rodado de verdade em 24/08.** A
+maior parte da tabela anterior (versão de mais cedo hoje) descrevia o laço
+inteiro como não executado — isso deixou de ser verdade enquanto esta
+auditoria trabalhava, e a tabela abaixo é a versão atual.
+
 | Item | Estado | Dono |
 |---|---|---|
-| **A metade de leitura do laço de leitura** (E1–E7) | **PARCIAL.** Prova de banco real existe para E3, E4, E5, E7 (ver descoberta (h)); zero screenshots; `EVIDENCIA.md` sem uma linha preenchida; sem segunda passagem para provar repetibilidade (T044) | orquestrador |
-| **O laço inteiro** — Fase 7: a janela, o passo destrutivo, a aprovação, a execução (E8–E10) | **NÃO EXECUTADO, provado pela própria evidência** — `evidence/E8-...txt`/`E9-...txt` leem zero linhas. É a fronteira que esta auditoria foi instruída a não cruzar: o operador está executando `runbooks/navegador.md` à mão | orquestrador |
-| **A rejeição** — Fase 8 | **NÃO EXECUTADA** — `evidence/R-...txt` lê zero linhas em `approvals` e em auditoria | orquestrador |
-| **A evidência consolidada e os achados** — Fases 10–11 | **NÃO ESCRITAS.** `EVIDENCIA.md` continua o gabarito de 23/08; um candidato a achado de produto está nomeado na descoberta (j), sem dono atribuído por esta auditoria | orquestrador |
-| **T079 — seção por feature no confronto**, com o veredito de cada verifier | **NÃO FEITO, deliberadamente.** O cabeçalho do `CONFRONTO.md` declara que ele é medido pelo orquestrador e não copiado de relatório; escrever vereditos que não medi violaria isso | orquestrador |
-| **T089 — `make verify` completo** | **NÃO RODADO**, por instrução (repetida nesta auditoria) | orquestrador |
-| **Screenshots** (`evidence/telas/`) | **O diretório nem existe mais nesta árvore** (a versão de 23/08 o criara vazio; não sobreviveu ao merge). Nenhuma captura é possível desta worktree | orquestrador |
-| **As três tarefas operacionais** — resolução de nomes, sincronização de segredo gerenciado, chave do gateway de modelos | **NÃO VERIFICADAS por leitura nova.** `backlog.md` carrega o estado mais recente conhecido para as três (nenhuma resolvida) — ver Fase 9 no ledger. Se alguma tiver sido resolvida desde a última leitura, o item sai do backlog com a evidência nomeada | orquestrador |
-| **A frase "não executado" em `specs_v7/CONFRONTO.md`** (seção "A demo, e o que ela ainda deve") | **DESATUALIZADA** frente à descoberta (h) — não corrigida por esta auditoria porque aquele arquivo é medido pelo orquestrador, não por quem confronta a feature | orquestrador |
+| **O laço fechou uma vez, com um humano assistindo** — a pergunta que fecha a onda (§5 da última seção) | **SIM até a investigação e o auto-fechamento; NÃO até proposta/aprovação/execução, porque não há o que propor.** `E8/nothing-executed-unattended` não foi reconferido por consulta nova, mas por construção não pode ter mudado (nada foi aprovado) | ninguém — é o veredito, não uma pendência |
+| **T049 — dois achados de produto bloqueiam a alegação normativa de E3** | Título não é frase (Achado 1); cabeçalho atribui nó errado (Achado 2). Reais, confirmados por screenshot nesta auditoria, sem dona atribuída | orquestrador |
+| **T071/FR-024 — sem SQL literal para o run do laço inteiro** | O coletor nunca rodou contra `run=d393d5d0…`/`incident=inc_05328c58…`. Um comando fecharia isso — ver a lacuna nomeada na atualização acima | quem tiver acesso a staging (operador ou próxima sessão) |
+| **T070/FR-023 — screenshots a 1280px, não 1920px** | Onze capturas reais, genuinamente full-page, largura errada. E2 sem screenshot dedicado | quem recapturar |
+| **A rejeição** — Fase 8, e a candidata de ocorrência que a demo revelou | Não exercida; só as três capacidades de notificação jamais chegam a propor algo, então a "ocorrência diferente" de FR-019 precisa nascer de uma delas | orquestrador |
+| **Os quatro achados de produto, sem dona** | Listados em `evidence/demo-2026-08-24/EVIDENCIA.md`; um começo de pista para 1 e 2 (`incident_store.py:148,188`), nada para 3 e 4. Atribuir dona e decidir o ciclo de reparo é do orquestrador | orquestrador |
+| **O candidato da primeira passagem** (`prometheus_metric_statistics` → `400`) | Não se repetiu nesta investigação; continua aberto e sem dona | orquestrador |
+| **T079 — seção por feature no confronto**, com o veredito de cada verifier | **NÃO FEITO, deliberadamente.** O cabeçalho do `CONFRONTO.md` declara que ele é medido pelo orquestrador e não copiado de relatório | orquestrador |
+| **T001–T003 — a onda ainda não fechou** | Dito pelo próprio operador: merges pendentes, `make verify` com quatro vermelhos, o deploy da demo mais estreito do que a própria T003 manda (achado contra o preparo, com reparo prometido antes do fechamento) | orquestrador |
+| **T089 — `make verify` completo** | **NÃO RODADO**, consequência direta do item acima | orquestrador |
+| **A imprecisão de `pve01` em `laco-inteiro.md`** | `ssh root@192.168.68.159 'ssh pve01 "..."'` não resolve; o endereço real é `192.168.68.149`. Reparo de texto desta própria feature, nomeado e não corrigido nesta passagem | próxima passagem desta feature |
+| **As três tarefas operacionais** — resolução de nomes, sincronização de segredo gerenciado, chave do gateway de modelos | **NÃO VERIFICADAS por leitura nova.** `backlog.md` carrega o estado mais recente conhecido — nenhuma resolvida | orquestrador |
+| **A frase "não executado" em `specs_v7/CONFRONTO.md`** (seção "A demo, e o que ela ainda deve") | **Mais desatualizada ainda agora** — o laço inteiro rodou de verdade e fechou sozinho. Não corrigida por esta auditoria, mesma razão de T079 | orquestrador |
 | **A coluna do confronto para features futuras** | as 17 linhas cobrem o que esta onda entregou; um mecanismo novo precisa de linha nova | próxima onda |
 
 ---
@@ -677,3 +847,31 @@ depois de todas as consultas acima:
 
 Se `E8/nothing-executed-unattended` não devolver `0`, a resposta é **não**,
 qualquer que seja o resto.
+
+---
+
+## Resposta a esta pergunta, depois da demo de 24/08
+
+**Não inteiramente — e o "não" tem uma forma específica, não um "quase".** As
+seis primeiras estações fecharam de verdade: o alerta disparou sozinho, a
+entrega chegou autenticada, o incidente abriu, a investigação gravou o que
+fez com honestidade (inclusive dois `FAILED` verbatim), o relato é legível e
+nomeia o nó certo, as ferramentas condisseram com o que está conectado. A
+décima também fechou, por um caminho que ninguém tinha escrito: o incidente
+refletiu o desfecho — resolvido, com a causa nomeada, sem o produto
+reivindicar o que um humano fez à mão.
+
+As três do meio — propor, aprovar, executar — não aconteceram, e a evidência
+prova que a razão é do produto: o catálogo inteiro não tem uma única
+capacidade que aja sobre infraestrutura. `E8/nothing-executed-unattended`
+não foi reconferido por consulta nova nesta rodada, mas não pode ter deixado
+de ser `0` — nada foi decidido para executar.
+
+Isto não é o `SIM` sem qualificação que a pergunta original esperava, e
+também não é o `NÃO` que "o laço não fecha" descreveria. É um terceiro
+resultado que a spec já previa por escrito, na estação E7: "a investigação
+conclui sem evidência suficiente para propor... e isso é correto." A
+correção é mais severa aqui — não faltou evidência, faltou capacidade —, mas
+a forma do desfecho é a mesma que a spec já nomeou como aceitável. Fechar a
+onda com essa resposta, ou tratar "propor uma remediação de infraestrutura"
+como trabalho ainda em aberto, é decisão do orquestrador.

@@ -72,10 +72,10 @@ Nenhuma tarefa desta fase altera infraestrutura.
       deployment de staging no banco — toda consulta de evidência é escopada por
       ele. `SELECT org_id, name FROM organisations;` no `ninjasre-stg-db`.
       Guardar como o parâmetro `:org` dos roteiros.
-- [ ] T008 [P] Conferir que o provider de modelo está **Verified** no console
+- [x] T008 [P] Conferir que o provider de modelo está **Verified** no console
       (`/settings/models-providers`) e que a resolução da chave é a do vault.
       Screenshot em `evidence/telas/`. Se estiver Stored, é achado da 030.
-- [ ] T009 [P] Conferir que o Proxmox está conectado (`/integrations`) com a
+- [x] T009 [P] Conferir que o Proxmox está conectado (`/integrations`) com a
       confiança de certificado declarada pela 070, e que `/resources` lista
       recursos reais. Screenshot das duas telas. `SELECT count(*) FROM
       estate_resources WHERE org_id = :org;` — o valor de partida da onda é zero
@@ -85,17 +85,17 @@ Nenhuma tarefa desta fase altera infraestrutura.
       `/vms`). **Sem alterar o token.** Se ele for de leitura, registrar como
       **decisão pendente do operador** — conceder escrita é decisão de fronteira
       de segurança dele — e marcar a estação E9 como possivelmente não exercível.
-- [ ] T011 Conferir com o operador, e registrar a resposta: a vítima candidata
+- [x] T011 Conferir com o operador, e registrar a resposta: a vítima candidata
       `redis` (CT122, pve01, `10.20.20.52`) continua fora de uso e autorizada?
       Se não, qual alvo de scrape ou sonda real pode ficar fora por dez minutos?
       **Nenhum passo destrutivo acontece sem esta resposta.**
-- [ ] T012 Conferir o estado inicial da vítima:
+- [x] T012 Conferir o estado inicial da vítima:
       `ssh root@192.168.68.159 'ssh pve01 "pct status <VMID>"'` (ou o caminho
       equivalente ao nó). Precisa dizer **running**. Uma vítima já parada não
       pode ser parada pelo passo destrutivo, e um alerta já disparando não foi
       disparado por este teste — seguir assim é colher um incidente verdadeiro e
       concluir dele uma coisa falsa.
-- [ ] T013 [P] Conferir que a regra de alerta que cobre a vítima existe e está
+- [x] T013 [P] Conferir que a regra de alerta que cobre a vítima existe e está
       ativa no Prometheus, e que a rota do Alertmanager casa a severidade que ela
       emite. Registrar a expressão da regra e o `for`. Sem isso, a estação E1
       falharia por ausência de regra e alguém leria isso como defeito do produto.
@@ -268,31 +268,31 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 pelo operador), T016 (aptidão registrada), T036 (vermelho registrado), operador
 presente e a par.
 
-- [ ] T045 Abrir a janela com o operador. Registrar o instante de abertura e a
+- [x] T045 Abrir a janela com o operador. Registrar o instante de abertura e a
       confirmação verbal da vítima. Reconferir `pct status` — o estado pode ter
       mudado desde T012.
-- [ ] T046 **O passo destrutivo**, digitado por uma pessoa, uma vez:
+- [x] T046 **O passo destrutivo**, digitado por uma pessoa, uma vez:
       `ssh pve01 'pct stop <VMID>'`. Anotar a hora; ela é a referência de tudo o
       que vem depois. **Não emitir alerta nenhum** — o alerta tem que disparar
       por conta própria, e é isso que separa este roteiro do laço de leitura.
-- [ ] T047 E1 — o alerta dispara sozinho. Evidência: o alerta ativo no
+- [x] T047 E1 — o alerta dispara sozinho. Evidência: o alerta ativo no
       Alertmanager, com o instante, sem ninguém o ter emitido. Contar com o `for`
       da regra mais o `group_wait` da rota; silêncio antes disso é o esperado,
       não sintoma. **Desfecho de ambiente**: não disparou na janela ⇒ reconferir
       a regra e o alvo, reexecutar.
-- [ ] T048 E2 — a entrega chega autenticada. Evidência: a entrega registrada, com
+- [x] T048 E2 — a entrega chega autenticada. Evidência: a entrega registrada, com
       origem, horário e resultado; screenshot da tela de intake.
       **Desfecho de ambiente**: alerta disparou e entrega não chegou por não
       resolver o nome do deployment ⇒ é a tarefa operacional de resolução de
       nomes, não o webhook.
 - [ ] T049 E3 — o incidente abre com título legível e sujeito resolvido.
       Screenshot full-page do detalhe. Registrar o identificador do incidente.
-- [ ] T050 E4 — a investigação grava. Screenshot full-page do run **depois de um
+- [x] T050 E4 — a investigação grava. Screenshot full-page do run **depois de um
       reload** (o ponto é ler do store, não do processo). Rodar o coletor para
       este run e anexar as contagens e o custo por turno.
-- [ ] T051 E5 — o relato é legível. Screenshot full-page; anexar a consulta que
+- [x] T051 E5 — o relato é legível. Screenshot full-page; anexar a consulta que
       mostra a sentença separada do documento.
-- [ ] T052 E6 — as ferramentas condizem com o que está conectado. Evidência: o
+- [x] T052 E6 — as ferramentas condizem com o que está conectado. Evidência: o
       transcript, mais a lista de ferramentas do agente.
 - [ ] T053 E7 — a proposta aparece com plano de reversão, aguardando decisão.
       Screenshot de `/decisions` e do painel no incidente; anexar as consultas de
@@ -314,15 +314,15 @@ presente e a par.
       ou lock ⇒ grava-se a falha com a razão nomeada, e o plano de reversão não
       roda porque nada mudou. Falha nomeada fecha o laço com desfecho negativo; o
       que não fecha o laço é falha silenciosa.
-- [ ] T057 E10 — o incidente reflete o desfecho. Screenshot full-page do detalhe
+- [x] T057 E10 — o incidente reflete o desfecho. Screenshot full-page do detalhe
       do incidente depois da execução; anexar as consultas de `incident_timeline`
       e `incidents`.
-- [ ] T058 Conferir que o alerta resolveu e que a resolução fechou o incidente que
+- [x] T058 Conferir que o alerta resolveu e que a resolução fechou o incidente que
       a abertura criou.
-- [ ] T059 **Reversão**: confirmar que o convidado está `running`. Se a execução
+- [x] T059 **Reversão**: confirmar que o convidado está `running`. Se a execução
       não o religou, religar à mão imediatamente — a validação não deixa o serviço
       refém dela.
-- [ ] T060 Fechar a janela. Registrar o instante e o resumo do que aconteceu, em
+- [x] T060 Fechar a janela. Registrar o instante e o resumo do que aconteceu, em
       `evidence/EVIDENCIA.md`.
 
 ---
@@ -365,13 +365,13 @@ e registra o estado real.
 
 ## Fase 10: A evidência consolidada
 
-- [ ] T069 Preencher `evidence/EVIDENCIA.md` estação por estação: expectativa,
+- [x] T069 Preencher `evidence/EVIDENCIA.md` estação por estação: expectativa,
       evidência, consulta, saída literal, veredito, instante.
 - [ ] T070 Conferir que **toda** estação que é tela tem screenshot full-page em
       1920×1080, nomeada pela estação, em `evidence/telas/`.
 - [ ] T071 Conferir que **toda** estação que alega gravação tem consulta e saída
       literal em `evidence/consultas/`, com o valor de partida ao lado.
-- [ ] T072 Varrer a evidência inteira — texto e screenshots — à procura de
+- [x] T072 Varrer a evidência inteira — texto e screenshots — à procura de
       credencial, token, chave ou senha. Uma screenshot com um valor de token é
       um vazamento tão real quanto um commit com ele. Sem esta varredura a
       evidência não é entregue.
@@ -387,10 +387,10 @@ e registra o estado real.
 
 ## Fase 11: Os achados — reparo da dona, ou backlog novo
 
-- [ ] T075 Listar todo achado da demo em `evidence/EVIDENCIA.md`, seção
+- [x] T075 Listar todo achado da demo em `evidence/EVIDENCIA.md`, seção
       "Achados": descrição, estação onde apareceu, classificação
       (ambiente / produto), e feature dona ou "sem dono".
-- [ ] T076 Para cada achado de produto com dona: entregar ao orquestrador com a
+- [x] T076 Para cada achado de produto com dona: entregar ao orquestrador com a
       estação e a evidência. **Não consertar aqui.** A decisão de gastar um ciclo
       de reparo é dele.
 - [ ] T077 Para cada achado sem dona na onda: redigir a entrada do backlog novo,
