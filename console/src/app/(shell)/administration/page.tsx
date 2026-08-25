@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { legacyRedirectHref } from '@/shell/legacy-redirect';
 import type { SearchParams } from '@/surfaces/context';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * Retired by the hybrid navigation: People carries on as Members & roles,
  * Audit carries on as its own page. `?tab=` decides which, the same way it

@@ -7,6 +7,9 @@ import { loadSetup } from '@/shell/load';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { FirstRunScreen } from '@/surfaces/screens/first-run';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /** The guided setup. An area of the console, never something in front of it. */
 export function generateMetadata(): Promise<Metadata> {
   return areaMetadata('first-run');

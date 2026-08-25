@@ -6,6 +6,9 @@ import { routeParam } from '@/shell/route-params';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { IntegrationsScreen } from '@/surfaces/screens/integrations';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * The deep link into one integration's credential panel.
  *

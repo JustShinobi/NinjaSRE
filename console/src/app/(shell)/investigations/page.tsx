@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { legacyRedirectHref } from '@/shell/legacy-redirect';
 import type { SearchParams } from '@/surfaces/context';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * Retired: the sidebar and the search palette have called this area "Runs"
  * since the hybrid navigation, but `/investigations` is the name people

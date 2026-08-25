@@ -12,6 +12,9 @@ import {
   IncidentDetailScreen,
 } from '@/surfaces/screens/incident-detail';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * One incident, named in the tab as well as on the page.
  *

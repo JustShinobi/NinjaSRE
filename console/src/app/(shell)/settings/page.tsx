@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { settingsGroupsFor } from '@/shell/routes';
 import { surfaceContext } from '@/surfaces/context';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * The Settings hub has no page of its own: it opens on the first page of the
  * first subnav group this viewer may reach — the same "first thing you are

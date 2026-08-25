@@ -10,6 +10,9 @@ import { subjectOf } from '@/surfaces/run-subject';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { RunDetailScreen } from '@/surfaces/screens/run-detail';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * One investigation.
  *
