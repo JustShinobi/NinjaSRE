@@ -132,6 +132,28 @@ class TestComposesTheCanonicalLoop:
         assert built.max_iterations == MAX_INVESTIGATION_LOOPS
         assert built.wall_clock_seconds == RUN_WALL_CLOCK_SECONDS
 
+    def test_the_run_request_tells_the_agent_that_proposing_is_part_of_the_job(self) -> None:
+        """A write in the toolset is useless to a model told only to investigate.
+
+        The loop falls back to ``DEFAULT_RUNTIME_SYSTEM_PROMPT`` when a request
+        carries none, and that prompt exists — by its own docstring — for a
+        test, a sub-agent, or a one-off question. It frames the job as find
+        out, read, say what it means, stop as soon as the evidence supports an
+        answer. It never mentions that a remediation capability in the toolset
+        becomes a proposal for a human rather than an effect.
+
+        Measured against a live deployment twice: an investigation was offered
+        ``proxmox_start_guest``, declared its own evidence sufficient with
+        nothing missing and nothing preventing the guest from running, and
+        stopped without calling it. It did what it was told.
+        """
+        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+
+        built = runner._request_of(_request())
+
+        assert built.system_prompt, "the serving path must not fall back to the loop's own framing"
+        assert "propose" in built.system_prompt.lower()
+
     def test_the_run_request_carries_this_runs_own_identity(self) -> None:
         runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
 

@@ -41,6 +41,7 @@ from typing import Any
 from capabilities.registry.catalogue import Registry
 from capabilities.registry.planning import CatalogueRanker, TeamCatalogueResolver
 from config.constants.investigation import MAX_AGENT_TOOL_SCHEMAS
+from config.prompts import INVESTIGATION_SYSTEM_PROMPT
 from core.agent.handoff import HANDOFF_CAPABILITY, HumanHandoff
 from core.agent.interaction.models import Interaction
 from core.agent.interaction.registry import InteractionRegistry
@@ -515,11 +516,20 @@ class ReActInvestigationRunner:
         iteration ceiling, wall clock, context budget — is left at
         ``RunRequest``'s own default: this composition lowers nothing and
         raises nothing.
+
+        The system prompt is named rather than left empty. Empty means the
+        loop's own fallback, which is written for a sub-agent or a one-off
+        question and frames the job as investigating and nothing else — with no
+        mention that a remediation capability in the toolset becomes a proposal
+        rather than an effect. An incident investigation is the one caller
+        whose toolset can hold such a capability, so it is the one caller that
+        has to say so.
         """
         return RunRequest(
             objective=request.objective,
             alert_source=request.alert_source,
             session_id=request.run_id,
+            system_prompt=INVESTIGATION_SYSTEM_PROMPT,
             context=dict(request.context),
         )
 

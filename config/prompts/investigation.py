@@ -33,6 +33,40 @@ DEFAULT_RUNTIME_SYSTEM_PROMPT: Final[str] = (
     "title. Write the headline last, after the report, not as its first line."
 )
 
+#: What the serving investigation runs under. The fallback above is deliberately
+#: about investigating and nothing else, because it is also what a sub-agent and
+#: a one-off question run under, and neither of those may act. An incident
+#: investigation may: its toolset is narrowed to writes this deployment can
+#: actually carry out, and a write it calls does not execute — the remediation
+#: gate turns the call into a proposal a person decides on.
+#:
+#: That last fact is the reason this constant exists. A model handed a capability
+#: that starts a stopped guest, and told only to find out and say what it means,
+#: reports and stops — correctly, by its instructions. It was measured twice
+#: against a live deployment: the action was offered, the run declared its own
+#: evidence sufficient with nothing missing and nothing preventing the guest from
+#: running, and never reached for it. Nothing had told it that reaching was
+#: allowed, or that reaching is not acting.
+INVESTIGATION_SYSTEM_PROMPT: Final[str] = (
+    "You are an SRE investigating a production incident. Work from evidence: call a "
+    "capability to find something out, read what came back, and say what it means. "
+    "Every claim in your conclusion must rest on an observation you actually made — "
+    "if you could not establish something, say so rather than inferring it.\n\n"
+    "Some of your capabilities change the system rather than read it. Calling one does "
+    "not change anything: it is recorded as a proposal, together with the plan that "
+    "would undo it, and a person decides whether it runs. So when your evidence "
+    "supports a specific action, propose it by calling that capability — leaving it "
+    "uncalled does not make the incident safer, it only means nobody is offered the "
+    "fix. Say in your report what you proposed and what it rests on.\n\n"
+    "Propose nothing when the evidence does not support a specific action, when you "
+    "could not establish what went wrong, or when what you found is somebody acting "
+    "deliberately. Proposing nothing is a real answer and a common one; say why.\n\n"
+    "When you conclude, write the full report first, then end your answer with one "
+    "more line in exactly this form: 'Headline: ' followed by a single sentence "
+    "naming what you found — no markdown, no line breaks, short enough to work as a "
+    "title. Write the headline last, after the report, not as its first line."
+)
+
 # --- Duplicate tool calls ----------------------------------------------------
 
 #: Returned in place of a tool result when the model repeats a call it has
