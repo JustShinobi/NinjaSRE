@@ -384,6 +384,15 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
       A regra de alerta foi reescrita em inglês pelo operador em 2026-08-24
       17:19. **Uma segunda janela de CT122 tem chance real de produzir a
       proposta que esta tarefa espera.**
+
+      → **Segunda janela executada em 2026-08-25.** A investigação real rodou
+      (incidente `inc_9bc096025b6f46df`, run `88b24f72`), e a lista de
+      aprovações continua vazia — mas não mais pela causa registrada acima, que
+      foi de fato corrigida: `proxmox_start_guest` foi oferecida, 20ª de 40. O
+      agente não propôs porque a evidência do motivo da parada não chegou, e
+      não chegou porque o caminho que o produto consulta não existe na API do
+      Proxmox. Detalhe e prova em
+      `specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25/`.
 - [ ] S02 Contar no banco de staging: pedidos de aprovação de remediação maior
       que zero; planos de reversão maior que zero, com ao menos um
       correspondendo a um daqueles pedidos.
@@ -398,6 +407,11 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
         suspender, reiniciar, retomar, migrar e relocar um convidado, e cortou a
         única que **liga** um — num incidente cujo conteúdo era um convidado que
         parou. O agente não escolheu não propor; não tinha com o quê.
+
+        → **Remedido em 2026-08-25, e as duas contagens seguem zero.**
+        `approvals` 0 e `rollback_plans` 0, iguais ao marco zero da janela. A
+        causa deixou de ser o corte no teto — a capacidade foi oferecida — e
+        passou a ser uma investigação que não estabeleceu o motivo da parada.
 
         Então esta contagem pode passar de zero, e o que a prende em zero é o
         ranqueamento em `_select_tools` contra o teto de 40, não o escopo do

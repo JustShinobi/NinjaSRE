@@ -422,6 +422,24 @@ presente e a par.
       o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
       passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
       janela de CT122 com o operador, e de mais nada.**
+      → **Segunda janela executada em 2026-08-25 (19:28:50Z–19:34:08Z), e o
+      bloqueio nomeado acima realmente caiu.** `proxmox_start_guest` foi
+      **oferecida**, 20ª de 40, escore 0,625, lido da gravação do run
+      `88b24f72`. O agente teve a ação que conserta e mesmo assim não propôs —
+      e o desfecho aceitável desta tarefa é exatamente esse. A razão, medida:
+      duas das quatro chamadas morreram em
+      `/nodes/pve01/lxc/122/status/tasks`, um caminho que **não existe na API
+      do Proxmox** (`No 'get' handler defined`, conferido contra o hipervisor);
+      o que existe é `/nodes/{node}/tasks?vmid=`, e ele devolve o `vzstop` por
+      `root@pam` que o run procurava. Dona: `integrations/proxmox/client.py:756`.
+
+      **E o conserto não destravaria esta estação**, o que é o achado que
+      importa: com a evidência certa o agente leria uma parada **manual e
+      deliberada**, e recusar-se a religar continuaria correto. O passo
+      destrutivo desta demonstração é indistinguível de uma manutenção. Uma
+      ocorrência que exercite E7 precisa de uma falha atribuível a defeito, não
+      à ação de uma pessoa — **é decisão de roteiro, não de código**.
+      Evidência: `evidence/janela-2026-08-25/`.
 - [ ] T054 **Conferir E4 a E7 antes de aprovar.** Só depois seguir para T055.
 - [ ] T055 E8 — o operador aprova, pela interface, olhando. Registrar o instante.
       Anexar a consulta que mostra estado, decisor, instante e motivo, e o evento
@@ -438,6 +456,12 @@ presente e a par.
       o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
       passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
       janela de CT122 com o operador, e de mais nada.**
+      → **Corrigido pela janela de 2026-08-25: não depende mais só de uma
+      janela.** A capacidade passou a ser oferecida (20ª de 40) e ainda assim
+      nada foi proposto, porque o roteiro para um convidado de propósito e uma
+      parada deliberada não é atribuível a defeito. Esta estação espera uma
+      ocorrência de outra natureza. Ver a nota de T053 e
+      `evidence/janela-2026-08-25/`.
 - [ ] T056 E9 — a execução acontece pelo gate. Evidência: o convidado voltando a
       rodar (`pct status` dizendo `running`), o desfecho gravado em
       `remediation_outcomes`, o episódio gravado em `episodes`, e a entrada de
@@ -474,6 +498,12 @@ presente e a par.
       o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
       passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
       janela de CT122 com o operador, e de mais nada.**
+      → **Corrigido pela janela de 2026-08-25: não depende mais só de uma
+      janela.** A capacidade passou a ser oferecida (20ª de 40) e ainda assim
+      nada foi proposto, porque o roteiro para um convidado de propósito e uma
+      parada deliberada não é atribuível a defeito. Esta estação espera uma
+      ocorrência de outra natureza. Ver a nota de T053 e
+      `evidence/janela-2026-08-25/`.
 - [ ] T062 Rejeitar a mesma proposta **com motivo**. Conferir que é registrado.
       Screenshot; anexar a consulta de `approvals` mostrando estado e motivo.
 - [ ] T063 Conferir que as duas decisões — a aprovação de T055 e a rejeição de

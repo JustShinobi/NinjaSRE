@@ -398,8 +398,9 @@
     }
   },
   "open_questions": [
+    "DECISAO DE ROTEIRO — E7 a E9 nao sao alcancaveis por um pct stop. A janela de 2026-08-25 provou que a capacidade e oferecida e que o agente, corretamente, nao propoe religar um convidado que uma pessoa parou. Exercita-las pede uma ocorrencia atribuivel a defeito.",
+    "DEFEITO COM DONA — integrations/proxmox/client.py:756 consulta um endpoint que nao existe na API do Proxmox; duas capacidades morrem nele. Conserto de uma linha, fora do escopo da 080 por regra da propria feature.",
     "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054) e o slide-over de integracoes (060 T052). Um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
-    "JANELA COM O OPERADOR — nove tarefas (040 S01/S02, 080 T053-T056 e T061-T063) esperam uma segunda janela de CT122. O bloqueio caiu em 2026-08-24 17:19: a descricao da regra de alerta foi reescrita em ingles, e a capacidade que conserta o incidente passa de 63a cortada para 13a oferecida.",
     "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou.",
     "ESCOPO SEM DONA — o sujeito gravado de um incidente pode ser o host do exportador em vez do convidado (casamento por endereco na borda).",
     "ESCOPO SEM DONA — a suite transversal nao tem guarda de que esta olhando para a aplicacao: quatro regras passaram contra a tela de login numa corrida contra staging.",
@@ -434,10 +435,40 @@
     }
   },
   "pendencias_restantes": {
-    "total": 14,
-    "janela_com_o_operador": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. O bloqueio caiu em 2026-08-24 17:19 com a regra de alerta reescrita em ingles.",
+    "total": 13,
+    "decisao_de_roteiro": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. NAO esperam mais uma janela: a janela correu em 2026-08-25 e o bloqueio do escorador caiu. Esperam uma ocorrencia de natureza diferente — uma falha atribuivel a defeito, nao a acao de uma pessoa. Um pct stop e sempre deliberado.",
     "revisao_humana_de_baseline": "3 linhas — 010 T054 e sua linha de DoD (quatro telas de run), 060 T052 (slide-over de integracoes). Aceitar baseline e decisao de quem olha.",
     "decisao_de_produto": "1 — 060 T050, cujo conserto atravessa quinze pacotes de integracao."
   },
-  "backlog": "22 entradas: duas reescritas contra medicao (a explicacao anterior estava errada nas duas), cinco novas desta sessao, zero identificadores de planejamento"
+  "backlog": "22 entradas: duas reescritas contra medicao (a explicacao anterior estava errada nas duas), cinco novas desta sessao, zero identificadores de planejamento",
+  "janela_ct122_2026_08_25": {
+    "autorizacao": "operador: 'o 122 nao esta em uso, qualquer teste nele esta liberado'",
+    "janela": "19:28:50Z a 19:34:08Z — CT122 fora por 5m18s",
+    "versao_medida": "gitops fd98df056074, app+proxy+web sem COMPONENTS=, Argo Synced/Healthy, pods com 2m36s no marco zero, rotas aquecidas antes do passo destrutivo",
+    "o_bloqueio_caiu": {
+      "medido_antes": "catalogo real de 80 ferramentas: descricao em portugues -> proxmox_start_guest 0,0000 e 57a; em ingles -> 1,8182 e 7a",
+      "medido_dentro": "run 88b24f72, selection_rationale gravado: 'ranked 60, offered 40, cut by the ceiling 20' com '+ proxmox_start_guest (0.625)' — 20a de 40, OFERECIDA",
+      "conclusao": "a reescrita da regra em ingles corrigiu de fato o corte. O agente teve, pela primeira vez, a acao que desfaz o estado que o alerta descreve."
+    },
+    "estacoes": {
+      "E1": "cumprida — alerta ativo em 19:31:49Z, 2m59s depois do stop, sem ninguem emitir nada",
+      "E2": "cumprida — 'the delivery was authenticated by alertmanager-delivery'",
+      "E3": "REPROVOU (produto) — mesmas duas razoes: cabecalho diz 'node pve02' contra rotulos 'node=pve01' na mesma tela, e o titulo e o nome do alerta",
+      "E4": "cumprida — 5 turnos, 21s, quatro chamadas pareadas com resultado",
+      "E5": "cumprida — 'Proxmox LXC container 122 running redis on node pve01 stopped unexpectedly'",
+      "E6": "cumprida, sem a ressalva da demo anterior — proxmox_start_guest entre as 40",
+      "E7": "NAO EXERCIDA — approvals = 0",
+      "E8_E9": "NAO EXERCIDAS — dependem de E7",
+      "E10": "cumprida — incidente resolveu sozinho em 19:36:45Z, close_reason 'ProxmoxGuestStopped was resolved upstream'"
+    },
+    "contagens_no_fim": "approvals 0, rollback_plans 0, remediation_outcomes 0, episodes 0 — iguais ao marco zero",
+    "por_que_nada_foi_proposto": {
+      "chamadas": "prometheus_active_alerts SUCCEEDED; proxmox_guest_tasks FAILED 501; proxmox_guest_start_diagnosis FAILED com o MESMO 501; logs_for_resource FAILED por ausencia de fonte de log",
+      "defeito_novo_com_dona": "integrations/proxmox/client.py:756 monta /nodes/{node}/{kind}/{vmid}/status/tasks, um caminho que NAO EXISTE na API do Proxmox. Conferido contra o hipervisor 9.2.6: \"No 'get' handler defined for '/nodes/pve01/lxc/122/status/tasks'\". O caminho real e /nodes/{node}/tasks?vmid= e devolve o vzstop por root@pam em 19:28:52Z — exatamente a evidencia que o run procurava.",
+      "e_o_conserto_nao_destrava_a_estacao": "Com a evidencia certa o agente leria uma parada MANUAL e DELIBERADA, e recusar-se a religar continuaria correto. O passo destrutivo desta demonstracao e indistinguivel de uma manutencao. E propriedade do roteiro, nao defeito do produto."
+    },
+    "achado_da_origem_do_sujeito": "A serie pve_up{id='lxc/122'} carrega instance='192.168.68.159' (pve02, o host do exportador). O mesmo stop abriu CINCO incidentes; os outros quatro casaram por 10.20.20.52, o endereco do proprio convidado, e resolveram o sujeito CERTO. So o alerta do hipervisor erra, porque so nele o instance e o raspador em vez do raspado.",
+    "achado_novo_de_tela": "O cartao da investigacao mostra '5 steps · 21s · Not recorded' ao lado de um chip 'Investigation running', com o run completed desde 19:32:06Z. O chip le o estado do incidente e e rotulado como se lesse o do run.",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25/ (EVIDENCIA.md, marco-zero.txt, 4 telas full-page a 1920)"
+  }
 }
