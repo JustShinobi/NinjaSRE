@@ -30,7 +30,7 @@ instruction to change two things nobody touched.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -40,6 +40,7 @@ from typing import Any, Protocol, runtime_checkable
 from config.constants.closed_loop import SECOND_ARRIVAL_REFUSE, SECOND_ARRIVAL_WAIT
 from config.constants.security import (
     NINJASRE_CREDENTIAL_PROXY_URL_ENV,
+    REMEDIATION_PAYLOAD_ARGUMENTS,
     REMEDIATION_TARGET_LOCK_TIMEOUT_SECONDS,
 )
 from platform.observability.logging import get_logger
@@ -589,18 +590,25 @@ class RemediationApplier:
     registry: ComponentRegistry
     clock: Callable[[], datetime] = field(default=utc_now)
 
-    async def read(self, target: Any) -> dict[str, Any] | None:
+    async def read(
+        self, target: Any, *, proposed: Mapping[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Return the target's current observed state, or ``None`` if unreadable.
 
         ``None`` is what turns "the workload is gone" into an unrecoverable
         conflict rather than into an approval of nothing.
+
+        ``proposed`` is the change being queued or re-read. It is where the
+        arguments live, and for a capability that addresses its target by
+        arguments rather than by a name they are the difference between a read
+        and an exception thrown inside the call that creates the approval.
         """
         capability = _capability_of(target)
         if capability is None or not self.registry.has(capability):
             return None
 
         components = self.registry.get(capability)
-        action = _probe_action(target, capability)
+        action = _probe_action(target, capability, proposed=proposed)
         snapshot = await components.reader.read(action, at=self.clock())
         return dict(snapshot.values) if snapshot.known else None
 
@@ -619,24 +627,42 @@ def _capability_of(target: Any) -> str | None:
     return str(path) if path else None
 
 
-def _probe_action(target: Any, capability: str) -> RemediationAction:
+def _probe_action(
+    target: Any, capability: str, *, proposed: Mapping[str, Any] | None = None
+) -> RemediationAction:
     """Return the minimal action a state read needs, for a conflict check.
 
     Minimal on purpose. This is not the action that will run — it is a handle
     the reader uses to name the target, and building a full one here would mean
     inventing a requester and an intent that nobody supplied.
+
+    The arguments are not an invention, though, and leaving them out was the
+    defect this parameter closes. A configuration target is a path and a
+    knowledge target is a document, so for those the identifier names the thing
+    and nothing else is needed. A hypervisor guest is a node, a number and a
+    kind, taken from the arguments precisely so that a naming convention does
+    not stand in for all three — so a probe without them cannot name the guest
+    at all, and the reader raises rather than reads. It raised inside
+    ``ApprovalService.queue``, which is why no remediation approval was ever
+    created in a deployment whose gate, desk and executor were all composed and
+    working.
+
+    Copied from what is being proposed rather than re-derived, because the
+    proposal is the only place at this point that still holds them.
     """
     from core.capability.metadata import SideEffectLevel
     from platform.remediation.models import RemediationTarget
 
     identifier = str(getattr(target, "identifier", ""))
     name, _, environment = identifier.partition("@")
+    arguments = proposed.get(REMEDIATION_PAYLOAD_ARGUMENTS, {}) if proposed else {}
     return RemediationAction(
         action_id=f"probe:{identifier}",
         capability=capability,
         target=RemediationTarget(identifier=name or identifier, environment=environment),
         side_effect_level=SideEffectLevel.READ,
         requester="conflict-check",
+        arguments=dict(arguments) if isinstance(arguments, Mapping) else {},
     )
 
 

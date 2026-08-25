@@ -58,7 +58,12 @@ class ConfigurationApplier:
 
     service: ConfigService
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+    async def read(
+        self,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,  # noqa: ARG002 — named by its target
+    ) -> Mapping[str, Any] | None:
         """Return the node's own settings, or ``None`` if the node is gone."""
         try:
             document = await self.service.document(target.identifier)
@@ -100,7 +105,12 @@ class PromptApplier:
 
     service: ConfigService
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+    async def read(
+        self,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,  # noqa: ARG002 — named by its target
+    ) -> Mapping[str, Any] | None:
         """Return the prompt values the node declares, or ``None`` if it is gone."""
         try:
             document = await self.service.document(target.identifier)
@@ -131,7 +141,12 @@ class CapabilityApplier:
     service: ConfigService
     path: str = "capabilities"
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+    async def read(
+        self,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,  # noqa: ARG002 — named by its target
+    ) -> Mapping[str, Any] | None:
         """Return the node's capability settings, or ``None`` if it is gone."""
         try:
             document = await self.service.document(target.identifier)
@@ -161,7 +176,12 @@ class KnowledgeApplier:
 
     proposals: ProposalQueue
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+    async def read(
+        self,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,  # noqa: ARG002 — named by its target
+    ) -> Mapping[str, Any] | None:
         """Return the proposal as it stands, or ``None`` if it is gone.
 
         ``None`` for an unknown proposal is what turns "the agent withdrew it"
