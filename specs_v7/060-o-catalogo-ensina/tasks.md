@@ -317,6 +317,23 @@ partida, não a autoridade.
       conteúdo, e aceitar a baseline **deliberadamente**, revisada como imagem —
       nunca uma captura que o gate fabrique. Declarar no registro qual viewport a
       entrada mede.
+      → **Registro atualizado; baseline capturada, revisada como imagem em
+      2026-08-25, e NÃO aceita.** A captura foi apagada em vez de commitada, para
+      que nada no diretório pareça aceito.
+
+      O que a imagem cumpre: o slide-over sobrepõe o catálogo em vez de entrar no
+      fluxo do documento; o estado é o conectado, com as três ações (*test again*,
+      *replace credential*, *disconnect*); cada permissão exigida traz a linha de
+      permissão mínima e onde é concedida; o bloco de confiança de certificado
+      está lá com impressões digitais e PEM.
+
+      O que ela **não** cumpre, e é cláusula da própria razão desta entrada: a
+      seção recolhida de documentação do pacote não aparece. O slide-over rola
+      **por dentro**, então a captura full-page para no campo da autoridade
+      certificadora e tudo abaixo fica fora da imagem. Aceitar registraria uma
+      baseline que não enxerga parte do que ela existe para proteger. O conserto
+      é do arnês de captura — alcançar o transbordo do próprio painel —, não da
+      tela.
 - [x] T053 Rodar a suíte transversal de regras de interface e confirmar que a
       seção de documentação não viola nenhum ban — em particular o de markdown
       cru impresso como texto, que esta feature acrescenta uma superfície nova

@@ -233,7 +233,7 @@
         "against": null,
         "reason": "The credential panel, registered again at a surviving integration after the vendor cut removed both the old entry and the vendor it pointed at: alertmanager, verified in the dataset on purpose, so the capture shows the connected state and its three actions — test again, replace credential, disconnect — rather than an empty form with a disabled button. The panel is reviewed as a slide-over overlaid on the catalogue, never a block in the document's flow. Its content grew since this entry was first registered: every secret field now carries a minimum-permission line, every field carries a guide link, a where-to-get-it sentence sits under the form, and a collapsed package-documentation section sits under that — all of it belongs in whatever image gets reviewed. No committed baseline exists yet; the first acceptance is a deliberate, reviewed one rather than something a gate should manufacture."
       },
-      "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run would regenerate the missing PNG as a real-looking capture nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
+      "pending_because": "Captured and reviewed as an image on 2026-08-25 and NOT accepted; the capture was deleted rather than committed. It satisfies most of this entry's own criteria — the slide-over overlays the catalogue rather than sitting in the document flow, the state is the connected one with its three actions (test again, replace credential, disconnect), every required permission carries its minimum-permission line and where it is granted, and the certificate-trust block is present. It fails one clause of that same reason: the collapsed package-documentation section is not in the image. The slide-over scrolls inside itself, so a full-page capture stops at the certificate-authority field and everything below it is outside the picture. Accepting would register a baseline that cannot see part of what it was written to protect. The capture harness has to reach the panel's own overflow first."
     },
     {
       "id": "knowledge-1440-light",
@@ -293,26 +293,24 @@
     {
       "id": "run-detail-1440-dark",
       "route": "/runs/run-0001",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "dark",
       "accepted": {
         "against": "08-theme-dark.png",
-        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
-      },
-      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
+        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured under the dark token set and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+      }
     },
     {
       "id": "run-detail-1440-light",
       "route": "/runs/run-0001",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "04-screen-incident.png",
-        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch."
-      },
-      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
+        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured in light and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+      }
     },
     {
       "id": "run-detail-live-1440-light",
@@ -324,19 +322,18 @@
         "against": null,
         "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach."
       },
-      "pending_because": "Registered so the live state is not forgotten, and left for a deliberate first capture and review rather than the gate manufacturing one — this is the state the report-reading feature's live-control rule (a settled run offers no live-only control) exists to hold apart from the settled run-detail baselines above."
+      "pending_because": "Reviewed as an image on 2026-08-25 and NOT accepted. The live controls are right and are the asymmetry this entry exists for — take over, stop, the add-context field, and a pending question with its answer controls, none of which the settled baselines show. What blocks acceptance is on the same card: the transcript header counts '6 events' and its body says 'This investigation recorded no events.' A counter and its own list contradicting each other is what the transversal counter rule exists to catch, and freezing it as a baseline would make the picture the record of the defect. Accept once the two agree."
     },
     {
       "id": "runs-1440-light",
       "route": "/runs",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it — the design documents the list in prose — so this baseline is what makes a change to the columns or their order deliberate."
-      },
-      "pending_because": "The report-reading feature (headline/report split) changed what this screen draws since this baseline was captured: the title and the runs-list subject column now come from a run's own headline instead of a raw markdown summary, the report panel renders the document instead of printing it as text, and a settled run's live-only controls are gone. The committed image predates all three. Needs a deliberate recapture and a reviewed acceptance, not the gate's own automatic comparison, which is why this stays pending rather than silently comparing against a picture of the screen from before that feature."
+        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. Recaptured after the headline/report split, and the change is visible and is the improvement — four subjects now read as sentences the run itself produced rather than as a raw summary. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Two things the picture also shows, named here so accepting it does not read as endorsing them: three rows carry the generic label 'alert investigation' as their subject, one of them a completed run that has a report; and one reads 'Alert · run-0101', an identifier standing in for a name. Both come from the fixture, which stores those strings in the headline field itself. This baseline freezes what the screen draws, which is its job; it does not claim the subjects are all sentences."
+      }
     },
     {
       "id": "shell-1440-dark",

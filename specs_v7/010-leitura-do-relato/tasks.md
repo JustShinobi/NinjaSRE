@@ -367,11 +367,36 @@ edita — e deixa o rastro para o merge.
       proteger — um título que é uma sentença, um documento desenhado como
       documento, e a ausência do painel de controle num run terminado. Sem citar
       feature, requisito nem documento de planejamento.
-- [ ] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
+- [x] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
       imagem antes de aceitar**. A aceitação é o commit que alguém revisa, não uma
       flag num comando. Escrever no `controle.md` o que foi visto em cada imagem.
       → **Metade feita: a recaptura sim, a aceitação não.** Reaberta pelo
       orquestrador em 2026-08-25, contra o registro.
+
+      → **Fechada em 2026-08-25, na imagem fixada, com as três imagens olhadas
+      uma a uma.** `runs-1440-light` mudou e a mudança é a melhoria: quatro
+      assuntos passam a ler como sentenças que o próprio run produziu.
+      `run-detail-1440-light` e `-dark` saíram **byte a byte iguais** à imagem
+      commitada — o que **corrige a razão pela qual estavam seguradas**: dizia-se
+      que a imagem antecedia a feature de relato, e não antecede. As três estão
+      `baselined`, cada uma com a razão escrita no registro, e o portão visual
+      passa a proteger 36 telas em vez de 33.
+
+      **O que a revisão encontrou e não escondeu**, escrito na própria razão de
+      aceitação de cada entrada: não há entrada de guardrail nenhuma no
+      transcript, que a razão anterior afirmava estar lá; e o título é `alert
+      investigation`, um rótulo genérico, enquanto o corpo do relato uma linha
+      abaixo traz uma sentença boa. O fixture grava esse rótulo **no próprio
+      campo de manchete** (`fixtures/scenarios/populated/run-detail.json`), junto
+      com uma manchete vazia e outra com markdown cru (`The **platform** node's
+      …`). Logo esta baseline não consegue demonstrar "um título que é uma
+      sentença" — o dado por trás dela não tem uma.
+
+      **A quarta entrada, `run-detail-live-1440-light`, foi revisada e recusada.**
+      Os controles de run vivo estão certos e são a assimetria que ela existe
+      para provar. O que a impede é o mesmo cartão dizer `6 events` no cabeçalho
+      e *"This investigation recorded no events."* no corpo. Congelar isso seria
+      fazer da imagem o registro do defeito.
 
       **A anotação que fechava esta tarefa era de outra feature.** Ela falava de
       uma manchete virada rótulo `manual investigation` e do nome da página
@@ -498,10 +523,12 @@ arquivo custam mais do que economizam.
 - [x] `dangerouslySetInnerHTML` continua exclusivo do arquivo de layout, provado
       por teste.
 - [x] O plugin de HTML cru não está no manifesto, provado por teste.
-- [ ] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
+- [x] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
       imagem, e aceitas com razão escrita no registro.
-      → Recapturadas sim; aceitas não. As quatro entradas seguem `pending` no
-      registro. Ver T054.
+      → Feito em 2026-08-25: lista e detalhe, claro e escuro, três entradas
+      `baselined` com a razão escrita. A quarta entrada do registro é o run
+      **vivo**, que não é uma das duas telas desta linha e foi recusada com causa
+      medida. Ver T054.
 - [x] Os dois arquivos de teste unitário existentes foram **estendidos**; nenhum
       caso foi duplicado.
 - [x] `make verify` verde, comparado contra o log da linha de base.
