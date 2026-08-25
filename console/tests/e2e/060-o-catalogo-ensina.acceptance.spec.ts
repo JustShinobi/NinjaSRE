@@ -26,17 +26,22 @@ import { signIn } from './session';
  * vendor in this dataset reads successfully and this file does not
  * fabricate a read failure the mock backing cannot produce.
  *
- * **The clear-text credential refusal, as the panel would show it, is
- * `test.skip`, named, not silently absent, in this run.** It needs a
- * deployment whose credential proxy actually enforces the clear-text refusal
- * against a live write — the `compose` backing, not the static `mock` one
- * this file otherwise runs against, which answers every write with the same
- * canned response regardless of what was sent. The refusal itself is proven
+ * **The clear-text credential refusal, as the panel shows it, runs for real
+ * only against the `compose` backing.** It needs a deployment whose
+ * credential proxy actually enforces the clear-text refusal against a live
+ * write; the static `mock` backing this file otherwise runs against answers
+ * every write with the same canned response regardless of what was sent, so
+ * the block below skips itself the same way
+ * `030-uma-fonte-por-fato.acceptance.spec.ts` already does — by the absence
+ * of the mock plane's own request-counter address — rather than asserting
+ * something the mock cannot produce. It writes a real credential, so it is
+ * also never selected for a staging run: nothing in it carries the
+ * `@staging-safe` tag a staging run filters on. The refusal itself is proven
  * at the platform layer, including across the ASGI wire boundary a
  * capability actually reads it through, in
- * `tests/unit/platform/credentials/test_proxy_engine.py`. What is not proven
- * here is the console rendering that sentence as the panel's verdict detail
- * — a real gap, named as one rather than assumed from the backend proof.
+ * `tests/unit/platform/credentials/test_proxy_engine.py`. This file's own
+ * block is what proves the sentence reaches the panel that renders it as the
+ * verdict's detail, not only the transport that carries it.
  */
 
 const CATALOGUE_ROUTE = '/integrations';
@@ -259,28 +264,102 @@ test.describe('the package documentation section', () => {
 });
 
 // =============================================================================
-// The clear-text credential refusal, on screen — not staging-safe, and not
-// runnable against the static mock backing either
+// The clear-text credential refusal, on screen — needs the compose backing's
+// real credential proxy, and never runs against a shared environment either
 // =============================================================================
+
+// Set only when this file is driven against the mock backing — the same
+// signal `030-uma-fonte-por-fato.acceptance.spec.ts` reads for the same
+// reason. The mock plane answers `/__mockplane__/requests` and the harness
+// hands its own address to Playwright only for that backing; the `compose`
+// backing leaves it unset, which is what this block is waiting for.
+const CLEAR_TEXT_MOCK_BACKING_URL = process.env.NINJASRE_CONSOLE_BACKING_URL;
 
 test.describe('the clear-text credential refusal, as the panel shows it', () => {
   test.skip(
-    true,
-    'blocked in this run: needs the compose backing (a real credential proxy that ' +
-      "reacts to what was actually sent), not the static mock backing this file's other " +
-      'blocks run against — a canned response answers every write identically regardless ' +
-      'of scheme. The refusal itself, including across the wire boundary a capability ' +
-      'reads it through, is proven in ' +
-      'tests/unit/platform/credentials/test_proxy_engine.py::test_the_clear_text_sentence_survives_crossing_the_wire.',
+    CLEAR_TEXT_MOCK_BACKING_URL !== undefined,
+    'needs the compose backing: a real credential proxy that reacts to what was ' +
+      'actually sent. The mock backing answers every write identically regardless of ' +
+      'scheme, which is what NINJASRE_CONSOLE_BACKING_URL being set here means.',
   );
 
   test('pointing a vendor at http:// with a credential stored shows the scheme and both ways out', async ({
     page,
   }) => {
     await page.goto(GRAFANA_ROUTE);
-    // Left for the compose-backed run: fill endpoint with http://, store a
-    // token, and read the verdict detail off the panel.
-    expect(page.getByTestId('credential-result')).toBeDefined();
+
+    // Grafana's own packaged default host (`integrations/grafana/schema.py`'s
+    // `DEFAULT_HOST`) is in its egress allow-list unconditionally — "the
+    // documented default is always permitted" — so pointing the endpoint at
+    // it over `http://` reaches the scheme check deterministically: no DNS,
+    // no real Grafana, and no dependency on whatever address this
+    // deployment's dataset already has configured.
+    // Not a console-source network origin — this is test input data, typed
+    // into a form field and never fetched by the console itself. It must be a
+    // real, resolvable-looking, non-loopback host: loopback is the proxy's own
+    // documented exception to the exact refusal this test exercises, so
+    // `localhost`/`127.0.0.1` would make the refusal never fire.
+    // eslint-disable-next-line no-restricted-syntax
+    const httpEndpoint = 'http://grafana.example.com';
+    // eslint-disable-next-line no-restricted-syntax
+    const httpsEquivalent = 'https://grafana.example.com';
+
+    const form = page.getByTestId('credential');
+    if ((await form.count()) === 0) {
+      // Grafana is already connected on this dataset — reveal the write form
+      // the way an operator would, instead of assuming it is already on screen.
+      await page.getByTestId('replace-credential').click();
+    }
+    await expect(form).toBeVisible();
+    await form.locator('input[name="endpoint"]').fill(httpEndpoint);
+    await form.locator('input[name="token"]').fill('e2e-clear-text-refusal-token');
+
+    await page.getByTestId('store-credential').click();
+
+    // Storing succeeds regardless of scheme — the refusal is about *using*
+    // the credential, not about writing it — so the write's own confirmation
+    // is only the readiness signal for the connectivity check `onStored`
+    // triggers next, never the claim this test is about.
+    await expect(
+      page.getByTestId('credential-result'),
+      'the credential write itself never confirmed, so the connectivity check onStored triggers never had a chance to run',
+    ).toBeVisible();
+
+    const outcome = page.getByTestId('credential-outcome');
+    await expect(
+      outcome,
+      'no verdict appeared in the panel after storing an http:// credential for grafana',
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Claim 1: the chip is the same "Failing" word the credential vocabulary
+    // has always used for a refused connectivity check.
+    // `CredentialWouldCrossInClear` carries the identical classification
+    // `EgressDenied` always has, so this refusal must not read as a new,
+    // different state from the one the classification has always produced.
+    const chip = outcome.locator('[data-credential-status]');
+    await expect(
+      chip,
+      'the verdict carries no data-credential-status attribute at all',
+    ).toHaveAttribute('data-credential-status', 'failing');
+    await expect(chip).toHaveText('Failing');
+
+    // Claim 2: the detail is the refusal's own sentence, naming the scheme it
+    // was reached over and both ways out — never a generic "not on the
+    // allow-list" substitute, which would be false here: the host this test
+    // used is declared; only the scheme is wrong.
+    const detail = (await outcome.textContent()) ?? '';
+    expect(
+      detail,
+      `the verdict detail read ${JSON.stringify(detail)}, which does not name the clear-text address the credential would have crossed`,
+    ).toContain(httpEndpoint);
+    expect(
+      detail,
+      `the verdict detail read ${JSON.stringify(detail)}, which does not offer the TLS address as a way out`,
+    ).toContain(httpsEquivalent);
+    expect(
+      detail,
+      `the verdict detail read ${JSON.stringify(detail)}, which does not offer "remove the stored credential" as the other way out`,
+    ).toContain('remove the stored credential');
   });
 });
 
