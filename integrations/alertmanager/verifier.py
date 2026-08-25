@@ -25,6 +25,7 @@ from integrations._verification.diagnostics import (
     EmptyWindow,
     client_clock_probe,
     client_window_probe,
+    refusal_detail,
 )
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
@@ -190,7 +191,7 @@ class AlertmanagerVerifier:
         except IntegrationError as error:
             return Connectivity(
                 reachable=False,
-                detail=_ADVICE.get(error.reason, str(error)),
+                detail=refusal_detail(error, _ADVICE),
                 status_code=error.status_code,
             )
         return Connectivity(

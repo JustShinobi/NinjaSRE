@@ -34,6 +34,7 @@ from typing import Final
 from integrations._base.access import configured_base_url
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
+from integrations._verification.diagnostics import refusal_detail
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -297,7 +298,7 @@ def _detail_for(error: IntegrationError) -> str:
     """
     if error.reason in _ADVICE_FOLLOWS_THE_REFUSAL:
         return f"{error} {_ADVICE[error.reason]}"
-    return _ADVICE.get(error.reason, str(error))
+    return refusal_detail(error, _ADVICE)
 
 
 #: The privileges the report above is built from, re-exported so a document

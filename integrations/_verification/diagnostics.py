@@ -29,7 +29,7 @@ ignore the check.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
@@ -40,7 +40,7 @@ from config.constants.signals import (
     SOURCE_CLOCK_SKEW_TOLERANCE_SECONDS,
     VERIFY_WINDOW_MINUTES,
 )
-from integrations._base.errors import ErrorCategory, IntegrationError
+from integrations._base.errors import ErrorCategory, IntegrationError, IntegrationErrorReason
 
 
 @dataclass(frozen=True, slots=True)
@@ -471,7 +471,33 @@ def client_clock_probe[Client](
     return ClockSkewProbe(description=description, read=probe, tolerance_seconds=tolerance_seconds)
 
 
+def refusal_detail(error: IntegrationError, advice: Mapping[IntegrationErrorReason, str]) -> str:
+    """Return what to tell an operator about ``error``, using the better source.
+
+    A vendor's advice table is keyed by reason, and one reason covers more than
+    one refusal. A host outside the allow-list and a stored credential about to
+    cross in clear are both ``REFUSED`` — by every fact the proxy checks, the
+    second *is* an egress refusal — and the vendor line for that reason was
+    written when the allow-list was the only case it covered. An operator whose
+    host is in the allow-list, and whose problem is an ``http://`` scheme, is
+    sent to check a list they already got right.
+
+    For a refusal the proxy is the authority: it knows which refusal it made
+    and says so in the error itself, naming the host and the declared hosts in
+    one case and the scheme and the address to use instead in the other. Both
+    of those beat a sentence written before either was distinguishable.
+
+    Everywhere else the vendor is the authority — only it knows where its own
+    credential is issued or what scope it needs — so its advice is what an
+    operator gets, exactly as before.
+    """
+    if error.reason is IntegrationErrorReason.REFUSED:
+        return str(error)
+    return advice.get(error.reason, str(error))
+
+
 __all__ = [
+    "refusal_detail",
     "ClockRead",
     "ClockSkewOutcome",
     "ClockSkewProbe",
