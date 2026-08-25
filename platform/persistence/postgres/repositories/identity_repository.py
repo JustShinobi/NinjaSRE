@@ -325,33 +325,41 @@ class PostgresIdentityRepository(TenantBound):
     ) -> LocalSignInOpening:
         """Record that the local sign-in door has been opened, once.
 
-        Held under the same kind of session-level advisory lock the schema
-        migrator uses, with a key of its own: acquired, checked, inserted (or
-        not) and released, so the check and the insert cannot straddle a
-        second caller's own check and insert. That is what makes "insert and
-        do not overwrite, read back, whichever caller reads somebody else's
-        row lost" a property of this method rather than a race between two
-        callers hoping a constraint catches them.
+        Held under a *transaction*-scoped advisory lock, with a key of its
+        own — ``pg_advisory_xact_lock`` rather than the schema migrator's
+        session-scoped ``pg_advisory_lock``/``pg_advisory_unlock`` pair,
+        deliberately. This call is one step inside a caller-owned unit of
+        work that keeps writing after it returns (granting the owner role,
+        setting a passphrase) and that must roll back together with the
+        opening if any of that later work fails; the migrator has no such
+        caller; it commits and unlocks itself. A session-level lock released
+        here, before the surrounding transaction has committed or rolled
+        back, opens exactly the window this method exists to close: a second
+        caller's check would find the row absent — it is not durable yet —
+        and race its own insert against it, which is what previously
+        surfaced as an `IntegrityError` sent to a session whose ambient
+        transaction the ORM had already started tearing down, itself failing
+        the explicit unlock in a way that left the lock permanently held by
+        that connection. A transaction-scoped lock has no such window and
+        needs no explicit release: PostgreSQL drops it exactly when this
+        transaction commits or rolls back, so a second caller's check cannot
+        run until the first is truly settled, one way or the other, and
+        whichever row that leaves behind is the only one a following read
+        can ever find.
         """
         await self.session.execute(
-            text("SELECT pg_advisory_lock(:key)"),
+            text("SELECT pg_advisory_xact_lock(:key)"),
             {"key": LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY},
         )
-        try:
-            existing = await self.session.get(models.LocalSignInOpening, self.org_id)
-            if existing is not None:
-                raise DuplicateRecord(kind="local sign-in opening", identifier=self.org_id)
-            row = models.LocalSignInOpening(
-                org_id=self.org_id, opened_at=opened_at, opened_via=opened_via
-            )
-            self.session.add(row)
-            await self.session.flush()
-            return _to_opening(row)
-        finally:
-            await self.session.execute(
-                text("SELECT pg_advisory_unlock(:key)"),
-                {"key": LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY},
-            )
+        existing = await self.session.get(models.LocalSignInOpening, self.org_id)
+        if existing is not None:
+            raise DuplicateRecord(kind="local sign-in opening", identifier=self.org_id)
+        row = models.LocalSignInOpening(
+            org_id=self.org_id, opened_at=opened_at, opened_via=opened_via
+        )
+        self.session.add(row)
+        await self.session.flush()
+        return _to_opening(row)
 
 
 @dataclass(slots=True)
