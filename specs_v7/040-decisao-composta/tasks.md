@@ -374,6 +374,16 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
 
       O que falta é a instância viva, e ela não pode existir enquanto nada puder
       ser proposto.
+
+      → **Atualização de 2026-08-25: o bloqueio caiu, e esta tarefa passou a
+      depender só de uma janela com o operador.** A causa do zero foi medida e
+      é uma só: o escorador ordena por sobreposição de termos entre o resumo do
+      incidente e casos de uso declarados em inglês, e a descrição do alerta
+      estava em português. `proxmox_start_guest` pontuou 0,0000 e caiu para 63ª
+      de 60 candidatas; em inglês pontua 0,7407 e fica em 13ª — dentro do teto.
+      A regra de alerta foi reescrita em inglês pelo operador em 2026-08-24
+      17:19. **Uma segunda janela de CT122 tem chance real de produzir a
+      proposta que esta tarefa espera.**
 - [ ] S02 Contar no banco de staging: pedidos de aprovação de remediação maior
       que zero; planos de reversão maior que zero, com ao menos um
       correspondendo a um daqueles pedidos.
@@ -393,6 +403,22 @@ Não são tarefas do implementer. Ficam aqui porque são o DoD da feature.
         ranqueamento em `_select_tools` contra o teto de 40, não o escopo do
         produto. Apuração em `specs_v7/080-incidente-fecha-o-laco/evidence/
         demo-2026-08-24/T041-ferramentas-oferecidas.md`.
+
+        → **Atualização de 2026-08-25**, com a causa localizada por verificação
+        independente e reproduzida com o escorador do próprio produto:
+        `capabilities/registry/scoring.py:127-199`. O `_terms()` tokeniza com
+        `[a-z0-9_]+` e filtra por uma lista de 26 palavras vazias **só em
+        inglês**; um alerta em outra língua pontua **todas** as capacidades em
+        zero, e o desempate passa a ser por nome. **A composição não é a causa
+        do zero** — os quatro mecanismos desta feature estão na raiz de serving,
+        nenhum dormente, e isso foi conferido `file:line` a `file:line`.
+
+        A dependência de idioma não está declarada em docstring, constante,
+        teste ou documento, e o arquivo é anterior a esta onda: nenhuma feature
+        dela se apropriou do conserto. Está no backlog como achado sem dona.
+
+        Com a regra de alerta já reescrita em inglês, esta contagem passa a ser
+        respondível numa segunda janela.
 - [x] S03 Contar no banco de staging: pedidos de remediação em estado diferente
       de pendente igual a **zero**, e resultados de remediação igual a
       **zero**. Um valor diferente de zero em qualquer um dos dois é defeito,

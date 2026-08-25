@@ -321,7 +321,7 @@ to be named.
 
 ---
 
-## An incident's header can name the wrong host
+## An incident can be recorded against the host that scraped it
 
 **What happens today.** The header under an incident's title shows the host of
 the resource the incident's first subject resolves to
@@ -340,18 +340,30 @@ investigation attached to the same incident, on the very next screen, also
 says `pve01`, correctly. The product has the right answer in two other places
 on the same incident and puts the wrong one in the header a person reads first.
 
-*A prior reading of this deployment's data attributed this to a Proxmox guest's
-stored identity carrying a literal `unknown` in place of its node
-(`lxc/HAL9000/unknown/122`). That is not the mechanism: a guest's identity is
-`kind/cluster/creation-discriminator/vmid` by explicit design
-(`integrations/proxmox/identity.py`, `guest_identity` and the module's own
-docstring — the node is deliberately excluded from a guest's identity because
-migration must not restart its history), and the `unknown` segment is the
-fallback for a missing creation timestamp, not for a missing node. The node
-travels as the discovered resource's *parent*, a separate field, and is
-present. The header's own resolution — which subject a detector's finding
-names, and which exporter's labels a detector correlates that finding against —
-is the actual mechanism, and this entry replaces the earlier, incorrect one.*
+**Where the defect actually is, read from the database rather than the screen.**
+The header is not misreading a label. The subject the incident *stores* is the
+wrong resource. Asked directly what the incident points at, the record answers:
+
+    resource_id   res-47555daca81efa67dacce16fb42c898e
+    kind          node
+    native_id     node/HAL9000/pve02
+    display_name  pve02
+
+for an incident about a stopped guest on a different node. The correlation that
+opened it recorded how it matched — by address, against the label naming the
+scraping instance — and that address belongs to the exporter's host. Every
+screen downstream is rendering that stored subject faithfully. **The fix belongs
+to the correlation at intake, not to the header component**, and an entry that
+sends someone to the header sends them to the one place where nothing is wrong.
+
+*Two earlier readings of this were wrong and are recorded as wrong, because the
+sequence is itself worth knowing. The first blamed a guest's stored identity for
+carrying a literal `unknown` where its node should be — but a guest's identity
+is `kind/cluster/creation-discriminator/vmid` by explicit design
+(`integrations/proxmox/identity.py`), the node is deliberately excluded so that
+a migration does not restart a guest's history, and `unknown` is the fallback
+for a missing creation timestamp. The second blamed the header's own resolution.
+Only reading the stored row settled it.*
 
 **Why it is not simply reading a different label.** The header cannot switch to
 "whichever label looks like a node" without knowing, per alert source, which
@@ -361,8 +373,10 @@ guest-level alert sourced from a cluster-wide exporter needs a rule that
 resolves to the guest, not to whatever host happened to answer the scrape.
 
 **How it should be judged.** An incident opened from an alert whose exporter is
-not local to its subject shows the subject's own host in its header, matching
-what the alert's labels and the investigation both already say.
+not local to its subject **stores** the subject the alert is about, and every
+screen that reads that stored subject then agrees with the alert's own labels
+and with the investigation — which today are the two places that already have
+it right.
 
 ---
 
@@ -392,28 +406,227 @@ container rather than claiming the product had. All of that is read back from
 storage, not from the process that produced it.
 
 What did not happen is the last three steps: propose, approve, execute. Not
-because nothing was watched, and not because the approval machinery is
-missing — the gate, the audit trail, and the decision-recording order are all
-composed and reachable. Nothing proposed anything, because the catalogue this
-deployment composed has exactly three capabilities above read level, all three
-notifications (acknowledge an incident, post to Pushover, post to Telegram),
-and none of them acts on infrastructure. The hypervisor token this deployment
-holds does carry power-management rights — checked directly against the vendor's
-own access log and ACLs, not assumed — so the gap is not permission. It is that
-the vocabulary of *action* is empty: no capability restarts a service, starts a
-guest, or changes system state, so an investigation that diagnosed a stopped
-guest correctly had nothing to propose about it.
+because nothing was watched, and not because the approval machinery is missing —
+the gate, the audit trail, and the decision-recording order are all composed and
+reachable, and the hypervisor token carries power-management rights, checked
+against the vendor's own access log and ACLs rather than assumed.
 
-**Why it is not just a matter of trying again.** Trying again reproduces the
-same outcome, because the outcome follows from what the catalogue can do, not
-from what happened during one window. Closing this needs a remediation
-capability that actually changes infrastructure state — starting a stopped
-guest is the obvious first one, since it is the exact shape this run already
-diagnosed — built with the same declared side-effect level, rollback plan, and
-approval requirement every write capability in this catalogue already carries.
+**The capability that would have fixed it exists, and was cut from the offer by
+the language the alert was written in.** The catalogue holds twenty-four
+capabilities above read level, twenty of them remediation, and one of them starts
+a stopped guest. The turn was offered forty tools out of sixty candidates. The
+selector orders candidates by term overlap between the incident's own summary and
+each capability's declared use cases — and those use cases are written in
+English, while the alert's description was written in the operator's language.
+Scored with the product's own scorer, one sentence, two languages:
+
+    "…estava em execucao no no pve01 e parou."   start-guest  0.0000  →  63rd, cut
+    "…was running on node pve01 and has stopped." start-guest  0.7407  →  13th, offered
+
+One variable. The deployment was offered seven ways to stop, shut down, suspend,
+reboot, resume, migrate and relocate a guest, and not the one that starts it, in
+an incident about a guest that had stopped. **The agent was right not to propose
+anything — it had nothing to propose with.**
+
+When every candidate scores zero, the tie breaks by name, so which forty tools a
+turn receives comes down to alphabetical position. The product does not refuse
+and does not warn: it hands over forty tools chosen by the alphabet and proceeds
+as though it had chosen them.
+
+*An earlier reading of this said the catalogue held three capabilities above read
+level, all notifications, and that nothing anywhere could act on infrastructure.
+That was wrong, and it was wrong twice before the instrumentation that this same
+work produced made the real answer reachable: the run's own record now states
+`ranked 60, offered 40, cut by the ceiling 20` and names each candidate with its
+score.*
+
+**Why it is not just a matter of trying again.** Trying the same window again
+with the alert unchanged reproduces the same outcome, because the outcome follows
+from how candidates are scored rather than from what happened that night. The
+alert's own description has since been rewritten in English, which is enough to
+put the starting capability back inside the offer — so the window is worth
+running again. But that is a workaround applied to one alert, not a fix: the next
+alert somebody writes in their own language scores every capability at zero
+again, silently.
 
 **How it should be judged.** The same shape of run — a disposable, alerted
 resource stopped by hand, diagnosed correctly — produces a proposal with a
 rollback plan, waiting on `/decisions`; a person approves it; the resource
 comes back through the gate rather than by hand; and the outcome, the episode,
 and the incident's own timeline all say so.
+
+---
+
+## Which tools a turn is offered depends on the language its incident was written in
+
+**What happens today.** Before each turn, the deployment narrows the catalogue
+to what the team has connected and what it can carry, ranks what survives, and
+cuts at a ceiling. The ranking scores each candidate partly by how many terms
+its declared use cases share with the incident's own summary. Those use cases
+are written in English throughout the catalogue, the tokeniser keeps runs of
+`[a-z0-9_]+`, and the stop-word list it filters against is twenty-six English
+words. An incident summarised in any other language shares no terms with
+anything, so **every candidate scores zero on that component at once**.
+
+A tie at zero is broken by name. So a deployment whose alerts are written in the
+operator's own language does not get a slightly worse ranking — it gets the
+alphabet, and the forty tools a turn receives are the first forty by name. This
+is not a hypothetical: it happened on the first attempt, to the operator of this
+deployment, writing an alert in the language they speak.
+
+**Why it is not simply translating the summary.** Translating on the way in
+would put a machine translation between the operator's words and the record of
+what the agent was told, which is the opposite of what a transcript is for. And
+scoring is not the only thing that reads the summary. The narrower question —
+should overlap be measured on something language-independent, or should the
+scorer refuse to rank when it can find no signal at all rather than falling
+through to alphabetical order — is a design decision, not a patch.
+
+**What makes it hard to notice.** The product does not refuse, does not warn,
+and does not score differently from a legitimate tie. It hands over forty tools
+and proceeds as though it had chosen them. Nothing in the code says the
+selection is language-dependent — not a docstring, not a constant, not a test.
+The record that finally showed it (`ranked 60, offered 40, cut by the ceiling
+20`, with each candidate's score) exists only because a separate piece of work
+added it while trying to answer why a particular investigation had proposed
+nothing.
+
+**How it should be judged.** An incident written in a language the catalogue was
+not authored in either ranks capabilities on a signal that survives the language
+difference, or says out loud that it could not rank them — and in no case
+silently substitutes alphabetical order for a decision.
+
+---
+
+## No observation an investigation records is ever marked as cited
+
+**What happens today.** Investigations write observations to the evidence store,
+from real sources — logs, metrics, hypervisor configuration and events, change
+history, the alert itself, and the agent's own reasoning. Each row carries a flag
+saying whether the finished report actually cited it. Across every row in this
+deployment, that flag is false. Not mostly false: false without exception.
+
+Two readings are possible and the data does not separate them. Either nothing
+ever writes the flag, in which case the column is decoration; or reports
+genuinely cite nothing they recorded, in which case the evidence trail and the
+conclusion are unconnected. Both are worth knowing and they have different
+fixes.
+
+**The second number that comes with it.** Of the runs that recorded turns, only a
+small minority recorded any observation at all — including the one run this
+deployment has been watched closing a loop with, which recorded five turns, four
+tool calls, and zero observations. So "which evidence supported this conclusion"
+is a question the store usually cannot answer, separately from the flag.
+
+**Why it is not a one-line fix.** Marking a row cited requires knowing which
+observation a sentence in the report came from, and that link is not currently
+carried anywhere between the reasoning that produced the sentence and the row
+that was written. Deciding where it is carried is the work.
+
+**How it should be judged.** A finished investigation names the observations its
+conclusion rests on, those rows are marked as cited, and a run that cites nothing
+is visibly a run that cited nothing rather than indistinguishable from every
+other run.
+
+---
+
+## The interface rules can pass against a page that is not the application
+
+**What happens today.** A suite of transversal rules sweeps the product's main
+screens and asserts things like "no screen prints a raw report as text". Run
+against a live deployment, its session can end mid-run. When that happens the
+browser lands on the sign-in page, and the rules keep running: a rule looking for
+raw markdown finds none, because there is no screen there at all, and **reports a
+pass**.
+
+It was caught by accident, from file sizes: five captures of five different
+routes, all exactly the same number of bytes, against a hundred-and-seventy
+kilobytes to two-and-a-half megabytes on a healthy run. Four rules had passed
+while photographing a login form. A rerun in the same conditions was green
+throughout, so nothing about the product was wrong — but nothing about the run
+said which of the two it had been either.
+
+**Why it matters more than an ordinary flake.** These rules are the scoreboard
+that says whether the interface still obeys the product's own conventions. A
+flake that fails is noise. A flake that *passes* removes the only thing standing
+between a regression and a release, and does it silently.
+
+**How it should be judged.** A sweep that is not looking at a signed-in
+application fails, loudly, naming what it found instead — and no rule in the
+suite can report a pass from a page it was never meant to be on.
+
+---
+
+## The gate that checks routes are dynamic cannot tell whether they declare it
+
+**What happens today.** Every screen route under the console shell must reach
+the deployment on each request rather than be served from a page baked at build
+time, and a gate exists to enforce that. It reads the build's own output and
+fails if any shell route was pre-rendered.
+
+It passes today, and it would pass just as green if every route stopped
+declaring anything at all. The property is held up by three independent
+mechanisms — a declaration on the shared layout, a prop that thirty-four of the
+thirty-six pages happen to take, and an unconditional cookie read in the layout's
+authentication — and any one of them alone is enough to make the build dynamic.
+Cutting the first and rebuilding was measured: still green, with no declaration
+anywhere under the shell.
+
+**Why that is worth an entry rather than a shrug.** The gate was written against
+a specific failure — a layout whose dynamism silently stops applying to a child
+segment — and that is exactly the failure it cannot see, because it inspects the
+result rather than the declaration. The routes now each declare their own
+dynamism, which is the right fix and the durable one; but nothing stops the next
+refactor from removing thirty-six declarations without a single test going red.
+
+**Why it is not simply grepping for the declaration.** A grep would pass on a
+declaration inside a comment, and would fail on a route that is legitimately
+dynamic by another declared means. Deciding what counts as a per-file
+declaration, and which routes are required to carry one, is the work — and the
+answer has to survive the framework changing how it infers dynamism.
+
+**How it should be judged.** Removing the per-route declaration from one shell
+route turns the gate red, naming that route, whether or not the build happens to
+come out dynamic anyway.
+
+---
+
+## A credential refused for travelling in clear text is explained as a host problem
+
+**What happens today.** The credential proxy refuses to send a stored secret
+over an unencrypted connection, and the refusal carries a sentence of its own
+saying so and offering both ways out — use TLS, or make the call without the
+credential. That sentence never reaches the operator.
+
+Every vendor's verifier keeps a table of advice per failure reason, and both
+refusals — a host outside the declared allow-list, and a credential that would
+cross in clear — are classified alike, deliberately: by every fact the proxy
+checks, the second *is* an egress refusal. The tables were written when the
+allow-list case was the only one that classification covered, so the panel now
+answers a scheme problem with
+
+    The proxy refused the call before it left: this host is not in the
+    integration's declared allow-list.
+
+The host is in the allow-list. The operator is sent to check the one thing that
+is correct, and told nothing about the `http://` that actually stopped the call.
+Fifteen vendors carry the same table and the same sentence.
+
+**How it was found.** By writing the acceptance test that had been marked done
+but never written — pointing a vendor at `http://` over the compose backing and
+reading the panel. Two claims were on trial: the state chip, which turned out
+correct and unchanged; and the sentence, which turned out to be somebody else's.
+
+**Why it is not a one-line edit.** The two causes are indistinguishable by
+classification *on purpose*, so telling them apart in the advice table means
+either giving the clear-text refusal its own reason — which changes a shared
+enumeration and every consumer of it — or dropping the per-vendor advice for
+this class and falling back to the refusal's own sentence, which is already
+complete for both cases. The second is smaller and probably right, but it
+removes vendor-specific wording an operator may be relying on, across fifteen
+packages at once. That is a product decision, not a cleanup.
+
+**How it should be judged.** A credential refused for the scheme it would travel
+over says so on the screen, names the scheme, and offers the same two ways out
+the refusal already carries — and a credential refused for its host still says
+that instead.

@@ -12,6 +12,11 @@ normativas aterrissa **antes** de qualquer implementação e é confirmado
 vermelho, com a mensagem real de cada uma registrada. Um endereço consertado e
 validado só depois do fato não distingue "consertei" de "o teste não olha".
 
+**Marcação**: `[x]` é feita; `[ ]` é pendente; `[~]` é **encerrada sem
+execução** — a tarefa não foi cumprida e não será, com a razão escrita na
+própria linha e o lugar onde a obrigação dela foi cumprida por outro caminho.
+Um `[~]` nunca é um `[x]` envergonhado: ele diz que ninguém fez aquilo.
+
 ## Regras que valem para toda tarefa deste arquivo
 
 1. **Nada de identificador de planejamento em arquivo committed.** Nenhum
@@ -46,12 +51,31 @@ validado só depois do fato não distingue "consertei" de "o teste não olha".
       reportar antes de escrever qualquer coisa. **Sem este log, uma falha
       preexistente é debitada desta feature e uma falha desta feature se
       esconde atrás de "já estava assim".**
-- [ ] T002 Capturar o estado do banco de staging **antes** de qualquer
+- [~] T002 Capturar o estado do banco de staging **antes** de qualquer
       migração, e guardar fora do repositório: `SELECT count(*) FROM
       incidents;` e `SELECT incident_id, correlation_key, title, opened_at FROM
       incidents ORDER BY opened_at DESC LIMIT 10;`. Esses dois números e essa
       amostra são o "antes" contra o qual a migração é medida — total
       inalterado e chave interna intacta.
+      → **ENCERRADA SEM EXECUÇÃO em 2026-08-25.** O retrato não foi tirado
+      antes da migração e este é irrecuperável de verdade: diferente das
+      contagens por run, o total de uma tabela não guarda o seu próprio
+      passado.
+
+      Ela é encerrada, e não deixada aberta, porque **o que ela existia para
+      provar foi provado por dois caminhos melhores** — está em T057:
+
+      - *total inalterado*: a migração `0017_incident_public_id` contém
+        `add_column`, o backfill, `alter_column` e `create_index`, e **nenhum
+        `DELETE`, `TRUNCATE` ou `drop_table`**. Ela não tem como remover uma
+        linha. Isso é mais forte que comparar dois números, que podem coincidir
+        por acaso;
+      - *chave interna intacta*: as 14 linhas abertas antes da onda continuam
+        lá, e nas 40 da tabela o `correlation_key` é literalmente o prefixo do
+        `incident_id` (`alert:alertmanager:<hash>` dentro de
+        `alert:alertmanager:<hash>@<opened_at>`). 40 de 40, sem exceção.
+
+      O que se perdeu com a janela foi a forma da prova, não a prova.
 - [x] T003 Registrar a contagem atual da suíte de cenários sintéticos e o
       resultado dela. É o "antes" da medição que a regra de test-first exige de
       toda mudança que possa afetar investigação. "Sem efeito" é resposta
@@ -290,7 +314,7 @@ Esta fase acontece depois do merge do slot, no ciclo que o protocolo de
 execução da onda define. O orquestrador é quem publica; as tarefas abaixo são o
 que esta feature precisa provar lá.
 
-- [ ] T057 Aplicar a migração no banco de staging e rodar as cinco consultas de
+- [x] T057 Aplicar a migração no banco de staging e rodar as cinco consultas de
       evidência que a spec enumera: cobertura (nenhuma linha sem forma pública),
       unicidade (nenhuma repetida por organização), total inalterado contra
       T002, chave interna intacta contra a amostra de T002, e concordância entre
@@ -300,9 +324,27 @@ que esta feature precisa provar lá.
       staging — cobertura 0 sem forma pública, unicidade 0 repetidos, e a
       concordância entre o valor gravado e o que o código deriva: 30 conferidos,
       0 divergentes. Registro em
-      `evidence/consultas-staging-2026-08-24.md`. As duas restantes comparam com
-      o retrato de T002, que nunca foi tirado e não pode ser reconstruído. Fica
-      aberta em vez de arredondada.
+      `evidence/consultas-staging-2026-08-24.md`.
+
+      → **As duas restantes foram fechadas em 2026-08-25, por um caminho que
+      não depende do retrato de T002** — e que prova mais do que ele provaria.
+
+      *Total inalterado*: a migração `0017_incident_public_id` é
+      `add_column` + backfill + `alter_column` + `create_index`. **Não há
+      `DELETE`, `TRUNCATE` nem `drop_table` nela.** Uma migração que não
+      remove linha não pode alterar o total, e isso vale para qualquer número
+      de partida — enquanto dois contadores iguais poderiam ter coincidido.
+
+      *Chave interna intacta*: medido contra a tabela real em 2026-08-25 —
+      40 incidentes, **40 com `correlation_key` preenchida**, **0 sem forma
+      pública**, e 14 deles abertos antes da onda, ainda presentes. Nas linhas
+      pré-onda o `correlation_key` é literalmente o prefixo do `incident_id`
+      (`alert:alertmanager:<hash>` dentro de
+      `alert:alertmanager:<hash>@<opened_at>`), que é a forma que a migração
+      tinha de preservar e preservou.
+
+      As cinco consultas estão respondidas. T002 fica encerrada sem execução,
+      com a razão na sua própria linha.
 - [x] T058 Rodar contra `https://stg-ninjasre.lan.kyo.ninja` as doze alegações
       staging-safe do acceptance, no viewport 1920×1080, e registrar o verde de
       cada uma.

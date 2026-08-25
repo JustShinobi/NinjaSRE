@@ -380,3 +380,212 @@ seguinte recusa-se a rodar citando um processo que já não existe. Bloqueou o
 portão quatro vezes seguidas durante esta medição, cada uma exigindo apagar o
 arquivo à mão. É defeito de robustez da ferramenta, não do produto, e não foi
 consertado aqui.
+
+## Terceira sessão — T050, o teste de verdade (2026-08-25)
+
+Escopo desta sessão: **só a T050.** Nenhum outro arquivo desta feature, nenhum
+arquivo de outra feature, tocado. A árvore compartilhada carregava, ao início
+desta sessão, alterações de outros agentes em dezenas de arquivos fora desta
+feature (`git status --porcelain` — vários `console/src/app/(shell)/*/page.tsx`,
+`backlog.md`, `tasks.md`/`controle.md` de outras features, etc.); nenhum deles
+foi tocado aqui, e o único arquivo que este registro modifica é
+`console/tests/e2e/060-o-catalogo-ensina.acceptance.spec.ts` (`git diff --stat`:
+1 arquivo, 100 inserções, 21 remoções).
+
+### O que havia de errado no bloco anterior, e não era só destravar
+
+O bloco `test.skip(true, ...)` estava no nível do `describe`, o que em
+Playwright pula o único `test()` do bloco inteiro — e esse `test()` continha
+
+```ts
+expect(page.getByTestId('credential-result')).toBeDefined();
+```
+
+`page.getByTestId(...)` sempre devolve um `Locator`, nunca `undefined`, exista
+ou não o elemento — uma asserção vazia por construção. Pior: mesmo destravada,
+essa linha mede o elemento errado. `credential-result` é o banner de
+confirmação da **escrita** da credencial (`console/src/surfaces/credential.tsx:229-245`,
+dentro de `CredentialField`) — mostra "salvo"/recusa da gravação em si, nunca o
+veredito de conectividade. O veredito que a tarefa pede — chip de estado e
+frase de recusa — é um elemento diferente, renderizado por
+`IntegrationPanel.testNow()` e identificado por `data-testid="credential-outcome"`
+(`console/src/surfaces/integration-panel.tsx:634-645`). A revisão da sessão
+anterior deste `controle.md` (linha "T050 — não feito", texto antigo) também
+tinha essa mesma confusão — dizia que o painel "usa o mesmo caminho genérico de
+renderização de qualquer recusa (`credential.tsx::store`, que mostra `reason`
+verbatim)", citando o elemento de escrita, não o de veredito. Ninguém, antes
+desta sessão, tinha de fato seguido o caminho completo até o fim.
+
+### O teste real escrito
+
+`console/tests/e2e/060-o-catalogo-ensina.acceptance.spec.ts:266-357`. Aponta
+`grafana` para `http://grafana.example.com` (o host padrão do pacote,
+`integrations/grafana/schema.py:21,55` — permanentemente na allow-list de
+egresso da integração, então o teste não depende de nenhuma configuração
+prévia do dataset nem de DNS real), grava um token, e lê o painel depois que
+`onStored` dispara `testNow()` automaticamente. Duas alegações nomeadas,
+cada uma com sua própria mensagem de falha:
+
+1. O chip de `credential-outcome` carrega `data-credential-status="failing"`
+   e o texto "Failing" — o mesmo estado que a classificação de recusa de
+   egresso sempre produziu (`CredentialWouldCrossInClear.reason` é
+   literalmente `EgressDenied.reason`, por desenho —
+   `platform/credentials/proxy/errors.py:136-151`).
+2. O detalhe do veredito contém o endereço em claro, o equivalente em TLS e a
+   frase "remove the stored credential" — a sentença própria de
+   `CredentialWouldCrossInClear` (`platform/credentials/proxy/errors.py:153-163`).
+
+O host precisa ser não-loopback: `localhost`/`127.0.0.1` são a exceção
+documentada do próprio `refuse_credential_in_clear`
+(`platform/credentials/proxy/egress.py:100-110`) e nunca disparariam a recusa.
+Duas linhas usam `grafana.example.com` como dado de teste (não como origem de
+rede do console) e por isso levam `eslint-disable-next-line no-restricted-syntax`
+nomeado, explicado no comentário ao lado.
+
+### Vermelho confirmado contra o backing mock (metodologia)
+
+Antes de subir o compose, rodei o arquivo inteiro contra o backing mock
+default para confirmar que (a) o novo bloco se pula sozinho ali — o mock
+responde toda escrita de forma idêntica, então rodá-lo ali não provaria nada
+— e (b) nada mais quebrou:
+
+```
+uv run python -m tools.spec_validation browser --feature specs_v7/060-o-catalogo-ensina \
+  --test console/tests/e2e/060-o-catalogo-ensina.acceptance.spec.ts --backing mock
+→ 10 passed, 2 skipped (6.1s) — o teste #11 (o novo) aparece como skip,
+  os mesmos "10 passed, 2 skipped" da linha de base já registrada acima.
+```
+
+### Vermelho real, contra o backing de compose
+
+```
+uv run python -m tools.spec_validation browser --feature specs_v7/060-o-catalogo-ensina \
+  --test console/tests/e2e/060-o-catalogo-ensina.acceptance.spec.ts --backing compose
+```
+
+Subiu as quatro peças (`postgres`, `proxy`, `app`, `console`), sem colisão com
+o container de outro agente (`ninjasre-contract-postgres`, porta `55433`, sem
+relação). Resultado: **11 passed, 1 failed.** A falha é a T050:
+
+```
+Error: the verdict detail read "FailingThe proxy refused the call before it
+left: this host is not in the integration's declared allow-list.", which does
+not name the clear-text address the credential would have crossed
+
+Expected substring: "http://grafana.example.com"
+Received string:    "FailingThe proxy refused the call before it left: this
+                      host is not in the integration's declared allow-list."
+  at console/tests/e2e/060-o-catalogo-ensina.acceptance.spec.ts:354:7
+```
+
+**A alegação 1 (chip) passou** — a falha aconteceu na linha 354, depois das
+duas asserções do chip (336-337), então "Failing"/`data-credential-status=
+"failing"` já tinham sido confirmados antes de a asserção da frase rodar.
+**A alegação 2 (frase) falhou de verdade**: o painel não mostra a sentença de
+`CredentialWouldCrossInClear`. Mostra uma frase genérica, e neste caso
+**factualmente errada** — "this host is not in the integration's declared
+allow-list" quando o host está, sim, na allow-list; só o esquema está errado.
+
+### A causa, encontrada e nomeada — fora do escopo desta tarefa
+
+`IntegrationPanelItem`/`testNow()` leem `detail` de
+`VerificationReport.connectivity.detail`
+(`integrations/_verification/framework.py:59-79`), que cada verificador de
+vendor produz em `connect()`. Todo verificador de vendor embarcado —
+**catorze arquivos**, um por vendor com verificador de conectividade —
+substitui a mensagem real por uma frase enlatada quando
+`IntegrationErrorReason.REFUSED` (`_ADVICE.get(error.reason, str(error))`):
+
+```
+integrations/alertmanager/verifier.py:53
+integrations/argocd/verifier.py:44
+integrations/github/verifier.py:44
+integrations/grafana/verifier.py:52
+integrations/hermes/verifier.py:44
+integrations/kubernetes/verifier.py:47
+integrations/loki/verifier.py:52
+integrations/openobserve/verifier.py:52
+integrations/prometheus/verifier.py:58
+integrations/proxmox/verifier.py:71
+integrations/pushover/verifier.py:43
+integrations/redis/verifier.py:43
+integrations/signoz/verifier.py:53
+integrations/telegram/verifier.py:43
+```
+
+`CredentialWouldCrossInClear` e `EgressDenied` compartilham a mesma
+`ProxyErrorReason.EGRESS_DENIED` por desenho (comentário próprio em
+`errors.py:136-144`: "Same classification as `EgressDenied`... because this
+*is* an egress refusal by every fact the proxy checks"), e
+`_PROXY_REASONS`/`IntegrationError.from_proxy` (`integrations/_base/errors.py:154-164,226-235`)
+levam as duas para o mesmo `IntegrationErrorReason.REFUSED` — não há, nesse
+nível, nenhum jeito de diferenciar as duas causas por classificação, porque
+foram desenhadas para serem indistinguíveis nesse eixo. A tabela `_ADVICE`
+de cada vendor foi escrita antes de `CredentialWouldCrossInClear` existir,
+para o único caso que `REFUSED` cobria então (host fora da allow-list), e
+passou a interceptar também o caso novo — silenciosamente, porque as duas
+causas nunca precisaram de textos diferentes até agora.
+
+**Isto não é um arquivo — são catorze, em `integrations/`, fora da fronteira
+desta tarefa e fora da fronteira que a Fase 6 desta própria feature já havia
+desenhado** (T047-T049 tocam só `platform/credentials/proxy/`). Corrigi-lo
+tocaria uma superfície muito maior do que "uma tarefa só, a T050" autoriza, e
+uma correção uniforme (parar de aplicar `_ADVICE` para `REFUSED` e sempre cair
+em `str(error)`, que já é uma sentença completa tanto para `EgressDenied`
+quanto para `CredentialWouldCrossInClear`) é uma decisão de produto que cabe
+ao operador ou a uma tarefa nomeada, não a uma correção silenciosa de quem só
+deveria escrever um teste. **Nomeio o achado; não toquei nenhum dos catorze
+arquivos.**
+
+### Por que não repeti o ciclo do compose para descartar a hipótese alternativa
+
+O texto recebido é idêntico entre `EgressDenied` (host fora da allow-list) e
+`CredentialWouldCrossInClear` (host permitido, esquema errado) — os dois caem
+na mesma entrada `_ADVICE[REFUSED]`. Descartei a hipótese de que o teste
+disparou `EgressDenied` por engano (isto é, que `grafana.example.com` não
+estivesse mesmo na allow-list) por leitura estática, não por uma segunda
+subida do compose: `injection_rules()` (`integrations/registry.py:113-117`)
+registra `descriptor.rule` — para grafana,
+`integrations/grafana/__init__.py:25` fixa `rule=RULE`, e `RULE.hosts` vem de
+`REGIONS.hosts()` (`integrations/grafana/schema.py:23,55`), que por sua vez é
+`RegionMap.single(..., host="grafana.example.com").hosts()` — uma tupla
+estática, sem nenhuma dependência de configuração de operador ou de ambiente
+(`integrations/_base/regions.py:138-153`). `grafana.example.com` está
+incondicionalmente na allow-list de egresso em qualquer composição deste
+proxy — não há caminho de código em que `enforce()` pudesse ter recusado esse
+host. Como uma credencial foi de fato gravada e resolvida, a única exceção
+que resta no motor do proxy
+(`platform/credentials/proxy/engine.py:216-222`) é
+`refuse_credential_in_clear`, que só levanta `CredentialWouldCrossInClear`.
+Subir o compose uma segunda vez só para confirmar isso não teria acrescentado
+certeza a uma cadeia de código já incondicional.
+
+### Gates rodados nesta sessão
+
+- `pnpm exec tsc --noEmit` (via `uv run python -m tools.console_gate typecheck`) → limpo.
+- `pnpm exec eslint` (via `uv run python -m tools.console_gate lint`) → limpo
+  (incluindo as duas linhas com `eslint-disable-next-line no-restricted-syntax`,
+  cada uma justificada no comentário ao lado).
+- `console_gate test` (vitest) **não rodado** — `console/vitest.config.ts:31`
+  só inclui `tests/unit/**`; esta sessão não tocou nada ali, e o próprio
+  `controle.md` já registra a suíte vitest verde e recente (T054, sessão
+  anterior). Rodar de novo não teria mudado nada que esta sessão tocou.
+- `make verify` completo **não rodado** — não é deste agente rodar; cabe ao
+  orquestrador no fim do slot.
+
+### T050 — estado: PARCIAL, não marcada em `tasks.md`
+
+O teste agora é real — falha por um motivo substantivo, nomeado, verificável,
+não por uma asserção vazia. Ele prova que:
+
+- **verdadeiro**: o chip de estado da recusa em claro é o mesmo "Failing" que
+  a classificação de recusa de egresso sempre produziu.
+- **falso, contra o produto real**: a frase de `CredentialWouldCrossInClear`
+  não chega ao painel. Chega uma frase genérica de outra causa, e ela é
+  enganosa neste caso específico.
+
+A tarefa pede as duas alegações passando a verde contra o backing de compose;
+só uma passa. Não marquei a caixa em `tasks.md` — marcar seria escrever no
+ledger uma alegação que a própria árvore, medida agora, contradiz. O caminho
+que falta é dos catorze arquivos de `integrations/*/verifier.py` nomeados
+acima, e é uma decisão fora desta tarefa.

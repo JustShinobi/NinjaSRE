@@ -433,8 +433,14 @@ este número?**
 
 ### O que fica aberto, nomeado
 
-- **A demo não foi executada.** Runbooks, coletor e gabarito estão de pé; as
-  estações de ação esperam a execução com um humano no meio.
+- ~~**A demo não foi executada.**~~ — **desatualizado, e corrigido em
+  2026-08-25.** Esta linha foi escrita antes da execução e ficou aqui enquanto
+  a seção "A demo, executada" era acrescentada logo abaixo, no mesmo arquivo.
+  Um documento que se contradiz em duas seções é pior que um incompleto, porque
+  quem lê a primeira para de ler. A demo rodou em 2026-08-24 contra o
+  hipervisor real; o que continua esperando um humano no meio são as estações
+  de **ação** (E7 a E9 e a rejeição), e a razão pela qual elas não correram
+  está medida mais abaixo.
 - Baselines visuais das telas reformadas: recapturar e aceitar é revisão
   humana.
 - Prova contra um stack de compose real, para o primeiro administrador.
@@ -582,3 +588,243 @@ tempo antes de descobrir.
 No k3s isso foi resolvido retirando o componente do manifesto de staging, com a
 compensação escrita no lugar. **No compose não foi tocado** — é anterior a esta
 onda e não é de nenhuma feature dela. Fica nomeado.
+
+
+---
+
+## Veredito por feature, medido por verificação independente · 2026-08-25
+
+A seção que faltava, e que o próprio cabeçalho deste arquivo exigia: **um
+veredito por feature, de quem mediu, não de quem implementou.** Sete
+verificadores independentes leram o código atual, os commits e as tarefas
+marcadas, com uma instrução comum — não copiar o `controle.md`, e nomear com
+`file:line` qualquer marcação que o código não sustentasse.
+
+O portão da árvore final, rodado pelo orquestrador como um comando só:
+`make verify` **exit 0, 12.778 passed / 30 skipped, 13:05**, mais 37
+benchmarks.
+
+| Feature | Veredito | Por quê, em uma linha |
+|---|---|---|
+| Regras e governança | **PASS** | Já confrontada no fechamento do seu próprio slot |
+| Registro do que o agente fez | **PASS** | Já confrontada no fechamento do seu próprio slot |
+| Identidade endereçável | **PASS** | Já confrontada no fechamento do seu próprio slot |
+| Leitura do relato | **FAIL** | Quatro baselines visuais seguem `pending` no registro, e a tarefa que as aceitava foi fechada com evidência de outra feature |
+| Uma fonte por fato | **FAIL** | Nenhuma das 36 rotas declara a própria dinâmica; a tarefa que o exigia está marcada feita |
+| Decisão composta | **PASS** | Os quatro mecanismos compostos na raiz de serving, nenhum dormente; 201 testes próprios verdes |
+| Primeiro administrador | **FAIL** | A prova de concorrência contra Postgres real não existe, e é a propriedade de segurança da feature |
+| O catálogo ensina | **PASS** | Orientação por campo, portão em CI, documentação servida por rota, recusa em claro com frase própria — tudo composto |
+| Confiança de certificado | **PASS** | A recusa acontece dentro do `connect()`, antes de um byte; a confiança passou a valer sem reinício |
+| Incidente fecha o laço | **FAIL** | O coletor e o backlog reescrito estão sólidos; a tarefa que declara o alcance do diff é falsa como redigida |
+
+**Quatro reprovações, e nenhuma delas é código quebrado.** Todas as quatro são
+a mesma família: **uma tarefa marcada feita cujo trabalho não existe.** Vale
+dizer isso com precisão, porque muda quem conserta e quanto custa.
+
+### As quatro marcações falsas, uma a uma
+
+**Leitura do relato — as baselines visuais.** As quatro entradas das telas de
+run em `console/visual/screens.json` estão `"status": "pending"`, cada uma com
+o seu `pending_because` pedindo revisão humana. A anotação que fechava a tarefa
+falava de uma manchete virada rótulo e de um nome de página truncado a 320px —
+duas regressões reais, mas **da tela de recursos**, não de `/runs`. O texto
+entrou por um commit cujo assunto é sobre outra feature. O `controle.md` da
+própria feature já dizia *"recaptura minha, aceitação não... Não fiz, e não
+devo"*, e estava certo. **Reaberta.** O que falta é uma pessoa olhando quatro
+imagens — não é trabalho de agente.
+
+**Uma fonte por fato — a dinâmica por rota.** `grep -rln "export const
+dynamic" "console/src/app/(shell)"` devolve **um** arquivo: o layout. Nenhum
+dos 36 `page.tsx` declara a própria dinâmica, e
+`git log -p --all -S "export const dynamic"` mostra que essa string **nunca**
+foi adicionada a um arquivo de página na história do repositório. A rota de que
+a história de usuário fala foi editada pela última vez quinze dias antes de o
+branch existir. O portão não pega porque inspeciona a **saída do build**, então
+fica verde enquanto o `force-dynamic` do layout — pré-existente — segurar. A
+propriedade observável vale hoje; o seguro estrutural que a spec pede não foi
+construído. **Em reparo.**
+
+**Primeiro administrador — a corrida.** A tarefa pede N tentativas simultâneas
+de criar o primeiro administrador contra o Postgres real, produzindo uma
+abertura e N-1 recusas. Não existe: nenhum `asyncio.gather` em teste de
+identidade, e o único arquivo desta suíte que roda contra Postgres real não tem
+teste da corrida. O código de produção usa `pg_advisory_lock` e lê correto por
+inspeção — mas o próprio fake diz, em comentário, que o GIL é *"the fake's whole
+implementation of the arbiter the Postgres backend needs an advisory lock for"*.
+Por admissão do código, o teste que existe não pode exercitar a corrida.
+**Em reparo.** É a propriedade que decide quem vira o primeiro administrador de
+um deployment.
+
+**Incidente fecha o laço — o alcance do diff.** A tarefa declara cinco caminhos
+e afirma zero arquivos fora deles. A medição que a fechou cobria um intervalo
+de commits que terminava antes de catorze commits da própria feature. Seis
+exceções reais: três defensáveis (um script de deploy, evidência de outras
+features coletada na mesma passagem, o `progress.json` da onda) e três não (um
+teste de unidade de console sem relação, e duas definições de agente).
+**Nenhuma altera produto** — a substância se sustenta, a lista literal não.
+**Corrigida no lugar.**
+
+### Três achados de produto que a verificação localizou, e ninguém tinha
+
+**A seleção de ferramentas depende do idioma, e nada diz isso.**
+`capabilities/registry/scoring.py:127-199`. O escorador ordena por sobreposição
+de termos entre o resumo do incidente e os casos de uso do catálogo; `_terms()`
+tokeniza com `[a-z0-9_]+` e filtra por 26 palavras vazias **só em inglês**. Um
+alerta em português pontua **todas** as capacidades em zero; o desempate vira
+ordem alfabética; e o produto entrega quarenta ferramentas escolhidas pelo
+alfabeto sem recusar nem avisar. Reproduzido de forma independente com o
+escorador do próprio produto: `proxmox_start_guest` a 0,0000 em português e
+0,7407 em inglês — 63ª cortada contra 13ª oferecida. **O arquivo é anterior a
+esta onda e nenhuma feature dela se apropriou dele.** É o achado mais grave
+que esta onda produziu sobre si mesma.
+
+**O sujeito gravado de um incidente pode ser o host do exportador.** O achado
+antigo dizia que o *cabeçalho* lia `instance`. O SQL literal mostra que é mais
+fundo: o incidente de um convidado parado tem como sujeito gravado
+`node/HAL9000/pve02`, `kind: node` — o casamento foi por endereço
+(`matched_on: address`, `target_label: instance`). A tela exibe fielmente um
+sujeito resolvido errado na borda. **Dona e conserto mudam de lugar**: é o
+casador de alerta para recurso.
+
+**Nada é jamais marcado como citado.** A tabela `evidence` tem 24 linhas na
+instância, de fontes reais, cobrindo 7 de 203 runs que gravam turnos — e as 24
+têm `cited = false`, sem exceção.
+
+### E um achado sobre o próprio instrumento
+
+Numa das cinco corridas contra staging, **quatro testes da regra de markdown
+cru passaram olhando para a tela de login.** A sessão caiu no meio da corrida, e
+a regra não encontrou markdown cru porque não havia tela nenhuma onde
+encontrar. As capturas provam: 23.719 bytes idênticos para cinco rotas
+diferentes, contra 177KB–2,5MB nas corridas boas.
+
+É exatamente o modo de falha que esta onda catalogou — *"uma regra passou
+porque a tela não renderizou nada para ela medir"* — acontecendo **dentro do
+instrumento que a onda construiu para pegá-lo**. A suíte transversal não tem
+guarda de que está olhando para a aplicação. Sem dona.
+
+### O que a verificação confirmou, e vale registrar junto
+
+Nem tudo que se mede é defeito. Quatro coisas foram medidas por terceiros e
+seguraram:
+
+- **a manchete funciona em produção, hoje**: runs sem sentença por dia — 20 de
+  20 em 22/08, 125 de 142 em 23/08, 1 de 139 em 24/08, **0 de 47** em 25/08;
+- **os dois portões da decisão composta estão na raiz de serving**, com
+  `file:line`, e o pipeline dormente se declara nomeando o que o ligaria;
+- **a recusa de certificado acontece dentro do `connect()`**, antes de um byte
+  sair — não é hook, então não falha aberto; e um teste de arquitetura planta um
+  segundo `CERT_NONE` e confirma que a regra nomeia o arquivo;
+- **o portão de vocabulário de status é bidirecional de verdade**: apontado
+  para uma fixture de rascunho que reintroduz o termo antigo, ele acusa 7
+  violações e sai 1, nomeando as três classes de regra.
+
+---
+
+## A rodada de reparo · 2026-08-25
+
+Três implementadores, um por marcação falsa que precisava de código. O que eles
+acharam vale mais que o que consertaram.
+
+### A prova que faltava encontrou o defeito que ela existia para pegar
+
+A tarefa pedia N tentativas simultâneas de criar o primeiro administrador contra
+Postgres real, produzindo uma abertura e N-1 recusas legíveis. Estava marcada
+feita. Escrita de verdade, com oito tentativas, **reprovou em metade das
+rodadas** — não por defeito do teste, por defeito do código já commitado.
+
+A sessão que **vencia** a corrida soltava o advisory lock quando o próprio
+`flush()` retornava — quando o INSERT foi *enviado*, não quando a transação
+*terminou*. Como o método é uma etapa dentro de uma transação maior que o
+chamador continua escrevendo, um segundo chamador destravado cedo demais lia a
+linha como ausente (ainda não durável) e disputava o próprio INSERT contra ela.
+A falha marcava a transação daquela sessão como encerrada, o
+`pg_advisory_unlock` do `finally` reprovava com *"Can't operate on closed
+transaction"*, e **o lock ficava preso naquela conexão** — as demais tentativas
+esperavam em `SELECT pg_advisory_lock(...)` até o `statement_timeout` de 30s as
+derrubar com texto de driver puro, que é exatamente o que a tarefa exige que não
+apareça.
+
+O conserto: trava de escopo de **transação** (`pg_advisory_xact_lock`), que o
+Postgres solta sozinho quando a transação termina — sem liberação explícita para
+falhar. O implementador **recusou** copiar literalmente o padrão do migrador,
+que confirma a própria transação antes de destravar, com a razão certa: aqui
+isso quebraria a atomicidade com o resto do trabalho do chamador e poderia
+deixar a porta marcada "aberta" sem administrador nenhum criado.
+
+Vinte rodadas verdes na sessão dele, `pg_locks` conferido ao vivo sem nenhum
+lock pendurado, e **seis rodadas independentes do orquestrador**, ~1,3s cada
+contra os 30s de bloqueio anteriores.
+
+**Por que isto passou por cinco auditorias.** A prova que existia era contra um
+fake que serializa tudo atrás de um lock global — e o comentário do próprio fake
+diz que o GIL é *"toda a implementação do árbitro que o backend Postgres precisa
+de um advisory lock para ter"*. **O fake não tinha como falhar.** Era por isso
+que a tarefa pedia Postgres real, e é por isso que ninguém a ter executado não é
+um detalhe de processo.
+
+### O corte de fio que não produziu vermelho, e disse isso
+
+As 36 rotas do console passaram a declarar a própria dinâmica. Pedi o corte de
+fio de praxe — remover a declaração herdada e mostrar o portão ficando vermelho.
+Ficou **verde**: sem declaração nenhuma em lugar nenhum, exit 0.
+
+A causa está lida: a autenticação do layout lê cookie incondicionalmente, e uma
+API dinâmica descoberta em qualquer segmento torna a rota inteira dinâmica. A
+propriedade tinha **três** camadas redundantes e o corte derrubou uma.
+
+O implementador relatou isso em vez de fabricar um vermelho, e a correção vale
+assim mesmo — a declaração por arquivo é a única das três camadas que é local,
+explícita e imune a um refactor do layout. Mas o achado que sobra é maior que a
+tarefa: **o portão de rotas dinâmicas não consegue detectar a ausência da
+declaração**, porque inspeciona a saída do build. Ele protege a propriedade
+observável, não a estrutural.
+
+### O teste vazio que virou teste, e reprovou
+
+O acceptance da recusa de credencial em claro não era um teste esperando
+destravar: o `skip` estava no nível do bloco e o corpo era
+`expect(locator).toBeDefined()`, que nunca falha, porque um localizador é sempre
+um objeto. **Asserção vazia por construção.**
+
+Escrito de verdade e rodado contra o compose, ele separa duas alegações que
+estavam juntas: o chip de estado está certo, e **a frase não chega ao painel**.
+Chega a de outra causa — o painel diz *"this host is not in the integration's
+declared allow-list"* quando o host está na allow-list e o problema é o `http://`.
+Quinze vendors carregam a mesma tabela e a mesma frase, escrita quando a
+allow-list era o único caso que aquela classificação cobria.
+
+O implementador nomeou o achado e **não** tocou nos quinze arquivos, porque
+consertar atravessa uma superfície muito maior que a tarefa autorizava. Está
+certo, e a tarefa fica desmarcada: marcá-la seria escrever no ledger uma
+alegação que a árvore contradiz.
+
+### O que a rodada ensina sobre as outras marcações
+
+Três tarefas marcadas feitas; três trabalhos que não existiam; e **dois defeitos
+de produto reais escondidos atrás delas** — uma corrida no caminho que decide
+quem vira o primeiro administrador de um deployment, e uma frase de recusa que
+manda o operador conferir a coisa certa quando o errado é outro.
+
+Nenhum dos dois apareceria numa releitura do código. Os dois apareceram no
+minuto em que alguém escreveu o teste que a tarefa dizia estar escrito.
+
+### O portão, depois dos reparos
+
+| Alvo | Resultado |
+|---|---|
+| `make verify` | **exit 0** — 12.778 passed / 31 skipped / 31 warnings em 11:14; 37 benchmarks; 7 contratos de import mantidos; zero linhas `FAILED` ou `ERROR` |
+| `make test-postgres` | **exit 0** — 578 passed / 20 skipped em 6:05 |
+
+O segundo alvo é rodado à parte de propósito, e vale dizer por quê: **`verify`
+não o inclui**. A prova de concorrência do primeiro administrador vive ali, e
+foi exatamente essa separação que deixou a corrida passar despercebida — o
+portão que a integração contínua roda estava verde por cima dela o tempo todo.
+Um defeito de segurança atrás de um alvo que ninguém roda por padrão é a mesma
+família de "validação que mede nada" que esta onda vinha catalogando nas telas.
+
+O skip a mais em `verify` (30 → 31) é o bloco novo da recusa em claro, que se
+pula sozinho contra o backing de mock e roda de verdade só contra o compose. É
+o comportamento desejado, não uma regressão — e é a diferença entre um skip que
+diz por que está pulando e o que estava ali antes, que não pulava nada e não
+media nada.

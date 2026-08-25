@@ -374,6 +374,40 @@ mesma resolução. `make verify` estreito no lado Python.
       diferente da do diagnóstico, o remédio é o dela — e a declaração por rota
       entra de todo jeito, porque depender de herança é a fragilidade que
       permitiu a dúvida.
+      → **Estava marcada feita sem existir, e foi feita em 2026-08-25.** Uma
+      verificação independente mediu: `grep -rln "export const dynamic"` sob o
+      shell devolvia **um** arquivo, o layout; nenhuma das 36 páginas declarava
+      nada. E `git log -p --all -S "export const dynamic"` mostra que essa
+      string **nunca** foi acrescentada a um arquivo de página na história
+      inteira do repositório.
+
+      Agora as 36 declaram, cada uma no próprio arquivo, com a razão no
+      comentário. Portões: formato, lint e typecheck exit 0; o build final
+      mostra as 36 rotas do shell como dinâmicas; o portão de rotas dinâmicas
+      exit 0; a lógica do portão, 15 passed contra fixture sintética.
+
+      **O corte de fio não produziu vermelho, e isso é o achado.** O roteiro
+      pedia para remover a declaração do layout e mostrar o portão ficando
+      vermelho sem as novas. Ele ficou **verde**: sem declaração nenhuma em
+      lugar nenhum, exit 0. E removendo a declaração de uma rota isolada — a
+      única sem `searchParams` nem API dinâmica própria —, verde de novo.
+
+      A causa está lida no código: o layout chama a autenticação
+      incondicionalmente, que lê cookie, e uma API dinâmica descoberta em
+      qualquer segmento torna a rota inteira dinâmica. A propriedade é
+      sustentada hoje por **três** camadas redundantes — a declaração do
+      layout, o `searchParams` de 34 páginas, e essa leitura de cookie — e o
+      corte derrubou só a primeira.
+
+      **Duas consequências, e as duas ficam escritas.** A declaração por
+      arquivo continua sendo a correção certa: é a única das três camadas que é
+      local, explícita e imune a um refactor do layout ou a uma mudança de
+      comportamento do framework. E **o portão de rotas dinâmicas não consegue
+      detectar a ausência de uma declaração por rota** — ele inspeciona a saída
+      do build, que a leitura de cookie mantém dinâmica sozinha. Ele protege a
+      propriedade observável, não a estrutural. Isso vale para a alegação de
+      T049 também, que não foi tocada: reverter uma rota hoje não derruba o
+      portão. Entregue ao backlog.
 
 - [x] T049 Confirmar que o check de build de T007 passa a **aprovar**, e que ele
       reprova de novo se uma rota for revertida — testado revertendo uma e

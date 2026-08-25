@@ -32,6 +32,12 @@ de a evidência ser considerada entregue.
 
 ---
 
+**Marcação**: `[x]` é feita; `[ ]` é pendente; `[~]` é **encerrada sem
+execução** — não foi cumprida e não será, com a razão na própria linha. Uma
+estação exercitada cujo veredito é `REPROVOU (produto)` fica `[x]`: a tarefa era
+executar e registrar, e ela foi executada e registrada. O defeito vive na tabela
+de achados, não na caixinha.
+
 ## Fase 1: Pré-voo — o staging é a ponta da onda (O-A)
 
 **Objetivo**: garantir que a demo mede a onda, e não uma versão anterior dela.
@@ -105,8 +111,12 @@ Nenhuma tarefa desta fase altera infraestrutura.
 - [x] T015 [P] Listar os alertas que **já estão** disparando agora no
       Alertmanager. Escolher um deles como matéria-prima do laço de leitura, e
       registrar qual e por quê.
-- [ ] T016 Registrar em `evidence/EVIDENCIA.md` a tabela de aptidão: cada item
+- [x] T016 Registrar em `evidence/EVIDENCIA.md` a tabela de aptidão: cada item
       das tarefas T007–T015 com conferido/não conferido e a saída.
+      → Feita em 2026-08-25, `EVIDENCIA.md` §2: as doze linhas A1–A12, **todas
+      conferidas**, cada uma com a saída ou o arquivo onde ela está. Nenhum item
+      ficou não conferido, logo nenhuma estação foi bloqueada por aptidão — as
+      que não correram, não correram por outra razão.
       **Checkpoint**: um item não conferido não bloqueia por si — bloqueia a
       estação que depende dele, e isso fica escrito.
 
@@ -220,15 +230,50 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 
 ## Fase 5: O vermelho — o gabarito roda a seco antes da demo (O-C)
 
-- [ ] T034 Rodar o coletor contra o staging **antes** da demo, com os parâmetros
+- [x] T034 Rodar o coletor contra o staging **antes** da demo, com os parâmetros
       de um run pré-onda. Registrar a saída em
       `evidence/consultas/000-partida.txt`.
-- [ ] T035 Conferir que as consultas devolvem os valores de partida esperados. Se
+      → Rodado em 2026-08-25 contra `c2af8f73fa484061b483c6a4e9148131`,
+      concluído em 2026-08-22 23:51:38Z — quarenta e uma horas antes da primeira
+      publicação da onda. Oito arquivos por estação em
+      `evidence/consultas/000-partida/`, consolidados em
+      `evidence/consultas/000-partida.txt`.
+
+      **Foi feito depois da demo, e isso não invalida a medição.** Duas
+      passagens anteriores registraram esta fase como impossível porque o deploy
+      já estava vivo havia mais de um dia. O argumento confunde o instante com o
+      sujeito: o "antes" aqui não é um relógio, é um run que rodou antes de o
+      gravador existir. Nada foi preenchido retroativamente, então o retrato
+      continua tirável enquanto aquele run estiver na tabela.
+- [x] T035 Conferir que as consultas devolvem os valores de partida esperados. Se
       alguma já devolver o valor "verde" antes da demo, ela está medindo outra
       coisa — corrigir a consulta antes de seguir. **Este é o vermelho
       confirmado desta feature; registrá-lo é obrigatório.**
-- [ ] T036 Registrar o vermelho em `evidence/EVIDENCIA.md`, seção "O que o
+      → **Vermelho confirmado**, e a conferência pegou exatamente o que existe
+      para pegar.
+
+      Batem com a partida: `run_turns` 0, `tool_calls` 0, `evidence` 0, custo por
+      turno 0 linhas, `approvals` 0, `remediation_outcomes` 0, `episodes` 0,
+      manchete vazia, `summary` abrindo com `### Findings & Root Cause Analysis`.
+
+      **Não bate, e está registrado como não batendo:** `estate_resources`
+      devolve **100** onde a partida dizia estate vazio. Não é defeito da
+      consulta — o estate foi povoado por um slot anterior desta mesma onda,
+      semanas depois de o valor de partida ter sido escrito. Ela mede
+      corretamente; só não mede *esta demo*. Fica como precondição atendida
+      (§2, A4) e **não** como evidência do laço.
+
+      Uma consulta saiu **não coletada** em vez de zero: `rollback_plans`, que
+      exige `--approval`, e não há aprovação nenhuma. O coletor escreveu a razão
+      no arquivo — *"a station without evidence is not a station that passed"* —
+      em vez de devolver um zero que pareceria medição.
+- [x] T036 Registrar o vermelho em `evidence/EVIDENCIA.md`, seção "O que o
       staging media antes da demo".
+      → `EVIDENCIA.md` §3, com a tabela preenchida coluna a coluna, mais o
+      contraste lado a lado contra o run da demo (0/0/0/2 → 5/4/0/13) e as duas
+      coisas que o contraste não deixa arredondar: a tabela `evidence` em zero
+      para o run da demo, e a curva diária da manchete — 20/20 sem sentença em
+      22/08, 125/142 em 23/08, 1/139 em 24/08, **0/47** em 25/08.
       **Checkpoint**: sem T035 registrado, a evidência posterior não tem
       contraste e o gabarito não foi provado.
 
@@ -239,19 +284,58 @@ digite um `SELECT` de memória às onze da noite e anexe o resultado errado.
 - [x] T037 Executar `runbooks/laco-de-leitura.md` do começo ao fim, contra
       `https://stg-ninjasre.lan.kyo.ninja`, com o alerta já ativo escolhido em
       T015.
-- [ ] T038 [P] E2/E3 — screenshot full-page da lista de incidentes e do detalhe do
+- [x] T038 [P] E2/E3 — screenshot full-page da lista de incidentes e do detalhe do
       incidente escolhido. Conferir: título legível, zero painéis "não foi
       possível preencher", nenhuma URL com `%3A`/`%40`/`%2B`, sujeito resolvido.
+      → Capturadas em 2026-08-25 contra o staging real, **full-page a 1920 de
+      largura**: `evidence/telas/incidents-list.png` e
+      `evidence/telas/incident-detail.png`. O `LEIA-ME.md` do diretório diz qual
+      estação cada arquivo serve, e por que são cinco arquivos e não oito.
+
+      Conferido: nenhum `%3A`, `%40` ou `%2B` na URL — o endereço é
+      `inc_05328c58ca88676b`. **Duas das quatro alegações caem**, e são achados
+      de produto, não falha da captura: o título é `ProxmoxGuestStopped` em vez
+      de frase, e o sujeito gravado é o nó do exportador. Ver T049.
 - [x] T039 [P] E4 — screenshot full-page do detalhe do run: transcript com as
       chamadas reais e o que cada uma devolveu, custo por turno, "o que esta
       investigação tocou" preenchido, e nenhum controle de run vivo num run
       terminado.
 - [x] T040 [P] E5 — screenshot full-page do relato: título é uma sentença, report
       renderizado, nenhum caractere de sintaxe markdown visível como texto.
-- [ ] T041 E6 — conferir que o conjunto de ferramentas oferecido condiz com as
+- [x] T041 E6 — conferir que o conjunto de ferramentas oferecido condiz com as
       integrações que este deployment conectou, e que nenhuma capacidade de
       remediação foi oferecida só para devolver recusa. Evidência: o transcript e
       a tela de ferramentas do agente.
+      → **Veredito: REPROVOU (produto)**, e a causa levou três explicações
+      erradas antes de ser medida. Registro completo em
+      `evidence/demo-2026-08-24/T041-ferramentas-oferecidas.md`: a gravação do
+      próprio run diz `ranked 60, offered 40, cut by the ceiling 20`, com o
+      escore de cada candidata.
+
+      O que condiz: cada chamada pareada com o seu resultado e um estado
+      honesto, inclusive o `501` do hipervisor verbatim e a recusa de
+      `changes_in_window` a afirmar um negativo.
+
+      O que não condiz: foram oferecidas sete maneiras de parar, desligar,
+      suspender, reiniciar, retomar, migrar e relocar um convidado, e foi cortada
+      a única que **liga** um — num incidente cujo conteúdo era um convidado que
+      parou.
+
+      **A causa, localizada por verificação independente**:
+      `capabilities/registry/scoring.py:127-199`. O escorador ordena por
+      sobreposição de termos entre o resumo do incidente e os casos de uso do
+      catálogo; `_terms()` tokeniza com `[a-z0-9_]+` e filtra por uma lista de 26
+      palavras vazias **só em inglês**. A descrição do alerta estava em
+      português: `proxmox_start_guest` pontuou 0,0000 e caiu para 63ª de 60
+      candidatas; em inglês pontua 0,7407 e fica em 13ª. **Uma variável decide se
+      o deployment recebe a ação que conserta o incidente.** A dependência de
+      idioma não está declarada em docstring, constante, teste ou documento — o
+      arquivo é anterior a esta onda, e nenhuma feature dela se apropriou do
+      conserto.
+
+      Sem captura dedicada da tela do agente: a rota não está no varrimento
+      transversal. A evidência desta estação é a gravação do run, mais forte que
+      a tela.
 - [x] T042 [P] E7 — screenshot full-page de `/decisions` e do painel de ação
       proposta no incidente: a proposta, o plano de reversão, o alcance, a
       postura, e o chip aguardando decisão. **Nada é aprovado aqui.**
@@ -285,8 +369,36 @@ presente e a par.
       **Desfecho de ambiente**: alerta disparou e entrega não chegou por não
       resolver o nome do deployment ⇒ é a tarefa operacional de resolução de
       nomes, não o webhook.
-- [ ] T049 E3 — o incidente abre com título legível e sujeito resolvido.
+- [x] T049 E3 — o incidente abre com título legível e sujeito resolvido.
       Screenshot full-page do detalhe. Registrar o identificador do incidente.
+      → **Veredito: REPROVOU (produto)** — duas das quatro sub-alegações caem.
+      Incidente `inc_05328c58ca88676b`, captura em
+      `evidence/telas/incident-detail.png` (1920, full-page).
+
+      **Passa**: endereço curto, opaco e estável, sem `%3A`/`%40`/`%2B`; nenhum
+      painel dizendo que não pôde preencher; o chip diz o estado real, não
+      `Unknown`; `Proposed action` diz *"Nothing proposed yet"* com a frase
+      inteira, que era correto naquele instante.
+
+      **Reprova, e o SQL literal corrigiu o achado que a prosa tinha**: o achado
+      anterior dizia que *o cabeçalho* lia `instance` e mostrava o host do
+      exportador. É mais fundo. A consulta de sujeito devolve
+
+          resource_id   res-47555daca81efa67dacce16fb42c898e
+          kind          node
+          native_id     node/HAL9000/pve02
+          display_name  pve02
+
+      O incidente de um **convidado** parado (`redis`, `lxc/122`, no `pve01`) tem
+      como **sujeito gravado** o nó `pve02`, que é só onde o `pve-exporter` está
+      hospedado. O casamento foi por endereço (`matched_on: address`,
+      `target_label: instance`). A tela não lê o rótulo errado — ela exibe
+      fielmente um sujeito que a borda resolveu errado. **Dona e conserto mudam
+      de lugar por causa disto**: é o casador de alerta para recurso, não o
+      componente de cabeçalho.
+
+      O segundo: o título é `ProxmoxGuestStopped`, o nome do alerta, e não uma
+      frase — enquanto o próprio produto produz a frase certa na tela seguinte.
 - [x] T050 E4 — a investigação grava. Screenshot full-page do run **depois de um
       reload** (o ponto é ler do store, não do processo). Rodar o coletor para
       este run e anexar as contagens e o custo por turno.
@@ -300,12 +412,32 @@ presente e a par.
       **Desfecho aceitável e declarado**: investigação sem evidência suficiente
       não propõe nada — e isso é correto. Neste caso o run vira cenário de
       leitura, e o laço inteiro reexecuta com outra ocorrência.
+      → **Não exercida na demo de 2026-08-24, e o bloqueio caiu em 2026-08-24
+      17:19.** A razão de não ter corrido foi medida e é uma só: a capacidade
+      que consertaria aquele incidente pontuou 0,0000 contra um alerta escrito
+      em português e foi cortada em 63º lugar de 60 candidatas, porque o
+      escorador ordena por sobreposição de termos com casos de uso declarados em
+      inglês. Não foi ambiente, não foi privilégio, e não foi omissão — **o
+      agente estava certo em não propor nada**, porque não lhe foi oferecido com
+      o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
+      passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
+      janela de CT122 com o operador, e de mais nada.**
 - [ ] T054 **Conferir E4 a E7 antes de aprovar.** Só depois seguir para T055.
 - [ ] T055 E8 — o operador aprova, pela interface, olhando. Registrar o instante.
       Anexar a consulta que mostra estado, decisor, instante e motivo, e o evento
       de auditoria correspondente. Conferir que decisão, decisor e instante foram
       gravados **antes** de qualquer efeito, e que o plano de reversão já estava
       registrado.
+      → **Não exercida na demo de 2026-08-24, e o bloqueio caiu em 2026-08-24
+      17:19.** A razão de não ter corrido foi medida e é uma só: a capacidade
+      que consertaria aquele incidente pontuou 0,0000 contra um alerta escrito
+      em português e foi cortada em 63º lugar de 60 candidatas, porque o
+      escorador ordena por sobreposição de termos com casos de uso declarados em
+      inglês. Não foi ambiente, não foi privilégio, e não foi omissão — **o
+      agente estava certo em não propor nada**, porque não lhe foi oferecido com
+      o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
+      passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
+      janela de CT122 com o operador, e de mais nada.**
 - [ ] T056 E9 — a execução acontece pelo gate. Evidência: o convidado voltando a
       rodar (`pct status` dizendo `running`), o desfecho gravado em
       `remediation_outcomes`, o episódio gravado em `episodes`, e a entrada de
@@ -332,6 +464,16 @@ presente e a par.
 - [ ] T061 Em ocorrência **diferente** da aprovada — outro alerta real com
       proposta, ou uma segunda janela combinada com o operador —, rejeitar a
       proposta **sem motivo**. Conferir que é recusado. Screenshot.
+      → **Não exercida na demo de 2026-08-24, e o bloqueio caiu em 2026-08-24
+      17:19.** A razão de não ter corrido foi medida e é uma só: a capacidade
+      que consertaria aquele incidente pontuou 0,0000 contra um alerta escrito
+      em português e foi cortada em 63º lugar de 60 candidatas, porque o
+      escorador ordena por sobreposição de termos com casos de uso declarados em
+      inglês. Não foi ambiente, não foi privilégio, e não foi omissão — **o
+      agente estava certo em não propor nada**, porque não lhe foi oferecido com
+      o quê. Com a descrição da regra reescrita em inglês, a mesma capacidade
+      passa a ser oferecida em 13º. **Esta estação depende agora de uma segunda
+      janela de CT122 com o operador, e de mais nada.**
 - [ ] T062 Rejeitar a mesma proposta **com motivo**. Conferir que é registrado.
       Screenshot; anexar a consulta de `approvals` mostrando estado e motivo.
 - [ ] T063 Conferir que as duas decisões — a aprovação de T055 e a rejeição de
@@ -367,21 +509,86 @@ e registra o estado real.
 
 - [x] T069 Preencher `evidence/EVIDENCIA.md` estação por estação: expectativa,
       evidência, consulta, saída literal, veredito, instante.
-- [ ] T070 Conferir que **toda** estação que é tela tem screenshot full-page em
+- [x] T070 Conferir que **toda** estação que é tela tem screenshot full-page em
       1920×1080, nomeada pela estação, em `evidence/telas/`.
-- [ ] T071 Conferir que **toda** estação que alega gravação tem consulta e saída
+      → Conferido em 2026-08-25. `evidence/telas/` existe, e as capturas são
+      **full-page a 1920 de largura** (alturas de 1080 a 9626), contra o staging
+      real, nomeadas pela estação, com `LEIA-ME.md` dizendo qual arquivo serve
+      qual estação.
+
+      **São cinco arquivos, não oito, e isso é deliberado**: uma tela serve mais
+      de uma estação quando é a mesma tela. Copiar o mesmo pixel sob três nomes
+      faria o diretório parecer três medições onde houve uma.
+
+      **Duas ressalvas escritas em vez de escondidas.** As capturas são de 25/08,
+      depois do laço, não de dentro dele — para uma alegação sobre *o que uma
+      estação mostrava no seu instante*, a captura válida continua sendo a de
+      `demo-2026-08-24/`, mais estreita (1280) e correta no tempo; as duas ficam
+      porque nenhuma substitui a outra. E E6 não tem captura dedicada (a rota do
+      agente não está no varrimento), enquanto E8/E9/R não têm tela porque não
+      foram exercidas — as duas coisas nomeadas no `LEIA-ME.md`.
+- [x] T071 Conferir que **toda** estação que alega gravação tem consulta e saída
       literal em `evidence/consultas/`, com o valor de partida ao lado.
+      → O coletor rodou em 2026-08-25 contra
+      `run=d393d5d0916c404b854337a270fa825d`, `incident=inc_05328c58ca88676b` e
+      `resource=res-47555daca81efa67dacce16fb42c898e`. Oito arquivos por estação
+      em `evidence/consultas/laco-inteiro/`, cada um com a consulta e a saída
+      literal, e o valor de partida impresso ao lado pelo próprio coletor.
+
+      **A coleta literal achou o que a prosa não tinha achado.** Duas coisas: o
+      sujeito gravado errado, que reescreveu o achado do cabeçalho (ver T049); e
+      `evidence` em **0** para o run da demo. A tabela não está morta — 24 linhas
+      na instância, de `loki`, `prometheus`, `proxmox`, `grafana`, `alertmanager`
+      e `reasoning` — mas cobrem 7 de 203 runs que gravam turnos, e **as 24 têm
+      `cited = false`**, sem exceção. Nada é jamais marcado como citado. Achado
+      novo, entregue ao confronto.
 - [x] T072 Varrer a evidência inteira — texto e screenshots — à procura de
       credencial, token, chave ou senha. Uma screenshot com um valor de token é
       um vazamento tão real quanto um commit com ele. Sem esta varredura a
       evidência não é entregue.
-- [ ] T073 Rodar, contra staging, os acceptance das features donas que são
+- [x] T073 Rodar, contra staging, os acceptance das features donas que são
       seguros em ambiente compartilhado, mais a suíte transversal. Registrar
       passados, falhados e pulados. Uma falha aqui é achado da feature dona
       (Fase 11), não desta.
-- [ ] T074 Escrever, no topo de `evidence/EVIDENCIA.md`, o veredito da demo em
+      → Rodado em 2026-08-25, cinco corridas, e o resultado só é legível porque
+      elas foram cinco.
+
+      | corrida | o que rodou | resultado |
+      |---|---|---|
+      | 1 | transversal + acceptance de 010, 020, 030, 050 | 38 passed, **4 failed**, 5 skipped |
+      | 2 | transversal só | **19 passed**, exit 0 |
+      | 3 | acceptance de 010, 020, 030, 050 | 19 passed, **3 failed**, 6 skipped |
+      | 4 | acceptance de 020 só | **11 passed**, exit 0 |
+      | 5 | acceptance de 020 só | 9 passed, **2 failed** |
+
+      **Nenhuma das falhas é de produto, e as duas causas foram lidas na tela.**
+      As quatro da corrida 1 estavam **na tela de login** — *"Your session ended.
+      Sign in again to return to where you were."* As três da corrida 3 e as duas
+      da 5 estavam no painel dizendo *"This panel could not be filled —
+      `/v1/incidents` did not answer"*. As corridas 2 e 4, nas mesmas condições,
+      passaram inteiras. **Desfecho de ambiente**, intermitente.
+
+      **E o produto se comportou certo nas duas.** Quando a leitura falhou, a
+      tela disse que falhou e nomeou o endpoint, em vez de afirmar um negativo —
+      exatamente o que a feature de uma-fonte-por-fato entregou.
+
+      **O achado real desta tarefa não é nenhuma das falhas — é um passe.** Na
+      corrida 1, quatro testes da regra de markdown cru **passaram olhando para a
+      tela de login**. As capturas provam: 23.719 bytes idênticos para cinco
+      rotas diferentes, contra 177KB–2,5MB nas corridas boas. A regra não
+      encontrou markdown cru porque não havia tela nenhuma onde encontrar. É o
+      modo de falha que esta onda catalogou — *"uma regra passou porque a tela
+      não renderizou nada para ela medir"* — acontecendo dentro do próprio
+      instrumento que a onda construiu para pegá-lo. **A suíte transversal não
+      tem guarda de que está olhando para a aplicação.** Achado sem dona,
+      entregue ao confronto.
+- [x] T074 Escrever, no topo de `evidence/EVIDENCIA.md`, o veredito da demo em
       uma frase, seguido da lista de estações com veredito individual e das
       estações não exercidas com a razão.
+      → Feito em 2026-08-25: a frase no topo do arquivo, e a tabela das onze
+      estações em §7. **Cinco passaram, duas reprovaram por produto, quatro não
+      foram exercidas** — e as quatro pela mesma causa única, medida e nomeada,
+      não por omissão.
 
 ---
 
@@ -396,17 +603,54 @@ e registra o estado real.
 - [x] T077 Para cada achado sem dona na onda: redigir a entrada do backlog novo,
       na forma que o arquivo já pratica — o que acontece hoje, por que não é
       trivial, e o desfecho pelo qual seria julgado.
-- [ ] T078 Depois de qualquer reparo aceito, **reexecutar a estação afetada e
+- [x] T078 Depois de qualquer reparo aceito, **reexecutar a estação afetada e
       substituir a evidência**. Nunca acumular as duas capturas como se as duas
       fossem verdadeiras.
+      → Cumprida uma vez de verdade e conferida vazia nas outras.
+
+      **O reparo que teve estação afetada** foi o da confiança de certificado,
+      cujo defeito era que uma declaração só valia depois de reiniciar o
+      processo. Contra o código publicado, **sem reiniciar nada**, declarar o
+      fingerprint errado passou a devolver `ok: False` na chamada seguinte,
+      nomeando os dois fingerprints, e restaurar o correto voltou a `ok: True`
+      na hora. Evidência substituída, não acumulada.
+
+      **Os três reparos de 2026-08-25 não afetam estação nenhuma da demo**: a
+      trava de transação no caminho do primeiro administrador, a declaração de
+      dinâmica nas 36 rotas, e o acceptance da recusa em claro. Nenhum muda o
+      que uma estação mostrou. Conferido, e registrado como conferido em vez de
+      assumido — uma obrigação cumprida a vazio ainda precisa de alguém dizendo
+      que olhou.
+
+      **A regra que sobra viva**: as capturas de 24/08 (1280, dentro do laço) e
+      as de 25/08 (1920, depois dele) coexistem de propósito e o `LEIA-ME.md`
+      das telas diz por quê. Não são duas versões da mesma coisa — são coisas
+      diferentes, e nenhuma substitui a outra.
 
 ---
 
 ## Fase 12: O confronto da onda ganha a coluna
 
-- [ ] T079 Criar ou completar `specs_v7/CONFRONTO.md` com uma seção por feature
+- [x] T079 Criar ou completar `specs_v7/CONFRONTO.md` com uma seção por feature
       da onda: o que entregou, o gate, o veredito do verifier, os commits, e o
       que ficou nomeado como dívida.
+      → Feito em 2026-08-25, seção "Veredito por feature, medido por verificação
+      independente". Sete verificadores em contexto limpo, um por feature sem
+      veredito individual registrado, com instrução de não copiar o `controle.md`
+      e de nomear com `file:line` qualquer marcação que o código não sustentasse.
+
+      **Seis PASS, quatro FAIL** — e nenhuma das quatro é código quebrado. Todas
+      são a mesma família: uma tarefa marcada feita cujo trabalho não existe.
+      Duas estão em reparo, uma foi reaberta para revisão humana, uma foi
+      corrigida no lugar.
+
+      A tarefa ficou aberta por duas passagens anteriores com uma razão correta
+      — o cabeçalho do `CONFRONTO.md` proíbe copiar veredito de verificador que
+      não se mediu. A saída não era escrever mesmo assim: era **mandar medir**.
+
+      O `CONFRONTO.md` também se contradizia — uma seção dizia que a demo não
+      havia sido executada, e a seção seguinte narrava a demo inteira.
+      Corrigido, com a contradição registrada em vez de apagada.
 - [x] T080 Adicionar a coluna fixa **"quem constrói isso em produção?"** à tabela
       de mecanismos, respondida com `file:line` da composition root de serving.
 - [x] T081 Preencher a coluna, no mínimo, para: o recorder de investigação (001),
@@ -456,11 +700,48 @@ briefings, nem esta spec, nem número de feature nenhum. A redação obedece a i
 
 ## Fase 14: Fechamento
 
-- [ ] T089 `make verify` completo na árvore final. Registrar exit code, número de
+- [x] T089 `make verify` completo na árvore final. Registrar exit code, número de
       testes, pulados e duração.
+      → Rodado em 2026-08-25 **como um comando só**, na árvore final:
+
+          make verify   exit 0   12.778 passed / 30 skipped / 32 warnings
+                                 785,01s (13:05)
+          benchmarks             37 passed, 12.808 deselected, 38,86s
+
+      **E desta vez ele cobre a árvore final de verdade**, que era o defeito da
+      corrida anterior: o log verde que existia era anterior ao commit que grava
+      a justificativa de seleção de ferramentas, e os dois testes daquele commit
+      não apareciam nele. Conferido por nome, um a um, no log novo: os dois
+      aparecem `PASSED`. O teste de baseline visual que bloqueava a passagem
+      anterior também passa agora.
 - [x] T090 Confirmar que esta feature não alterou arquivo de produto: o diff dela
       contém apenas `tools/demo_evidence/`, `tests/unit/tools/`, `backlog.md`,
       `specs_v7/CONFRONTO.md` e o próprio diretório da feature.
+      → **Reaberta e corrigida em 2026-08-25.** A alegação anterior — "fora da
+      lista declarada: zero arquivos" — era falsa, e falsa por um motivo
+      instrutivo: ela foi medida sobre um intervalo de commits que **terminava
+      antes** de catorze dos commits desta feature. Um verificador independente
+      reconstruiu os 29 commits que carregam algo de 080 e leu o `--stat` de
+      cada um.
+
+      **A substância se sustenta.** Nenhum arquivo em `gateway/`, `platform/`,
+      `core/`, `capabilities/`, `integrations/`, `config/` ou `console/src/`
+      aparece em nenhum dos 29 commits. Esta feature não mexeu em comportamento
+      de produto, que é o que a tarefa existe para garantir.
+
+      **A lista literal de caminhos não se sustenta.** Seis exceções, nomeadas
+      em vez de arredondadas:
+
+      | fora da lista | defensável? |
+      |---|---|
+      | `scripts/deploy/stg-psql` | **sim** — script de deploy, e o próprio commit diz que está "beside the deploy script it belongs with" |
+      | `specs_v7/070-.../evidence/`, dez capturas em `specs_v7/010-.../evidence/` | **sim** — evidência de outra feature, coletada por esta na mesma passagem contra o ambiente real |
+      | `specs_v7/progress.json` | **sim** — arquivo de onda, não de feature |
+      | `console/tests/unit/surfaces/report.test.tsx` | **não** — teste de unidade de outra feature, sem relação com 080, e dentro do diretório que o preâmbulo desta `tasks.md` nomeia como parada obrigatória |
+      | `.claude/agents/spec-confronter.md`, `.claude/agents/spec-implementer.md` | **não** — definição de agente, sem relação com esta feature |
+
+      As três indefensáveis deviam ter sido um commit à parte. Ficam
+      registradas: nenhuma altera produto, e nenhuma some.
 - [x] T091 Escrever `controle.md` desta feature afirmando **apenas** o que a
       evidência prova, com o veredito por estação, as estações não exercidas com
       a razão, os achados e seus destinos, e as decisões que ficaram com o

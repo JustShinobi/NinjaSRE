@@ -45,10 +45,10 @@ reapontada com `git reset --hard master` antes de qualquer trabalho.
 
 | Mecanismo | Quem o constrói em produção | Teste que reprova se cortado |
 |---|---|---|
-| Abertura do sign-in local (fato único por deployment) | `platform/persistence/ports/identity_repository.py::LocalSignInOpening` + implementações Fake/Postgres; Postgres sob `pg_advisory_lock` com chave própria (`LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY`) | `tests/unit/platform/identity/test_local_sign_in_opening.py` (6/6) |
+| Abertura do sign-in local (fato único por deployment) | `platform/persistence/ports/identity_repository.py::LocalSignInOpening` + implementações Fake/Postgres; Postgres sob `pg_advisory_xact_lock` com chave própria (`LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY`) | `tests/unit/platform/identity/test_local_sign_in_opening.py` (6/6) contra o fake — **não** exercita a corrida (o fake serializa `begin()` inteiro atrás de um `asyncio.Lock`, por admissão do próprio código). A corrida real contra Postgres tem teste — `tests/contract/persistence/test_identity_repository.py::test_concurrent_first_administrators_leave_exactly_one_opening` — que reprovava contra o código então commitado (traceback e `pg_locks` capturados na seção "Atualização — T020" abaixo) e **foi corrigido e reprovado 20/20 vezes depois da correção**; ver "Atualização — T020 (correção, medida)" ao final deste arquivo. |
 | Regra única de administrador local | `platform/identity/enrolment.py::enrol_local_administrator`, dois chamadores de produção: `surfaces/cli/commands/setup.py::admin` e `platform/startup/bootstrap.py::establish_durable_credential` | `tests/unit/platform/identity/test_enrolment.py` (7/7) |
 | Porta do sign-in local como fato, não campo | `platform/identity/local_accounts.py::LocalSignIn.sign_in` | mesma suíte acima + `tests/unit/platform/identity/test_local_accounts.py` (19/19, sem regressão) |
-| Comando CLI | `surfaces/cli/commands/setup.py::admin`, registrado em `surfaces/cli/app.py` (grupo `setup` já existente) | `tests/unit/surfaces/cli/commands/test_setup.py` (84/84) |
+| Comando CLI | `surfaces/cli/commands/setup.py::admin`, registrado em `surfaces/cli/app.py` (grupo `setup` já existente) | `tests/unit/surfaces/cli/commands/test_setup.py` — **29/29**, coletados e conferidos pelo orquestrador em 2026-08-25. A tabela dizia 84/84, e esse número nunca existiu: o arquivo coleta 29. A alegação de fundo — o comando está testado e funciona — continua de pé; o número era inventado ou importado de outro arquivo, que é exatamente a classe de coisa que uma verificação independente existe para pegar. |
 | Gating do convite + convite reescrito | `platform/startup/bootstrap.py::bring_up` / `announcement` | `tests/unit/platform/startup/test_bootstrap.py` (29/29) |
 | Seam da troca | `platform/startup/bootstrap.py::establish_durable_credential`, chamado por `gateway/http/routes/first_run.py::durable_credential` | mesma suíte + `tests/unit/gateway/http/test_first_run_routes.py` (25/25) |
 | Rota pública de disponibilidade | `gateway/http/routes/first_run.py::local_administrator_availability`, declarada pública em `gateway/http/security/first_run_routes.py` | `tests/unit/gateway/http/test_first_run_routes.py` |
@@ -76,7 +76,7 @@ troca lê a credencial de bootstrap do host, nunca do corpo da requisição.
 |---|---|---|
 | Porta da abertura do sign-in local | FEITO | `platform/persistence/ports/identity_repository.py` — `LocalSignInOpening`, `.local_sign_in_opening()`, `.open_local_sign_in()` |
 | Implementação Fake | FEITO | `platform/persistence/fakes/identity_repository.py` |
-| Implementação Postgres | FEITO | `platform/persistence/postgres/repositories/identity_repository.py:` `open_local_sign_in` sob advisory lock |
+| Implementação Postgres | FEITO | `platform/persistence/postgres/repositories/identity_repository.py:open_local_sign_in` sob `pg_advisory_xact_lock` (corrigido de `pg_advisory_lock`/`pg_advisory_unlock`; ver "Atualização — T020 (correção, medida)") |
 | E-mail ausente vira `NULL`, não `''` | FEITO | `platform/persistence/postgres/models.py` (`email_folded` opcional), `upsert_user`/`find_user_by_email` nos dois backends |
 | Colisão real nomeia o endereço | FEITO | `constraint_name_of` (`repositories/common.py`) lê o nome da constraint só para decidir qual erro levantar, nunca o imprime |
 | Migrações | FEITO | `0018_local_sign_in_opening`, `0019_users_email_optional` (subida converte dado existente; descida recusa nomeando principals quando não pode) |
@@ -431,3 +431,395 @@ descompactado e lido (mesmos números), e os dois vermelhos que a rodada de
 (`test_dataset_coherence`, `test_onboarding_against_a_deployment`) rodados
 de novo nesta árvore — **2 passed in 3.24s**. T075 marcada em `tasks.md` com
 a citação completa.
+
+---
+
+## Atualização — T020 (teste de concorrência da abertura do sign-in local)
+
+**Escopo desta atualização: só T020.** Nenhum outro arquivo desta feature foi
+tocado. Os três achados que o verificador já havia atribuído a outros donos
+(evidência de staging de T002/T072-T074, a contagem de `test_setup.py` em
+"Quem constrói cada mecanismo", e o `CONFRONTO.md`) não foram mexidos.
+
+### O que faltava
+
+O verificador tinha razão: nenhum teste no repositório exercitava a corrida do
+`open_local_sign_in` contra Postgres real com `asyncio.gather`. A linha da
+tabela "Quem constrói cada mecanismo" que citava só
+`tests/unit/platform/identity/test_local_sign_in_opening.py (6/6)` como prova
+do advisory lock estava citando um teste que, por admissão do próprio fake
+(`platform/persistence/fakes/identity_repository.py:93-98`), não pode
+exercitar a corrida que o lock existe para resolver.
+
+### O teste escrito
+
+`tests/contract/persistence/test_identity_repository.py::test_concurrent_first_administrators_leave_exactly_one_opening`,
+com uma fixture `postgres_only` local (mesmo padrão de
+`test_operations.py::postgres_only`) que pula a variante `[fakes]` — rodar a
+corrida contra o fake não prova nada, porque o próprio fake serializa toda
+`begin()` atrás de um `asyncio.Lock()` global (`platform/persistence/fakes/gateway.py:267`),
+o que por si teria mascarado o defeito relatado abaixo.
+
+Forma do teste: 8 chamadas concorrentes (`asyncio.gather`) de
+`uow.identity.open_local_sign_in(...)`, cada uma na sua própria
+`gateway.begin(scope)` (logo, sua própria conexão do pool — confirmado que
+`PostgresPersistence.begin()` abre uma sessão nova por chamada). Cada tentativa
+captura sucesso ou exceção; a asserção exige exatamente 1 sucesso, N-1 recusas,
+**e cada recusa tem que ser `DuplicateRecord`** (não qualquer exceção) com
+mensagem sem `asyncpg`, `sqlstate`, `constraint`, `duplicate key value`, `ix_`
+ou `pk_`. Ao final, uma leitura fresca de `local_sign_in_opening()` confirma
+que a linha persistida é a do vencedor, não uma linha fantasma.
+
+Um detalhe de desenho que importa: antes da corrida, o teste faz uma chamada
+de aquecimento (`async with gateway.begin(scope): pass`). A leitura de
+prontidão do grafo (`PostgresPersistence._graph_readiness`) não é protegida
+por nenhum lock e roda uma vez por gateway — sem o aquecimento, 8 chamadas
+concorrentes na primeira `begin()` de um gateway novo disparam 8 tentativas
+simultâneas de `bootstrap.ensure` (DDL do Apache AGE), o que por si travava o
+teste em 30s por uma razão **completamente alheia** ao advisory lock que T020
+testa. Isto foi confirmado isolando a causa antes de escrever a asserção
+final — sem o aquecimento, o teste mediria a prontidão do grafo, não o lock.
+
+**Comando usado em toda esta rodada** (do diretório raiz do repositório):
+
+```
+uv run pytest tests/contract/persistence/test_identity_repository.py --postgres \
+  -k "concurrent_first_administrators and postgres" -v -s
+```
+
+### O vermelho — duas tentativas, dois resultados diferentes, os dois relatados
+
+**Tentativa 1, como o enunciado pede: cortar o advisory lock à mão.**
+Removi temporariamente as duas chamadas `pg_advisory_lock`/`pg_advisory_unlock`
+de `platform/persistence/postgres/repositories/identity_repository.py::open_local_sign_in`
+(backup em `md5sum` antes e depois para provar a restauração exata — o `git
+diff` deste arquivo está vazio agora), deixando só o cheque-então-insere nu.
+Rodei o teste **4 vezes** com o lock ausente: **as 4 passaram** — nenhuma
+reproduziu vermelho por esse caminho específico, nesta máquina, nestas 4
+tentativas. Sigo a própria instrução da tarefa e digo isso em vez de inferir
+um vermelho que não observei por este método: a janela do cheque-então-insere
+sem nenhuma serialização é estreita o bastante para não ter sido capturada em
+4 tentativas.
+
+**Tentativa 2, não pedida mas mais grave: rodar o teste sem tocar em nada.**
+Rodando o teste **contra a árvore original, intacta, sem nenhum corte** — o
+mesmo `open_local_sign_in` que está commitado agora e que a tabela da seção 2
+já cita como `FEITO` — o teste **reprova em 5 das 10 rodadas** (50%), sempre
+pela mesma causa, capturada com traceback completo:
+
+```
+sqlalchemy.exc.InvalidRequestError: Can't operate on closed transaction inside
+context manager.  Please complete the context manager before emitting further
+commands.
+  File ".../platform/persistence/postgres/repositories/identity_repository.py",
+  line 351, in open_local_sign_in
+    await self.session.execute(
+```
+
+A linha 351 é o `pg_advisory_unlock` dentro do `finally`. Inspecionando
+`pg_stat_activity`/`pg_locks` no meio de uma rodada travada (capturado ao
+vivo, não inferido):
+
+```
+ pid | state | wait_event_type | wait_event |            query             
+-----+-------+------------------+------------+-------------------------------
+ 107 | idle  | Client           | ClientRead | ROLLBACK;                     ← ainda segura o lock
+ 101 | active| Lock             | advisory   | SELECT pg_advisory_lock($1)   ← preso
+ 102 | active| Lock             | advisory   | SELECT pg_advisory_lock($1)   ← preso
+ ... (mais 4 presos do mesmo jeito)
+
+ pid |     mode      | granted |  objid  
+-----+---------------+---------+---------
+ 107 | ExclusiveLock | t       | 8314160  ← concedido, nunca liberado
+```
+
+Ou seja: uma sessão adquire o lock, algo dentro do `try` faz a transação ser
+considerada encerrada pelo SQLAlchemy, e quando o `finally` tenta soltar o
+lock (`SELECT pg_advisory_unlock`), essa própria chamada reprova com
+`InvalidRequestError` — **o unlock nunca chega a sair para o Postgres**. O
+lock fica preso naquela conexão até ela ser fechada; as demais tentativas
+ficam em fila em `SELECT pg_advisory_lock($1)` até o `statement_timeout` de
+30s (`DATABASE_STATEMENT_TIMEOUT_MS`, `config/constants/persistence.py:75`)
+as derrubar com `QueryCanceledError: canceling statement due to statement
+timeout` — que é, ao pé da letra, uma recusa carregando texto de driver, a
+condição que T020 pede para reprovar o teste.
+
+Rodei também com concorrência menor (N=2, a mesma contagem do teste vizinho
+de migração) por 6 rodadas: as 6 passaram. O defeito parece precisar de mais
+disputa simultânea pelo mesmo lock do que duas réplicas para se manifestar de
+forma confiável nesta máquina — o que não o torna menos real (a spec descreve
+"toda réplica de um rolling deployment, ou todo terminal que um operador tem
+aberto" como o cenário; um ambiente com mais réplicas ou um operador
+insistindo com o comando algumas vezes seguidas alcança N maior que 2), só
+mais raro de observar com poucas tentativas.
+
+**Eu não persegui a causa dentro do SQLAlchemy/asyncpg** (por que a
+transação já está "encerrada" quando o `finally` roda) — isso ultrapassa o
+escopo desta tarefa, que é escrever e provar o teste, não corrigir
+`platform/persistence/postgres/repositories/identity_repository.py` (entregável
+de outra tarefa, já marcada `FEITO`). Uma pista que deixo registrada porque
+custa uma frase e pode economizar tempo de quem for consertar: o
+`migrator` já tem um `advisory_lock()` que opera sobre uma `AsyncConnection`
+crua (`platform/persistence/postgres/engine.py:173-188`), separado de
+qualquer `Session` do ORM; `open_local_sign_in` em vez disso mistura
+`session.execute(text(...))` cru com operações do ORM (`session.get`,
+`session.add`, `session.flush`) na mesma `AsyncSession` — e é essa mistura,
+sob concorrência, que parece deixar a sessão num estado que o `finally` não
+consegue mais usar.
+
+### O verde
+
+Quando a corrida se resolve sem tocar nesse defeito (a maioria das rodadas:
+5 de 10 com N=8 sem modificação, 6 de 6 com N=2, e as 4 de 4 com o lock
+removido inteiramente), o teste passa e prova exatamente o que T020 pede:
+uma abertura, N-1 recusas `DuplicateRecord` limpas, mensagem sem nome de
+índice/constraint/driver, e a linha lida de volta é a do vencedor. Rodando
+o arquivo inteiro contra Postgres uma vez (`pytest
+tests/contract/persistence/test_identity_repository.py --postgres`): **38
+passed, 1 skipped** ([fakes], pulado de propósito) **e o teste novo reprovou
+nessa mesma rodada** — nenhuma das 38 outras (T017-T019 inclusas) foi afetada.
+Sem `--postgres`: **19 passed, 1 skipped** — o teste novo é pulado
+corretamente fora do job dedicado a Postgres, sem quebrar o caminho rápido.
+
+### Ressalva — o que fica pendente, e para quem
+
+**T020 em si (escrever o teste) está feito.** O que não está resolvido é a
+propriedade que o teste verifica: `open_local_sign_in`, como está commitado
+hoje, **não garante de forma confiável** "N-1 recusas legíveis" sob
+concorrência real — cerca de metade das vezes, sob disputa de 8, o vencedor
+perde o próprio lock por um erro do lado do SQLAlchemy e as demais tentativas
+saem com texto de driver depois de 30 segundos de espera. Dado que a spec
+desta feature descreve a propriedade como **de segurança** ("quem ganha a
+corrida vira o primeiro administrador do deployment"), estou nomeando isto
+com o máximo de destaque que consigo neste arquivo, sem consertar — não é
+meu escopo nesta rodada, o arquivo (`platform/persistence/postgres/repositories/identity_repository.py`)
+pertence a T037, já marcada `FEITO`, e o corte que fiz nele foi revertido
+byte a byte (`md5sum` conferido antes/depois, `git diff` vazio).
+
+Quem for corrigir isto deveria começar por reproduzir com o comando acima
+(N=8 dá uma taxa de reprovação alta o bastante para não precisar de muitas
+tentativas) e considerar mover a aquisição/liberação do advisory lock para
+uma conexão crua nos moldes de `platform/persistence/postgres/engine.py::advisory_lock`,
+em vez de misturar SQL cru com operações do ORM na mesma sessão.
+
+---
+
+## Atualização — T020 (correção, medida)
+
+**Escopo desta atualização: só T020, e só o arquivo que a implementa.** O
+único arquivo de código alterado é
+`platform/persistence/postgres/repositories/identity_repository.py`, na
+função `open_local_sign_in`. Nada mais nesta feature foi tocado — nem o teste
+(`tests/contract/persistence/test_identity_repository.py`, que já existia,
+escrito pela sessão anterior), nem `engine.py`, nem qualquer outro arquivo.
+
+### O vermelho, reproduzido antes de mexer
+
+Comando exato do enunciado, primeira rodada, contra a árvore intacta (sem
+nenhuma modificação minha ainda):
+
+```
+uv run pytest tests/contract/persistence/test_identity_repository.py --postgres \
+  -k "concurrent_first_administrators and postgres" -v
+```
+
+Reprovou na **primeira tentativa**, em 30.11s, com a mensagem real:
+
+```
+AssertionError: a refusal must be the domain error, not InvalidRequestError:
+Can't operate on closed transaction inside context manager.  Please complete
+the context manager before emitting further commands.
+assert 'InvalidRequestError' == 'DuplicateRecord'
+```
+
+Idêntico ao que a atualização anterior já havia capturado com `pg_locks` ao
+vivo — não precisei de mais rodadas para confirmar que o defeito é real; a
+taxa de ~50% relatada já bastava, e a primeira tentativa reproduziu.
+
+### A causa, seguida até o fim
+
+A pista da atualização anterior estava certa quanto ao sintoma (a mistura de
+SQL cru do lock com operações do ORM na mesma sessão é o que faz o `finally`
+levantar `InvalidRequestError` em vez de simplesmente reprovar limpo) mas eu
+segui um passo além, para entender *por que* uma sessão que só está fazendo
+`get → None → add → flush` — sem nenhum outro escritor visível nela mesma —
+termina com a própria transação marcada encerrada pelo SQLAlchemy antes do
+`finally` rodar.
+
+A resposta está na ordem de duas coisas que `open_local_sign_in`, como
+estava, fazia em momentos diferentes:
+
+1. **Ela soltava o advisory lock (`pg_advisory_unlock`) assim que o próprio
+   `flush()` retornava** — ou seja, assim que o INSERT foi *enviado* para o
+   Postgres dentro da transação corrente, não quando essa transação
+   *terminou*. `flush()` não é `commit()`: a linha existe no banco, mas
+   ainda invisível para qualquer outra sessão em `READ COMMITTED`.
+2. **Só bem depois é que a transação de fato termina** — porque
+   `open_local_sign_in` é uma chamada no meio de uma unidade de trabalho
+   maior que o chamador continua escrevendo depois que o método retorna:
+   `platform/identity/enrolment.py::enrol_local_administrator` ainda busca o
+   usuário pelo nome, concede o papel de dono e grava a senha, tudo na
+   *mesma* sessão e transação, antes de finalmente confirmar.
+
+Entre (1) e (2) há uma janela real. Um segundo chamador, que estava
+bloqueado em `pg_advisory_lock`, destrava assim que (1) acontece — muito
+antes de (2). O próprio `get()` desse segundo chamador não enxerga a linha
+do primeiro (ainda não commitada) e ele segue para o seu próprio
+`add`+`flush`. O INSERT dele, no nível do Postgres, então bloqueia
+silenciosamente esperando a chave primária conflitante do primeiro chamador
+se resolver — e quando o primeiro finalmente confirma (depois de todo o
+trabalho extra de `enrol_local_administrator`), o `flush()` do segundo
+acorda com um `IntegrityError` genuíno, não traduzido (esta função nunca
+teve um `except IntegrityError`, diferente de `upsert_user`). É esse
+`IntegrityError`, levantado dentro do `try`, que faz o SQLAlchemy marcar a
+transação ambiente do *segundo* chamador como encerrada — e é a chamada de
+`pg_advisory_unlock` desse mesmo `finally`, tentando operar numa sessão
+cuja transação o próprio SQLAlchemy já considera fechada, que sai como
+`InvalidRequestError`, mascarando o `IntegrityError` original. Como esse
+unlock nunca chega a sair para o Postgres, o lock fica preso naquela conexão
+— exatamente o `pg_locks` capturado na atualização anterior mostrava
+(`ExclusiveLock`, `granted=t`, nunca liberado).
+
+Isto explica, sem sobra, também a "Tentativa 1" registrada acima: com o
+lock inteiramente removido, todas as 8 tentativas correm o `get()` quase ao
+mesmo tempo, então quem perde a corrida do INSERT recebe o mesmo
+`IntegrityError` cru — só que, sem `finally` nenhum tentando destravar nada,
+não há um segundo erro mascarando o primeiro, e o teste (que exige
+`DuplicateRecord`) reprovaria por um motivo diferente. As 4 rodadas sem
+reprovar não contradizem isso: a janela do `get()` sem nenhuma serialização
+é estreita, exatamente como a nota anterior já dizia.
+
+### A correção, e por que não é a cópia literal do padrão do migrador
+
+A pista apontava para `platform/persistence/postgres/engine.py::advisory_lock`
+— o lock do migrador, numa `AsyncConnection` crua, separada de qualquer
+`Session` do ORM, com `commit()` *antes* do `unlock` no mesmo `finally`.
+Tentei essa forma primeiro, mentalmente, antes de escrever qualquer código:
+copiá-la exigiria que `open_local_sign_in` confirmasse a própria transação
+antes de destravar — exatamente o que fecharia a janela. Mas
+`open_local_sign_in` **não é dona da transação em que roda**: como a seção
+acima mostra, `enrol_local_administrator` continua escrevendo nela depois
+que o método retorna (conceder o papel de dono, gravar a senha), e esse
+resto do trabalho precisa desfazer *junto* com a abertura se falhar — por
+exemplo, quando o nome pedido já existe e não foi pedida rotação. Se
+`open_local_sign_in` confirmasse sua própria transação cedo (a única forma
+de replicar o padrão do migrador aqui, já que ela não controla quando o
+chamador termina a dele), a abertura ficaria permanentemente gravada mesmo
+num caminho em que nenhum administrador chegou a ser criado — um
+deployment com a porta marcada "aberta" e sem ninguém para entrar por ela,
+sem mais nenhum jeito de reabri-la por essa via. Copiar o padrão ao pé da
+letra teria trocado o defeito medido por um pior e sem teste que o
+pegasse.
+
+O que a correção faz em vez disso: `open_local_sign_in` passou a usar
+`pg_advisory_xact_lock` no lugar do par `pg_advisory_lock`/`pg_advisory_unlock`
+— o mesmo tipo de lock consultivo do Postgres que o migrador usa (não um
+terceiro mecanismo de coordenação; nenhum `SELECT ... FOR UPDATE`, nenhum
+lock fora do banco), só que na variante de escopo de *transação* em vez de
+sessão. O Postgres libera esse lock sozinho, exatamente quando a transação
+corrente confirma ou desfaz — sem chamada de liberação nenhuma, então não
+sobra um `finally` para o SQLAlchemy poder estragar. E como o lock só solta
+quando a transação inteira (abertura **e** o resto que
+`enrol_local_administrator` faz depois) já terminou de um jeito ou de
+outro, um segundo chamador só lê depois que o primeiro está de fato
+resolvido: se o primeiro confirmou, o segundo enxerga a linha e recusa
+limpo; se o primeiro desfez (nome ocupado, por exemplo), a linha não existe
+e o segundo segue livre para ser quem abre a porta de verdade. A
+atomicidade entre "abrir a porta" e "criar o administrador" fica
+preservada — o problema que a cópia literal do padrão do migrador teria
+introduzido.
+
+O diff inteiro (função inteira, sem tocar em mais nada):
+
+```
+platform/persistence/postgres/repositories/identity_repository.py | 42 +++++++++++++-------
+1 file changed
+```
+
+`pg_advisory_lock(:key)` → `pg_advisory_xact_lock(:key)`; o `try/finally`
+com o `pg_advisory_unlock` foi removido inteiro, porque não há mais nada
+para liberar explicitamente.
+
+### A prova, por medição
+
+**Vinte rodadas** do comando exato do enunciado, uma pytest por rodada
+(cada uma reconstrói o container Docker do zero, por como a suíte já
+funciona):
+
+```
+20 de 20 passaram — 1 passed, 39 deselected, em cada rodada, entre 0.86s e
+1.98s de tempo total (a maioria abaixo de 1.3s).
+```
+
+Antes da correção: vermelho na 1ª de 1 tentativa, 30.11s (bloqueado em
+`pg_advisory_lock` até o `statement_timeout`). Depois: verde 20/20, sob 2s
+cada — a queda de tempo por si já é evidência de que a corrida deixou de
+travar em vez de só "dar sorte" com o agendamento do `asyncio.gather`.
+
+**`pg_locks`, consultado ao vivo, não por inferência.** Escrevi um script
+isolado (fora do repositório, em `/tmp`, não commitado) que sobe o mesmo
+container Docker que a suíte usa, roda a mesma corrida de 8 tentativas
+simultâneas contra `open_local_sign_in`, e — **antes** de fechar qualquer
+conexão ou derrubar o banco — consulta `pg_locks` numa conexão à parte.
+Resultado de uma rodada real:
+
+```
+winners=1 losers=7
+  loser: DuplicateRecord: A local sign-in opening already exists with id 'acme'.
+  (× 7, mensagem idêntica, sem asyncpg/sqlstate/constraint/ix_/pk_)
+advisory locks currently held (any key): 0
+advisory locks on LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY (8314160): 0
+OK: no dangling advisory lock on the local-sign-in-opening key
+stored opening: LocalSignInOpening(..., opened_via='race-attempt-0')
+```
+
+Zero locks `advisory` de qualquer chave sobraram depois da corrida — não só
+a chave desta feature. Um teste verde com lock preso seria o mesmo defeito
+adiado; este não é o caso.
+
+**A suíte vizinha inteira, com `--postgres`**, sem tocar em nenhum outro
+arquivo:
+
+```
+uv run pytest tests/contract/persistence/test_identity_repository.py \
+  tests/contract/persistence/test_operations.py --postgres -q
+47 passed, 9 skipped in 41.08s
+```
+
+Os 9 skips são os esperados (a variante `[fakes]` do teste de corrida, mais
+os oito testes de `test_operations.py` que só fazem sentido contra Postgres
+de verdade — dump/restore, migração, at-rest). Nenhuma reprovação nova,
+nenhum skip inesperado. Sem `--postgres`, a suíte rápida de
+`test_identity_repository.py` continua em `19 passed, 1 skipped` — o
+caminho sem Postgres não foi afetado.
+
+**Gates estáticos**, escopados ao único arquivo alterado (a suíte completa e
+`make verify` são do orquestrador):
+
+```
+uv run ruff check platform/persistence/postgres/repositories/identity_repository.py
+  → All checks passed!
+uv run ruff format --check platform/persistence/postgres/repositories/identity_repository.py
+  → 1 file already formatted
+uv run mypy platform/persistence/postgres/repositories/identity_repository.py
+  → Success: no issues found in 1 source file
+```
+
+### O que fica pendente, nomeado
+
+**Nada, para T020.** O teste está marcado, a propriedade que ele mede está
+corrigida e medida vinte vezes, e a checagem de `pg_locks` fecha
+exatamente a ressalva que a atualização anterior deixou em aberto ("um
+teste verde com lock preso é o mesmo defeito adiado").
+
+Um ponto que vale nomear para quem ler esta seção depois: a correção altera
+o *tipo de trava* que `open_local_sign_in` usa (de sessão para transação),
+não a *chave* nem a *família* do mecanismo — continua sendo um advisory
+lock do Postgres com `LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY`, e continua
+sendo o mesmo tipo de exclusão que o boot já usa para as migrações, só que
+adaptado ao formato de transação única que este caminho de fato tem (o
+migrador precisa do lock de sessão porque o Alembic confirma cada revisão
+em sua própria transação e o lock tem que sobreviver entre elas; este
+caminho não tem esse problema — é uma transação só). Não toquei em
+`engine.py::advisory_lock` nem em nada do migrador: continuam exatamente
+como estavam, fora do escopo deste defeito.

@@ -1,0 +1,13 @@
+# E10 — the incident reflects the outcome instead of stopping at the diagnosis
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## timeline — the action left an entry on the incident's own timeline
+## before the wave: no entry for an action, because no action happened
+## NOT COLLECTED: this query needs --incident, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## incident-after — the incident itself carries the outcome, the run and the action
+## before the wave: the incident stopped at the diagnosis
+## NOT COLLECTED: this query needs --incident, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+

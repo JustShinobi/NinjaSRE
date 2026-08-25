@@ -1,6 +1,6 @@
 {
   "wave": "specs_v7",
-  "updated": "2026-08-24",
+  "updated": "2026-08-25",
   "orchestrator": "Opus 5 lead session (/spec-wave specs_v7)",
   "execution": "pares paralelos por slot conforme EXECUCAO.md — S0: 000 | S1: 001+020 | S2: 010+040 | S3: 030+070 | S4: 050+060 | S5: 080. Worktrees isoladas por implementer; single-write com dono por slot (EXECUCAO.md §2); deploy-stg + acceptance contra staging no fim de cada slot (EXECUCAO.md §3); checkpoint do laço mínimo no fim do S2.",
   "feature_order": [
@@ -90,10 +90,17 @@
   "completed": [
     "000-regras-e-governanca",
     "001-registro-do-que-o-agente-fez",
-    "020-identidade-enderecavel"
+    "010-leitura-do-relato",
+    "020-identidade-enderecavel",
+    "030-uma-fonte-por-fato",
+    "040-decisao-composta",
+    "050-primeiro-administrador",
+    "060-o-catalogo-ensina",
+    "070-confianca-de-certificado",
+    "080-incidente-fecha-o-laco"
   ],
   "current_feature": null,
-  "last_verdict": "Dez features implementadas. Marcacao de tarefas: 000 e 030 e 070 em 100%; 020 96%, 040 96%, 050 92%, 060 91%, 001 98%, 010 86%, 080 34% (60 das 92 dependiam da demo, que ja rodou). O portao ainda nao esta verde.",
+  "last_verdict": "Dez features implementadas e mergeadas. Verificacao independente por feature em 2026-08-25: seis PASS (000, 001, 020, 040, 060, 070) e quatro FAIL (010, 030, 050, 080). Nenhum dos quatro FAIL e codigo quebrado — os quatro sao a mesma familia: uma tarefa marcada feita cujo trabalho nao existe. Marcacao de tarefas: 28 abertas no inicio do dia, 14 agora, 1 encerrada sem execucao.",
   "decisions_taken_during_generation": [
     "Vocabulário de status: a enumeração do STORE (run_trace_store.py:30) é a servida por summary_of; o console aprende (010) e o gate bidirecional + purga das fixtures ('succeeded', 'awaiting_approval') é da 030 (Phase 2b, T060-T069, ordem rígida). Unificar runtime×store NÃO é desta onda (recusa registrada no plan da 030).",
     "Canônico de runtime: ReActLoop; build_pipeline declara-se dormente nomeando o harness (040). zero_integration_outcome vira função com dois chamadores.",
@@ -144,7 +151,12 @@
       "T032: a lista de constantes ganha uma quarta variavel (usuario), declarada no mesmo tier."
     ]
   },
-  "last_gate": "S2: 040 fechada — make verify exit 0, 12386 passed / 27 skipped (+10 exato da Fase 8; suite marcada 253 -> 263).",
+  "last_gate": {
+    "when": "2026-08-25, arvore com os tres reparos",
+    "make verify": "exit 0 — 12778 passed / 31 skipped / 31 warnings em 674,92s (11:14); benchmarks 37 passed; 7 contratos de import mantidos; zero linhas FAILED ou ERROR",
+    "make test-postgres": "exit 0 — 578 passed / 20 skipped em 365,35s (6:05). Rodado a parte porque o alvo verify NAO o inclui, e e onde vive a prova de concorrencia do primeiro administrador",
+    "nota": "o skip a mais em verify (30 -> 31) e o bloco novo da recusa em claro, que se pula sozinho contra o backing de mock e roda de verdade so contra compose. E o comportamento desejado, nao uma regressao."
+  },
   "slot_results": {
     "S0": {
       "feature": "000-regras-e-governanca",
@@ -369,5 +381,63 @@
       "agora": "pin errado -> ok=False imediatamente, nomeando os dois fingerprints; pin correto -> ok=True imediatamente",
       "sem_reiniciar_nada": true
     }
-  }
+  },
+  "independent_verification_2026_08_25": {
+    "method": "sete spec-verifier em contexto limpo, um por feature sem veredito individual registrado; instrucao de nao copiar controle.md e de nomear com file:line qualquer marcacao que o codigo nao sustentasse",
+    "verdicts": {
+      "000-regras-e-governanca": "PASS (registrado no fechamento do proprio slot)",
+      "001-registro-do-que-o-agente-fez": "PASS (registrado no fechamento do proprio slot)",
+      "010-leitura-do-relato": "FAIL — quatro baselines visuais seguem pending; a tarefa que as aceitava foi fechada com evidencia de outra feature",
+      "020-identidade-enderecavel": "PASS (registrado no fechamento do proprio slot)",
+      "030-uma-fonte-por-fato": "FAIL — nenhuma das 36 rotas declara a propria dinamica; a tarefa que o exigia estava marcada feita",
+      "040-decisao-composta": "PASS — os quatro mecanismos compostos na raiz de serving, nenhum dormente",
+      "050-primeiro-administrador": "FAIL — a prova de concorrencia contra Postgres real nao existe",
+      "060-o-catalogo-ensina": "PASS — duas tarefas abertas, ambas conhecidas e corretamente abertas",
+      "070-confianca-de-certificado": "PASS — a recusa acontece dentro do connect(), antes de um byte",
+      "080-incidente-fecha-o-laco": "FAIL — a tarefa que declara o alcance do diff e falsa como redigida; o coletor e o backlog estao solidos"
+    }
+  },
+  "open_questions": [
+    "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054) e o slide-over de integracoes (060 T052). Um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
+    "JANELA COM O OPERADOR — nove tarefas (040 S01/S02, 080 T053-T056 e T061-T063) esperam uma segunda janela de CT122. O bloqueio caiu em 2026-08-24 17:19: a descricao da regra de alerta foi reescrita em ingles, e a capacidade que conserta o incidente passa de 63a cortada para 13a oferecida.",
+    "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou.",
+    "ESCOPO SEM DONA — o sujeito gravado de um incidente pode ser o host do exportador em vez do convidado (casamento por endereco na borda).",
+    "ESCOPO SEM DONA — a suite transversal nao tem guarda de que esta olhando para a aplicacao: quatro regras passaram contra a tela de login numa corrida contra staging.",
+    "ESCOPO SEM DONA — nada e jamais marcado como citado: as 24 linhas de evidence na instancia tem cited = false, sem excecao."
+  ],
+  "what_the_orchestrator_measured_2026_08_25": {
+    "make_verify": "exit 0, 12778 passed / 30 skipped, 13:05, na arvore final",
+    "staging_carrega_a_arvore_final": "446 turnos desde o deploy, todos com selection_rationale gravado — o commit ee68164 esta vivo em staging, entao nao foi preciso republicar",
+    "coletor_a_seco": "run pre-onda c2af8f73... em 2026-08-22 23:51:38Z: run_turns 0, tool_calls 0, evidence 0, trace_events 2, custo 0 linhas",
+    "coletor_do_laco": "run da demo d393d5d0...: run_turns 5, tool_calls 4, evidence 0, trace_events 13",
+    "capturas": "evidence/telas/, full-page a 1920 de largura, contra staging, com LEIA-ME mapeando arquivo para estacao",
+    "acceptance_contra_staging": "cinco corridas; falhas so em duas causas de ambiente (sessao caida, /v1/incidents sem responder), ambas lidas na tela; corridas 2 e 4 verdes inteiras"
+  },
+  "repair_round_2026_08_25": {
+    "dispatched": "tres spec-implementer, um por marcacao falsa que precisava de codigo",
+    "050-T020": {
+      "outcome": "CONSERTADO — a prova que faltava encontrou o defeito que ela existia para pegar",
+      "defeito": "advisory lock de escopo de sessao solto quando flush() retornava, nao quando a transacao terminava; o segundo chamador lia a linha como ausente, disputava o INSERT, e o unlock do finally reprovava com 'Can't operate on closed transaction' deixando o lock preso na conexao",
+      "sintoma": "~50% de reprovacao com 8 tentativas simultaneas; as demais esperavam ate o statement_timeout de 30s e caiam com texto de driver puro",
+      "conserto": "pg_advisory_xact_lock — escopo de transacao, solto pelo Postgres no commit ou rollback, sem liberacao explicita para falhar",
+      "prova": "20 rodadas verdes pelo implementador + 6 rodadas independentes do orquestrador, ~1,3s cada; pg_locks sem nenhum advisory pendurado; suite vizinha 47 passed / 9 skipped",
+      "por_que_passou_por_cinco_auditorias": "a prova que existia era contra um fake que serializa tudo atras de um lock global — o comentario do proprio fake diz que o GIL e 'toda a implementacao do arbitro que o backend Postgres precisa de um advisory lock para ter'. O fake nao tinha como falhar."
+    },
+    "030-T048": {
+      "outcome": "FEITO — as 36 rotas declaram a propria dinamica",
+      "achado": "o corte de fio nao produziu vermelho: a autenticacao do layout le cookie incondicionalmente, o que ja torna toda rota dinamica. A propriedade tinha tres camadas redundantes. O portao de rotas dinamicas nao consegue detectar a ausencia da declaracao porque inspeciona a saida do build."
+    },
+    "060-T050": {
+      "outcome": "TESTE ESCRITO, TAREFA DESMARCADA — uma das duas alegacoes reprova contra o produto real",
+      "o_que_existia": "test.skip no nivel do bloco e corpo com expect(locator).toBeDefined(), que nunca falha — assercao vazia por construcao",
+      "achado": "a frase de CredentialWouldCrossInClear nao chega ao painel; chega a de outra causa, dizendo que o host nao esta na allow-list quando o host esta e o problema e o http://. Quinze vendors com a mesma tabela."
+    }
+  },
+  "pendencias_restantes": {
+    "total": 14,
+    "janela_com_o_operador": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. O bloqueio caiu em 2026-08-24 17:19 com a regra de alerta reescrita em ingles.",
+    "revisao_humana_de_baseline": "3 linhas — 010 T054 e sua linha de DoD (quatro telas de run), 060 T052 (slide-over de integracoes). Aceitar baseline e decisao de quem olha.",
+    "decisao_de_produto": "1 — 060 T050, cujo conserto atravessa quinze pacotes de integracao."
+  },
+  "backlog": "22 entradas: duas reescritas contra medicao (a explicacao anterior estava errada nas duas), cinco novas desta sessao, zero identificadores de planejamento"
 }

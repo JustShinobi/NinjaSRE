@@ -51,17 +51,53 @@ cinco ondas com o harness verde.
       os escores. Este é o "antes" contra o qual o efeito desta mudança sobre
       investigação será reportado no fechamento. "Sem efeito" será uma resposta
       aceitável; "não medido" não.
-- [ ] T003 Registrar as contagens de partida direto do banco de staging, não de
+- [x] T003 Registrar as contagens de partida direto do banco de staging, não de
       um documento: turnos, chamadas, evidência e eventos de trace, no total e
       para os runs completed da última hora. É o "antes" que a evidência de
       fechamento compara.
-      **Não feito — motivo em `controle.md`, seção "Reconfronto (2026-08-24)":
-      o banco de staging é alcançável (`scripts/deploy/stg-psql`, committed,
-      lê a connection string do pod em execução a cada chamada). A tarefa não
-      esbarra em acesso; esbarra na janela — o deploy deste slot já está vivo
-      em staging havia mais de um dia quando isto foi auditado, então uma
-      consulta hoje devolveria o total de hoje rotulado de "antes", o que
-      seria evidência fabricada. Não é falta de tentativa nem de acesso.**
+      → **Feito em 2026-08-25, contra o banco real — e a razão pela qual isto
+      ficou aberto por dois dias estava errada.**
+
+      Duas passagens anteriores registraram esta tarefa como impossível: o
+      deploy já estaria vivo havia mais de um dia, então uma consulta hoje
+      devolveria "o total de hoje rotulado de antes", o que seria evidência
+      fabricada. **O raciocínio confunde o instante com o sujeito.** O "antes"
+      desta tarefa não é um relógio: é um run que rodou antes de o gravador
+      existir. As linhas que um run velho não gravou ele continua não tendo
+      gravado — nada foi preenchido retroativamente —, então o retrato
+      permanece tirável enquanto aquele run existir na tabela.
+
+      Medido contra `c2af8f73fa484061b483c6a4e9148131`, concluído em 2026-08-22
+      23:51:38Z, quarenta e uma horas antes da primeira publicação da onda:
+
+          run_turns      0
+          tool_calls     0
+          evidence       0
+          trace_events   2      (73 no total da instância, para 37 runs)
+          custo por turno   0 linhas
+
+      E o mesmo coletor, contra o run da demo `d393d5d0…`:
+
+          run_turns      5
+          tool_calls     4
+          evidence       0
+          trace_events  13
+
+      Consulta e saída literal, estação por estação, em
+      `../080-incidente-fecha-o-laco/evidence/consultas/000-partida.txt`.
+
+      **O que de fato não é recuperável** é só o total da instância "antes",
+      porque o total de hoje soma os runs da própria onda. Ele está registrado
+      onde a onda o mediu em 2026-08-23 — 73 eventos de trace, 37 runs — e é a
+      única linha desta tarefa que vem de documento em vez de consulta.
+
+      **Um achado caiu desta medição**: `evidence` continua em **0** para o run
+      da demo, e em 24 linhas para a instância inteira, espalhadas por 7 dos
+      203 runs que gravam turnos. O gravador de evidência está composto e
+      funciona — as linhas existentes vêm de `loki`, `prometheus`, `proxmox`,
+      `grafana`, `alertmanager` e `reasoning` —, mas **as 24 têm `cited =
+      false`**, sem exceção. Nada é jamais marcado como citado. Não é escopo
+      desta tarefa; é dívida nomeada, entregue ao confronto da onda.
 
 ## Phase 1: Gates primeiro, confirmados vermelhos
 

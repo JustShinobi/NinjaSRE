@@ -280,7 +280,35 @@ partida, não a autoridade.
       armazenada, a frase aparece no painel como o detalhe do veredito, e o chip
       de estado é o mesmo que a classificação sempre produziu. As duas alegações
       correspondentes do acceptance passam a verde, no backing local.
+      → **O teste foi escrito de verdade em 2026-08-25, rodado contra o backing
+      de compose, e uma das duas alegações reprova contra o produto real.**
 
+      O que existia aqui não era um teste esperando destravar. O `test.skip`
+      estava no nível do bloco — em Playwright isso pula o `test()` inteiro — e
+      o corpo era `expect(page.getByTestId(...)).toBeDefined()`, que **nunca
+      falha**, porque um localizador é sempre um objeto exista ou não o elemento
+      na página. Era uma asserção vazia por construção.
+
+      Agora o bloco se pula sozinho pela ausência do endereço do plano de mock,
+      do mesmo jeito que o acceptance da fonte-única já faz, e roda de verdade
+      contra o compose. Resultado:
+
+      - **verdadeira**: o chip de estado da recusa em claro é o mesmo que a
+        classificação de recusa de egresso sempre produziu;
+      - **falsa**: a frase de `CredentialWouldCrossInClear` **não chega ao
+        painel**. Chega a de outra causa, e ela engana — o painel diz *"this
+        host is not in the integration's declared allow-list"* quando o host
+        está na allow-list e o problema é o `http://`.
+
+      A causa: as duas recusas compartilham a mesma classificação de propósito
+      (por todo fato que o proxy confere, a segunda **é** uma recusa de
+      egresso), e a tabela de conselho por vendor foi escrita quando a
+      allow-list era o único caso que aquela classificação cobria. São **quinze**
+      vendors com a mesma tabela e a mesma frase.
+
+      **A caixa fica desmarcada**, porque marcar seria escrever no ledger uma
+      alegação que a árvore, medida agora, contradiz. O conserto atravessa
+      quinze pacotes e é decisão de produto, não limpeza — está no backlog.
 ## Phase 7: Evidência e fechamento
 
 - [x] T051 Rodar o acceptance completo no backing local e confirmar verde. Cada

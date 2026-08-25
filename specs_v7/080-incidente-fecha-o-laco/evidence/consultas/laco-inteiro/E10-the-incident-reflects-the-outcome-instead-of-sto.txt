@@ -1,0 +1,62 @@
+# E10 — the incident reflects the outcome instead of stopping at the diagnosis
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## timeline — the action left an entry on the incident's own timeline
+## before the wave: no entry for an action, because no action happened
+
+-- The incident is found by either spelling of its address, because what an
+-- operator has in hand is whatever the console put in the URL.
+SELECT kind,
+       at,
+       actor,
+       cause,
+       left(detail, 160) AS detail
+FROM incident_timeline
+WHERE org_id = 'default'
+  AND incident_id = (
+        SELECT incident_id
+        FROM incidents
+        WHERE org_id = 'default'
+          AND (incident_id = 'inc_05328c58ca88676b' OR public_id = 'inc_05328c58ca88676b')
+      )
+ORDER BY at;
+
+--- output ---
+      kind      |              at               |       actor        |                                                                                                                                                                                                                                                                                                                                                                                                                                                                cause                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                              detail                                                                              
+----------------+-------------------------------+--------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ opened         | 2026-08-24 10:29:45.107477+00 | alert-router       | redis (lxc/122) estava em execução no nó pve01 e parou.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 1 subject(s)
+ alert_received | 2026-08-24 10:29:45.178895+00 | system:observation | the delivery was authenticated by alertmanager-delivery                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | alertname=ProxmoxGuestStopped, cluster=HAL9000, criticality=high, env=homelab, id=lxc/122, instance=192.168.68.159, job=pve-exporter, name=redis, node=pve01, se
+ run_started    | 2026-08-24 10:29:45.426597+00 | system:observation | ProxmoxGuestStopped: Convidado Proxmox parou Affected: res-47555daca81efa67dacce16fb42c898e. Observed: res-47555daca81efa67dacce16fb42c898e alert=ProxmoxGuestStopped; res-47555daca81efa67dacce16fb42c898e reference=http://prometheus:9090/graph?g0.expr=%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D+%3D%3D+0+and+max_over_time%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D%5B30m%5D%29+%3D%3D+1%29+%2A+on+%28id%29+group_left+%28name%2C+node%2C+type%29+pve_guest_info&g0.tab=1; res-47555daca81efa67dacce16fb42c898e group={}/{severity="critical"}:{alertname="ProxmoxGuestStopped", service="pve-exporter", severity="critical"}; res-47555daca81efa67dacce16fb42c898e matched_on=address; res-47555daca81efa67dacce16fb42c898e target_label=instance; res-47555daca81efa67dacce16fb42c898e target=192.168.68.159; res-47555daca81efa67dacce16fb42c898e zone=. Find the cause and say what evidence supports it. | d393d5d0916c404b854337a270fa825d
+ closed         | 2026-08-24 10:49:45.236473+00 | system:observation | ProxmoxGuestStopped was resolved upstream                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | self-resolved
+(4 rows)
+
+
+--- end of output ---
+
+
+## incident-after — the incident itself carries the outcome, the run and the action
+## before the wave: the incident stopped at the diagnosis
+
+SELECT title,
+       state,
+       severity,
+       subjects,
+       run_ids,
+       actions,
+       closed_at,
+       close_reason,
+       self_resolved
+FROM incidents
+WHERE org_id = 'default'
+  AND (incident_id = 'inc_05328c58ca88676b' OR public_id = 'inc_05328c58ca88676b');
+
+--- output ---
+        title        |  state   | severity |                                                                                                                                                                                                                                                                                                                                                         subjects                                                                                                                                                                                                                                                                                                                                                          |              run_ids               | actions |           closed_at           |               close_reason                | self_resolved 
+---------------------+----------+----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------+---------+-------------------------------+-------------------------------------------+---------------
+ ProxmoxGuestStopped | resolved | critical | {"subjects": [{"detail": "Convidado Proxmox parou", "evidence": {"zone": "", "alert": "ProxmoxGuestStopped", "group": "{}/{severity=\"critical\"}:{alertname=\"ProxmoxGuestStopped\", service=\"pve-exporter\", severity=\"critical\"}", "target": "192.168.68.159", "reference": "http://prometheus:9090/graph?g0.expr=%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D+%3D%3D+0+and+max_over_time%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D%5B30m%5D%29+%3D%3D+1%29+%2A+on+%28id%29+group_left+%28name%2C+node%2C+type%29+pve_guest_info&g0.tab=1", "matched_on": "address", "target_label": "instance"}, "observed_at": null, "resource_id": "res-47555daca81efa67dacce16fb42c898e", "absent_since": null}]} | {d393d5d0916c404b854337a270fa825d} | {}      | 2026-08-24 10:49:45.236473+00 | ProxmoxGuestStopped was resolved upstream | t
+(1 row)
+
+
+--- end of output ---
+

@@ -1,0 +1,52 @@
+# E7 — the proposal waits, with the plan that would undo it
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## proposal — exactly one proposal exists for this run, and its state is still 'pending' — the word the approvals port uses for a decision nobody has taken
+## before the wave: no row, for any run
+
+SELECT approval_id,
+       action,
+       side_effect_level,
+       state,
+       requested_at,
+       expires_at,
+       arguments ->> 'change_type' AS change_type
+FROM approvals
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d'
+ORDER BY requested_at;
+
+--- output ---
+ approval_id | action | side_effect_level | state | requested_at | expires_at | change_type 
+-------------+--------+-------------------+-------+--------------+------------+-------------
+(0 rows)
+
+
+--- end of output ---
+
+
+## rollback-plan — the undo was recorded, and it was recorded before anything ran
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## every-remediation-proposal — how many remediation proposals this deployment has ever queued; nought here means nothing bound a control plane, which the process log says outright
+## before the wave: 0 — no control plane was bound, so no write could be proposed
+
+-- Nought here does not mean the screen is broken. It means no write was ever
+-- proposed, and the process log says on which of its pieces that turned.
+SELECT count(*) AS remediation_proposals
+FROM approvals
+WHERE org_id = 'default'
+  AND arguments ->> 'change_type' = 'remediation';
+
+--- output ---
+ remediation_proposals 
+-----------------------
+                     0
+(1 row)
+
+
+--- end of output ---
+

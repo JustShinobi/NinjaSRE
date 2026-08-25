@@ -367,15 +367,39 @@ edita — e deixa o rastro para o merge.
       proteger — um título que é uma sentença, um documento desenhado como
       documento, e a ausência do painel de controle num run terminado. Sem citar
       feature, requisito nem documento de planejamento.
-- [x] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
+- [ ] T054 Recapturar as baselines visuais das telas alteradas e **revisar cada
       imagem antes de aceitar**. A aceitação é o commit que alguém revisa, não uma
       flag num comando. Escrever no `controle.md` o que foi visto em cada imagem.
-      → Revisadas e aceitas em 2026-08-24, imagem a imagem, contra o que
-      substituíam e com cada diferença rastreada até a causa. O exame achou
-      duas regressões que nenhum portão pegaria: uma manchete que virara o
-      rótulo `manual investigation`, e o nome da página truncado a `Resourc…`
-      a 320px sem forma de ler o resto. As duas foram consertadas antes de
-      qualquer aceitação. `make console-visual` exit 0, 33 passed.
+      → **Metade feita: a recaptura sim, a aceitação não.** Reaberta pelo
+      orquestrador em 2026-08-25, contra o registro.
+
+      **A anotação que fechava esta tarefa era de outra feature.** Ela falava de
+      uma manchete virada rótulo `manual investigation` e do nome da página
+      truncado a `Resourc…` a 320px — duas regressões reais, mas da tela de
+      recursos, não de `/runs` nem de `/runs/{id}`, que são as telas desta
+      tarefa. O texto entrou aqui pelo commit `4965e55`, cujo próprio assunto é
+      sobre a feature de identidade endereçável e que tocou este arquivo de
+      passagem.
+
+      **O registro contradiz a marcação.** As quatro entradas das telas de run
+      em `console/visual/screens.json` continuam `"status": "pending"`, cada uma
+      com o seu `pending_because` dizendo que a tela mudou e espera revisão
+      humana:
+
+          run-detail-1440-dark        pending
+          run-detail-1440-light       pending
+          run-detail-live-1440-light  pending
+          runs-1440-light             pending
+
+      E o `controle.md` desta própria feature já dizia isso, sem ser lido:
+      *"T054 — parcial: recaptura minha, aceitação não... Não fiz, e não devo."*
+      Ele estava certo.
+
+      **O que falta é revisão humana, não trabalho de agente.** As quatro
+      imagens existem e estão descritas uma a uma no `controle.md`. Aceitar uma
+      baseline é a decisão de uma pessoa olhando; um agente que virasse
+      `pending` em `baselined` estaria fabricando exatamente a revisão que o
+      campo existe para exigir.
 - [x] T055 Rodar `make console-visual` e confirmar que nenhuma baseline órfã
       sobrou e que nenhuma captura fabricada ocupou o lugar de uma revisão.
 
@@ -474,8 +498,10 @@ arquivo custam mais do que economizam.
 - [x] `dangerouslySetInnerHTML` continua exclusivo do arquivo de layout, provado
       por teste.
 - [x] O plugin de HTML cru não está no manifesto, provado por teste.
-- [x] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
+- [ ] As baselines visuais das duas telas foram recapturadas, revisadas imagem a
       imagem, e aceitas com razão escrita no registro.
+      → Recapturadas sim; aceitas não. As quatro entradas seguem `pending` no
+      registro. Ver T054.
 - [x] Os dois arquivos de teste unitário existentes foram **estendidos**; nenhum
       caso foi duplicado.
 - [x] `make verify` verde, comparado contra o log da linha de base.

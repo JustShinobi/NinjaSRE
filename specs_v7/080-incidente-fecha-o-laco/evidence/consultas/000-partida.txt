@@ -1,0 +1,427 @@
+# 000 — o que o staging media antes da onda
+
+Coletado em 2026-08-25, contra o banco de staging, com os parâmetros de um run
+**pré-onda**: `c2af8f73fa484061b483c6a4e9148131`, concluído em 2026-08-22
+23:51:38Z, quarenta e uma horas antes de a primeira feature desta onda ser
+publicada.
+
+Este retrato é reconstituível hoje, e é por isso que ele existe apesar de a
+demo já ter acontecido: as linhas de um run pré-onda nunca foram preenchidas
+retroativamente. O que um run velho não gravou, ele continua não tendo gravado.
+O contraste que a evidência posterior precisa não se perdeu com a janela.
+
+Cada seção abaixo é o arquivo por estação, na íntegra: a consulta e a saída
+literal, nunca uma afirmação sobre a saída.
+
+
+══════════════════════════════════════════════════════════════
+
+# E10 — the incident reflects the outcome instead of stopping at the diagnosis
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## timeline — the action left an entry on the incident's own timeline
+## before the wave: no entry for an action, because no action happened
+## NOT COLLECTED: this query needs --incident, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## incident-after — the incident itself carries the outcome, the run and the action
+## before the wave: the incident stopped at the diagnosis
+## NOT COLLECTED: this query needs --incident, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+══════════════════════════════════════════════════════════════
+
+# E3 — the incident opens legible, over a subject the estate resolves
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## incident — the incident exists, is addressable, and is named by a title rather than an id
+## before the wave: every alert incident's detail was unrecoverable
+## NOT COLLECTED: this query needs --incident, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## estate — the estate holds real resources rather than being empty
+## before the wave: 0 — the estate was empty and every incident showed an unplaced zone
+
+SELECT count(*) AS present_resources
+FROM estate_resources
+WHERE org_id = 'default'
+  AND absent_since IS NULL;
+
+--- output ---
+ present_resources 
+-------------------
+               100
+(1 row)
+
+
+--- end of output ---
+
+
+## subject — the resource the incident points at is one the estate actually holds
+## before the wave: no row — nothing to point at
+## NOT COLLECTED: this query needs --resource, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+══════════════════════════════════════════════════════════════
+
+# E4 — the investigation records its turns, its calls, its evidence and its cost
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## turns — the run recorded turns, read back from the store rather than the process
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS run_turns
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ run_turns 
+-----------
+         0
+(1 row)
+
+
+--- end of output ---
+
+
+## tool-calls — the run recorded the capability calls it made
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS tool_calls
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ tool_calls 
+------------
+          0
+(1 row)
+
+
+--- end of output ---
+
+
+## evidence — the run recorded the observations it cited
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS evidence_rows
+FROM evidence
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ evidence_rows 
+---------------
+             0
+(1 row)
+
+
+--- end of output ---
+
+
+## trace-events — the run's own log exists beside the counts above
+## before the wave: 73 for the whole instance, across 37 completed runs
+
+SELECT count(*) AS trace_events
+FROM trace_events
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ trace_events 
+--------------
+            2
+(1 row)
+
+
+--- end of output ---
+
+
+## cost-per-turn — cost is recorded turn by turn, and an unpriced turn is empty rather than nought
+## before the wave: no turn was recorded at all, so no cost could be
+
+-- An unpriced turn carries an empty usage document rather than a zero.
+-- The difference is the whole point of reading this turn by turn.
+SELECT "index",
+       started_at,
+       finished_at,
+       usage
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131'
+ORDER BY "index";
+
+--- output ---
+ index | started_at | finished_at | usage 
+-------+------------+-------------+-------
+(0 rows)
+
+
+--- end of output ---
+
+
+## what-each-call-returned — each call carries what it returned, in the order it was recorded
+## before the wave: no row
+
+-- Ordered by the sequence the recorder assigned, not by time. Two calls in one
+-- concurrent batch routinely share a microsecond.
+SELECT recorded_seq,
+       tool_name,
+       status,
+       started_at,
+       finished_at,
+       error
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131'
+ORDER BY recorded_seq;
+
+--- output ---
+ recorded_seq | tool_name | status | started_at | finished_at | error 
+--------------+-----------+--------+------------+-------------+-------
+(0 rows)
+
+
+--- end of output ---
+
+
+══════════════════════════════════════════════════════════════
+
+# E5 — the sentence naming the run is not the document
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## sentence-and-document — the sentence does not open with markdown syntax, and the document still does
+## before the wave: every recent summary opened with ###, and no separate sentence existed
+
+-- The proof is that the first column does not open with markdown syntax while
+-- the second still does. One sentence, one document, two fields.
+SELECT headline,
+       left(summary, 120) AS summary_opens_with,
+       status,
+       finished_at
+FROM agent_runs
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ headline |                          summary_opens_with                          |  status   |          finished_at          
+----------+----------------------------------------------------------------------+-----------+-------------------------------
+          | ### Findings & Root Cause Analysis                                  +| completed | 2026-08-22 23:51:38.449968+00
+          |                                                                     +|           | 
+          | **Conclusion:**                                                     +|           | 
+          | The alert `NinjaSREInvestigationProbe2` is a synthetic probe / test  |           | 
+(1 row)
+
+
+--- end of output ---
+
+
+## headline-coverage — how much of this deployment's history predates the sentence column; a run backfilled with an empty one is the case the read path has to synthesise a name for, and the likeliest reason a screen rule holds against a fixture and fails against real history
+## before the wave: every run, because the column did not exist
+
+-- How many runs carry a sentence of their own, and how many were written before
+-- the column existed. A run backfilled with an empty sentence is the one case
+-- where the read path has to synthesise a name, and it is the likeliest reason
+-- for a screen rule to hold against a fixture and fail against real history.
+SELECT count(*) AS runs,
+       count(*) FILTER (WHERE headline = '') AS without_a_sentence,
+       count(*) FILTER (WHERE summary LIKE '#%') AS document_opens_with_syntax,
+       min(started_at) AS oldest,
+       max(started_at) AS newest
+FROM agent_runs
+WHERE org_id = 'default';
+
+--- output ---
+ runs | without_a_sentence | document_opens_with_syntax |            oldest             |            newest             
+------+--------------------+----------------------------+-------------------------------+-------------------------------
+  348 |                146 |                        316 | 2026-08-22 11:42:33.090252+00 | 2026-08-25 07:19:53.362049+00
+(1 row)
+
+
+--- end of output ---
+
+
+══════════════════════════════════════════════════════════════
+
+# E7 — the proposal waits, with the plan that would undo it
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## proposal — exactly one proposal exists for this run, and its state is still 'pending' — the word the approvals port uses for a decision nobody has taken
+## before the wave: no row, for any run
+
+SELECT approval_id,
+       action,
+       side_effect_level,
+       state,
+       requested_at,
+       expires_at,
+       arguments ->> 'change_type' AS change_type
+FROM approvals
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131'
+ORDER BY requested_at;
+
+--- output ---
+ approval_id | action | side_effect_level | state | requested_at | expires_at | change_type 
+-------------+--------+-------------------+-------+--------------+------------+-------------
+(0 rows)
+
+
+--- end of output ---
+
+
+## rollback-plan — the undo was recorded, and it was recorded before anything ran
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## every-remediation-proposal — how many remediation proposals this deployment has ever queued; nought here means nothing bound a control plane, which the process log says outright
+## before the wave: 0 — no control plane was bound, so no write could be proposed
+
+-- Nought here does not mean the screen is broken. It means no write was ever
+-- proposed, and the process log says on which of its pieces that turned.
+SELECT count(*) AS remediation_proposals
+FROM approvals
+WHERE org_id = 'default'
+  AND arguments ->> 'change_type' = 'remediation';
+
+--- output ---
+ remediation_proposals 
+-----------------------
+                     0
+(1 row)
+
+
+--- end of output ---
+
+
+══════════════════════════════════════════════════════════════
+
+# E8 — the decision, its author and its instant, recorded before any effect
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## decision — who decided, when, and why — on the row the execution was authorised from
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## audit-of-the-decision — the decision reached the audit trail with author, action, subject and result
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## nothing-executed-unattended — no action above reading executed without a recorded human decision; this must read nought at the end of the demonstration
+## before the wave: 0 — nothing executed at all
+
+-- This must read nought at the end. A row here is an action carried out with
+-- no human decision recorded against it.
+SELECT count(*) AS unattended_executions
+FROM remediation_outcomes
+WHERE org_id = 'default'
+  AND autonomous IS TRUE;
+
+--- output ---
+ unattended_executions 
+-----------------------
+                     0
+(1 row)
+
+
+--- end of output ---
+
+
+══════════════════════════════════════════════════════════════
+
+# E9 — the execution went through the gate, and what it produced was recorded
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## outcome — the execution produced a recorded outcome for this resource — a named failure is an outcome, a silent one is not
+## before the wave: no row
+## NOT COLLECTED: this query needs --resource, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## episode — what a later investigation would be told about this one
+## before the wave: no row for a run
+
+SELECT episode_id,
+       title,
+       outcome,
+       occurred_at,
+       components
+FROM episodes
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ episode_id | title | outcome | occurred_at | components 
+------------+-------+---------+-------------+------------
+(0 rows)
+
+
+--- end of output ---
+
+
+══════════════════════════════════════════════════════════════
+
+# R — the refusal path, exercised on a different occurrence
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## rejections — a rejection was recorded with its reason, and a reason is not optional
+## before the wave: no row
+
+SELECT approval_id,
+       action,
+       state,
+       decided_by,
+       decided_at,
+       reason
+FROM approvals
+WHERE org_id = 'default'
+  AND state = 'rejected'
+ORDER BY decided_at DESC;
+
+--- output ---
+ approval_id | action | state | decided_by | decided_at | reason 
+-------------+--------+-------+------------+------------+--------
+(0 rows)
+
+
+--- end of output ---
+
+
+## both-decisions-in-the-audit — the approval and the rejection both appear, with author, action, subject and result
+## before the wave: no row
+
+-- Fifty rows is an evening's worth, and small enough to read. Both decisions
+-- are in here, and finding them is the reader's job rather than a filter's.
+SELECT occurred_at,
+       actor_kind,
+       actor_id,
+       action,
+       resource_kind,
+       resource_id,
+       outcome
+FROM audit_events
+WHERE org_id = 'default'
+  AND resource_kind IN ('approval_request', 'remediation_action')
+ORDER BY occurred_at DESC
+LIMIT 50;
+
+--- output ---
+ occurred_at | actor_kind | actor_id | action | resource_kind | resource_id | outcome 
+-------------+------------+----------+--------+---------------+-------------+---------
+(0 rows)
+
+
+--- end of output ---
+

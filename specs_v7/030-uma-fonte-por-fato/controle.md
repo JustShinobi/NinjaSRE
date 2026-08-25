@@ -463,3 +463,191 @@ console_gate test` 2771/2771 com branches em 90.01%; `make check-imports` 7/7;
 
 `tasks.md` desta feature: 69/69 tarefas marcadas, verificadas contra o
 código.
+
+---
+
+## Atualização — auditoria e correção de T048 (dinamismo por rota, sem depender de herança)
+
+Trabalho de escopo único, por instrução direta do orquestrador: um verificador
+independente mediu que T048 estava marcada `[x]` sem existir. `grep -rln
+"export const dynamic" "console/src/app/(shell)"` devolvia um arquivo só
+(`layout.tsx:31`); nenhum dos 36 `page.tsx` sob `console/src/app/(shell)/`
+declarava dinamismo próprio; `git log -p --all -S "export const dynamic" --
+'console/src/app/(shell)/**/page.tsx'` não tinha nenhum commit em toda a
+história. Confirmado de novo, por leitura direta, antes de tocar em qualquer
+coisa — o achado era real.
+
+### Decisão: declarar nas 36, não reescrever a tarefa
+
+Li `console/src/app/(shell)/layout.tsx`, o `dynamic_routes`/`_shell_routes`
+de `tools/console_gate.py`, e três `page.tsx` de formas diferentes — lista
+(`incidents/page.tsx`), detalhe dinâmico (`incidents/[incidentId]/page.tsx`),
+tela sem parâmetro (`settings/page.tsx`, redireciona para o primeiro grupo de
+Settings; `[...unmatched]/page.tsx`, nem sequer é `async`). Decisão: **opção
+(a)** — declarar `export const dynamic = 'force-dynamic';` nas 36, e não
+reescrever FR-029/030 para abençoar o `searchParams` implícito como o
+mecanismo por arquivo. Três motivos, na ordem em que pesaram:
+
+1. O próprio texto da tarefa já resolve a dúvida: "a declaração por rota entra
+   de todo jeito, porque depender de herança é a fragilidade que permitiu a
+   dúvida" — vale **independentemente** do que a tarefa de diagnóstico (a
+   anterior a esta, que mede a camada de cache real) tiver encontrado.
+2. Consumir `searchParams` é um **efeito colateral implícito** de como o
+   Next.js interpreta essa prop numa versão de framework específica — não uma
+   declaração. Depender dele para a propriedade "não depende de herança" é
+   trocar herança de layout por uma dependência implícita equivalente, só que
+   documentada em nenhum lugar do próprio arquivo.
+3. Três das 36 rotas (`[...unmatched]`, `configuration`, `settings` hub) não
+   usam `searchParams` e não são rota de lista nem de detalhe — mas são "rota
+   sob o shell" para o portão (`_shell_routes` varre todo `page.tsx` sob
+   `(shell)/` recursivamente, sem filtrar por forma) e para o requisito mais
+   amplo (nenhuma rota sob o shell pode constar pré-renderizada). Declarar nas
+   36 evita ter de justificar por que três rotas ficariam de fora de uma
+   garantia que o próprio portão exige de todas.
+
+### O que mudou
+
+`export const dynamic = 'force-dynamic';` acrescentado ao final do bloco de
+import, com o mesmo comentário de uma linha, em cada um dos 36 `page.tsx` sob
+`console/src/app/(shell)/` (lista completa: `[...unmatched]`,
+`administration`, `agent`, `approvals`, `audit`, `autonomy`, `catalogue`,
+`configuration`, `decisions`, `detectors`, `first-run`,
+`incidents/[incidentId]`, `incidents`, `integrations/[name]`,
+`integrations/not-covered`, `integrations`, `investigations`, `knowledge`,
+`memory`, a raiz `page.tsx`, `resources`, `runs/[runId]`, `runs`,
+`settings/alert-intake`, `settings/audit-log`,
+`settings/autonomy-guardrails`, `settings/machine-tokens`,
+`settings/members-roles`, `settings/models-providers`,
+`settings/notifications`, `settings` (hub), `settings/schedules-destinations`,
+`settings/single-sign-on`, `setup`, `signals`, `topology`).
+`git diff --stat -- "console/src/app/(shell)"` confirma **36 arquivos, 108
+inserções, 0 remoções**. `layout.tsx` não foi tocado no resultado final (foi
+editado e restaurado dentro desta mesma sessão para o experimento abaixo;
+`git diff` vazio nele ao terminar).
+
+### Gates rodados, resultado real
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Formatação | `uv run python -m tools.console_gate format-check` | **exit 0** |
+| Lint | `uv run python -m tools.console_gate lint` | **exit 0** |
+| Typecheck | `uv run python -m tools.console_gate typecheck` | **exit 0** — inclusive em `configuration/page.tsx`, que é `'use client'`: a config de rota funciona igual num componente de cliente, `tsc` não reclamou |
+| Lógica do portão (fixture sintética — o que `tests/unit/tools/test_console_gate_dynamic_routes.py` já prova, sem precisar de build real) | `uv run pytest tests/unit/tools/test_console_gate_dynamic_routes.py -q` | **15 passed**, incluindo `test_reverting_a_route_to_prerendered_and_back_flips_the_check_both_ways` — o portão em si não é manufaturado: reprova de verdade contra uma árvore sintética com uma rota marcada pré-renderizada, e volta a passar quando ela deixa de estar |
+| Build de produção final (layout com `force-dynamic`, as 36 páginas com declaração própria) | `uv run python -m tools.console_gate build` | **exit 0**, `next build` mostra as 36 rotas do shell como `ƒ (Dynamic)` |
+| Portão de rotas dinâmicas, build final | `uv run python -m tools.console_gate dynamic-routes` | **exit 0** |
+
+### O corte de fio, do jeito pedido — e o que ele realmente mostrou
+
+Roteiro seguido à risca: `git stash push -- <36 arquivos>` (voltando a árvore
+desses arquivos ao estado original, comprovadamente sem nenhuma declaração),
+removi `export const dynamic = 'force-dynamic';` de
+`console/src/app/(shell)/layout.tsx`, buildei, rodei o portão.
+
+**Resultado real, não o que eu esperava**: `uv run python -m tools.
+console_gate dynamic-routes` → **exit 0**, mesmo sem nenhuma declaração em
+lugar nenhum da árvore `(shell)/` (nem no layout, nem em nenhuma das 36
+páginas). `next build` mostrou as 36 rotas do shell como `ƒ (Dynamic)`,
+nenhuma como `○ (Static)`; `.next/prerender-manifest.json` só listava
+`/_global-error`, `/_not-found`, `/gallery` e `/icon.svg` — nenhuma delas sob
+`(shell)/`.
+
+Restaurei os 36 arquivos (`git stash pop`, layout ainda sem o
+`force-dynamic`) e rebuildei: **mesmo resultado, exit 0**, tabela de rotas
+idêntica.
+
+**Não existe um vermelho para mostrar aqui, e registro isso em vez de
+fabricar um.** Causa, confirmada por leitura de código e não por suposição:
+`console/src/app/(shell)/layout.tsx` chama `requestCredential()`
+incondicionalmente logo no corpo do componente, antes de qualquer outra
+coisa; `requestCredential` (`console/src/shell/request.ts:34-37`) chama
+`cookies()` de `next/headers` para ler a sessão. `requestLocale()` (mesmo
+arquivo, linhas 20-26) chama `cookies()`/`headers()` pelo mesmo motivo. Uma
+API dinâmica do Next.js descoberta em qualquer segmento da árvore de uma
+rota — layout incluso — torna a rota composta inteira dinâmica, com ou sem
+`export const dynamic` declarado em qualquer lugar; é assim que o próprio
+framework decide entre estático e dinâmico. Ou seja: hoje a propriedade
+"nenhuma rota sob o shell é pré-renderizada" é sustentada, de forma
+redundante, por três mecanismos independentes — o `export const dynamic` do
+layout (o que a tarefa de diagnóstico nomeou), o `searchParams` de 34 das 36
+páginas, e a leitura de cookie **obrigatória** do próprio layout para
+autenticar (que eu não sabia nomear até este experimento). Cortei só o
+primeiro; os outros dois continuaram de pé, e por isso o portão nunca ficou
+vermelho.
+
+**Teste de isolamento, adicional, para não deixar isso como suposição**: com
+o layout e as outras 35 páginas no estado final (declaração presente em
+todas), removi a declaração só de `[...unmatched]/page.tsx` — a única das 36
+sem `searchParams` nem qualquer outra API dinâmica própria. Buildei, rodei o
+portão: **exit 0 de novo**, `/[...unmatched]` segue `ƒ (Dynamic)`. Restaurei
+a declaração (`git diff` confirma o arquivo de volta ao estado final
+correto). Isso confirma, sem depender de inferência: **reverter a declaração
+de uma única rota, sozinha, hoje não derruba o portão** — porque a leitura de
+cookie do layout, incondicional, sustenta a propriedade por conta própria,
+para qualquer página abaixo dele.
+
+Restaurei `console/src/app/(shell)/layout.tsx` ao estado original (`git
+diff` vazio, confirmado) e rebuildei uma última vez com a árvore final:
+`next build` exit 0, `dynamic-routes` exit 0, mesma tabela de rotas.
+
+**O que isso muda na leitura do requisito, e o que passa a proteger a
+propriedade.** A leitura de autenticação no layout **é**, ela mesma,
+"herança de um segmento acima" — o mesmo tipo de dependência que o texto da
+tarefa pede para não existir, só que numa camada mais profunda do que a que
+a tarefa de diagnóstico nomeou (que falava do `export const dynamic` do
+layout e do `searchParams` da página de incidentes, não da leitura de cookie
+em si). Ela é robusta hoje porque autenticação não é algo que alguém remove
+sem quebrar o produto inteiro — mas continua sendo herança, e um refactor que
+movesse a resolução de credencial para fora do corpo do componente do layout
+(por exemplo, para um cabeçalho que o middleware já resolveu, sem reler o
+cookie ali) apagaria essa proteção sem que nenhum teste hoje existente
+notasse, porque nenhuma página teria a sua própria garantia textual. É por
+isso que a declaração por arquivo continua sendo a correção certa mesmo sem
+um vermelho para mostrar: das três camadas, ela é a única **local, explícita,
+e que não depende de nenhum comportamento alheio ao próprio arquivo** — nem
+de o Next.js interpretar `searchParams` de um jeito específico, nem de o
+layout continuar lendo cookie do jeito que lê hoje. O que passa a proteger a
+propriedade, na prática, é a combinação da declaração por arquivo (imune a
+qualquer refactor de layout ou de framework) com o portão de build já
+existente (`dynamic_routes`, que a suíte unitária citada acima prova não ser
+vazio) — não mais a suposição de que a herança de hoje vai continuar valendo.
+
+Não fui além disso (não editei a leitura de cookie do layout para tentar
+forçar um vermelho "de verdade"): seria mexer no caminho de autenticação só
+para fabricar um teste, numa árvore compartilhada, e o pedido foi
+especificamente cortar o `force-dynamic` do layout, não o mecanismo de
+autenticação.
+
+### Ledger
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T048 — cada rota de lista e de detalhe (e, por uniformidade, toda rota sob o shell) declara o próprio dinamismo, sem depender de herança de segmento | **FEITO** | `export const dynamic = 'force-dynamic';` nos 36 `page.tsx` sob `console/src/app/(shell)/` (lista completa acima). `layout.tsx` mantém a sua própria declaração, intocada no resultado final. `git diff --stat -- "console/src/app/(shell)"` confirma 36 arquivos, 108 inserções, 0 remoções. Gates de formatação/lint/typecheck limpos; portão de rotas dinâmicas verde no build de produção final. |
+
+### O que fica pendente, nomeado, não escondido (só o que este trabalho tocou ou encontrou)
+
+- **A prova operacional "vermelho antes, verde depois" não existe para ser
+  mostrada**, pelo motivo explicado acima — reportado como está, não
+  maquiado. A garantia que a declaração por arquivo adiciona hoje é
+  textual/estrutural (nenhum arquivo depende de herança para ser lido como
+  dinâmico), não uma mudança observável no manifesto do build de hoje, porque
+  a leitura de cookie obrigatória do layout já satura a propriedade para
+  qualquer rota abaixo dele.
+- `evidence/cache-layer.md`, que a tarefa de diagnóstico anterior a esta
+  deveria ter escrito, **não existe no disco** — só existe como narrativa
+  dentro deste mesmo `controle.md`, numa atualização anterior desta sessão.
+  Não é meu escopo corrigir isso; registro para quem for reabrir aquela
+  tarefa.
+- Não toquei nas tarefas de confirmação adjacentes (a que confirma o portão
+  aprovando e reprovando ao reverter uma rota; a que confirma os blocos do
+  acceptance que contam requisições; a que remede a latência) — permanecem
+  como estavam antes desta sessão. Acho importante registrar, para quem for
+  reabri-las: o teste de isolamento acima (reverter só
+  `[...unmatched]/page.tsx`, layout e as outras 35 páginas intactos) mostrou
+  o portão permanecendo verde — então a alegação de "reprova de novo se uma
+  rota for revertida" precisa, no mínimo, de uma rota cuja dinâmica não seja
+  também sustentada pela leitura de cookie do layout para ser demonstrável
+  hoje, e eu não sei se essa rota existe nesta árvore.
+- O outro achado do verificador (`existenceOf` em `console/src/surfaces/
+  read.ts:159` devolvendo uma `dependency` que `incident-detail.tsx:217-230`
+  descarta) não foi tocado, por instrução explícita — é dívida nomeada pelo
+  orquestrador, não desta tarefa.

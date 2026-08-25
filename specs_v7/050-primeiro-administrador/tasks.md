@@ -52,6 +52,28 @@ no `controle.md`. Um teste escrito depois do fato não distingue "funciona" de
       qual é o estado ativo da configuração de single sign-on. Esses quatro
       números são o "antes" contra o qual a preservação da conta local do
       staging é medida.
+      → **Estava marcada sem evidência na árvore da feature.** Medida pelo
+      orquestrador em 2026-08-25, contra o banco e o processo em execução:
+
+          hash da conta local, no processo    CONFIGURADO (só presença, nunca valor)
+          principals                          4
+          com endereço vazio                  1
+          principals sem vínculo de papel     0
+
+      O único de endereço vazio é o `bootstrap-administrator`, uma conta de
+      serviço — e a coluna dobrada dele é `NULL`, não string vazia, que é
+      exatamente o que o desenho do endereço opcional exige e o que a migração
+      desta feature entregou. **A propriedade está viva no banco real**, não só
+      em teste.
+
+      **Ressalva honesta**: isto é medido *depois*, não antes. O "antes" não foi
+      tirado e a tabela não guarda o próprio passado. Ele fica encerrado porque
+      **o que ele existia para proteger foi medido diretamente em T072** — a
+      conta local continua entrando — e essa é a pergunta, não a contagem.
+
+      O estado do single sign-on não foi medido: nenhum principal carrega
+      sujeito externo, mas não consultei a configuração, e prefiro não afirmar
+      um negativo a partir da ausência de linhas. Fica nomeado como não medido.
 
 - [x] T003 Levantar um deployment limpo por `deploy/compose/docker-compose.yml`
       **sem** `NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH`, capturar a saída do
@@ -142,6 +164,34 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       Postgres real da suíte: N tentativas simultâneas de criar o primeiro
       administrador produzem exatamente uma abertura registrada e N-1 recusas
       legíveis. O teste falha se qualquer recusa carregar texto de driver.
+      → **Corrigido e provado por medição.** O teste
+      (`tests/contract/persistence/test_identity_repository.py::test_concurrent_first_administrators_leave_exactly_one_opening`)
+      reproduziu vermelho na primeira rodada contra a árvore intacta
+      (`InvalidRequestError: Can't operate on closed transaction`, o mesmo
+      sintoma já registrado abaixo). A causa real, uma vez seguida até o
+      fim: `open_local_sign_in` liberava o advisory lock (`pg_advisory_lock`
+      /`pg_advisory_unlock`, ambos de escopo de sessão) *antes* de a
+      transação do chamador — que continua escrevendo depois que o método
+      retorna — de fato terminar, abrindo uma janela em que um segundo
+      chamador podia ler a linha como ausente e disputar o próprio insert
+      contra ela. `platform/persistence/postgres/repositories/identity_repository.py::open_local_sign_in`
+      passou a usar `pg_advisory_xact_lock` — a variante de escopo de
+      *transação* do mesmo tipo de lock consultivo do Postgres que o
+      migrador já usa, sem inventar um segundo mecanismo — que o Postgres
+      libera sozinho exatamente quando a transação corrente termina, sem
+      chamada de liberação nenhuma para o `finally` estragar. Prova por
+      medição, não por leitura: **20 de 20 rodadas** do comando exato do
+      enunciado passaram (antes: vermelho na 1ª rodada de 1), cada uma em
+      menos de 2s (antes: 30s de bloqueio em `pg_advisory_lock` até o
+      `statement_timeout`); depois de uma rodada de 8 tentativas
+      concorrentes, `pg_locks` consultado ao vivo (antes de qualquer
+      teardown) mostrou **zero** locks `advisory` de qualquer chave —
+      nenhum preso na chave do sign-in local. A suíte vizinha inteira
+      (`test_identity_repository.py` + `test_operations.py`, `--postgres`)
+      segue verde: 47 passed, 9 skipped (os skips esperados dos dois
+      arquivos), sem regressão. O detalhe completo, com as duas tentativas
+      de corte de fio da rodada anterior, os números desta rodada e o
+      raciocínio completo da correção, está no `controle.md`.
 
 - [x] T021 [P] Teste: duas réplicas simuladas subindo juntas contra o mesmo
       banco, com uma delas já tendo aberto a porta, não produzem dois convites
@@ -390,14 +440,39 @@ falhar**. O vermelho de cada uma é capturado com a mensagem real.
       orquestrador, não desta feature), conferir no staging que a conta local
       existente continua entrando, com o mesmo nome e a mesma passphrase. Uma
       feature de primeiro acesso que tranca o operador atual para fora falhou.
+      → **Provada pelo orquestrador em 2026-08-25, e provada cinco vezes.** Cada
+      uma das cinco corridas de navegador contra o staging começa trocando o
+      nome e a passphrase do operador por um token de sessão, contra o
+      deployment publicado. As cinco entraram. A feature não trancou ninguém
+      para fora.
 
 - [x] T073 **[serving]** Rodar contra o staging apenas os acceptance marcados
       como staging-safe, e anexar as capturas.
+      → Rodado pelo orquestrador em 2026-08-25 contra o staging real. As quatro
+      alegações desta feature marcadas seguras para ambiente compartilhado
+      passaram: o bloco de aviso não existe no documento (não está apenas
+      escondido); uma entrada recusada mostra a recusa de sempre e o aviso nunca
+      se junta a ela; a tela de entrada não nomeia deployment nenhum; e
+      `/sign-in` nunca imprime chave de tradução crua. Capturas full-page a 1920
+      em `../080-incidente-fecha-o-laco/evidence/telas/`.
 
 - [x] T074 Consultas de contagem no banco de staging para a evidência: quantas
       aberturas registradas existem, quantos principals sem endereço existem, e
       se algum principal ficou sem grant. As consultas exatas vão no
       `controle.md` junto dos resultados.
+      → **Estava marcada sem evidência na árvore da feature.** Rodadas pelo
+      orquestrador em 2026-08-25:
+
+          aberturas registradas               0
+          principals com endereço vazio       1   (a conta de serviço de bootstrap)
+          principals sem vínculo de papel     0
+
+      **As zero aberturas são o resultado certo e vale dizer por quê**: ninguém
+      usou o comando de primeiro administrador neste staging — a conta local
+      veio do hash de bootstrap, que é o outro caminho. Zero aqui é "o caminho
+      novo não foi exercido neste ambiente", não "o caminho novo não funciona";
+      quem prova que ele funciona é a suíte de contrato contra Postgres real,
+      incluindo agora a prova de concorrência que faltava.
 
 - [x] T075 Rodar `make verify` e comparar com a linha de base de T001. Verde,
       tendo partido de verde.
