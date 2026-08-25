@@ -297,7 +297,7 @@ LIVE_HOLDER = {
         "lock": "backup",
         "ha": {"managed": 0},
     },
-    f"/nodes/{SECONDARY}/lxc/100/status/tasks": [
+    f"/nodes/{SECONDARY}/tasks": [
         {
             "upid": "UPID:pve02:0000B200:0511D700:68943C10:vzdump:100:root@pam:",
             "type": "vzdump",

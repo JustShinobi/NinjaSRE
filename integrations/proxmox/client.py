@@ -752,9 +752,33 @@ class ProxmoxClient(IntegrationClient):
         return _records(await self._read(f"{_guest_path(node, vmid, kind)}/pending"))
 
     async def guest_tasks(self, node: str, vmid: int, *, kind: str) -> tuple[TaskRecord, ...]:
-        """Return a guest's own recent task history."""
-        records = _records(await self._read(f"{_guest_path(node, vmid, kind)}/status/tasks"))
-        return tuple(_task(row) for row in records)
+        """Return a guest's own recent task history, newest first.
+
+        Read from the node's task log narrowed to this guest, because a guest
+        has no task endpoint of its own. ``/nodes/{node}/{kind}/{vmid}/status/
+        tasks`` looks like it should be one and a live hypervisor answers ``No
+        'get' handler defined`` — a 501 that arrives as a vendor failure and
+        costs the caller its turn. It cost two capabilities theirs on a real
+        incident, where the answer they were after, a manual stop and who made
+        it, was one path away the whole time.
+
+        Narrowed on both sides. Proxmox filters when it is given ``vmid``, and
+        the result is filtered again here, so a deployment whose Proxmox ignores
+        the parameter gets this guest's tasks rather than the node's.
+
+        ``kind`` is still validated even though the path no longer carries it: a
+        caller naming something that is neither a container nor a virtual
+        machine has a bug, and a filtered list that happens to be empty would
+        hide it.
+        """
+        _guest_path(node, vmid, kind)
+        reading = await self._read_node(
+            node,
+            "/tasks",
+            params={"vmid": str(vmid), "limit": str(MAX_TASKS), "start": "0"},
+        )
+        tasks = (_task(row) for row in _records(reading.or_else([])))
+        return tuple(task for task in tasks if task.vmid == vmid)
 
     async def guest_agent_filesystems(
         self, node: str, vmid: int

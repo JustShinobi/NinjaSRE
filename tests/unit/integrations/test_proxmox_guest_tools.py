@@ -47,6 +47,17 @@ _RUNNING_BACKUP = {
 }
 
 
+_FAILED_START = {
+    "upid": "UPID:pve01:0000C201:05120000:68943B00:qmstart:9000:root@pam:",
+    "type": "qmstart",
+    "status": "storage 'externo-nfs-pve01' is not online",
+    "starttime": 1_754_802_500,
+    "endtime": 1_754_802_501,
+    "node": PRIMARY,
+    "user": "root@pam",
+}
+
+
 # --- Start diagnosis ----------------------------------------------------------
 
 
@@ -74,7 +85,8 @@ async def test_a_lock_held_by_a_task_that_is_still_running_is_not_reported_as_or
 
 
 async def test_the_guests_last_task_error_is_carried_in_the_vendors_own_words() -> None:
-    with investigating():
+    """The failed start is in the node's task log, which is where the guest's history is."""
+    with investigating(responses={f"/nodes/{PRIMARY}/tasks": [_FAILED_START]}):
         result = await proxmox_guest_start_diagnosis(PRIMARY, 9000, kind="qemu")
 
     failures = result.value["recent_failures"]
@@ -248,7 +260,8 @@ async def test_ballooning_and_cpu_steal_are_named_rather_than_silently_omitted()
 
 
 async def test_a_guests_recent_tasks_are_returned_with_the_vendors_error_text() -> None:
-    with investigating():
+    """The node's task log is where a guest's own history is, so that is what is read."""
+    with investigating(responses={f"/nodes/{PRIMARY}/tasks": [_FAILED_START]}):
         result = await proxmox_guest_tasks(PRIMARY, 9000, kind="qemu")
 
     assert result.value["failures"]
