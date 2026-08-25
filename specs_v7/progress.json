@@ -398,8 +398,8 @@
     }
   },
   "open_questions": [
-    "DECISAO DE ROTEIRO — E7 a E9 nao sao alcancaveis por um pct stop. A janela de 2026-08-25 provou que a capacidade e oferecida e que o agente, corretamente, nao propoe religar um convidado que uma pessoa parou. Exercita-las pede uma ocorrencia atribuivel a defeito.",
-    "DEFEITO COM DONA — integrations/proxmox/client.py:756 consulta um endpoint que nao existe na API do Proxmox; duas capacidades morrem nele. Conserto de uma linha, fora do escopo da 080 por regra da propria feature.",
+    "ACHADO PRINCIPAL — uma investigacao chega a 'sufficient: true, missing_evidence: []' com a acao que conserta entre as 40 oferecidas, e nao a chama. Medido duas vezes em ambiente real. As quatro explicacoes anteriores foram eliminadas por medicao.",
+    "NAO MEDIDO — o caminho de uma chamada de escrita ate uma linha de aprovacao. Provado por 33 contratos, jamais exercitado a partir de uma investigacao viva. E a forma exata do Artigo XIV.",
     "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054) e o slide-over de integracoes (060 T052). Um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
     "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou.",
     "ESCOPO SEM DONA — o sujeito gravado de um incidente pode ser o host do exportador em vez do convidado (casamento por endereco na borda).",
@@ -436,7 +436,7 @@
   },
   "pendencias_restantes": {
     "total": 13,
-    "decisao_de_roteiro": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. NAO esperam mais uma janela: a janela correu em 2026-08-25 e o bloqueio do escorador caiu. Esperam uma ocorrencia de natureza diferente — uma falha atribuivel a defeito, nao a acao de uma pessoa. Um pct stop e sempre deliberado.",
+    "decisao_de_roteiro": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. Duas janelas correram em 2026-08-25, a segunda com uma parada atribuivel a defeito e o endpoint do Proxmox consertado. Nenhuma produziu proposta. A causa deixou de ser catalogo, idioma, evidencia ou roteiro: e o passo entre uma conclusao suficiente e uma chamada de capacidade de escrita, que nenhuma medicao em ambiente real jamais exercitou.",
     "revisao_humana_de_baseline": "3 linhas — 010 T054 e sua linha de DoD (quatro telas de run), 060 T052 (slide-over de integracoes). Aceitar baseline e decisao de quem olha.",
     "decisao_de_produto": "1 — 060 T050, cujo conserto atravessa quinze pacotes de integracao."
   },
@@ -470,5 +470,26 @@
     "achado_da_origem_do_sujeito": "A serie pve_up{id='lxc/122'} carrega instance='192.168.68.159' (pve02, o host do exportador). O mesmo stop abriu CINCO incidentes; os outros quatro casaram por 10.20.20.52, o endereco do proprio convidado, e resolveram o sujeito CERTO. So o alerta do hipervisor erra, porque so nele o instance e o raspador em vez do raspado.",
     "achado_novo_de_tela": "O cartao da investigacao mostra '5 steps · 21s · Not recorded' ao lado de um chip 'Investigation running', com o run completed desde 19:32:06Z. O chip le o estado do incidente e e rotulado como se lesse o do run.",
     "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25/ (EVIDENCIA.md, marco-zero.txt, 4 telas full-page a 1920)"
+  },
+  "janela_ct122_2026_08_25_b": {
+    "janela": "21:28:25Z a 21:32:51Z — CT122 fora por 4m26s",
+    "passo_destrutivo": "kill -9 no init do convidado a partir do host, e nao um pct stop — uma parada que nenhum operador poderia ter feito pela API",
+    "versao": "gitops bc33825d716c, tres pods novos, portao local verde 12778/31 + 37 benchmarks",
+    "a_parada_e_atribuivel_a_defeito": "o log de tarefas do no, lido logo apos: a tarefa mais recente do convidado e um vzstart das 19:34:00Z, duas horas antes. Nada registra a parada das 21:28.",
+    "o_conserto_do_endpoint_funciona_em_producao": "proxmox_guest_tasks e proxmox_guest_start_diagnosis, que morriam em 501 na janela anterior, ambas SUCCEEDED. Nove chamadas contra quatro, 52s contra 21s.",
+    "e_ainda_assim_nada_foi_proposto": {
+      "approvals": 0,
+      "a_ultima_chamada": "assess_evidence_sufficiency, com sufficient=true, missing_evidence=[], conclusion='there are no blocking locks, datastore unreachable errors, or insufficient resources preventing it from running'",
+      "a_capacidade_estava_na_mao": "proxmox_start_guest, 20a de 40, escore 0,625, lido da gravacao do run",
+      "o_que_sobra": "o passo entre concluir e propor. O agente concluiu e parou; nao chamou a capacidade que desfaz o estado."
+    },
+    "explicacoes_eliminadas_por_medicao": [
+      "'o catalogo nao tem acao de infraestrutura' — tem 24 de escrita, 20 de remediacao",
+      "'o escorador corta por idioma' — corrigido; oferecida em 20a de 40 em duas janelas",
+      "'a evidencia do motivo nao chega' — endpoint consertado, as duas leituras passaram",
+      "'a parada parece manutencao' — provocada sem registro de tarefa nenhum"
+    ],
+    "o_limite_da_afirmacao": "Esta medido que a capacidade foi oferecida, que o agente declarou evidencia suficiente, que nao a chamou, e que nenhuma aprovacao existe. NAO esta medido o que aconteceria se ele a chamasse: esse caminho segue provado so por teste (33 contratos em test_proposed_action_decision.py).",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25-b/"
   }
 }
