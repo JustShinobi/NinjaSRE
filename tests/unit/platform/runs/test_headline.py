@@ -10,8 +10,8 @@ signature rather than a promise about its behaviour.
 
 from __future__ import annotations
 
-from config.constants.runs import MAX_HEADLINE_LENGTH
-from platform.runs.headline import normalize_headline, synthesize_headline
+from config.constants.runs import HEADLINE_MARKER, MAX_HEADLINE_LENGTH
+from platform.runs.headline import normalize_headline, report_body, synthesize_headline
 
 
 class TestNormalizeHeadline:
@@ -132,3 +132,32 @@ class TestSynthesizeHeadline:
         headline = synthesize_headline()
 
         assert headline.strip() != ""
+
+
+def test_the_marker_line_does_not_survive_into_the_report_body() -> None:
+    """The line the model was asked to write is consumed, not left behind.
+
+    The delivery prompt asks for a ``Headline:`` line so the run has a sentence
+    to be titled by. Extraction read it and nothing removed it, so the report
+    document ended with the same sentence the page's own heading was already
+    showing — on 343 of 496 investigations in staging.
+    """
+    written = (
+        "## Root Cause\n\n"
+        "The sync jobs exited with code 2.\n\n"
+        "Headline: Proxmox node pve01 backup jobs failed with exit code 2\n"
+    )
+
+    body = report_body(written)
+
+    assert HEADLINE_MARKER not in body
+    assert "The sync jobs exited with code 2." in body, (
+        "stripping the marker took the report with it"
+    )
+
+
+def test_a_report_without_a_marker_is_returned_unchanged() -> None:
+    """Nothing is trimmed from a model that never wrote the line."""
+    written = "## Root Cause\n\nThe sync jobs exited with code 2."
+
+    assert report_body(written) == written

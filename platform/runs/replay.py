@@ -26,6 +26,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from config.constants.runs import (
     TURN_PAYLOAD_CAPABILITIES,
+    TURN_PAYLOAD_MODEL_RATIONALE,
     TURN_PAYLOAD_RATIONALE,
     TURN_USAGE_COMPLETION_TOKENS,
     TURN_USAGE_COST,
@@ -116,6 +117,10 @@ class ReplayedTurn:
     cost: float | None = None
     duration_ms: int = 0
     selection_rationale: str = ""
+    #: What the model said on this turn. Empty for a turn that emitted only
+    #: tool calls, which is a real answer — the agent said nothing — and not
+    #: the same as a turn whose words were never written down.
+    model_rationale: str = ""
     offered_capabilities: tuple[str, ...] = ()
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -219,6 +224,7 @@ def replay_trace(
             cost=_optional_cost(record.usage.get(TURN_USAGE_COST)),
             duration_ms=int(record.usage.get(TURN_USAGE_DURATION_MS, 0) or 0),
             selection_rationale=str(record.payload.get(TURN_PAYLOAD_RATIONALE, "")),
+            model_rationale=str(record.payload.get(TURN_PAYLOAD_MODEL_RATIONALE, "")),
             offered_capabilities=_names(record.payload.get(TURN_PAYLOAD_CAPABILITIES)),
             started_at=record.started_at,
             finished_at=record.finished_at,

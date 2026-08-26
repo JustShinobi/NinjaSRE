@@ -4863,6 +4863,11 @@ export interface components {
             cost?: number | null;
             /** Duration Ms */
             duration_ms?: number | null;
+            /**
+             * Status
+             * @default
+             */
+            status: string;
             /** Step Count */
             step_count: number;
         };
@@ -6794,6 +6799,11 @@ export interface components {
              * @default
              */
             model: string;
+            /**
+             * Model Rationale
+             * @default
+             */
+            model_rationale: string;
             /**
              * Prompt Tokens
              * @default 0

@@ -64,6 +64,13 @@ RUN_METADATA_INTERRUPTION: Final[str] = "interruption_reason"
 #: reviewer reads to see *why* those capabilities were offered, which is the
 #: half of a decision the call list alone does not record.
 TURN_PAYLOAD_RATIONALE: Final[str] = "selection_rationale"
+
+#: What the model itself said on this turn. Separate from the key above and not
+#: a synonym for it: one is the deployment's deterministic note about which
+#: capabilities were on offer, the other is the agent's own reasoning. A
+#: transcript that carries only the first can describe what an investigation was
+#: given and never what it thought.
+TURN_PAYLOAD_MODEL_RATIONALE: Final[str] = "model_rationale"
 TURN_PAYLOAD_CAPABILITIES: Final[str] = "offered_capabilities"
 TURN_USAGE_MODEL: Final[str] = "model"
 TURN_USAGE_PROMPT_TOKENS: Final[str] = "prompt_tokens"
@@ -189,6 +196,7 @@ __all__ = [
     "TRUNCATION_MARKER_KEY",
     "TRUNCATION_SUFFIX",
     "TURN_PAYLOAD_CAPABILITIES",
+    "TURN_PAYLOAD_MODEL_RATIONALE",
     "TURN_PAYLOAD_RATIONALE",
     "TURN_USAGE_COMPLETION_TOKENS",
     "TURN_USAGE_COST",

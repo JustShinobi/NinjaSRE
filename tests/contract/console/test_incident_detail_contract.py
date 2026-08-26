@@ -293,6 +293,31 @@ async def test_the_response_carries_the_investigations_step_count_duration_and_c
         )
 
 
+async def test_the_summary_says_whether_the_run_is_still_going(
+    deployment: Deployment,
+) -> None:
+    """The run's own status, so no screen has to infer it from what is missing.
+
+    The console decided "still running" by looking for a delivery step in the
+    incident's timeline and finding none. A completed run that delivered
+    nowhere therefore read as running for as long as the incident existed —
+    and was drawn beside a state chip saying the incident had been resolved
+    two hours earlier. Two chips, one header, opposite claims.
+    """
+    incident_id = await _investigated_incident(deployment)
+
+    body = await _detail(deployment, incident_id)
+
+    investigation = body["investigation"]
+    assert "status" in investigation, (
+        f"investigation summary cannot say whether the run is over; has {sorted(investigation)}"
+    )
+    assert investigation["status"] != "", (
+        "an attached run always has a status; an empty one leaves the console "
+        "guessing exactly as it did before"
+    )
+
+
 # --- Claim: an incident nothing has ever investigated has no summary --------------
 
 

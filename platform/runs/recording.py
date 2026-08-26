@@ -150,6 +150,7 @@ class RunTraceRecordingHook:
             cost=usage.cost_usd if usage is not None else None,
             duration_ms=int(turn.duration_seconds * 1_000),
             selection_rationale=turn.selection_rationale,
+            model_rationale=turn.rationale,
             offered_capabilities=turn.offered_capabilities,
             started_at=turn.started_at,
             finished_at=finished_at,

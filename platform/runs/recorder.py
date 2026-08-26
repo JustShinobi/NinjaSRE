@@ -45,6 +45,7 @@ from config.constants.runs import (
     RUN_METADATA_TEAM,
     TRIGGER_SUBAGENT,
     TURN_PAYLOAD_CAPABILITIES,
+    TURN_PAYLOAD_MODEL_RATIONALE,
     TURN_PAYLOAD_RATIONALE,
     TURN_USAGE_COMPLETION_TOKENS,
     TURN_USAGE_COST,
@@ -107,6 +108,9 @@ class RecordedTurn:
     cost: float | None = None
     duration_ms: int = 0
     selection_rationale: str = ""
+    #: What the model said while it worked, as the loop captured it. Redacted
+    #: on the way in like every other free text a model produced.
+    model_rationale: str = ""
     offered_capabilities: Sequence[str] = ()
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -335,6 +339,7 @@ class RunRecorder:
             {
                 **self._scrub(turn.payload),
                 TURN_PAYLOAD_RATIONALE: self._redact(turn.selection_rationale),
+                TURN_PAYLOAD_MODEL_RATIONALE: self._redact(turn.model_rationale),
                 TURN_PAYLOAD_CAPABILITIES: list(turn.offered_capabilities),
             }
         )

@@ -18,7 +18,7 @@ from gateway.http.state import GatewayState
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
-from platform.runs.headline import headline_for, resource_from_labels
+from platform.runs.headline import headline_for, report_body, resource_from_labels
 from platform.runs.recorder import RunRecorder
 
 
@@ -131,6 +131,10 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
             resource=resource_from_labels(request.alert_labels),
             objective=request.objective,
         )
+        # The marker line is spent by the extraction above, so it does not
+        # travel on into the document. Leaving it there gave every report a
+        # last paragraph repeating the heading the page already carried.
+        summary = report_body(summary)
         async with state.gateway.begin(scope) as uow:
             recorder = RunRecorder(
                 store=uow.run_traces, guardrails=state.guardrails, broker=state.broker

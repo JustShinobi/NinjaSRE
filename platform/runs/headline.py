@@ -144,6 +144,27 @@ def headline_for(
     return synthesize_headline(alert_name=alert_name, resource=resource, objective=objective)
 
 
+def report_body(model_text: str) -> str:
+    """Return what the model wrote with its headline line removed.
+
+    The delivery prompt asks for a ``Headline:`` line so the run has a sentence
+    to be named by, and ``extract_headline`` spends it. Nothing removed it from
+    the document afterwards, so a reader arrived at a page whose heading was
+    that sentence and whose last paragraph was that sentence again, prefixed
+    with the word the prompt asked for. Two thirds of the investigations in
+    staging ended that way.
+
+    Only the marker line goes, and only where it stands alone. A sentence in
+    the middle of a paragraph that happens to contain the word is prose the
+    model wrote on purpose.
+    """
+    stripped = _MARKER_LINE.sub("", model_text)
+    # A line removed from the middle leaves the blank line that separated it
+    # from its neighbours, and two of those in markdown are a paragraph break
+    # that was not there before.
+    return re.sub(r"\n{3,}", "\n\n", stripped).strip()
+
+
 def resource_from_labels(labels: Mapping[str, str]) -> str:
     """Return the resource an alert's labels name, or the empty string.
 
@@ -162,6 +183,7 @@ __all__ = [
     "extract_headline",
     "headline_for",
     "normalize_headline",
+    "report_body",
     "resource_from_labels",
     "synthesize_headline",
 ]

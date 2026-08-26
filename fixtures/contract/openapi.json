@@ -3714,6 +3714,11 @@
             ],
             "title": "Duration Ms"
           },
+          "status": {
+            "default": "",
+            "title": "Status",
+            "type": "string"
+          },
           "step_count": {
             "title": "Step Count",
             "type": "integer"
@@ -7353,6 +7358,11 @@
           "model": {
             "default": "",
             "title": "Model",
+            "type": "string"
+          },
+          "model_rationale": {
+            "default": "",
+            "title": "Model Rationale",
             "type": "string"
           },
           "prompt_tokens": {

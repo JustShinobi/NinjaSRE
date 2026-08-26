@@ -133,6 +133,11 @@ class InvestigationSummaryView(BaseModel):
     step_count: int
     duration_ms: int | None = None
     cost: float | None = None
+    #: The run's own status, in the product's vocabulary. Here because a screen
+    #: that has to infer "still going" from what a timeline is missing gets it
+    #: wrong the moment a run finishes without delivering anywhere — which it
+    #: did, and drew "investigation running" beside "resolved" on one header.
+    status: str = ""
 
 
 class IncidentDetailView(BaseModel):
@@ -303,6 +308,7 @@ async def _investigation(
     )
     return InvestigationSummaryView(
         step_count=summary.step_count,
+        status=run.status.value if run is not None else "",
         duration_ms=(
             round(summary.duration_seconds * 1000) if summary.duration_seconds is not None else None
         ),

@@ -26,7 +26,7 @@ from core.llm.usage import TokenCounts, UsageRecord
 from platform.persistence.ports import PersistenceGateway, TenantScope, ToolCallStatus
 from platform.runs.recorder import RunRecorder
 from platform.runs.recording import RunTraceRecordingHook
-from platform.runs.replay import replay_trace
+from platform.runs.replay import replay_run, replay_trace
 
 pytestmark = pytest.mark.unit
 
@@ -322,3 +322,47 @@ def test_the_recorded_selection_rationale_is_the_selection_s_and_not_the_model_s
 
     assert recorded.selection_rationale.startswith("prometheus_active_alerts:")
     assert "firing alerts first" not in recorded.selection_rationale
+
+
+async def test_the_model_s_own_words_survive_into_the_stored_turn(
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+    clock: Callable[[], datetime],
+) -> None:
+    """What the model said on a turn is on the turn that was written down.
+
+    ``Turn.rationale`` is documented as "what the model said while it worked",
+    and until this test it stopped at the adapter: the stored payload carried
+    the selection rationale and the offered capabilities and nothing else. Every
+    turn of every investigation this deployment had ever run was in that state —
+    two thousand of them — so the console's "Investigation transcript" was
+    showing the deterministic selection note under the heading "Reasoning",
+    because there was nothing else to show.
+
+    A transcript that cannot say what the agent thought is not a transcript. It
+    is a list of the tools somebody offered it.
+    """
+    await _seed_run(gateway, scope, clock, "run-said")
+    hook = RunTraceRecordingHook(gateway=gateway, scope=scope, run_id="run-said")
+
+    await hook.on_turn_end(
+        Session(id="run-said", objective="why is the backup job stale"),
+        Turn(
+            index=1,
+            model_id="gemini-flash-latest",
+            rationale="The cron watchdog is stale for two jobs; I will read the node's tasks.",
+            selection_rationale="proxmox_backup_failures: the incident's subject is held by proxmox",
+        ),
+    )
+
+    async with gateway.begin(scope) as uow:
+        replayed = await replay_run(uow.run_traces, "run-said")
+
+    assert replayed.turns, "the turn was not recorded at all"
+    assert replayed.turns[0].model_rationale == (
+        "The cron watchdog is stale for two jobs; I will read the node's tasks."
+    ), (
+        "the model's own words did not reach the store. The transcript can only show "
+        "what was written down, and a turn recorded without them leaves the console "
+        "printing the selection note under the heading 'Reasoning'."
+    )
