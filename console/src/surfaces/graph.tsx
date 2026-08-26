@@ -186,6 +186,18 @@ export interface HierarchyGraphProps {
 export const RANK_BOUND = 8;
 
 /**
+ * How far below its drawn size the picture may be scaled before it pans.
+ *
+ * A drawing that scales freely is a drawing that disappears: at a phone's width
+ * a twelve-hundred-pixel one came out at three hundred and ninety and its
+ * labels at about four pixels, which is a picture that is present, occupies the
+ * room, and cannot be read. A floor rather than no shrinking at all, because
+ * refusing to shrink makes a laptop pan a diagram that would have fitted — at
+ * three quarters the twelve-pixel labels are still above nine, which reads.
+ */
+const LEGIBLE_SCALE = 0.75;
+
+/**
  * Horizontal gap between two boxes drawn in the same rank.
  *
  * Wide enough for an arrow to be drawn in. At sixteen the six stage boxes did
@@ -249,7 +261,7 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
         style={{
           inlineSize: `${String(width)}px`,
           maxInlineSize: '100%',
-          minInlineSize: `${String(width)}px`,
+          minInlineSize: `${String(Math.round(width * LEGIBLE_SCALE))}px`,
         }}
       >
         <title>{labels.title}</title>
