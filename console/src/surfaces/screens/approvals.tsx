@@ -116,10 +116,28 @@ function ruleFromEffective(payload: unknown): ApprovalRule | null {
   return null;
 }
 
+/**
+ * Whether `record`'s window for being answered has closed, on the clock.
+ *
+ * Asked of the clock rather than of `state`, for the reason the deployment's
+ * own refusal is: a lapsed change is relabelled by a sweep, and a deployment
+ * whose sweep is not scheduled leaves every lapsed change sitting at
+ * `pending`. Reading the label here would draw a live Approve over a change
+ * the deployment will refuse — which is the same reading that let a
+ * remediation with a fifteen-minute window be approved fifty minutes late.
+ *
+ * One function rather than two readings of the same field, because the two
+ * things this decides are the two that used to disagree: which group the card
+ * is filed under, and whether it is offered a control.
+ */
+function hasExpired(record: unknown, now: Date): boolean {
+  const expires = Date.parse(text(record, 'expires_at'));
+  return !Number.isNaN(expires) && expires < now.getTime();
+}
+
 /** Which group an approval belongs to, by how long it has been waiting. */
 function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
-  const expires = Date.parse(text(record, 'expires_at'));
-  if (!Number.isNaN(expires) && expires < now.getTime()) return 'overdue';
+  if (hasExpired(record, now)) return 'overdue';
   const requested = Date.parse(text(record, 'requested_at'));
   const day = 24 * 60 * 60 * 1000;
   if (!Number.isNaN(requested) && now.getTime() - requested < day) return 'today';
@@ -223,11 +241,31 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
    * with. The interaction is still preferred when there is one: answering
    * through the run releases an investigation that is standing still waiting
    * for it, and deciding at the store would leave it standing there.
+   *
+   * **A closed window is answered before either of them, and before the
+   * viewer's permission.** The deployment refuses a decision taken after the
+   * expiry, so an Approve on a lapsed card is a button whose only outcome is
+   * an error — and this screen already knows, because it filed the card under
+   * "Past its expiry" to say so. What goes in the control's place is the
+   * reason, not a gap: a card that merely lost its buttons reads as a
+   * permission the viewer does not hold, and sends them to ask for one that
+   * would not have helped. Which is also why the expiry is checked above
+   * `decidable` rather than inside it — a closed window is closed for
+   * everyone, exactly as the deployment's own check has it.
    */
   function decisionFor(
     record: unknown,
     interactionId: string | undefined,
   ): { decision?: ReactNode } {
+    if (hasExpired(record, now)) {
+      return {
+        decision: (
+          <p data-testid="window-closed" className="text-small text-muted">
+            {message(locale, 'approvals.expired.note')}
+          </p>
+        ),
+      };
+    }
     if (!decidable) return {};
     const labels = {
       approve: message(locale, 'proposal.approve'),

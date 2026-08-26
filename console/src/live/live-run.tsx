@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/action';
+import { formatCount } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { publishResolved } from '@/shell/attention';
 import { eventTimes, transcriptLabels } from '@/surfaces/labels';
@@ -38,6 +39,58 @@ const ENDED_MESSAGE = {
   failed: 'live.ended.failed',
   cancelled: 'live.ended.cancelled',
 } as const;
+
+/**
+ * How much of a live run there is, counted off the run itself.
+ *
+ * This exists because the transcript's header and the transcript's body are
+ * siblings — the header is the card's `action` slot and the body is its
+ * children — so there is no prop either can hand the other. Left to their own
+ * devices they each found a source, and they found different ones: the header
+ * counted the replay the server had already read, the body drew the stream,
+ * and a live run's card said "6 events" over "This investigation recorded no
+ * events."
+ *
+ * Both read the store instead, which is the thing that exists so that two
+ * consumers of one run cannot disagree about what has arrived. Subscribing
+ * twice costs nothing: the store is reference-counted per run, so the count and
+ * the transcript below it share one connection and one sequence of events.
+ */
+export interface LiveEventCountProps {
+  readonly runId: string;
+  readonly locale: Locale;
+  /**
+   * What the server already rendered — the same seed the transcript is given.
+   *
+   * Handed to both halves from one place, because the store keys its first
+   * state on whichever subscriber arrives first: two seeds would be two
+   * answers to "what was already on the screen", and the card would be back to
+   * stating two numbers by a subtler route.
+   */
+  readonly seed: Seed;
+  /** Injected so the suite can drive a stream without a network. */
+  readonly store?: RunStore;
+}
+
+/** The live run's event count, from the sequence the transcript is drawing. */
+export function LiveEventCount({
+  runId,
+  locale,
+  seed,
+  store,
+}: LiveEventCountProps): ReactNode {
+  const snapshot = useRun(runId, seed, store);
+  return (
+    <span data-testid="transcript-count" className="text-meta text-muted">
+      {formatCount(
+        locale,
+        snapshot.live.events.length,
+        'transcript.events.one',
+        'transcript.events',
+      )}
+    </span>
+  );
+}
 
 export interface LiveRunProps {
   readonly runId: string;

@@ -968,6 +968,8 @@ export const EN = {
     'The active rule asks for approval for actions at {threshold} and above.',
   'approvals.empty.rule.default': 'This is the deployment default.',
   'approvals.empty.rule.setAt': 'It is set at {node}.',
+  'approvals.expired.note':
+    'The window for answering this closed, and the deployment refuses a decision taken after it. What it was proposed against was read before then and nobody has looked since, so ask for it again to decide on a current reading.',
   'proposal.title': 'Proposed action — awaiting your decision',
   'proposal.risk': 'Risk {level} of 5',
   'proposal.target': 'Target',

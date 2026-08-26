@@ -33,7 +33,8 @@ import { Report } from '../report';
 import { subjectOf } from '../run-subject';
 import { isLiveRun } from '@/design/status';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
-import { LiveRun } from '@/live/live-run';
+import { LiveEventCount, LiveRun } from '@/live/live-run';
+import type { Seed } from '@/live/reducer';
 import { may } from '@/session/viewer';
 import { eventsFromReplay, usageFrom } from '../transcript';
 import { Transcript } from '../transcript-view';
@@ -111,6 +112,13 @@ export async function RunDetailScreen(
   // undisclosed copy styled as the transcript's own concluding word.
   const events = eventsFromReplay(replayed);
   const usage = usageFrom(replayed);
+
+  // Nothing: a live run's transcript is the stream, whose catch-up read carries
+  // the whole log, and seeding it with the replay as well would put every event
+  // on the screen twice under two identities. Named and shared rather than
+  // written twice, because the header and the body below are both given it and
+  // the store keys its first state on whichever of them subscribes first.
+  const liveSeed: Seed = {};
 
   const incident = list(dataOf(incidents), 'incidents').find(
     (record) => text(record, 'run_id') === runId,
@@ -249,10 +257,21 @@ export async function RunDetailScreen(
             </p>
           </Panel>
 
+          {/* One card, one source. The header counts and the body lists, and
+              which of them a reader believes must never depend on which of
+              them they read: a live run whose header counted the replay while
+              its body drew the stream said "6 events" above "This
+              investigation recorded no events." So a live run answers all
+              three parts of this panel from the stream, and a settled one
+              answers all three from the replay. The panel's own state is the
+              third part and is no exception — a live run put into `empty` or
+              `error` by the replay would never mount the stream, and would
+              then sit at "no transcript yet" while the run it names produced
+              events. */}
           <Panel
             title={message(locale, 'transcript.title')}
-            state={stateOf(replay, events.length === 0)}
-            dependency={dependencyOf(replay)}
+            state={running ? 'ready' : stateOf(replay, events.length === 0)}
+            dependency={running ? '' : dependencyOf(replay)}
             labels={panelLabels(locale, message(locale, 'transcript.title'))}
             empty={{
               heading: message(locale, 'transcript.empty.heading'),
@@ -261,25 +280,25 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
             action={
-              <span className="text-meta text-muted">
-                {formatCount(
-                  locale,
-                  events.length,
-                  'transcript.events.one',
-                  'transcript.events',
-                )}
-              </span>
+              running ? (
+                <LiveEventCount runId={runId} locale={locale} seed={liveSeed} />
+              ) : (
+                <span data-testid="transcript-count" className="text-meta text-muted">
+                  {formatCount(
+                    locale,
+                    events.length,
+                    'transcript.events.one',
+                    'transcript.events',
+                  )}
+                </span>
+              )
             }
           >
             {running ? (
-              // Seeded with nothing on purpose. The deployment's catch-up read
-              // is inclusive of the whole log, so the stream *is* the transcript
-              // — and seeding it with the replay as well would put every event
-              // on the screen twice under two different identities.
               <LiveRun
                 runId={runId}
                 locale={locale}
-                seed={{}}
+                seed={liveSeed}
                 now={now.toISOString()}
                 zone={zone}
               />
