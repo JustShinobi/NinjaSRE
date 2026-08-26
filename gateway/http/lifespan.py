@@ -36,6 +36,9 @@ from gateway.http.runtime import recompose_investigator
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
+from platform.persistence.ports.transaction import TenantScope
+from platform.runs.reaping import RunReaper
+from platform.runs.recorder import RunRecorder
 from platform.startup.bootstrap import organisation_id
 
 logger = get_logger(__name__)
@@ -58,6 +61,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # configuration tree — and before the first request, so a resource page
     # never renders "nothing was consulted" for a deployment that had.
     if health.is_ready:
+        # Before anything else reads the run store, because until this runs the
+        # store answers "running" for runs whose process was killed — a pod
+        # evicted mid-deploy, a node lost — and every screen and every count
+        # built on that answer is wrong. The graceful path on the way down
+        # (``drain``) covers the shutdowns that get a grace period; this covers
+        # the ones that do not, which is most of them.
+        await _reap_abandoned_runs(state)
         # First, because every vendor tool in the catalogue reads this one
         # binding to make a call, and without it each reports itself
         # unavailable by name — which is a hundred and ninety-three
@@ -170,6 +180,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await scheduler
         await drain(state)
         await state.gateway.close()
+
+
+async def _reap_abandoned_runs(state: GatewayState) -> None:
+    """Close the runs no process can still be inside, and never fail the boot.
+
+    Bounded by the wall clock rather than by "this replica is starting", so a
+    deployment with more than one replica cannot close a run another replica is
+    driving right now. See ``platform.runs.reaping``.
+    """
+    try:
+        scope = TenantScope(org_id=organisation_id())
+        async with state.gateway.begin(scope) as uow:
+            reaper = RunReaper(
+                recorder=RunRecorder(store=uow.run_traces, guardrails=state.guardrails),
+                store=uow.run_traces,
+            )
+            closed = await reaper.reap()
+    except Exception as error:  # noqa: BLE001 — tidying must never stop a boot
+        logger.warning("gateway.reap_failed", error=str(error))
+        return
+    logger.info("gateway.runs_reaped", count=len(closed))
 
 
 async def drain(
