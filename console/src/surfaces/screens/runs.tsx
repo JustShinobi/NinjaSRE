@@ -21,7 +21,7 @@ import {
 } from '../read';
 import {
   RunCard,
-  assessmentArguments,
+  namedEvidence,
   turnsFrom,
   type RunCardBody,
   type RunCardHead,
@@ -55,9 +55,6 @@ import {
 
 /** The filters this screen declares, in the order the address writes them. */
 export const RUN_FILTERS: readonly FilterName[] = ['status', 'trigger'];
-
-/** The capability whose arguments say what a run could and could not back. */
-const ASSESSMENT_CAPABILITY = 'assess_evidence_sufficiency';
 
 /** How long a run took, in seconds, or nought while it is still going. */
 function durationOf(record: unknown): number {
@@ -226,7 +223,7 @@ async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> 
   const run = dataOf(detail);
   const replayed = dataOf(replay);
   const turns = turnsFrom(replayed);
-  const assessment = assessmentArguments(replayed, ASSESSMENT_CAPABILITY);
+  const assessment = namedEvidence(run);
 
   const waiting = list(dataOf(interactions), 'interactions')
     .filter((record) => field(record, 'is_open') !== false)

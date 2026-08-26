@@ -72,6 +72,11 @@ class InvestigationSummary(BaseModel):
     #: ``assess_evidence_sufficiency`` call rather than scored here.
     evidence_backed: int = 0
     evidence_missing: int = 0
+    #: What the run named, in its own words. Populated on a single-run read
+    #: only, for the same reason ``touched_resources`` is: a list needs the
+    #: counts above, and only a reader who opened one run wants the sentences.
+    evidence_supporting_names: list[str] = Field(default_factory=list)
+    evidence_missing_names: list[str] = Field(default_factory=list)
 
 
 class InvestigationList(BaseModel):
@@ -128,6 +133,8 @@ async def linked_summary(run: AgentRun, uow: Any) -> InvestigationSummary:
             "evidence_assessed": assessment.assessed,
             "evidence_backed": assessment.backed,
             "evidence_missing": assessment.missing,
+            "evidence_supporting_names": list(assessment.supporting),
+            "evidence_missing_names": list(assessment.missing_evidence),
         }
     )
 

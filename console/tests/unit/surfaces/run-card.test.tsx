@@ -5,7 +5,7 @@ import { EN } from '@/i18n/en';
 import { CopyReport } from '@/surfaces/copy-report';
 import {
   RunCard,
-  assessmentArguments,
+  namedEvidence,
   turnsFrom,
   type RunCardBody,
   type RunCardHead,
@@ -126,6 +126,16 @@ describe('the evidence a run says it had', () => {
     expect(screen.getByTestId('run-evidence')).toHaveAttribute('data-role', 'success');
   });
 
+  it('reads an assessment that named nothing as silence rather than as proof', () => {
+    render(
+      <EvidenceChip locale="en" evidence={{ assessed: true, backed: 0, missing: 0 }} />,
+    );
+
+    const chip = screen.getByTestId('run-evidence');
+    expect(chip).toHaveTextContent(EN['run.evidence.unassessed']);
+    expect(chip).toHaveAttribute('data-role', 'neutral');
+  });
+
   it('refuses a count the gateway sent as something other than a positive number', () => {
     expect(
       evidenceOf({
@@ -134,6 +144,14 @@ describe('the evidence a run says it had', () => {
         evidence_missing: -3,
       }),
     ).toEqual({ assessed: true, backed: 0, missing: 0 });
+    // A fraction and an infinity are both numbers and neither is a count.
+    expect(
+      evidenceOf({
+        evidence_assessed: true,
+        evidence_backed: 2.7,
+        evidence_missing: Number.POSITIVE_INFINITY,
+      }),
+    ).toEqual({ assessed: true, backed: 2, missing: 0 });
   });
 });
 
@@ -215,6 +233,33 @@ describe('an open card', () => {
     expect(screen.getByText(EN['run.why.supporting'])).toBeInTheDocument();
   });
 
+  it('says a call and a run with no recorded duration have none', () => {
+    card(
+      { seconds: 0 },
+      {
+        turns: [
+          {
+            index: 1,
+            rationale: 'ask',
+            model: 'a-model',
+            calls: [
+              {
+                callId: 'call-1',
+                name: 'proxmox_quorum_status',
+                status: 'succeeded',
+                error: '',
+                durationMs: 0,
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    // Twice over: the measurement above the report, and the call in the trace.
+    expect(screen.getAllByText(EN['surface.none']).length).toBeGreaterThan(1);
+  });
+
   it('groups the calls under the turn that made them, and names a silent turn', () => {
     card();
 
@@ -225,49 +270,40 @@ describe('an open card', () => {
   });
 });
 
-describe('reading the replay the card draws from', () => {
+describe('reading what the run recorded', () => {
   it('returns nothing at all for a replay that carries no turns', () => {
     expect(turnsFrom({})).toEqual([]);
-    expect(assessmentArguments({}, 'assess_evidence_sufficiency')).toEqual({
-      supporting: [],
-      missing: [],
-    });
   });
 
-  it('takes the last assessment, and drops an argument that is not a list', () => {
+  it('takes the turns and their calls off the replay', () => {
     const replay = {
       turns: [
         {
           index: 1,
-          calls: [
-            {
-              call_id: 'a',
-              name: 'assess_evidence_sufficiency',
-              arguments: { supporting_evidence: ['one'], missing_evidence: ['logs'] },
-            },
-          ],
+          model_rationale: 'look at the cluster',
+          calls: [{ call_id: 'a', name: 'proxmox_quorum_status', status: 'succeeded' }],
         },
-        {
-          index: 2,
-          calls: [
-            {
-              call_id: 'b',
-              name: 'assess_evidence_sufficiency',
-              arguments: {
-                supporting_evidence: ['one', 'two', 3],
-                missing_evidence: 'nothing',
-              },
-            },
-          ],
-        },
+        { index: 2, calls: [] },
       ],
     };
 
-    expect(assessmentArguments(replay, 'assess_evidence_sufficiency')).toEqual({
-      supporting: ['one', 'two'],
-      missing: [],
-    });
-    expect(turnsFrom(replay)).toHaveLength(2);
+    const turns = turnsFrom(replay);
+    expect(turns).toHaveLength(2);
+    expect(turns[0]?.calls[0]?.name).toBe('proxmox_quorum_status');
+    expect(turns[1]?.rationale).toBe('');
+  });
+
+  it('reads the named evidence off the run, dropping anything that is not a sentence', () => {
+    expect(
+      namedEvidence({
+        evidence_supporting_names: ['the guest task log names a person', 7],
+        evidence_missing_names: 'nothing',
+      }),
+    ).toEqual({ supporting: ['the guest task log names a person'], missing: [] });
+  });
+
+  it('is empty for a run whose record carries neither list', () => {
+    expect(namedEvidence({})).toEqual({ supporting: [], missing: [] });
   });
 });
 

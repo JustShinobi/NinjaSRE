@@ -4842,6 +4842,10 @@ export interface components {
              * @default 0
              */
             evidence_missing: number;
+            /** Evidence Missing Names */
+            evidence_missing_names?: string[];
+            /** Evidence Supporting Names */
+            evidence_supporting_names?: string[];
             /** Finished At */
             finished_at?: string | null;
             /**

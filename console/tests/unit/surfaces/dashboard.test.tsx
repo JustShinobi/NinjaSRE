@@ -707,13 +707,18 @@ describe('the "needs you" band’s oldest badge', () => {
     );
   });
 
-  it('shows four figures, and one of them is about the agent', async () => {
+  it('shows five figures, and two of them are about the agent', async () => {
     await dashboardWithLiveIncidents();
 
     const figures = screen.getAllByTestId('figure');
-    expect(figures).toHaveLength(4);
+    expect(figures).toHaveLength(5);
     const labels = figures.map((figure) => figure.getAttribute('data-figure'));
     expect(labels).toContain(EN['dashboard.stat.unattended']);
+    // Four of the five count things. The fifth says how long an answer takes,
+    // which is what somebody deciding whether to wait for the agent asks and
+    // no tile on this page answered until it was added.
+    expect(labels).toContain(EN['dashboard.stat.successRate']);
+    expect(labels).toContain(EN['dashboard.stat.timeToCause']);
     // The two the band and the feed now answer better than a tile could.
     expect(labels).not.toContain(EN['dashboard.stat.healthy']);
     expect(labels).not.toContain(EN['dashboard.stat.runs']);

@@ -8,7 +8,7 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { formatCount, formatNumber, timestamp } from '@/i18n/format';
+import { formatCount, formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -341,7 +341,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           : 'info',
       title: subjectOf(record, locale).text,
       detail: said.technical === '' ? status : said.action,
-      href: `/runs/${id}`,
+      // Into the list rather than onto the run's own page: the run opens
+      // where it sits and the ones around it stay on screen, which is the
+      // comparison somebody following a recurring subject actually wants.
+      href: `/runs?selected=${id}`,
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });
   }
@@ -372,7 +375,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       headline: subjectOf(record, locale).text,
       status: text(record, 'status'),
       since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
-      href: `/runs/${text(record, 'run_id')}`,
+      href: `/runs?selected=${text(record, 'run_id')}`,
     }));
 
   // What the product exists to do, measured rather than asserted: of the
@@ -387,6 +390,25 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     endedIncidents.length === 0
       ? null
       : Math.round((unattended.length / endedIncidents.length) * 100);
+
+  // How long it takes to get an answer, which is the figure a console that
+  // counts investigations never prints. The median rather than the mean: one
+  // run that hit its wall clock drags an average somewhere nobody's Tuesday
+  // ever was, and this number exists to describe the ordinary case.
+  const finished = runRecords
+    .map((record) => {
+      const opened = Date.parse(text(record, 'started_at'));
+      const closed = Date.parse(text(record, 'finished_at'));
+      if (Number.isNaN(opened) || Number.isNaN(closed)) return 0;
+      return Math.max(0, (closed - opened) / 1000);
+    })
+    .filter((seconds) => seconds > 0)
+    .sort((left, right) => left - right);
+  const median =
+    finished.length === 0
+      ? null
+      : (finished[Math.floor((finished.length - 1) / 2)] ?? 0);
+  const slowest = finished.length === 0 ? 0 : (finished[finished.length - 1] ?? 0);
 
   // --- The agent, rather than the estate --------------------------------------
   // Every other figure on this page is about what is being watched. This one is
@@ -488,7 +510,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           would not compile — see `figure.tsx`. */}
       <div
         data-testid="main-figures"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
       >
         <Figure
           label={message(locale, 'dashboard.stat.watched')}
@@ -556,6 +578,28 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               : message(locale, 'dashboard.stat.successRate.context', {
                   succeeded: formatNumber(locale, succeededRuns.length),
                   settled: formatNumber(locale, settledRuns.length),
+                })
+          }
+          href={
+            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
+          }
+          drillLabel={message(locale, 'dashboard.stat.drill')}
+          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
+        />
+        {/* How long an answer takes, which every figure beside it leaves
+            unanswered: four of them count things, and none of them says
+            whether waiting for the agent is worth doing. The median rather
+            than the mean, because one run that hit its wall clock drags an
+            average somewhere nobody's Tuesday ever was. */}
+        <Figure
+          label={message(locale, 'dashboard.stat.timeToCause')}
+          value={median === null ? '—' : formatDuration(locale, median)}
+          context={
+            median === null
+              ? message(locale, 'dashboard.stat.timeToCause.context.none')
+              : message(locale, 'dashboard.stat.timeToCause.context', {
+                  settled: formatNumber(locale, finished.length),
+                  slowest: formatDuration(locale, slowest),
                 })
           }
           href={

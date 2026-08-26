@@ -519,6 +519,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.successRate.context':
     '{succeeded} de {settled} investigações concluídas tiveram sucesso',
   'dashboard.stat.successRate.context.none': 'Ainda não terminou nenhuma investigação',
+  'dashboard.stat.timeToCause': 'Tempo até a causa',
+  'dashboard.stat.timeToCause.context': 'mediana de {settled} · mais lenta {slowest}',
+  'dashboard.stat.timeToCause.context.none': 'Nenhuma investigação terminou ainda.',
   'dashboard.stat.drill': 'Ver a lista por trás deste número',
   'dashboard.activity.title': 'Actividade recente',
   'dashboard.activity.empty.heading': 'Ainda não aconteceu nada',

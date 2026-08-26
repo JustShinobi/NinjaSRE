@@ -21,6 +21,11 @@ import { message, type Locale } from '@/i18n/messages';
  * Three states rather than two. A run that never assessed its evidence said
  * nothing, and is drawn as the neutral dash rather than borrowing the green of
  * a run that assessed and found nothing outstanding.
+ *
+ * A run that *did* assess and named nothing in either list is the same silence
+ * wearing a different hat, and it is the one that shipped wrong: staging drew
+ * fifty runs as a green "0 of 0 claims backed", which reads as proof and was
+ * the absence of any. Nought claims is the dash too.
  */
 
 /** What a run's record says about its own evidence. */
@@ -57,7 +62,9 @@ export function EvidenceChip({
   evidence,
   className,
 }: EvidenceChipProps): ReactNode {
-  if (!evidence.assessed) {
+  const claims = evidence.backed + evidence.missing;
+
+  if (!evidence.assessed || claims === 0) {
     return (
       <ResolvedChip
         role="neutral"
@@ -70,7 +77,6 @@ export function EvidenceChip({
     );
   }
 
-  const claims = evidence.backed + evidence.missing;
   const label = message(locale, 'run.evidence.backed', {
     backed: String(evidence.backed),
     claims: String(claims),

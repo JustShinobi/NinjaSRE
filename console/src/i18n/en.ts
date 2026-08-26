@@ -492,6 +492,9 @@ export const EN = {
   'dashboard.stat.successRate.context':
     '{succeeded} of {settled} finished investigations succeeded',
   'dashboard.stat.successRate.context.none': 'No investigation has finished yet',
+  'dashboard.stat.timeToCause': 'Time to a cause',
+  'dashboard.stat.timeToCause.context': 'median of {settled} · slowest {slowest}',
+  'dashboard.stat.timeToCause.context.none': 'No investigation has finished yet.',
   'dashboard.stat.drill': 'See the list behind this figure',
   'dashboard.activity.title': 'Recent activity',
   'dashboard.activity.empty.heading': 'Nothing has happened yet',

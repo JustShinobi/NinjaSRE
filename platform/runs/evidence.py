@@ -26,12 +26,28 @@ completed.
 **The shape is never trusted.** These arguments are model output. Anything that
 is not a list counts as nothing rather than as one, because a string counted by
 ``len`` would report "eleven pieces of evidence" for the word "three things".
+
+**And a run that named nothing has not found nothing outstanding.** An
+assessment with both lists empty is a call that said nothing, and it wore a
+green "0 of 0 claims backed" on staging until this said otherwise.
+
+Where to look for the two lists is not obvious and is the reason this shipped
+wrong once. ``RunRecorder.record_call`` stores a call's own arguments *nested*
+under an ``arguments`` key, beside the capability's ``result`` and the call's
+timing — one JSONB body per call, so that the port keeps one bound rather than
+two. A reader that took ``record.arguments["supporting_evidence"]`` therefore
+found nothing on every run ever recorded, and reported every one of them as an
+assessment that named nothing. All three shapes are read here: the nested
+arguments, then the result (which carries the same two lists, and survives when
+an oversized payload truncated the other half), then the flat body, for a
+caller that records one.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from config.constants.investigation import (
     EVIDENCE_ASSESSMENT_CAPABILITY,
@@ -39,6 +55,11 @@ from config.constants.investigation import (
     EVIDENCE_SUPPORTING_ARGUMENT,
 )
 from platform.persistence.ports.run_trace_store import ToolCallRecord, ToolCallStatus
+
+#: Where ``RunRecorder.record_call`` puts a call's own arguments, and where it
+#: puts what the capability returned. Both carry the two lists.
+_NESTED_ARGUMENTS_KEY = "arguments"
+_RESULT_KEY = "result"
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,10 +69,22 @@ class EvidenceAssessment:
     #: Whether the run completed an assessment at all. False is "it never said",
     #: never "it said nothing was backed".
     assessed: bool = False
-    #: How many pieces of evidence the run named as supporting its conclusion.
-    backed: int = 0
-    #: How many it named as still missing.
-    missing: int = 0
+    #: What the run named as supporting its conclusion, and what it named as
+    #: still missing. Kept as the sentences rather than only as counts: a list
+    #: of runs needs the number, and a reader who opened one wants the words,
+    #: and deriving one from the other later would mean reading the trace twice.
+    supporting: tuple[str, ...] = ()
+    missing_evidence: tuple[str, ...] = ()
+
+    @property
+    def backed(self) -> int:
+        """Return how many pieces of evidence the run named as supporting it."""
+        return len(self.supporting)
+
+    @property
+    def missing(self) -> int:
+        """Return how many it named as still missing."""
+        return len(self.missing_evidence)
 
     @property
     def claims(self) -> int:
@@ -60,19 +93,38 @@ class EvidenceAssessment:
 
     @property
     def sufficient(self) -> bool:
-        """Return whether the run reached its conclusion with nothing outstanding."""
-        return self.assessed and self.missing == 0
+        """Return whether the run backed its conclusion with nothing outstanding.
+
+        ``backed`` has to be positive. An assessment naming neither supporting
+        nor missing evidence is a call that said nothing, and reading it as
+        "nothing is outstanding" is how a run that proved nothing wore the same
+        green chip as a run that proved everything.
+        """
+        return self.assessed and self.backed > 0 and self.missing == 0
 
 
-def _counted(value: object) -> int:
-    """Return how many entries ``value`` holds, or nought when it is not a list.
+def _named(value: object) -> tuple[str, ...]:
+    """Return the sentences ``value`` holds, or nothing when it is not a list.
 
-    A string is deliberately not a sequence here. ``len("three things")`` is
-    twelve, and twelve pieces of evidence is a worse answer than none.
+    A string is deliberately not a sequence here. Iterating ``"three things"``
+    would report twelve pieces of evidence, one per character, and twelve is a
+    worse answer than none. An entry inside the list that is not a sentence is
+    dropped rather than stringified, so the count and the names agree.
     """
-    if isinstance(value, (list, tuple)):
-        return len(value)
-    return 0
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(entry for entry in value if isinstance(entry, str) and entry != "")
+
+
+def _bodies(stored: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
+    """Return the places the two lists may be, in the order they are trusted."""
+    found: list[Mapping[str, Any]] = []
+    for key in (_NESTED_ARGUMENTS_KEY, _RESULT_KEY):
+        held = stored.get(key)
+        if isinstance(held, Mapping):
+            found.append(held)
+    found.append(stored)
+    return tuple(found)
 
 
 def assessment_from_calls(calls: Sequence[ToolCallRecord]) -> EvidenceAssessment:
@@ -87,11 +139,14 @@ def assessment_from_calls(calls: Sequence[ToolCallRecord]) -> EvidenceAssessment
             continue
         if call.status is not ToolCallStatus.SUCCEEDED:
             continue
-        found = EvidenceAssessment(
-            assessed=True,
-            backed=_counted(call.arguments.get(EVIDENCE_SUPPORTING_ARGUMENT)),
-            missing=_counted(call.arguments.get(EVIDENCE_MISSING_ARGUMENT)),
-        )
+        supporting: tuple[str, ...] = ()
+        missing: tuple[str, ...] = ()
+        for body in _bodies(call.arguments):
+            supporting = _named(body.get(EVIDENCE_SUPPORTING_ARGUMENT))
+            missing = _named(body.get(EVIDENCE_MISSING_ARGUMENT))
+            if supporting or missing:
+                break
+        found = EvidenceAssessment(assessed=True, supporting=supporting, missing_evidence=missing)
     return found
 
 

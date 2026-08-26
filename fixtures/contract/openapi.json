@@ -3633,6 +3633,20 @@
             "title": "Evidence Missing",
             "type": "integer"
           },
+          "evidence_missing_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Missing Names",
+            "type": "array"
+          },
+          "evidence_supporting_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Supporting Names",
+            "type": "array"
+          },
           "finished_at": {
             "anyOf": [
               {

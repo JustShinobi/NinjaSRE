@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
 import { Badge } from '@/components/status';
-import { ChevronDownIcon, ChevronRightIcon } from '@/design/icons';
+import { ChevronDownIcon, ChevronRightIcon, ListIcon } from '@/design/icons';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { CopyReport } from './copy-report';
@@ -95,29 +95,30 @@ export function turnsFrom(replay: unknown): readonly RunCardTurn[] {
   }));
 }
 
-/** The evidence arguments the run's own assessment carried, if it made one. */
-export function assessmentArguments(
-  replay: unknown,
-  name: string,
-): { readonly supporting: readonly string[]; readonly missing: readonly string[] } {
-  let supporting: readonly string[] = [];
-  let missing: readonly string[] = [];
-  for (const turn of list(replay, 'turns')) {
-    for (const call of list(turn, 'calls')) {
-      if (text(call, 'name') !== name) continue;
-      const args = field(call, 'arguments');
-      supporting = stringsOf(args, 'supporting_evidence');
-      missing = stringsOf(args, 'missing_evidence');
-    }
-  }
-  return { supporting, missing };
-}
-
 /** The strings under `key`, or nothing at all when the value is not a list. */
 function stringsOf(holder: unknown, key: string): readonly string[] {
   const found = field(holder, key);
   if (!Array.isArray(found)) return [];
   return found.filter((entry): entry is string => typeof entry === 'string');
+}
+
+/**
+ * What the run named as backing its conclusion, and what it could not read.
+ *
+ * Read off the run's own record rather than off the replay. The replay's call
+ * view carries a name, a status and a duration and has never carried a
+ * payload, so the first version of this — which walked the replay looking for
+ * the assessment's arguments — found nothing on every run ever recorded and
+ * drew an empty section under a heading that promised one.
+ */
+export function namedEvidence(run: unknown): {
+  readonly supporting: readonly string[];
+  readonly missing: readonly string[];
+} {
+  return {
+    supporting: stringsOf(run, 'evidence_supporting_names'),
+    missing: stringsOf(run, 'evidence_missing_names'),
+  };
 }
 
 /** A section of the opened card: a quiet label, then whatever it labels. */
@@ -201,8 +202,14 @@ export function RunCard({
         <span className="sr-only">
           {open ? message(locale, 'runs.row.close') : message(locale, 'runs.row.open')}
         </span>
+        <span className="shrink-0 rounded-2 edge border-border bg-sunken p-2 flex items-center justify-center">
+          <ListIcon size="nav" className="text-muted" />
+        </span>
         <span className="min-w-0 grow flex flex-col gap-1">
-          <span className={open ? 'text-strong' : 'text-body'} title={head.subjectFull}>
+          <span
+            className={`${open ? 'text-strong' : 'text-body'} ${open ? '' : 'truncate'}`}
+            title={head.subjectFull}
+          >
             {head.subject}
           </span>
           <span className="text-meta text-muted">
