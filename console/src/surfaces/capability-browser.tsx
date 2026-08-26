@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState, type ReactNode } from 'react';
 
 import { CapabilityAvailabilityChip, SideEffectChip } from '@/components/status';
 import { Input } from '@/components/form';
+import { humaniseIdentifier } from '@/i18n/format';
 import type { Locale } from '@/i18n/messages';
 
 /**
@@ -168,7 +169,7 @@ export function CapabilityBrowser({
             {namedGroups.map((group) => (
               <li key={group.domain}>
                 <a href={`#${anchorId(group.domain)}`} className={DOMAIN_CHIP}>
-                  {group.domain}
+                  {humaniseIdentifier(group.domain)}
                   <span className="text-muted tabular-nums">{group.tools.length}</span>
                 </a>
               </li>
@@ -229,7 +230,10 @@ export function CapabilityBrowser({
                       colSpan={3}
                       className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
                     >
-                      {domain === '' ? labels.none : domain}{' '}
+                      {/* The catalogue's own word, read as a person writes it.
+                          The anchor and the grouping still key off the raw
+                          value, so nothing about navigation moves. */}
+                      {domain === '' ? labels.none : humaniseIdentifier(domain)}{' '}
                       <span className="text-muted font-normal">
                         ({domainTools.length})
                       </span>

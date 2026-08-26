@@ -814,11 +814,14 @@ describe("what it can do: the catalogue's own read half", () => {
       await renderAgent({ tab: 'tools' });
 
       const nav = screen.getByTestId('domain-nav');
-      expect(within(nav).getByRole('link', { name: /^estate/ })).toHaveAttribute(
+      // The label is the domain as a person reads it; the anchor still keys off
+      // the catalogue's own word, so nothing about navigation moved when the
+      // label stopped being the raw one.
+      expect(within(nav).getByRole('link', { name: /^estate/i })).toHaveAttribute(
         'href',
         '#domain-estate',
       );
-      expect(within(nav).getByRole('link', { name: /^chat/ })).toHaveAttribute(
+      expect(within(nav).getByRole('link', { name: /^chat/i })).toHaveAttribute(
         'href',
         '#domain-chat',
       );
