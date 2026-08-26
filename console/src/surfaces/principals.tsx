@@ -164,9 +164,18 @@ export function PrincipalsPanel({
             data-testid="principal"
             className="flex items-center gap-3 min-w-0"
           >
-            <span className="truncate">{person.displayName}</span>
-            <span className="text-meta text-muted truncate">{person.identity}</span>
-            <span className="ml-auto flex items-center gap-2">
+            {/* The chips hold their corner and never shrink into a wrap. Two
+                truncating siblings and two chips in one flex row divided the
+                slack between all four, so at a narrower measure the name
+                clipped to "Bootstrap administra…" *and* the longest chip broke
+                across two lines — on one row out of four, which left the column
+                ragged. The subject takes the slack and the controls keep their
+                width. */}
+            <span className="flex min-w-0 flex-1 items-baseline gap-3">
+              <span className="truncate">{person.displayName}</span>
+              <span className="text-meta text-muted truncate">{person.identity}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <PrincipalKindChip locale={locale} kind={person.kind} />
               <AccountStateChip locale={locale} active={person.isActive} />
             </span>
