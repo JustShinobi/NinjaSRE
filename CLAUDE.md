@@ -77,12 +77,20 @@ beats one that says where it came from. Where both help, write both.
   failing.
 - Deliver the requested scope. If the request looks wrong, say so in a sentence
   and continue as specified.
-- Delegate to a subagent only on a fan-out: three or more items of the same
-  shape that do not depend on each other — a screen per route, a package per
-  vendor, a fixture per scenario. Below three, a subagent starts cold and
+- Delegate to a subagent on one of two grounds. **Fan-out**: three or more
+  independent items of the same shape — a screen per route, a package per
+  vendor, a fixture per scenario — one agent each. The threshold of three
+  belongs to this ground alone, because below it a subagent starts cold and
   re-derives context the session already holds, and costs more than it saves.
-  Exploration is not a fan-out: `codegraph_explore` already answers it in one
-  call, cheaper than any agent.
+  **Isolation**: the work needs a judgement this session cannot give — a
+  verifier who has read the implementer's report is no longer independent, and
+  a confrontation written from that report proves nothing — or it would flood
+  this context with material nobody here will reread. Isolation holds at a
+  single item, which is why `done-auditor`, `spec-verifier` and
+  `spec-confronter` each run once.
+- Do not delegate a question about a symbol: `codegraph_explore` answers it in
+  one call, cheaper than any agent. Do not delegate a chain: each step consumes
+  the one before it, and the context is already here.
   The project agents in `.claude/agents/` exist for the shapes that recur here
   and carry the conventions with them, so their cold start is not cold.
 
