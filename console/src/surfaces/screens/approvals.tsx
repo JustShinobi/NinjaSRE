@@ -5,6 +5,7 @@ import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 import { DecisionControls } from '../decision';
+import { IncidentDecisionControls } from './incident-decision-controls';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
@@ -206,6 +207,54 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
     }
   }
 
+  /**
+   * The controls this proposal is decided with, or nothing for a viewer who
+   * may not decide.
+   *
+   * Two routes, because there are two things called a proposal here. One is a
+   * question a live investigation is blocked on — an *interaction* — answered
+   * through the run that raised it. The other is a remediation the gate queued
+   * as an approval in the store, which raises no interaction and is answered
+   * at the approval itself.
+   *
+   * Only the first was ever wired. So a queued remediation matched no
+   * interaction, the controls were dropped, and a screen called Decisions
+   * showed a card saying "awaiting your decision" with nothing on it to decide
+   * with. The interaction is still preferred when there is one: answering
+   * through the run releases an investigation that is standing still waiting
+   * for it, and deciding at the store would leave it standing there.
+   */
+  function decisionFor(
+    record: unknown,
+    interactionId: string | undefined,
+  ): { decision?: ReactNode } {
+    if (!decidable) return {};
+    const labels = {
+      approve: message(locale, 'proposal.approve'),
+      reject: message(locale, 'proposal.reject'),
+      reason: message(locale, 'proposal.reason'),
+      reasonRequired: message(locale, 'proposal.reason.required'),
+    };
+    if (interactionId !== undefined) {
+      return {
+        decision: <DecisionControls interactionId={interactionId} labels={labels} />,
+      };
+    }
+    const approvalId = text(record, 'approval_id');
+    if (approvalId === '') return {};
+    return {
+      decision: (
+        <IncidentDecisionControls
+          approvalId={approvalId}
+          labels={{
+            ...labels,
+            failed: message(locale, 'incident.proposedAction.decisionFailed'),
+          }}
+        />
+      ),
+    };
+  }
+
   function rowsFor(record: unknown): readonly ProposalRow[] {
     const plan = field(record, 'rollback_plan');
     const steps = list(plan, 'steps');
@@ -324,24 +373,7 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
                             ),
                           })}
                           rows={rowsFor(record)}
-                          {...(decidable && interactionId !== undefined
-                            ? {
-                                decision: (
-                                  <DecisionControls
-                                    interactionId={interactionId}
-                                    labels={{
-                                      approve: message(locale, 'proposal.approve'),
-                                      reject: message(locale, 'proposal.reject'),
-                                      reason: message(locale, 'proposal.reason'),
-                                      reasonRequired: message(
-                                        locale,
-                                        'proposal.reason.required',
-                                      ),
-                                    }}
-                                  />
-                                ),
-                              }
-                            : {})}
+                          {...decisionFor(record, interactionId)}
                         />
                         <p className="text-meta text-muted mt-1">
                           <time dateTime={waited.iso} title={waited.absolute}>
