@@ -25,6 +25,7 @@ from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.estate.signal_map import signal_map_for
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.incident_store import public_incident_id
+from platform.persistence.ports.run_trace_store import RunStatus
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -1172,10 +1173,21 @@ def _investigation_summary(
     run, and are stated rather than computed from the timeline: the numbers a
     real deployment reports are what the run recorded, not what an onlooker
     could add up afterwards.
+
+    The status is the run's own, and it is here for the same reason the numbers
+    are: a summary without it leaves the console unable to say whether the
+    investigation is over, and a mock plane that omits a field the gateway
+    publishes is a mock plane that makes a screen look right here and wrong
+    against a deployment.
     """
     if not investigated or not incident.get("run_id"):
         return None
-    return {"step_count": 6, "duration_ms": 41_000, "cost": 0.004}
+    return {
+        "step_count": 6,
+        "duration_ms": 41_000,
+        "cost": 0.004,
+        "status": RunStatus.COMPLETED.value,
+    }
 
 
 def _timeline(incident: Mapping[str, Any], *, investigated: bool = False) -> list[dict[str, str]]:

@@ -669,6 +669,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.chip.investigation.unknown': 'Desconhecido',
   'incident.chip.investigation.unknown.explain':
     'Não foi possível ler este incidente, então também não foi possível saber se ele tem uma investigação.',
+  'incident.chip.investigation.unseen.explain':
+    'Este incidente nomeia uma investigação e nada gravou o traço dela ainda, então onde ela chegou não se sabe aqui.',
   'incident.header.unreadable': 'Não foi possível ler este incidente',
 
   'incident.origin.alert': 'Alertmanager',

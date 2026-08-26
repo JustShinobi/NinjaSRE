@@ -307,6 +307,7 @@
         "investigation": {
           "cost": 0.004,
           "duration_ms": 41000,
+          "status": "completed",
           "step_count": 6
         },
         "observations": [

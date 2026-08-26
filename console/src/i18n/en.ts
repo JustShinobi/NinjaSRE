@@ -870,6 +870,8 @@ export const EN = {
   'incident.chip.investigation.unknown': 'Unknown',
   'incident.chip.investigation.unknown.explain':
     'This incident could not be read, so whether it has an investigation could not be told either.',
+  'incident.chip.investigation.unseen.explain':
+    'This incident names a run, and nothing has recorded a trace for it yet, so where the investigation got to is not known here.',
   'incident.header.unreadable': 'This incident could not be read',
 
   'incident.origin.alert': 'Alertmanager',

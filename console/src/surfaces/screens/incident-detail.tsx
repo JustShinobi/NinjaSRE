@@ -261,7 +261,10 @@ export async function IncidentDetailScreen(
               role: 'neutral',
               shape: 'dash',
               label: message(locale, 'incident.chip.investigation.unknown'),
-              title: message(locale, 'incident.chip.investigation.unknown.explain'),
+              // A different sentence from the one a failed read gets. The read
+              // succeeded here; what it returned is an incident naming a run
+              // nothing has recorded a trace for yet.
+              title: message(locale, 'incident.chip.investigation.unseen.explain'),
             }
           : runStillGoing
             ? {
