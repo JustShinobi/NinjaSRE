@@ -36,6 +36,7 @@ from gateway.http.remediation import compose_remediation
 from gateway.http.runtime import recompose_investigator
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
+from gateway.http.topology_sources import compose_topology_sources
 from platform.observability.logging import get_logger
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.reaping import RunReaper
@@ -126,6 +127,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # recall bound over a corpus nothing writes to reports that this team
         # has no history — which is the same sentence with the doubt removed.
         compose_memory(state, org_id=organisation_id())
+        # The graph a topology question traverses. After the rebuild for the
+        # same reason the desk is: this is attached to the runner, and attaching
+        # before it would install the factory on the object that was thrown
+        # away. What is attached *is* a factory rather than a source, because a
+        # graph is read under a tenant scope and one composed here would be one
+        # organisation's scope answering every organisation's runs — so the
+        # runner builds each investigation its own and binds it for that run.
+        # Until this line every investigation that reached for the topology
+        # capability was told the graph is not configured, on a deployment whose
+        # sweeps had been writing one all along.
+        compose_topology_sources(state, org_id=organisation_id())
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,
