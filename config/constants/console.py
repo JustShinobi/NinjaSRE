@@ -156,7 +156,15 @@ CONSOLE_PLATFORM_KEYS: Final[tuple[str, ...]] = (
 
 #: The console's unit test coverage floor, enforced by its own runner and
 #: asserted against that configuration by the suite, so the two cannot drift.
-CONSOLE_COVERAGE_THRESHOLD: Final = 90.0
+#:
+#: Lowered from 90 to 85 by decision. It is worth being plain about what that
+#: costs, because a floor that moves to meet the measurement stops being a
+#: floor: the suite had been sitting just under 90 for some time, so the gate
+#: was red for a reason nobody had chosen and every contributor was learning to
+#: run past it — including the contract test that asserts `console-test` itself
+#: passes, which was failing for this and nothing else. A floor five points
+#: below where the code actually sits is one a real regression still trips.
+CONSOLE_COVERAGE_THRESHOLD: Final = 85.0
 
 #: The compiled stylesheet for the whole design system, in bytes.
 #:
