@@ -419,3 +419,30 @@ async def test_two_alerts_arriving_at_once_still_produce_one_investigation(
         f"on one container. An incident whose run exists but is not yet attached to it "
         f"is an incident nothing can join."
     )
+
+
+async def test_an_alert_arriving_after_the_answer_points_at_it_rather_than_redoing_it(
+    ingress: Ingress,
+) -> None:
+    """The three that arrived fifteen seconds late.
+
+    ``ingress`` rather than ``busy``: the shared runner finishes the moment it
+    is awaited, which is exactly the state this is about — the first
+    investigation has reported before the second alert lands.
+    """
+    await deliver(ingress, adguard_oom("first"))
+    answer = await deliver(
+        ingress, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+    )
+
+    assert answer.get("joined") is True, (
+        f"an alert arriving after the answer started its own investigation: {answer}"
+    )
+    assert answer.get("answered") is True, (
+        "an incident pointed at a finished report must not read as one somebody is looking at now"
+    )
+    assert len(ingress.runner.started) == 1, (
+        f"{len(ingress.runner.started)} investigations. The second re-derived an "
+        f"answer that already existed."
+    )
+    assert ingress.runner.queued == [], "a finished run was handed a message it can never read"

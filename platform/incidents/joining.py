@@ -59,6 +59,13 @@ class JoinTarget:
     #: What the two have in common, as the estate identifies it. The whole of
     #: the reason, in the form an operator can check.
     subject_id: str
+    #: Whether that investigation has already reported.
+    #:
+    #: The two outcomes are different actions, not degrees of one. A run still
+    #: going can be handed the alert as further evidence. A run that has
+    #: answered cannot be told anything — it can only be cited, and the
+    #: arriving incident points at the answer instead of re-deriving it.
+    answered: bool = False
 
 
 async def investigation_to_join(
@@ -76,46 +83,64 @@ async def investigation_to_join(
     gives to "how long do two alerts count as one arrival"; a second number
     here would be a second answer to one question.
     """
+    # A run still going is preferred over one that has answered, whichever
+    # subject each was found under. Evidence handed to a live investigation is
+    # worth more than a citation of a finished one, and finding the finished
+    # one first is an accident of iteration order.
+    cited: JoinTarget | None = None
     for subject_id in incident.subject_ids:
         for candidate in await incidents.query(
             IncidentQuery(subject_id=subject_id, live_only=True)
         ):
             if candidate.incident_id == incident.incident_id:
                 continue
-            run_id = await _live_run_of(candidate, runs=runs, now=now, window=window)
-            if run_id:
-                return JoinTarget(
-                    run_id=run_id,
-                    incident_id=candidate.incident_id,
-                    subject_id=subject_id,
-                )
-    return None
+            found = await _run_of(candidate, runs=runs, now=now, window=window)
+            if found is None:
+                continue
+            target = JoinTarget(
+                run_id=found[0],
+                incident_id=candidate.incident_id,
+                subject_id=subject_id,
+                answered=found[1],
+            )
+            if not target.answered:
+                return target
+            cited = cited or target
+    return cited
 
 
-async def _live_run_of(
+async def _run_of(
     incident: Incident,
     *,
     runs: RunTraceStore,
     now: datetime,
     window: timedelta,
-) -> str:
-    """Return this incident's run that is still going, or the empty string.
+) -> tuple[str, bool] | None:
+    """Return this incident's joinable run and whether it has answered.
 
-    Newest first, because an incident that has been investigated more than once
-    is being asked about the investigation happening now.
+    Newest first, because an incident investigated more than once is being
+    asked about the most recent look at it.
     """
     for run_id in reversed(incident.run_ids):
         run = await runs.get_run(run_id)
-        if run is None or run.status not in LIVE_RUN_STATES:
+        if run is None:
             continue
-        if run.started_at is not None and now - run.started_at > window:
-            # Marked running and older than the window is what an abandoned run
-            # looks like — the process that was driving it is gone and the
-            # reaper has not been round yet. Handing it an alert would be
-            # handing it to nobody.
-            continue
-        return run_id
-    return ""
+        if run.status in LIVE_RUN_STATES:
+            if run.started_at is not None and now - run.started_at > window:
+                # Marked running and older than the window is what an abandoned
+                # run looks like — the process driving it is gone and the reaper
+                # has not been round yet. Handing it an alert hands it to nobody.
+                continue
+            return run_id, False
+        # Older than the window, the condition firing again is a recurrence
+        # rather than an echo of the answer, and it deserves a look of its own.
+        if (
+            run.status is RunStatus.COMPLETED
+            and run.finished_at is not None
+            and now - run.finished_at <= window
+        ):
+            return run_id, True
+    return None
 
 
 __all__ = ["LIVE_RUN_STATES", "JoinTarget", "investigation_to_join"]

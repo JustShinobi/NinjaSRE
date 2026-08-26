@@ -151,12 +151,12 @@ async def test_an_alert_about_a_different_resource_does_not_join() -> None:
     assert await _join(store, unrelated) == ""
 
 
-async def test_a_finished_run_is_not_joined() -> None:
+async def test_a_finished_run_is_never_handed_evidence() -> None:
     """Nothing can be added to an investigation that has already reported.
 
-    A message queued for a run nobody is driving is delivered at a turn
-    boundary that will never come. The incident investigates for itself
-    instead, which is worse than joining and far better than silence.
+    It can be cited — the answer exists and the arriving incident points at it
+    rather than re-deriving it — but a message queued for a run nobody is
+    driving is delivered at a turn boundary that will never come.
     """
     store = await _store()
     over = _incident("first", subject=REDIS, run_ids=("run-done",))
@@ -175,7 +175,13 @@ async def test_a_finished_run_is_not_joined() -> None:
         ),
     )
 
-    assert await _join(store, arriving) == ""
+    async with store.begin(SCOPE) as uow:
+        found = await investigation_to_join(
+            arriving, incidents=uow.incidents, runs=uow.run_traces, now=NOW
+        )
+
+    assert found is not None
+    assert found.answered is True, "a finished run was reported as one that can still take evidence"
 
 
 async def test_an_incident_never_joins_its_own_investigation() -> None:
@@ -222,3 +228,113 @@ async def test_a_closed_incident_is_not_a_live_investigation() -> None:
     )
 
     assert await _join(store, arriving) == ""
+
+
+# --- An investigation that has already answered ------------------------------
+#
+# Three of the five alerts in the measured burst arrived fifteen seconds after
+# the investigation of the first one had reported. There was nothing live to
+# join, so each started its own — and each re-derived, at full cost, an answer
+# that had existed for fifteen seconds.
+#
+# A finished run is not something evidence can be added to. It is something an
+# incident can be pointed at.
+
+
+async def test_an_answer_from_moments_ago_is_pointed_at_rather_than_redone() -> None:
+    store = await _store()
+    answered = _incident("first", subject=REDIS, run_ids=("run-answered",))
+    arriving = _incident("second", subject=REDIS)
+    await _seed(
+        store,
+        incidents=(answered, arriving),
+        runs=(
+            AgentRun(
+                run_id="run-answered",
+                trigger="alert",
+                status=RunStatus.COMPLETED,
+                started_at=NOW - timedelta(minutes=1),
+                finished_at=NOW - timedelta(seconds=15),
+                summary="the container was stopped by hand",
+            ),
+        ),
+    )
+
+    async with store.begin(SCOPE) as uow:
+        found = await investigation_to_join(
+            arriving, incidents=uow.incidents, runs=uow.run_traces, now=NOW
+        )
+
+    assert found is not None, (
+        "an alert arriving fifteen seconds after the answer started its own "
+        "investigation. The answer already existed."
+    )
+    assert found.run_id == "run-answered"
+    assert found.answered is True, "a finished run cannot be told anything; it can be cited"
+
+
+async def test_a_stale_answer_is_not_pointed_at() -> None:
+    """Past the window, the condition is a recurrence and deserves a look."""
+    store = await _store()
+    old = _incident("first", subject=REDIS, run_ids=("run-old",))
+    arriving = _incident("second", subject=REDIS)
+    await _seed(
+        store,
+        incidents=(old, arriving),
+        runs=(
+            AgentRun(
+                run_id="run-old",
+                trigger="alert",
+                status=RunStatus.COMPLETED,
+                started_at=NOW - timedelta(hours=3),
+                finished_at=NOW - timedelta(hours=3),
+                summary="the container was stopped by hand",
+            ),
+        ),
+    )
+
+    async with store.begin(SCOPE) as uow:
+        found = await investigation_to_join(
+            arriving, incidents=uow.incidents, runs=uow.run_traces, now=NOW
+        )
+
+    assert found is None
+
+
+async def test_a_live_run_is_preferred_over_a_finished_one() -> None:
+    """Evidence beats a citation: a run that can still use the alert gets it."""
+    store = await _store()
+    answered = _incident("first", subject=REDIS, run_ids=("run-answered",))
+    running = _incident("second", subject=REDIS, run_ids=("run-live",))
+    arriving = _incident("third", subject=REDIS)
+    await _seed(
+        store,
+        incidents=(answered, running, arriving),
+        runs=(
+            AgentRun(
+                run_id="run-answered",
+                trigger="alert",
+                status=RunStatus.COMPLETED,
+                started_at=NOW - timedelta(minutes=1),
+                finished_at=NOW - timedelta(seconds=15),
+            ),
+            AgentRun(
+                run_id="run-live",
+                trigger="alert",
+                status=RunStatus.RUNNING,
+                started_at=NOW - timedelta(seconds=10),
+            ),
+        ),
+    )
+
+    async with store.begin(SCOPE) as uow:
+        found = await investigation_to_join(
+            arriving, incidents=uow.incidents, runs=uow.run_traces, now=NOW
+        )
+
+    assert found is not None
+    assert found.run_id == "run-live", (
+        "a finished run was chosen over one still able to use the alert. Evidence "
+        "handed to a live investigation is worth more than a citation of an old one."
+    )
+    assert found.answered is False

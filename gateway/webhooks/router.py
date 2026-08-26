@@ -390,6 +390,11 @@ def _handler(
                     "incident_id": incident.incident_id,
                     "joined": True,
                     "subject": joined.subject_id,
+                    # Which of the two joins happened. An incident pointed at an
+                    # answer and an incident feeding a live run are different
+                    # facts, and a caller that could not tell them apart would
+                    # read "joined" as "somebody is looking at this now".
+                    "answered": joined.answered,
                 }
             )
 
@@ -868,19 +873,20 @@ async def _join_live_investigation(
     if target is None:
         return None
 
-    delivered = await state.investigator.queue_message(
-        target.run_id, _joined_alert_brief(alert, incident)
-    )
-    if delivered is False:
-        # The run ended between deciding and delivering. Investigate for
-        # ourselves rather than attach to something that never heard of us.
-        logger.info(
-            "incidents.join_missed",
-            incident_id=incident.incident_id,
-            run_id=target.run_id,
-            subject=target.subject_id,
+    if not target.answered:
+        delivered = await state.investigator.queue_message(
+            target.run_id, _joined_alert_brief(alert, incident)
         )
-        return None
+        if delivered is False:
+            # The run ended between deciding and delivering. Investigate for
+            # ourselves rather than attach to something that never heard of us.
+            logger.info(
+                "incidents.join_missed",
+                incident_id=incident.incident_id,
+                run_id=target.run_id,
+                subject=target.subject_id,
+            )
+            return None
 
     async with state.gateway.begin(scope) as uow:
         lifecycle = IncidentLifecycle(store=uow.incidents)
@@ -888,8 +894,16 @@ async def _join_live_investigation(
             incident.incident_id,
             target.run_id,
             objective=(
-                f"joined the investigation already running on {target.subject_id}, "
-                f"started for incident {target.incident_id}"
+                (
+                    f"answered moments ago for incident {target.incident_id}, on the "
+                    f"same subject ({target.subject_id}) — this incident points at "
+                    f"that report rather than repeating the investigation"
+                )
+                if target.answered
+                else (
+                    f"joined the investigation already running on {target.subject_id}, "
+                    f"started for incident {target.incident_id}"
+                )
             ),
             now=_utc_now(),
         )
