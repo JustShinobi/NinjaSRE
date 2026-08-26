@@ -545,3 +545,59 @@ async def test_the_reserve_survives_a_vendor_flooding_the_ranking(
         "so an investigation going badly can still think and remember; a selection that "
         "spends every slot on one vendor has removed both."
     )
+
+
+# --- A capability with nothing to read ---------------------------------------
+#
+# ``recall_similar_incidents`` and ``query_service_topology`` need no
+# integration, so nothing in the availability narrowing keeps them out. Both
+# need a source bound by a composition root, and this deployment binds neither:
+# every investigation it has run called both, and every one of those calls came
+# back an unavailability. Ten turns across five runs, spent being told twice per
+# run that a source nobody composed is not composed.
+
+RECALL = "recall_similar_incidents"
+
+
+async def test_a_capability_with_no_source_bound_is_not_offered(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Offering it spends a turn on a call that can only report its own absence."""
+    _connected(monkeypatch, "prometheus")
+
+    offered = await _offered(_catalogue(RECALL, PROMETHEUS_READ), desk=True)
+
+    assert RECALL not in offered, (
+        f"{RECALL} was offered with nothing bound behind it. Every call it can "
+        f"receive comes back an unavailability, and the turn is spent either way."
+    )
+    assert PROMETHEUS_READ in offered, "narrowing that removes everything is not narrowing"
+
+
+async def test_the_same_capability_is_offered_once_a_source_is_bound(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exclusion is about the binding, not about the capability.
+
+    Written as the pair of the test above so the two cannot drift into "this
+    tool is permanently off", which is a different and much worse rule.
+    """
+    from capabilities.tools.system.memory_search import binding as memory_binding
+    from platform.memory.retrieval import RecallResult
+
+    class _Source:
+        async def search(self, query: object) -> RecallResult:
+            del query
+            return RecallResult(searched=True)
+
+    _connected(monkeypatch, "prometheus")
+    previous = memory_binding.bind(_Source())
+    try:
+        offered = await _offered(_catalogue(RECALL, PROMETHEUS_READ), desk=True)
+    finally:
+        memory_binding.restore(previous)
+
+    assert RECALL in offered, (
+        "a capability whose source is bound was withheld anyway. The exclusion is "
+        "meant to name what this deployment cannot serve, not to retire a tool."
+    )

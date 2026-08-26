@@ -45,6 +45,7 @@ from capabilities.registry.disclosure import DiscoveredSkill
 from capabilities.registry.planning import TeamCatalogueResolver
 from capabilities.registry.scoring import Incident
 from capabilities.registry.selection import select
+from capabilities.tools.system.sources import has_a_source, unmet_source
 from config.constants.estate import (
     ALERT_DOMAIN_LABEL,
     ALERT_RANKING_TAG_LABELS,
@@ -449,9 +450,17 @@ class ReActInvestigationRunner:
         catalogue = TeamCatalogueResolver(self.registry).for_availability(
             await self._availability(request)
         )
-        carriable = tuple(found for found in catalogue.tools if self._can_carry(found))
-        excluded = catalogue.excluded + tuple(
-            _uncarried(found) for found in catalogue.tools if not self._can_carry(found)
+        carriable = tuple(
+            found for found in catalogue.tools if self._can_carry(found) and self._can_answer(found)
+        )
+        excluded = (
+            catalogue.excluded
+            + tuple(_uncarried(found) for found in catalogue.tools if not self._can_carry(found))
+            + tuple(
+                _unsourced(found)
+                for found in catalogue.tools
+                if self._can_carry(found) and not self._can_answer(found)
+            )
         )
 
         if not carriable:
@@ -588,6 +597,22 @@ class ReActInvestigationRunner:
             return True
         desk = self._remediation
         return desk is not None and bool(desk.handles(found.name))
+
+    def _can_answer(self, found: RegisteredTool) -> bool:
+        """Return whether ``found`` has something to read in this process.
+
+        The read-side counterpart of ``_can_carry``. Recall needs an episode
+        corpus and topology needs a graph; unbound, each spends a turn telling
+        the investigation that a source nobody composed is not composed. Every
+        run this deployment has made called both, and every one of those calls
+        failed.
+
+        The unavailability itself is right and stays: a tool asked without a
+        source must say so rather than answer emptily, or an investigation
+        concludes "no similar incidents" about a corpus that never existed.
+        What changes is that it is not asked.
+        """
+        return has_a_source(found.name)
 
     def _request_of(
         self, request: InvestigationStart, *, skills: Sequence[DiscoveredSkill] = ()
@@ -732,6 +757,21 @@ def _selection_rationale(
     if cut:
         lines.append("cut by the ceiling, highest first: " + ", ".join(cut))
     return "\n".join(lines)
+
+
+def _unsourced(found: RegisteredTool) -> ExcludedCapability:
+    """Return why a read with nothing behind it was left out.
+
+    Named as a requirement rather than as a fault, because it is one: the
+    capability works and this deployment has not been given what it reads.
+    An operator seeing "requires an episode corpus (memory)" knows what to do;
+    one seeing the capability quietly absent does not.
+    """
+    return ExcludedCapability(
+        name=found.name,
+        kind=CapabilityKind.TOOL,
+        unmet=(unmet_source(found.name),),
+    )
 
 
 def _uncarried(found: RegisteredTool) -> ExcludedCapability:
