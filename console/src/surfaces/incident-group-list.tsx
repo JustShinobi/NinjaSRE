@@ -32,6 +32,38 @@ export interface IncidentGroupListProps {
   readonly zone: string;
 }
 
+
+/** How much of an opaque identifier is enough to recognise it by. */
+const IDENTIFIER_HEAD = 8;
+
+/**
+ * Whether `subject` is an identifier rather than a name somebody chose.
+ *
+ * A long unbroken run of hexadecimal after a short prefix is a key, not a
+ * hostname: `res-7a73b8aa1194c1ed14dd87f7e0e80b81` identifies the row for a
+ * database and for nobody else. `adguard-primary` is a name and is left alone —
+ * the test is the shape of the string, never a list of prefixes this file
+ * would have to keep in step with whatever the gateway starts sending.
+ */
+function isOpaque(subject: string): boolean {
+  const tail = subject.slice(subject.indexOf('-') + 1);
+  return (
+    subject.includes('-') && tail.length >= 24 && /^[0-9a-f]+$/u.test(tail)
+  );
+}
+
+/** `subject`, shortened when it is a key and untouched when it is a name. */
+function shortenIdentifier(subject: string): string {
+  if (!isOpaque(subject)) return subject;
+  const prefix = subject.slice(0, subject.indexOf('-') + 1);
+  return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}\u2026`;
+}
+
+/** The full subject line, offered only where the visible one was shortened. */
+function subjectTitle(group: IncidentGroup): string | undefined {
+  return group.subjects.some(isOpaque) ? group.subjects.join(' · ') : undefined;
+}
+
 /** The grouped listing. */
 export function IncidentGroupList({
   groups,
@@ -89,14 +121,49 @@ export function IncidentGroupList({
                   </span>
                   <span className="min-w-0 flex flex-col">
                     <span className="text-strong truncate">{group.title}</span>
-                    <span className="text-meta text-muted truncate">
+                    {/* The whole of the identifier stays reachable in the
+                        title: it is what somebody pastes into a query, and a
+                        row that shortened it away would be a row nobody could
+                        follow. What it stops doing is spending thirty-six
+                        characters of the one line that tells this row from the
+                        next — four rows of the staging estate carried the same
+                        key, identically, and read as four copies of one row. */}
+                    <span
+                      data-testid="incident-group-subjects"
+                      className="text-meta text-muted truncate"
+                      {...(subjectTitle(group) === undefined
+                        ? {}
+                        : { title: subjectTitle(group) })}
+                    >
                       {group.subjects.length === 0
                         ? group.detector
-                        : group.subjects.join(' · ')}
+                        : group.subjects.map(shortenIdentifier).join(' · ')}
                     </span>
                   </span>
-                  <Badge status={group.severity} className="ml-auto shrink-0" />
-                  <Badge status={group.state} className="shrink-0" />
+                  {/* Severity yields to state once a cause is over. Fifteen
+                      rows reading "Critical" in danger red beside a quiet green
+                      "Resolved" made the alarm the loudest thing on a screen
+                      where nothing was currently wrong. It is still said — a
+                      critical that resolved is not a low one that resolved —
+                      but as history rather than as an alarm. */}
+                  <span
+                    data-testid="incident-group-severity"
+                    data-past={group.live ? 'false' : 'true'}
+                    className="ml-auto shrink-0"
+                  >
+                    {group.live ? (
+                      <Badge status={group.severity} />
+                    ) : (
+                      <span className="text-meta text-muted capitalize">
+                        {message(locale, 'incidents.group.wasSeverity', {
+                          severity: group.severity,
+                        })}
+                      </span>
+                    )}
+                  </span>
+                  <span data-testid="incident-group-state" className="shrink-0">
+                    <Badge status={group.state} />
+                  </span>
                   <span
                     data-testid="incident-group-count"
                     className="text-small tabular-nums text-right shrink-0 w-column-measure"

@@ -637,6 +637,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.view.grouped': 'Por assunto',
   'incidents.view.flat': 'Cada disparo',
   'incidents.group.count': '{count} disparos',
+  'incidents.group.wasSeverity': 'era {severity}',
   'incidents.group.count.one': 'Disparou uma vez',
   'incidents.group.since': 'recorrente desde {since}',
   'incidents.group.expand': 'Mostrar cada disparo de {title}',

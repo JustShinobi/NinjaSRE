@@ -818,6 +818,7 @@ export const EN = {
   'incidents.view.grouped': 'By subject',
   'incidents.view.flat': 'Every firing',
   'incidents.group.count': '{count} firings',
+  'incidents.group.wasSeverity': 'was {severity}',
   'incidents.group.count.one': 'Fired once',
   'incidents.group.since': 'recurring since {since}',
   'incidents.group.expand': 'Show every firing of {title}',
