@@ -57,6 +57,49 @@ PAGINATION: Final[tuple[EndpointPagination, ...]] = (
 )
 
 
+#: Prefix every identifier this deployment mints carries. An agent handed one
+#: as the only name it has for a subject will pass it here, and Alertmanager has
+#: never heard of it: sending it as a matcher earns a 400, and sending it as an
+#: ``alertname`` earns an empty answer, which reads as "there is nothing" rather
+#: than "you asked wrongly". Neither is worth a turn.
+_LOCAL_ID_PREFIXES: Final[tuple[str, ...]] = ("res-", "inc_", "run-")
+
+#: The status words a caller might use, and what each one means to the two
+#: boolean parameters Alertmanager actually narrows status by. ``filter`` is for
+#: label matchers and nothing else — sending "firing" there is what produced
+#: `400 bad matcher format: firing` on every statistics call staging made.
+_STATUS_PARAMETERS: Final[dict[str, dict[str, str]]] = {
+    "firing": {"active": "true", "silenced": "false"},
+    "active": {"active": "true", "silenced": "false"},
+    "silenced": {"active": "true", "silenced": "true"},
+    "suppressed": {"active": "true", "silenced": "true"},
+    "resolved": {"active": "false", "silenced": "false"},
+    "inactive": {"active": "false", "silenced": "false"},
+}
+
+
+def _matcher(value: str) -> str:
+    """Return ``value`` as a matcher Alertmanager parses, or the empty string.
+
+    Alertmanager's ``filter`` takes ``name="value"`` and refuses anything else
+    with `400 bad matcher format`. A caller that already wrote one gets it
+    forwarded; a bare word is the alert's name, which is what a bare word
+    almost always is; and one of this deployment's own identifiers is dropped,
+    because Alertmanager cannot answer about it however it is spelled.
+
+    Formatting the vendor's grammar here rather than in the tool's description
+    is deliberate. A capability whose correct use depends on the caller knowing
+    a vendor's query language is a capability that gets called wrongly, and
+    being refused afterwards costs the turn either way.
+    """
+    trimmed = value.strip()
+    if not trimmed or trimmed.startswith(_LOCAL_ID_PREFIXES):
+        return ""
+    if "=" in trimmed:
+        return trimmed
+    return f'alertname="{trimmed}"'
+
+
 def _pagination(endpoint: str) -> EndpointPagination:
     """Return the declared pagination for one endpoint of this client."""
     for declared in PAGINATION:
@@ -114,8 +157,13 @@ class AlertmanagerClient(IntegrationClient):
             # ordinary call, the one that asks what is firing without narrowing
             # anything, was the one that failed.
             asked: dict[str, str] = {"active": "true", "silenced": "false"}
-            if status:
-                asked["filter"] = status
+            narrowed = _STATUS_PARAMETERS.get(status.strip().lower())
+            if narrowed is not None:
+                asked.update(narrowed)
+            elif status:
+                matcher = _matcher(status)
+                if matcher:
+                    asked["filter"] = matcher
             asked.update(parameters)
             answer = (await self.get(LIST_INCIDENTS_PATH, params=asked)).json()
             return Page(
@@ -150,8 +198,9 @@ class AlertmanagerClient(IntegrationClient):
         async def fetch(parameters: Mapping[str, str]) -> Page[dict[str, Any]]:
             # Omitted when empty, for the reason ``list_incidents`` gives above.
             asked: dict[str, str] = {"active": "true"}
-            if incident:
-                asked["filter"] = incident
+            matcher = _matcher(incident)
+            if matcher:
+                asked["filter"] = matcher
             asked.update(parameters)
             answer = (await self.get(INCIDENT_TIMELINE_PATH, params=asked)).json()
             return Page(

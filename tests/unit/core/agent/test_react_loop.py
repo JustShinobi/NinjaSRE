@@ -341,3 +341,55 @@ async def test_an_unknown_capability_comes_back_as_a_structured_error() -> None:
     assert execution.outcome is InvocationOutcome.FAILURE
     assert execution.denied
     assert "fixture_log_search" in execution.error_message
+
+
+# --- what the run is about ----------------------------------------------------
+
+
+async def test_the_run_s_context_reaches_the_model() -> None:
+    """What the deployment already knows about the subject is told to the agent.
+
+    ``RunRequest.context`` was composed by intake, copied onto the session, and
+    read by nothing afterwards. So an investigation whose subject the estate had
+    already resolved — down to the vendor's own identifier for it — was handed
+    an objective in prose and left to work the subject out from tool output.
+
+    Measured on staging: a Redis alert for 10.20.20.52, whose incident subject
+    was recorded as Proxmox container 122 on pve01, produced an investigation
+    that diagnosed container 152 on pve02 instead. A different guest, a
+    different node, a different service, and a confident answer full of that
+    other guest's real numbers.
+    """
+    llm = ScriptedLLM([text_turn("done")])
+    loop = ReActLoop(llm=llm)
+
+    await loop.run(
+        RunRequest(
+            objective="the Redis endpoint tcp://10.20.20.52:6379 stopped answering",
+            context={
+                "resource_name": "redis",
+                "resource_native_id": "lxc/HAL9000/unknown/122",
+                "resource_parent": "pve01",
+            },
+        )
+    )
+
+    sent = "\n".join(
+        message.text for message in llm.requests[0].messages if message.role is Role.USER
+    )
+    for known in ("redis", "lxc/HAL9000/unknown/122", "pve01"):
+        assert known in sent, (
+            f"the model was never told {known!r}, which the deployment already knew. "
+            f"What it was sent was: {sent!r}"
+        )
+
+
+async def test_a_run_with_no_context_sends_only_its_objective() -> None:
+    """Nothing known, nothing stated. An empty brief is not a brief."""
+    llm = ScriptedLLM([text_turn("done")])
+    loop = ReActLoop(llm=llm)
+
+    await loop.run(RunRequest(objective="something is wrong"))
+
+    sent = [message.text for message in llm.requests[0].messages if message.role is Role.USER]
+    assert sent == ["something is wrong"]

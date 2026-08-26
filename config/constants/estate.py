@@ -156,6 +156,17 @@ SUBJECT_CONTEXT_RESOURCE_ID: Final = "resource_id"
 SUBJECT_CONTEXT_RESOURCE_KIND: Final = "resource_kind"
 SUBJECT_CONTEXT_RESOURCE_NAME: Final = "resource_name"
 SUBJECT_CONTEXT_RESOURCE_SOURCE: Final = "resource_source"
+#: What the vendor calls the subject, in the vendor's own vocabulary. The
+#: identifier a vendor tool takes — as opposed to the resource id, which only
+#: this deployment understands and which an agent handed nothing else will pass
+#: to a vendor tool anyway, and be refused.
+SUBJECT_CONTEXT_RESOURCE_NATIVE_ID: Final = "resource_native_id"
+#: The resource the subject sits in, by name — the node a guest runs on. The
+#: other half of what a per-guest vendor call needs.
+SUBJECT_CONTEXT_RESOURCE_PARENT: Final = "resource_parent"
+#: Where the subject answers. Usually what the alert matched on, and what ties
+#: the subject back to the symptom that was reported.
+SUBJECT_CONTEXT_RESOURCE_ADDRESS: Final = "resource_address"
 SUBJECT_CONTEXT_RESOURCE_ZONE: Final = "resource_zone"
 SUBJECT_CONTEXT_RESOLVED_FROM: Final = "resolved_from"
 
@@ -212,9 +223,12 @@ __all__ = [
     "MIN_FRESHNESS_SECONDS",
     "RETENTION_DAYS_ESTATE_HISTORY",
     "SUBJECT_CONTEXT_RESOLVED_FROM",
+    "SUBJECT_CONTEXT_RESOURCE_ADDRESS",
     "SUBJECT_CONTEXT_RESOURCE_ID",
     "SUBJECT_CONTEXT_RESOURCE_KIND",
     "SUBJECT_CONTEXT_RESOURCE_NAME",
+    "SUBJECT_CONTEXT_RESOURCE_NATIVE_ID",
+    "SUBJECT_CONTEXT_RESOURCE_PARENT",
     "SUBJECT_CONTEXT_RESOURCE_SOURCE",
     "SUBJECT_CONTEXT_RESOURCE_ZONE",
 ]

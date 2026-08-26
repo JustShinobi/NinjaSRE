@@ -41,9 +41,12 @@ from fastapi import APIRouter, Request, Response
 from config.constants.estate import (
     MAX_ESTATE_PAGE_SIZE,
     SUBJECT_CONTEXT_RESOLVED_FROM,
+    SUBJECT_CONTEXT_RESOURCE_ADDRESS,
     SUBJECT_CONTEXT_RESOURCE_ID,
     SUBJECT_CONTEXT_RESOURCE_KIND,
     SUBJECT_CONTEXT_RESOURCE_NAME,
+    SUBJECT_CONTEXT_RESOURCE_NATIVE_ID,
+    SUBJECT_CONTEXT_RESOURCE_PARENT,
     SUBJECT_CONTEXT_RESOURCE_SOURCE,
     SUBJECT_CONTEXT_RESOURCE_ZONE,
 )
@@ -830,6 +833,15 @@ def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:
         # about — the difference between offering the Proxmox reads for a
         # failing Proxmox backup job and offering the alerting system's own.
         SUBJECT_CONTEXT_RESOURCE_SOURCE: target.source,
+        # The vendor's own handle for the subject, and the node it sits on.
+        # Without these the run is told which resource it is about in a
+        # vocabulary no vendor tool accepts, and an agent that needs
+        # ``node`` and ``vmid`` to ask about a guest works them out from
+        # whatever a cluster-wide read happened to list. It worked out the
+        # wrong guest.
+        SUBJECT_CONTEXT_RESOURCE_NATIVE_ID: target.native_id,
+        SUBJECT_CONTEXT_RESOURCE_PARENT: target.parent_name,
+        SUBJECT_CONTEXT_RESOURCE_ADDRESS: target.address,
         SUBJECT_CONTEXT_RESOURCE_ZONE: target.zone,
         SUBJECT_CONTEXT_RESOLVED_FROM: f"{target.label}={target.value}",
     }

@@ -45,7 +45,7 @@ from core.agent.hooks.registry import NO_HOOKS, HookRegistry
 from core.agent.message_queue import MessageQueue, merge
 from core.agent.runtime_port import RunRequest, RunResult, RunStatus, SeedCall
 from core.agent.seed_calls import EMPTY_SEED_CATALOGUE, SeedCatalogue
-from core.agent.session import Session, SessionStatus
+from core.agent.session import Session, SessionStatus, context_brief
 from core.agent.stagnation import final_turn_instruction, observe
 from core.agent.store import SessionStore, save_quietly
 from core.agent.subagents.definition import SubAgent
@@ -302,6 +302,17 @@ class ReActLoop:
 
         if not session.transcript:
             session.append(Message(role=Role.USER, text=session.objective))
+            # What the deployment already established about the subject, before
+            # the agent spends a turn working it out. This was carried onto the
+            # session and read by nothing: an investigation whose subject intake
+            # had resolved down to the vendor's own identifier was still handed
+            # an objective in prose and left to infer the rest from tool output.
+            # It inferred wrongly — a Redis alert resolved to Proxmox container
+            # 122 on pve01 was diagnosed as container 152 on pve02, with that
+            # other guest's real numbers behind it.
+            brief = context_brief(session.context)
+            if brief:
+                session.append(Message(role=Role.USER, text=brief))
             await self._run_seeds(session, seeds, cache)
 
         while session.iteration < session.max_iterations:

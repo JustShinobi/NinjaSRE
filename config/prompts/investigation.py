@@ -80,6 +80,23 @@ DUPLICATE_TOOL_CALL_REPLAY: Final[str] = (
     "call something that would tell you something new.\n\n{content}"
 )
 
+# --- What the run is about ---------------------------------------------------
+
+#: The heading over what the deployment already established about the subject.
+#:
+#: Sent as its own turn immediately after the objective, because it is a
+#: different kind of statement: the objective is what somebody asked, and this
+#: is what this deployment already knows and stands behind. An agent that
+#: cannot tell them apart re-derives the second from tool output — which is
+#: how a Redis alert whose subject was recorded as Proxmox container 122 on
+#: pve01 came back diagnosed as container 152 on pve02.
+SUBJECT_BRIEF_HEADING: Final[str] = (
+    "What this deployment already established about the subject, before you "
+    "call anything. These are facts from its own inventory, not guesses — use "
+    "them as the identifiers your calls need, and if a tool's output disagrees "
+    "with them, say so rather than quietly preferring the tool."
+)
+
 # --- Stagnation --------------------------------------------------------------
 
 #: Appended after an iteration that produced no new evidence. Sent by the loop.

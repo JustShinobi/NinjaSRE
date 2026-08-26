@@ -53,6 +53,7 @@ from config.prompts.investigation import (
     SUBAGENT_FINDING_SUMMARY,
     SUBAGENT_SYSTEM_PROMPT,
     SUBAGENT_UNKNOWN,
+    SUBJECT_BRIEF_HEADING,
 )
 from config.prompts.knowledge import (
     KNOWLEDGE_CHUNK,
@@ -151,6 +152,7 @@ __all__ = [
     "REPETITION_BREAK",
     "REPETITION_UNBROKEN",
     "STAGNATION_NUDGE",
+    "SUBJECT_BRIEF_HEADING",
     "STRATEGY_BELOW_THRESHOLD",
     "STRATEGY_DISABLED",
     "STRATEGY_NO_RESOLVED_EPISODES",

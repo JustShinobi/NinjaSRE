@@ -111,6 +111,18 @@ class ResolvedTarget:
     #: that before the first model call. Defaulted rather than required so a
     #: record written before this field existed still reads back.
     source: str = ""
+    #: What the vendor calls this resource, in the vendor's own vocabulary
+    #: (``lxc/HAL9000/unknown/122``). The identifier a vendor tool actually
+    #: takes, as opposed to ``resource_id``, which only this deployment
+    #: understands. An investigation handed the second and not the first has to
+    #: guess the first, and it does — 122 came back as 152.
+    native_id: str = ""
+    #: The resource this one sits in, by name: the node a guest runs on. The
+    #: other half of what a per-guest vendor call needs.
+    parent_name: str = ""
+    #: Where the resource answers, when it reports one. What the alert matched
+    #: on, more often than not, and what ties the subject back to the symptom.
+    address: str = ""
     #: Where the resource sits, when the estate knows. Reported rather than
     #: re-derived by every reader: an investigation that says "in the apps zone"
     #: and a screen that says otherwise is a disagreement nobody can settle.
@@ -123,6 +135,9 @@ class ResolvedTarget:
             "kind": self.kind,
             "display_name": self.display_name,
             "source": self.source,
+            "native_id": self.native_id,
+            "parent_name": self.parent_name,
+            "address": self.address,
             "matched_on": self.matched_on.value,
             "label": self.label,
             "value": self.value,
@@ -151,6 +166,9 @@ class ResolvedTarget:
             kind=str(record.get("kind", "")),
             display_name=str(record.get("display_name", "")),
             source=str(record.get("source", "")),
+            native_id=str(record.get("native_id", "")),
+            parent_name=str(record.get("parent_name", "")),
+            address=str(record.get("address", "")),
             matched_on=AlertMatch(record.get("matched_on", AlertMatch.NAME.value)),
             label=str(record.get("label", "")),
             value=str(record.get("value", "")),
@@ -345,7 +363,9 @@ def _resolve_target(
     if label == ALERT_VMID_LABEL:
         found = index.by_vmid(raw)
         if found is not None:
-            return AlertResolution(resolved=_target(found, AlertMatch.VMID, label, raw))
+            return AlertResolution(
+                resolved=_target(found, AlertMatch.VMID, label, raw, index=index)
+            )
         return AlertResolution(
             unresolved=UnresolvedAlertTarget(
                 label=label,
@@ -365,7 +385,7 @@ def _resolve_target(
         found = index.by_address(host)
         if found is not None:
             return AlertResolution(
-                resolved=_target(found, AlertMatch.ADDRESS, label, host, zone=zone)
+                resolved=_target(found, AlertMatch.ADDRESS, label, host, zone=zone, index=index)
             )
         return AlertResolution(
             unresolved=UnresolvedAlertTarget(
@@ -385,12 +405,14 @@ def _resolve_target(
     found = index.by_domain(host)
     if found is not None:
         return AlertResolution(
-            resolved=_target(found, AlertMatch.DOMAIN, label, host, zone=_zone_of(found))
+            resolved=_target(
+                found, AlertMatch.DOMAIN, label, host, zone=_zone_of(found), index=index
+            )
         )
     found = index.by_name(host)
     if found is not None:
         return AlertResolution(
-            resolved=_target(found, AlertMatch.NAME, label, host, zone=_zone_of(found))
+            resolved=_target(found, AlertMatch.NAME, label, host, zone=_zone_of(found), index=index)
         )
     return AlertResolution(
         unresolved=UnresolvedAlertTarget(
@@ -412,6 +434,7 @@ def _target(
     value: str,
     *,
     zone: str = "",
+    index: _EstateIndex | None = None,
 ) -> ResolvedTarget:
     """Return the resolved target ``resource`` is, with its zone filled in."""
     return ResolvedTarget(
@@ -419,11 +442,28 @@ def _target(
         kind=resource.kind,
         display_name=resource.display_name or resource.native_id,
         source=resource.source,
+        native_id=resource.native_id,
+        parent_name=_parent_name(resource, index),
+        address=str(resource.attributes.get(ADDRESS_ATTRIBUTE, "") or ""),
         matched_on=matched_on,
         label=label,
         value=value,
         zone=zone or _zone_of(resource),
     )
+
+
+def _parent_name(resource: Resource, index: _EstateIndex | None) -> str:
+    """Return the name of the resource ``resource`` sits in, or the empty string.
+
+    The node a guest runs on. A vendor call about one guest wants both halves —
+    ``node`` and ``vmid`` — and only one of them is on the guest's own record.
+    """
+    if index is None or not resource.parent_id:
+        return ""
+    parent = index.by_resource_id.get(resource.parent_id)
+    if parent is None:
+        return ""
+    return parent.display_name or parent.native_id
 
 
 def _zone_of(resource: Resource) -> str:
@@ -474,6 +514,8 @@ class _EstateIndex:
     by_address_value: Mapping[str, Resource]
     by_domain_value: Mapping[str, Resource]
     by_name_value: Mapping[str, Resource]
+    #: Every resource by its own identifier, for the parent lookup a guest needs.
+    by_resource_id: Mapping[str, Resource]
     #: Address to zone, for the resources that report both. What an unmatched
     #: address is placed by when no zone map is declared.
     placed: tuple[tuple[IPv4Address, str], ...]
@@ -491,9 +533,11 @@ class _EstateIndex:
         addresses: dict[str, Resource] = {}
         domains: dict[str, Resource] = {}
         names: dict[str, Resource] = {}
+        held: dict[str, Resource] = {}
         placed: list[tuple[IPv4Address, str]] = []
 
         for resource in resources:
+            held.setdefault(resource.resource_id, resource)
             attributes = dict(resource.attributes)
             vmid = str(attributes.get(VMID_ATTRIBUTE, "") or "")
             if vmid:
@@ -517,6 +561,7 @@ class _EstateIndex:
             by_address_value=addresses,
             by_domain_value=domains,
             by_name_value=names,
+            by_resource_id=held,
             placed=tuple(placed),
         )
 
