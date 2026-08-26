@@ -13,10 +13,12 @@ drifting, and the message has to say which one it is.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import pytest
 
+from config.constants.estate import ESTATE_DISCOVERY_JOB_KIND
 from config.constants.knowledge import (
     CORPUS_SYNC_JOB_KIND,
     KNOWLEDGE_SYNC_JOB_KIND,
@@ -24,8 +26,18 @@ from config.constants.knowledge import (
 )
 from gateway.http.scheduled_work import dispatcher_for
 from gateway.http.state import GatewayState
+from platform.estate.discovery.port import (
+    DiscoveredResource,
+    DiscoveryDeclaration,
+    DiscoveryMode,
+    DiscoveryPage,
+    SweepBudget,
+)
 from platform.estate.discovery.runner import TopologyDiscoveryRunner
+from platform.estate.identity import derive_resource_id
+from platform.estate.kinds import KIND_NODE, KIND_VIRTUAL_MACHINE
 from platform.knowledge.base.sync.runner import UnknownSource
+from platform.knowledge.topology.queries import TopologyQueries
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import JobClaim, ScheduledJob, TenantScope
 from platform.scheduler.dispatch import JobContext
@@ -34,6 +46,7 @@ pytestmark = pytest.mark.unit
 
 ORG = "acme"
 EPOCH = datetime(2026, 3, 2, 2, 0, tzinfo=UTC)
+DISCOVERY_SOURCE = "proxmox"
 
 
 def context(kind: str, *, source: str = "wiki") -> JobContext:
@@ -116,3 +129,87 @@ async def test_an_unconfigured_sync_source_is_a_lookup_failure_not_a_quiet_succe
             await runner.run(context(KNOWLEDGE_SYNC_JOB_KIND, source="confluence"))
     finally:
         await store.close()
+
+
+# --- The other half: what the sweep leaves in the graph ------------------------
+
+
+@dataclass
+class OneNodeAndItsGuest:
+    """A source reporting a hypervisor and one virtual machine on it, once.
+
+    Real enough to be swept: the reconciliation derives both identities and the
+    parentage from what is reported here, and the graph is written from what was
+    stored rather than from this page.
+    """
+
+    calls: list[DiscoveryMode] = field(default_factory=list)
+
+    @property
+    def declaration(self) -> DiscoveryDeclaration:
+        """Return what this source says about itself."""
+        return DiscoveryDeclaration(
+            integration=DISCOVERY_SOURCE, kinds=(KIND_NODE, KIND_VIRTUAL_MACHINE)
+        )
+
+    async def discover(
+        self,
+        *,
+        mode: DiscoveryMode,
+        cursor: str = "",
+        budget: SweepBudget,
+    ) -> DiscoveryPage:
+        """Return the whole inventory in one complete page."""
+        self.calls.append(mode)
+        return DiscoveryPage(
+            resources=(
+                DiscoveredResource(
+                    kind=KIND_NODE,
+                    native_id="node/pve1",
+                    display_name="pve1",
+                    provider_status="online",
+                    observed_at=EPOCH,
+                ),
+                DiscoveredResource(
+                    kind=KIND_VIRTUAL_MACHINE,
+                    native_id="vm/101",
+                    display_name="checkout",
+                    parent_native_id="node/pve1",
+                    provider_status="running",
+                    observed_at=EPOCH,
+                ),
+            ),
+            complete=True,
+        )
+
+
+async def test_a_swept_resource_reaches_the_graph_the_topology_read_traverses() -> None:
+    """The two halves meet: the scheduler's sweep writes what the capability reads.
+
+    A bound topology source over a graph nothing populates answers "no
+    dependents" for every service in the estate, which is the sentence the
+    capability exists to avoid producing. This is the path from the serving
+    composition root that stops that being true — dispatched by kind, exactly as
+    a claimed job arrives.
+    """
+    store = FakePersistence()
+    reader = OneNodeAndItsGuest()
+    host = derive_resource_id(source=DISCOVERY_SOURCE, native_id="node/pve1")
+    guest = derive_resource_id(source=DISCOVERY_SOURCE, native_id="vm/101")
+    try:
+        async with store.begin_system() as system:
+            await system.orgs.create_organisation(ORG, "Acme")
+
+        dispatcher = dispatcher_for(state_over(store, discovery_sources={DISCOVERY_SOURCE: reader}))
+        result = await dispatcher.dispatch(
+            context(ESTATE_DISCOVERY_JOB_KIND, source=DISCOVERY_SOURCE)
+        )
+
+        answer = await TopologyQueries(gateway=store, scope=TenantScope(org_id=ORG)).query(host)
+    finally:
+        await store.close()
+
+    assert result.ran, result.failure
+    assert result.record["discovered"] == 2
+    assert answer.searched
+    assert answer.dependents.names() == (guest,)
