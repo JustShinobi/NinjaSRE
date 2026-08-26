@@ -750,6 +750,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'A regra ativa pede aprovação para ações em {threshold} e acima.',
   'approvals.empty.rule.default': 'Esse é o padrão do deployment.',
   'approvals.empty.rule.setAt': 'Está definido em {node}.',
+  'approvals.expired.note':
+    'O prazo para responder a esta ação terminou, e o deployment recusa uma decisão tomada depois dele. O estado sobre o qual ela foi proposta foi lido antes disso e ninguém olhou desde então — peça a ação de novo para decidir sobre uma leitura atual.',
   'proposal.title': 'Ação proposta — aguardando a sua decisão',
   'proposal.risk': 'Risco {level} de 5',
   'proposal.target': 'Alvo',
