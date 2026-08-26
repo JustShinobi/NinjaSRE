@@ -83,7 +83,14 @@ export interface RunCardCall {
 export function turnsFrom(replay: unknown): readonly RunCardTurn[] {
   return list(replay, 'turns').map((turn) => ({
     index: number(turn, 'index'),
-    rationale: text(turn, 'model_rationale'),
+    // Either rationale, whichever the deployment recorded. A turn carries the
+    // model's own account of what it was doing and, separately, why those
+    // capabilities were the ones offered — and a run that wrote only the
+    // second read as a turn that thought nothing.
+    rationale:
+      text(turn, 'model_rationale') === ''
+        ? text(turn, 'selection_rationale')
+        : text(turn, 'model_rationale'),
     model: text(turn, 'model'),
     calls: list(turn, 'calls').map((call) => ({
       callId: text(call, 'call_id'),
@@ -412,11 +419,16 @@ export function RunCard({
                                 {call.error}
                               </span>
                             )}
-                            <span className="text-meta text-muted tabular-nums shrink-0">
-                              {call.durationMs === 0
-                                ? none
-                                : formatDuration(locale, call.durationMs / 1000)}
-                            </span>
+                            {/* Nothing rather than "not recorded" on every
+                                row. A duration this deployment does not
+                                record is a column of the same three words
+                                down the whole trace, which reads as a fault
+                                and is an absence. */}
+                            {call.durationMs === 0 ? null : (
+                              <span className="text-meta text-muted tabular-nums shrink-0">
+                                {formatDuration(locale, call.durationMs / 1000)}
+                              </span>
+                            )}
                           </li>
                         ))}
                       </ul>

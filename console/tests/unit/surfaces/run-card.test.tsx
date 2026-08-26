@@ -256,8 +256,11 @@ describe('an open card', () => {
       },
     );
 
-    // Twice over: the measurement above the report, and the call in the trace.
-    expect(screen.getAllByText(EN['surface.none']).length).toBeGreaterThan(1);
+    // Twice for the run itself — in its header row and in its own measurement
+    // — and not once in the trace: a call whose duration nobody recorded shows
+    // no duration rather than repeating "not recorded" down the whole list.
+    expect(screen.getAllByText(EN['surface.none'])).toHaveLength(2);
+    expect(screen.getByTestId('run-call')).not.toHaveTextContent(EN['surface.none']);
   });
 
   it('groups the calls under the turn that made them, and names a silent turn', () => {
@@ -291,6 +294,21 @@ describe('reading what the run recorded', () => {
     expect(turns).toHaveLength(2);
     expect(turns[0]?.calls[0]?.name).toBe('proxmox_quorum_status');
     expect(turns[1]?.rationale).toBe('');
+  });
+
+  it('falls back to why the capabilities were offered when the model wrote nothing', () => {
+    const turns = turnsFrom({
+      turns: [
+        {
+          index: 1,
+          model_rationale: '',
+          selection_rationale: 'these three read the cluster',
+          calls: [],
+        },
+      ],
+    });
+
+    expect(turns[0]?.rationale).toBe('these three read the cluster');
   });
 
   it('reads the named evidence off the run, dropping anything that is not a sentence', () => {
