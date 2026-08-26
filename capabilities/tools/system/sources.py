@@ -42,7 +42,10 @@ SOURCE_REQUIREMENTS: dict[str, str] = {
 
 #: How to ask, per capability. Held as callables rather than as values because
 #: a binding set after import — which is every binding, since composition roots
-#: run after the module graph is built — would otherwise be read as absent.
+#: run after the module graph is built — would otherwise be read as absent. Each
+#: one reads a ``ContextVar``, so what this answers is what the asking task can
+#: see: the runner narrows a catalogue inside the same run that bound the source,
+#: and gets that run's answer rather than the process's last one.
 _BOUND: dict[str, Callable[[], object | None]] = {
     RECALL: memory_binding.current,
     TOPOLOGY: topology_binding.current,
@@ -55,10 +58,15 @@ def needs_a_source(name: str) -> bool:
 
 
 def has_a_source(name: str) -> bool:
-    """Return whether ``name``'s source is bound in this process.
+    """Return whether ``name``'s source is bound for the caller's own run.
 
     ``True`` for every capability that needs none, so a caller can ask this of
     anything in the catalogue without first asking whether the question applies.
+
+    Scoped to the asking context rather than to the process, which is what makes
+    the exclusion correct while investigations run side by side: a source one run
+    composed makes the capability offered on that run and not on the one beside
+    it.
     """
     ask = _BOUND.get(name)
     return True if ask is None else ask() is not None

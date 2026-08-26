@@ -11,8 +11,8 @@ alert is about and on what this deployment can carry out — narrowing has to
 happen before the loop is constructed, not after, since the loop's own
 constructor refuses to be built beyond that ceiling.
 
-Three things are built per investigation and never per process, and the reason
-is the same for all three: they carry the identity of one run.
+Four things are built per investigation and never per process, and the reason
+is the same for all four: they carry the identity of one run.
 
 **The remediation gate**, when this deployment composed a desk. Its run context
 names who asked and for which team, so a gate shared between runs would propose
@@ -21,6 +21,14 @@ changes attributed to whoever happened to build it.
 **The question desk**, so a person answering on one incident cannot close the
 question another incident raised. That is the failure a process-wide binding
 produces and the one nobody would notice.
+
+**The read sources** recall and topology answer from, when this deployment
+supplied factories to build them with. Each is scoped to one team, and the
+capability that reads it has no constructor to be handed one — it reads a
+binding. Bound around the run rather than at boot, and put back afterwards
+however the run ended: three investigations started inside 82 milliseconds here,
+and a source left over from one of them is the next one searching another team's
+incidents.
 
 **The tool selection**, narrowed twice — by the integrations the team has
 connected and by whether this deployment could carry a write out at all — and
@@ -36,8 +44,9 @@ memory for the run's identity.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping, Sequence
+from contextlib import ExitStack, asynccontextmanager, contextmanager
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from capabilities.registry.catalogue import Registry, ResolvedCatalogue
@@ -45,7 +54,11 @@ from capabilities.registry.disclosure import DiscoveredSkill
 from capabilities.registry.planning import TeamCatalogueResolver
 from capabilities.registry.scoring import Incident
 from capabilities.registry.selection import select
+from capabilities.tools.system.memory_search import binding as recall_binding
+from capabilities.tools.system.memory_search.binding import RecallSource
 from capabilities.tools.system.sources import has_a_source, unmet_source
+from capabilities.tools.system.topology_query import binding as topology_binding
+from capabilities.tools.system.topology_query.binding import TopologySource
 from config.constants.estate import (
     ALERT_DOMAIN_LABEL,
     ALERT_RANKING_TAG_LABELS,
@@ -143,6 +156,49 @@ class _RecordingComposition:
     broker: RunEventBroker
 
 
+#: How a deployment builds one investigation's recall path. Handed the request
+#: because the source is scoped to a team and the team is named on it, and
+#: awaited because building one can mean resolving that team's memory policy
+#: first.
+RecallSourceFactory = Callable[[InvestigationStart], Awaitable[RecallSource | None]]
+
+#: The same, for the graph a topology question traverses.
+TopologySourceFactory = Callable[[InvestigationStart], Awaitable[TopologySource | None]]
+
+
+@dataclass(frozen=True, slots=True)
+class _SourceComposition:
+    """The factories this deployment supplied for the reads that need a source.
+
+    Either may be absent, and absent means *leave that binding untouched* rather
+    than bind nothing. A deployment that binds a source at boot, and a test that
+    binds one around a call, both keep behaving exactly as they did — the seam
+    adds a way to scope a source to a run and takes nothing away.
+    """
+
+    recall: RecallSourceFactory | None = None
+    topology: TopologySourceFactory | None = None
+
+
+@contextmanager
+def _bound[Source](
+    bind: Callable[[Source | None], Source | None],
+    restore: Callable[[Source | None], None],
+    source: Source | None,
+) -> Iterator[Source | None]:
+    """Bind ``source`` for the body and put back whatever it displaced.
+
+    The ``finally`` is the point: a run that raised is the one whose leftover
+    binding does the damage, because the next investigation in this process
+    would search with it.
+    """
+    previous = bind(source)
+    try:
+        yield source
+    finally:
+        restore(previous)
+
+
 async def team_availability(
     gateway: PersistenceGateway, *, org_id: str, team_node_id: str
 ) -> IntegrationAvailability:
@@ -183,6 +239,7 @@ class ReActInvestigationRunner:
     _live: dict[str, _LiveRun] = field(default_factory=dict)
     _recording: _RecordingComposition | None = field(default=None, repr=False)
     _remediation: Any = field(default=None, repr=False)
+    _sources: _SourceComposition = field(default_factory=_SourceComposition, repr=False)
 
     def attach_recording(
         self, *, gateway: PersistenceGateway, guardrails: GuardrailEngine, broker: RunEventBroker
@@ -205,6 +262,34 @@ class ReActInvestigationRunner:
         replaced is a desk the loop never sees.
         """
         self._remediation = desk
+
+    def attach_sources(
+        self,
+        *,
+        recall: RecallSourceFactory | None = None,
+        topology: TopologySourceFactory | None = None,
+    ) -> None:
+        """Give this runner what to build each investigation's read sources with.
+
+        Merged rather than replaced, so recall and topology can be composed by
+        whoever owns each without the second call dropping the first: a factory
+        named here takes the place of the one held for that source, and one left
+        out leaves that source as it was. Passing neither is a no-op.
+
+        A runner nobody called this on binds nothing and behaves exactly as it
+        did — a deployment that binds its sources at boot keeps working, and a
+        capability whose source is bound that way is still offered.
+
+        Scoped to ``investigate`` and to nothing else. A run handed back by
+        ``resume`` is driven outside that scope and reads whatever its own
+        context holds, which is the same gap resume already has for the trace it
+        does not write.
+        """
+        self._sources = replace(
+            self._sources,
+            recall=recall if recall is not None else self._sources.recall,
+            topology=topology if topology is not None else self._sources.topology,
+        )
 
     @property
     def can_record(self) -> bool:
@@ -231,21 +316,26 @@ class ReActInvestigationRunner:
         called, with the answer that names what to connect. Spending the run's
         only model call on its cheapest sentence would be spending it on
         nothing.
+
+        This run's read sources are bound before the catalogue is narrowed and
+        stay bound until it ends, because the narrowing asks whether each one is
+        bound and would otherwise exclude a capability this run can serve.
         """
-        queue = MessageQueue(run_id=request.run_id)
-        handoff = self._handoff_for(request)
-        selection = await self._select_tools(request, handoff=handoff)
+        async with self._sources_bound_for(request):
+            queue = MessageQueue(run_id=request.run_id)
+            handoff = self._handoff_for(request)
+            selection = await self._select_tools(request, handoff=handoff)
 
-        if selection.outcome is not None:
-            return _outcome_summary(selection.outcome)
+            if selection.outcome is not None:
+                return _outcome_summary(selection.outcome)
 
-        loop = self._build_runtime(
-            request, messages=queue, tools=selection.tools, rationale=selection.rationale
-        )
-        live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
-        self._live[request.run_id] = live
+            loop = self._build_runtime(
+                request, messages=queue, tools=selection.tools, rationale=selection.rationale
+            )
+            live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
+            self._live[request.run_id] = live
 
-        result = await loop.run(self._request_of(request, skills=selection.skills))
+            result = await loop.run(self._request_of(request, skills=selection.skills))
 
         if result.status is RunStatus.FAILED:
             raise InvestigationDidNotComplete(
@@ -254,6 +344,40 @@ class ReActInvestigationRunner:
         if result.degraded:
             return _degraded_summary(result.answer)
         return result.answer or f"investigation ended {result.status.value}"
+
+    @asynccontextmanager
+    async def _sources_bound_for(self, request: InvestigationStart) -> AsyncIterator[None]:
+        """Bind this run's read sources for the body, and put back what they displaced.
+
+        One scope rather than a binding per capability body, because the
+        narrowing that decides whether a capability is offered at all reads the
+        same bindings the capability does — they have to be set before the
+        catalogue is built and still set when the model calls the tool.
+
+        A source this deployment supplied no factory for is left exactly as it
+        is, unbound or bound at boot. Building nothing is different from binding
+        nothing, and only the second is a behaviour change for a caller that
+        asked for none.
+        """
+        composed = self._sources
+        with ExitStack() as scope:
+            if composed.recall is not None:
+                scope.enter_context(
+                    _bound(
+                        recall_binding.bind,
+                        recall_binding.restore,
+                        await composed.recall(request),
+                    )
+                )
+            if composed.topology is not None:
+                scope.enter_context(
+                    _bound(
+                        topology_binding.bind,
+                        topology_binding.restore,
+                        await composed.topology(request),
+                    )
+                )
+            yield
 
     async def cancel(self, run_id: str) -> None:
         """Ask ``run_id`` to stop at its next safe point.

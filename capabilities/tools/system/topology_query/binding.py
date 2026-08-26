@@ -2,9 +2,20 @@
 
 The same arrangement the recall capability uses, and for the same reason: a
 capability is a plain function that discovery finds by walking a package, so
-there is no constructor to pass a tenant scope to. The composition root binds the
-query path for the process, the tool reads it, and an unbound tool returns an
-explicit unavailability rather than pretending.
+there is no constructor to pass a tenant scope to. A composition root binds the
+query path, the tool reads it, and an unbound tool returns an explicit
+unavailability rather than pretending.
+
+The binding lives in a ``ContextVar``, so it belongs to one investigation rather
+than to the process. An investigation is an asyncio task and a task starts with
+a copy of its parent's context: what a run binds is visible to everything that
+run awaits and to no other run. A module-level global would instead be one cell
+shared by every task here, and this deployment starts investigations
+concurrently — so the second run to bind would become the graph the first one
+traverses, on the other organisation's scope.
+
+``bind`` returns what it displaced and ``restore`` puts it back, so a run
+sharing its task with anything else leaves the context as it found it.
 
 What is deliberately *not* here is a fallback. An unbound tool does not quietly
 construct a query path from ambient configuration: a tool that invented its own
@@ -15,6 +26,7 @@ topology.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextvars import ContextVar
 from typing import Protocol, runtime_checkable
 
 from platform.knowledge.topology.queries import ServiceTopology
@@ -33,21 +45,29 @@ class TopologySource(Protocol):
         """Return what the graph knows about ``service``, or why it does not."""
 
 
-_BOUND: TopologySource | None = None
+#: This context's topology path. ``None`` by default in every context that has
+#: not bound one, so a deployment that composed no graph reads an honest absence
+#: rather than whatever the last run to finish left behind.
+_BOUND: ContextVar[TopologySource | None] = ContextVar(
+    "capabilities.tools.system.topology_query.source", default=None
+)
 
 
 def bind(source: TopologySource | None) -> TopologySource | None:
-    """Bind ``source`` as the process's topology path and return what it replaced."""
-    global _BOUND
-    previous = _BOUND
-    _BOUND = source
+    """Bind ``source`` as this context's topology path and return what it replaced.
+
+    Visible to this asyncio task and to every task it spawns, and to nothing
+    else. The return value is what a caller scoping a binding around one run
+    hands back to ``restore`` when that run ends.
+    """
+    previous = _BOUND.get()
+    _BOUND.set(source)
     return previous
 
 
 def restore(previous: TopologySource | None) -> None:
-    """Put back a binding ``bind`` replaced."""
-    global _BOUND
-    _BOUND = previous
+    """Put back a binding ``bind`` replaced, in the context that replaced it."""
+    _BOUND.set(previous)
 
 
 def clear() -> None:
@@ -57,12 +77,17 @@ def clear() -> None:
 
 def current() -> TopologySource | None:
     """Return the bound topology path, or ``None`` when none is configured."""
-    return _BOUND
+    return _BOUND.get()
 
 
 def bound_names() -> Sequence[str]:
-    """Return a one-line description of what is bound, for a health report."""
-    return () if _BOUND is None else (type(_BOUND).__name__,)
+    """Return a one-line description of what is bound, for a health report.
+
+    Answers for the context that asks: what a health endpoint's own task can see
+    is what it can honestly report.
+    """
+    source = _BOUND.get()
+    return () if source is None else (type(source).__name__,)
 
 
 __all__ = [
