@@ -273,8 +273,7 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
           rank.sequence !== true
             ? []
             : rank.nodes.slice(0, -1).map((node, position) => {
-                const from =
-                  acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
+                const from = acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
                 const to = acrossFor(position + 1, rank.nodes.length, width);
                 return (
                   <line

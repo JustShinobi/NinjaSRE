@@ -225,7 +225,7 @@ describe('resources: one health vocabulary', () => {
     // unable to be added up against the badges below it.
     const degraded = within(strip)
       .getAllByTestId('count-part')
-      .find((part) => /degraded/i.test(part.textContent ?? ''));
+      .find((part) => /degraded/i.test(part.textContent));
     expect(degraded).toHaveTextContent('2');
     expect(degraded).not.toHaveTextContent('4');
   });
@@ -358,7 +358,12 @@ describe('resources: unexplained jargon gets a tooltip and a way to fix it', () 
    * once, above the table, with the same link the cells were carrying.
    */
   it('drops both columns when nothing in the estate is placed or graded', async () => {
-    serve({ resources: [{ ...ALPHA, attributes: {} }, { ...BRAVO, attributes: {} }] });
+    serve({
+      resources: [
+        { ...ALPHA, attributes: {} },
+        { ...BRAVO, attributes: {} },
+      ],
+    });
     await resources();
 
     expect(screen.queryByRole('columnheader', { name: /zone/i })).toBeNull();

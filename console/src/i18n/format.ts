@@ -183,7 +183,10 @@ export function timestamp(
  * added.
  */
 export function humaniseIdentifier(identifier: string): string {
-  const words = identifier.trim().replaceAll(/[_.\-]+/gu, ' ').trim();
+  const words = identifier
+    .trim()
+    .replaceAll(/[_.\-]+/gu, ' ')
+    .trim();
   if (words === '') return '';
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

@@ -9,6 +9,7 @@ import {
   CheckChip,
   DetectorStateChip,
   PrincipalKindChip,
+  SideEffectChip,
   SpecialistStateChip,
   StatusDot,
   TokenGroupStateChip,
@@ -225,5 +226,29 @@ describe('CapabilityAvailabilityChip', () => {
   it('says an unavailable tool is disabled', () => {
     render(<CapabilityAvailabilityChip locale="en" available={false} />);
     expect(screen.getByText('Disabled')).toBeInTheDocument();
+  });
+});
+
+/**
+ * A side-effect level the catalogue invented still says its own word.
+ *
+ * The five levels are a closed set this console carries sentences for, which is
+ * why they get a translated chip rather than the raw-status badge. A capability
+ * declaring a sixth is a deployment one version ahead, not a fault — so it
+ * falls through to the badge, which is exactly the case that badge exists for.
+ */
+describe('a side-effect level outside the closed set', () => {
+  it('falls through to the badge rather than rendering blank', () => {
+    render(<SideEffectChip locale="en" level="cataclysmic" />);
+
+    expect(screen.getByText(/cataclysmic/i)).toBeInTheDocument();
+  });
+
+  it('carries the sentence as its explanation for a level it knows', () => {
+    render(<SideEffectChip locale="en" level="write_reversible" />);
+
+    const chip = screen.getByTestId('capability-side-effect');
+    expect(chip).toHaveTextContent('Writes, reversible');
+    expect(chip.getAttribute('title')).toMatch(/can be undone/i);
   });
 });

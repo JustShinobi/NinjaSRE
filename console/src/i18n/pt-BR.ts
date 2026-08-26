@@ -613,8 +613,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.band.silent': 'Guardião silencioso',
   'dashboard.band.meta':
     '{posture} · {live} de {total} detectores vivos · {watched} recursos observados',
-  'dashboard.band.meta.noDetectors': '{posture} · nenhum detector configurado · {watched} recursos observados',
-  'dashboard.stat.degraded.context.noDetectors': '{count} achados abertos por trás deles, e nenhum detector ligado para transformar algum em incidente',
+  'dashboard.band.meta.noDetectors':
+    '{posture} · nenhum detector configurado · {watched} recursos observados',
+  'dashboard.stat.degraded.context.noDetectors':
+    '{count} achados abertos por trás deles, e nenhum detector ligado para transformar algum em incidente',
   'dashboard.band.flight': 'Investigações em curso',
   'dashboard.band.blocked': 'Travado em você',
   'dashboard.band.detectors': 'Detectores vivos',
@@ -829,7 +831,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.sorted': 'Pior primeiro',
   'resources.sorted.hint':
     'A ordem padrão — clique no cabeçalho de uma coluna abaixo para ordenar de outro jeito.',
-  'resources.none.placedOrGraded': 'Nada neste ambiente foi colocado em uma zona nem teve criticidade definida ainda.',
+  'resources.none.placedOrGraded':
+    'Nada neste ambiente foi colocado em uma zona nem teve criticidade definida ainda.',
   'resources.none.placed': 'Nada neste ambiente foi colocado em uma zona ainda.',
   'resources.none.graded': 'Nada neste ambiente teve criticidade definida ainda.',
   'resources.none.action': 'Declarar',
@@ -1674,7 +1677,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.advanced.field.promptDiagnose': 'Substituição do prompt de diagnóstico',
   'agent.advanced.field.operatingContextEnabled': 'Enviar contexto operacional',
   'agent.advanced.field.maxSubagentIterations': 'Máximo de iterações do especialista',
-  'agent.document.untouched': 'Nada foi sobrescrito para este nó: ele roda o pipeline como ele veio. O documento abaixo diz isso nas palavras da própria instalação.',
+  'agent.document.untouched':
+    'Nada foi sobrescrito para este nó: ele roda o pipeline como ele veio. O documento abaixo diz isso nas palavras da própria instalação.',
   'agent.document.title': 'A mesma topologia, como documento',
   'agent.empty.heading': 'Não foi possível descrever o pipeline',
   'agent.empty.body':
@@ -1773,8 +1777,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.simulate.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'data.simulate.malformed': 'Isso n\u00e3o \u00e9 JSON v\u00e1lido.',
   'data.delivery.title': 'Para onde vai o resultado',
-  'settings.schedulesDestinations.advanced.transit.title': 'Regras de roteamento e destinos de entrega',
-  'settings.schedulesDestinations.advanced.surfaces.title': 'Canais de chat, destinatários de relatório e alvos de notificação',
+  'settings.schedulesDestinations.advanced.transit.title':
+    'Regras de roteamento e destinos de entrega',
+  'settings.schedulesDestinations.advanced.surfaces.title':
+    'Canais de chat, destinatários de relatório e alvos de notificação',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Regras de roteamento',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Destinos de entrega',

@@ -150,7 +150,11 @@ export function CountStrip({
         <span className="text-meta text-muted">{total.label}</span>
       </div>
       {parts.map((part) => (
-        <div key={part.label} data-testid="count-part" className="flex flex-col items-end">
+        <div
+          key={part.label}
+          data-testid="count-part"
+          className="flex flex-col items-end"
+        >
           <span
             className={cx(
               'text-section',

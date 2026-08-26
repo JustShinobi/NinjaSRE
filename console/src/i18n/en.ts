@@ -227,11 +227,13 @@ export const EN = {
   'data.simulate.unreachable': 'The deployment could not be reached.',
   'data.simulate.malformed': 'That is not valid JSON.',
   'data.delivery.title': 'Where the result goes',
-  'settings.schedulesDestinations.advanced.transit.title': 'Routing rules and delivery destinations',
+  'settings.schedulesDestinations.advanced.transit.title':
+    'Routing rules and delivery destinations',
   // No noun in this title may repeat one from `advanced.transit.title` above
   // — the chain on Alert intake promises "destination" and has to land on
   // the one section that owns it, unambiguously.
-  'settings.schedulesDestinations.advanced.surfaces.title': 'Chat channels, report recipients and notification sinks',
+  'settings.schedulesDestinations.advanced.surfaces.title':
+    'Chat channels, report recipients and notification sinks',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Routing rules',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Delivery destinations',
@@ -794,8 +796,10 @@ export const EN = {
   'dashboard.band.silent': 'Guardian silent',
   'dashboard.band.meta':
     '{posture} · {live} of {total} detectors live · {watched} resources watched',
-  'dashboard.band.meta.noDetectors': '{posture} · no detector configured · {watched} resources watched',
-  'dashboard.stat.degraded.context.noDetectors': '{count} open findings behind them, and no detector is switched on to raise one into an incident',
+  'dashboard.band.meta.noDetectors':
+    '{posture} · no detector configured · {watched} resources watched',
+  'dashboard.stat.degraded.context.noDetectors':
+    '{count} open findings behind them, and no detector is switched on to raise one into an incident',
   'dashboard.band.flight': 'Runs in flight',
   'dashboard.band.blocked': 'Blocked on you',
   'dashboard.band.detectors': 'Detectors live',
@@ -1034,9 +1038,11 @@ export const EN = {
   // unhealthy — which had none anywhere on the screen while `problems` folded
   // it into degraded. A header that cannot be added up against the table under
   // it is a header nobody trusts twice.
-  'resources.none.placedOrGraded': 'Nothing in this estate has been placed in a zone or graded for criticality yet.',
+  'resources.none.placedOrGraded':
+    'Nothing in this estate has been placed in a zone or graded for criticality yet.',
   'resources.none.placed': 'Nothing in this estate has been placed in a zone yet.',
-  'resources.none.graded': 'Nothing in this estate has been graded for criticality yet.',
+  'resources.none.graded':
+    'Nothing in this estate has been graded for criticality yet.',
   'resources.none.action': 'Declare them',
   'resources.summary.watched': 'watched',
   'resources.summary.unaccounted': 'unaccounted for',
@@ -1961,7 +1967,8 @@ export const EN = {
   'agent.advanced.field.promptDiagnose': 'Diagnose prompt override',
   'agent.advanced.field.operatingContextEnabled': 'Send operating context',
   'agent.advanced.field.maxSubagentIterations': 'Max specialist iterations',
-  'agent.document.untouched': 'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
+  'agent.document.untouched':
+    'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
   'agent.document.title': 'The same topology, as the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':

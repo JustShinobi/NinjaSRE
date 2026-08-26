@@ -39,9 +39,7 @@ function group(overrides: Partial<IncidentGroup> = {}): IncidentGroup {
 }
 
 function list(groups: readonly IncidentGroup[]): void {
-  render(
-    <IncidentGroupList groups={groups} locale="en" now={NOW} zone="UTC" />,
-  );
+  render(<IncidentGroupList groups={groups} locale="en" now={NOW} zone="UTC" />);
 }
 
 describe('severity yields to state once a cause is over', () => {
@@ -74,10 +72,7 @@ describe('the subject line carries something a person can read', () => {
     expect(subjects).not.toHaveTextContent('1194c1ed14dd87f7e0e80b81');
     // Shortened for reading, never lost: the full key is what somebody pastes
     // into a query.
-    expect(subjects).toHaveAttribute(
-      'title',
-      'res-7a73b8aa1194c1ed14dd87f7e0e80b81',
-    );
+    expect(subjects).toHaveAttribute('title', 'res-7a73b8aa1194c1ed14dd87f7e0e80b81');
   });
 
   it('leaves a subject that is already a name exactly as it is', () => {

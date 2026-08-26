@@ -201,10 +201,35 @@ describe('the header count strip', () => {
     );
     // Not hidden and not silently corrected: a strip that does not add up is a
     // read that lost eight rows, and that is the interesting fact on the page.
-    expect(screen.getByTestId('count-strip')).toHaveAttribute(
-      'data-balanced',
-      'false',
+    expect(screen.getByTestId('count-strip')).toHaveAttribute('data-balanced', 'false');
+  });
+
+  it('leaves a part with no role in the body colour', () => {
+    render(
+      <CountStrip
+        total={{ label: 'watched', value: 3 }}
+        parts={[{ label: 'kinds', value: 3 }]}
+      />,
     );
+    // Neither good nor bad: a count of kinds is a fact, and colouring it would
+    // be this component deciding something the screen did not.
+    const part = screen.getByTestId('count-part');
+    expect(part.className).not.toContain('text-success');
+    expect(part.className).not.toContain('text-danger');
+  });
+
+  it('says nothing about a shortfall it has no word for', () => {
+    render(
+      <CountStrip
+        total={{ label: 'watched', value: 97 }}
+        parts={[{ label: 'healthy', value: 76, role: 'success' }]}
+      />,
+    );
+    // Still marked unbalanced — the fact is on the element for the suite and
+    // for anything reading the DOM — but not rendered as a nameless number a
+    // reader would have to guess the meaning of.
+    expect(screen.getByTestId('count-strip')).toHaveAttribute('data-balanced', 'false');
+    expect(screen.queryByTestId('count-shortfall')).toBeNull();
   });
 
   it('balances when they do', () => {
@@ -218,9 +243,6 @@ describe('the header count strip', () => {
         ]}
       />,
     );
-    expect(screen.getByTestId('count-strip')).toHaveAttribute(
-      'data-balanced',
-      'true',
-    );
+    expect(screen.getByTestId('count-strip')).toHaveAttribute('data-balanced', 'true');
   });
 });

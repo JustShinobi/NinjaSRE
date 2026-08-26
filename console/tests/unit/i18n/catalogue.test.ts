@@ -111,7 +111,8 @@ describe('the message catalogue', () => {
  * British spelling, because nine of the ten uses already were.
  */
 describe('the catalogue spells one English', () => {
-  const AMERICAN = /\b\w*(?:organiz|customiz|recogniz|authoriz|summariz|normaliz|synchroniz|serializ|analyz|behavior)\w*/i;
+  const AMERICAN =
+    /\b\w*(?:organiz|customiz|recogniz|authoriz|summariz|normaliz|synchroniz|serializ|analyz|behavior)\w*/i;
 
   /**
    * Prose only. A protocol's own field name is not a spelling choice this
@@ -129,7 +130,7 @@ describe('the catalogue spells one English', () => {
   it('carries no American spelling of a word it also writes in British', () => {
     const offenders = Object.entries(EN)
       .filter(([, value]) => typeof value === 'string' && AMERICAN.test(prose(value)))
-      .map(([key, value]) => `${key}: ${String(value)}`);
+      .map(([key, value]) => `${key}: ${value as string}`);
     expect(offenders).toEqual([]);
   });
 });

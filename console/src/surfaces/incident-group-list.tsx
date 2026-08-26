@@ -32,7 +32,6 @@ export interface IncidentGroupListProps {
   readonly zone: string;
 }
 
-
 /** How much of an opaque identifier is enough to recognise it by. */
 const IDENTIFIER_HEAD = 8;
 
@@ -47,9 +46,7 @@ const IDENTIFIER_HEAD = 8;
  */
 function isOpaque(subject: string): boolean {
   const tail = subject.slice(subject.indexOf('-') + 1);
-  return (
-    subject.includes('-') && tail.length >= 24 && /^[0-9a-f]+$/u.test(tail)
-  );
+  return subject.includes('-') && tail.length >= 24 && /^[0-9a-f]+$/u.test(tail);
 }
 
 /** `subject`, shortened when it is a key and untouched when it is a name. */

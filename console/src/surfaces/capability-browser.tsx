@@ -183,10 +183,10 @@ export function CapabilityBrowser({
                     meanwhile breaking names across two lines. */}
                 {[labels.columnName, labels.columnEffect, labels.columnEnabled].map(
                   (header) => (
-                  <th
-                    key={header}
-                    scope="col"
-                    className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                    <th
+                      key={header}
+                      scope="col"
+                      className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
                     >
                       {header}
                     </th>

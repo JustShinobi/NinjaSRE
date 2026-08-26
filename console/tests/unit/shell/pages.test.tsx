@@ -131,6 +131,63 @@ describe('the breadcrumb the header carries', () => {
   });
 });
 
+/**
+ * The header's fourth slot: what state the page is in, as counts.
+ *
+ * Separate from the actions slot because they are different things wearing the
+ * same corner — an action is something to press, a count is something to read —
+ * and a screen that put its statistics through the actions slot got them styled
+ * as a control and sized like a caption. Resources did exactly that.
+ */
+describe('the counts a header carries', () => {
+  it('renders them where a screen supplies them', async () => {
+    const { AreaHeader } = await import('@/shell/area');
+    render(
+      <AreaHeader
+        area={areaFor('resources')}
+        locale="en"
+        meta={<span data-testid="counts">97 watched</span>}
+      />,
+    );
+
+    expect(screen.getByTestId('counts')).toHaveTextContent('97 watched');
+  });
+
+  it('renders nothing there for a screen with no counts to give', async () => {
+    const { AreaHeader } = await import('@/shell/area');
+    render(<AreaHeader area={areaFor('resources')} locale="en" />);
+
+    expect(screen.queryByTestId('counts')).toBeNull();
+  });
+
+  it('offers the same slot on a Settings page', async () => {
+    const { SettingsPageHeader } = await import('@/shell/area');
+    const { settingsPageFor } = await import('@/shell/routes');
+    render(
+      <SettingsPageHeader
+        page={settingsPageFor('settings-members-roles')}
+        locale="en"
+        meta={<span data-testid="counts">4 people</span>}
+      />,
+    );
+
+    expect(screen.getByTestId('counts')).toHaveTextContent('4 people');
+  });
+
+  it('leaves it out on a Settings page that has none', async () => {
+    const { SettingsPageHeader } = await import('@/shell/area');
+    const { settingsPageFor } = await import('@/shell/routes');
+    render(
+      <SettingsPageHeader
+        page={settingsPageFor('settings-members-roles')}
+        locale="en"
+      />,
+    );
+
+    expect(screen.queryByTestId('counts')).toBeNull();
+  });
+});
+
 describe('what the server reads off one request', () => {
   it('prefers the stored language over what the browser asked for', async () => {
     cookieJar.set(LOCALE_COOKIE, 'pt-BR');

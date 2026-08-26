@@ -55,13 +55,19 @@ export interface RiskLadderProps {
   readonly className?: string;
 }
 
-export function RiskLadder({ riskClass, label, className }: RiskLadderProps): ReactNode {
-  const rank = (RISK_CLASSES as readonly string[]).indexOf(riskClass);
-  const known = rank !== -1;
-  const role = known ? RISK_ROLE[RISK_CLASSES[rank] as RiskClass] : 'neutral';
+export function RiskLadder({
+  riskClass,
+  label,
+  className,
+}: RiskLadderProps): ReactNode {
+  // Found rather than indexed, so the class carries its own type the whole way
+  // down and neither a cast nor an assertion is needed to read its role.
+  const placed = RISK_CLASSES.find((step) => step === riskClass);
+  const rank = placed === undefined ? -1 : RISK_CLASSES.indexOf(placed);
+  const role: SemanticRole = placed === undefined ? 'neutral' : RISK_ROLE[placed];
   return (
     <span className={cx('flex items-center gap-3', className)}>
-      {known ? (
+      {placed === undefined ? null : (
         <span
           data-testid="risk-ladder"
           role="img"
@@ -84,7 +90,7 @@ export function RiskLadder({ riskClass, label, className }: RiskLadderProps): Re
             />
           ))}
         </span>
-      ) : null}
+      )}
       <span data-testid="risk-class" className="text-strong">
         {label}
       </span>

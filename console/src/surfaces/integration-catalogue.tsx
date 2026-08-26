@@ -202,7 +202,11 @@ export function IntegrationCatalogue({
                         {item.healthDetail}
                       </span>
                     )}
-                    <StatusChip locale={locale} status={item.health} className="ml-auto" />
+                    <StatusChip
+                      locale={locale}
+                      status={item.health}
+                      className="ml-auto"
+                    />
                     {/* The same control shape as Connect below it. Both take
                         a reader to the same panel to do the same kind of thing;
                         one of them was an underlined word and the other a
