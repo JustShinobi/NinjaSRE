@@ -36,6 +36,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any
 
+from config.constants.closed_loop import MAX_EFFECTIVENESS_PAGE_SIZE
 from gateway.http.state import GatewayState
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.observability.logging import get_logger
@@ -127,17 +128,33 @@ class VerificationSweepJobRunner:
         Only rows that are still owed and still unbound are touched, so this
         costs one query per sweep on a deployment that has caught up.
         """
+        bound = 0
         for row in await _open_obligations(uow, now=now):
             incident = await uow.incidents.find_by_run(row.run_id)
             if incident is None:
                 continue
             await uow.remediation.record(replace(row, incident_id=incident.incident_id))
+            bound += 1
+        if bound:
+            logger.info("remediation.obligations_bound_to_incidents", bound=bound)
 
 
 async def _open_obligations(uow: UnitOfWork, *, now: datetime) -> tuple[RemediationOutcome, ...]:
-    """Return the obligations due at ``now`` that carry no incident yet."""
+    """Return the obligations due at ``now`` that carry no incident yet.
+
+    Bounded at the ledger's own page ceiling rather than at the claim batch. The
+    two are ordered differently — this reads most-recently-executed first and a
+    claim takes the longest-overdue — so matching the batch size would bind the
+    newest twenty-five while settling the oldest twenty-five, which is a join
+    that silently covers the wrong rows. A backlog deeper than one page binds
+    over successive sweeps, thirty seconds apart.
+    """
     rows = await uow.remediation.history(
-        EffectivenessQuery(states=(VerificationState.AWAITING,), until=now)
+        EffectivenessQuery(
+            states=(VerificationState.AWAITING,),
+            until=now,
+            limit=MAX_EFFECTIVENESS_PAGE_SIZE,
+        )
     )
     return tuple(row for row in rows if row.run_id and not row.incident_id)
 
