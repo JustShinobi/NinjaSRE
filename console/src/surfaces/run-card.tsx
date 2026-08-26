@@ -1,14 +1,14 @@
-import NextLink from 'next/link';
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
 import { Badge } from '@/components/status';
-import { ChevronDownIcon, ChevronRightIcon, ListIcon } from '@/design/icons';
+import { ListIcon } from '@/design/icons';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { CopyReport } from './copy-report';
 import { EvidenceChip, type RunEvidence } from './run-evidence';
 import { Report } from './report';
+import { RunCardToggle } from './run-card-toggle';
 import { field, list, number, text } from './read';
 import { triggerLabel } from './run-trigger';
 
@@ -208,18 +208,14 @@ export function RunCard({
           sidebar and every other panel on the page to open one card, which is
           the gesture somebody repeats most on this screen.
 
-          `scroll={false}` because the card being opened is the one under the
-          pointer, and the router's default would answer the click by throwing
-          the reader back to the top of the list. `prefetch={false}` because
-          opening a card costs the deployment three reads on the server, and
-          prefetching every card in the viewport would spend them on the eight
-          nobody asked for. */}
-      <NextLink
+          The control itself is a client component: a transition has no progress
+          bar of its own and does not swallow a second press, and both of those
+          have to be answered where the pending state can be read. See
+          `run-card-toggle.tsx`. */}
+      <RunCardToggle
         href={toggleHref}
-        scroll={false}
-        prefetch={false}
-        aria-expanded={open}
-        data-testid="run-card-toggle"
+        open={open}
+        label={message(locale, 'runs.row.opening')}
         className="flex items-center gap-4 p-4 motion-hover hover:bg-hover rounded-3"
       >
         <span className="sr-only">
@@ -229,12 +225,19 @@ export function RunCard({
           <ListIcon size="nav" className="text-muted" />
         </span>
         <span className="min-w-0 grow flex flex-col gap-1">
-          {/* One line closed, at most two open. The subject is the only
-              thing on this row anybody scans, and letting it wrap freely gave
-              the open card a five-line header — the table's clipping back as
-              height. The tooltip carries the whole sentence either way. */}
+          {/* One line, in one type, in both states. This row is the handle
+              somebody presses, and a handle that gets heavier and taller under
+              the pointer is not a disclosure — it is the row being swapped for
+              a different row at the moment everything below it moves. Opening
+              a card used to do both at once, and that is the whole of why the
+              expansion did not feel like one.
+
+              Nothing is lost by holding it to a line: the tooltip carries the
+              whole sentence while the card is shut, and the report carries it
+              in full the moment it opens. */}
           <span
-            className={open ? 'text-strong line-clamp-2' : 'text-body truncate'}
+            data-testid="run-card-subject"
+            className="text-body truncate"
             title={head.subjectFull}
           >
             {head.subject}
@@ -256,10 +259,7 @@ export function RunCard({
         >
           {started.relative}
         </time>
-        <span className="shrink-0 text-muted" aria-hidden="true">
-          {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
-        </span>
-      </NextLink>
+      </RunCardToggle>
 
       {open && body !== undefined ? (
         <div
@@ -422,9 +422,7 @@ export function RunCard({
                         {formatNumber(locale, turn.index)}
                       </span>
                       <p className="text-small grow">
-                        {turn.rationale === ''
-                          ? message(locale, 'run.did.noRationale')
-                          : turn.rationale}
+                        {reasoningOf(locale, turn, body.report)}
                       </p>
                       <span className="text-meta text-muted shrink-0">
                         {message(locale, 'run.did.calls', {
@@ -478,4 +476,28 @@ export function RunCard({
       ) : null}
     </article>
   );
+}
+
+/**
+ * What one turn's line says, which is never the report a second time.
+ *
+ * The last turn of a run is the turn that produced the answer, so the model's
+ * own account of it *is* the report — and this slot is one line meant for why
+ * a turn reached for the capabilities it did. Printing the conclusion here
+ * put the whole document on the screen twice: once at the top, rendered, and
+ * once at the bottom, raw, with its Markdown syntax showing.
+ *
+ * Compared against the report rather than guessed at by length or by looking
+ * for a `#`. A turn whose reasoning genuinely *is* the document the card
+ * already shows is the only turn this suppresses, and it says what that turn
+ * did rather than going blank — "recorded no reasoning" would be false about
+ * the one turn that did the most.
+ */
+export function reasoningOf(locale: Locale, turn: RunCardTurn, report: string): string {
+  const written = turn.rationale.trim();
+  if (written === '') return message(locale, 'run.did.noRationale');
+  if (report.trim() !== '' && written === report.trim()) {
+    return message(locale, 'run.did.wroteReport');
+  }
+  return written;
 }

@@ -107,10 +107,7 @@ describe('the evidence a run says it had', () => {
 
   it('counts what the run backed, and stays warning while anything is missing', () => {
     render(
-      <EvidenceChip
-        locale="en"
-        evidence={{ assessed: true, backed: 2, missing: 1 }}
-      />,
+      <EvidenceChip locale="en" evidence={{ assessed: true, backed: 2, missing: 1 }} />,
     );
 
     const chip = screen.getByTestId('run-evidence');
@@ -357,5 +354,75 @@ describe('putting the report on the clipboard', () => {
     await vi.waitFor(() => {
       expect(screen.getByTestId('copy-report')).toHaveTextContent(labels.refused);
     });
+  });
+});
+
+/**
+ * The header is a handle, and a handle does not resize itself when pressed.
+ *
+ * Opening a card used to change the subject's own type — `text-strong` in
+ * place of `text-body` — and let it grow from one line to two. Both land at
+ * the instant the body appears, so the row under the pointer got heavier and
+ * taller while everything below it jumped down. Read as a whole that is not a
+ * disclosure; it is the row being replaced by a different row, which is what
+ * "the expansion does not feel natural" describes.
+ *
+ * What opens is the body. The header is identical either way, and the whole
+ * subject is in the tooltip closed and in the report open.
+ */
+describe('the header of a card', () => {
+  function subjectClass(open: boolean): string {
+    const { unmount } = render(
+      <RunCard
+        locale="en"
+        now={new Date('2026-08-05T12:00:00+00:00')}
+        zone="UTC"
+        head={HEAD}
+        toggleHref="/runs"
+        open={open}
+        {...(open ? { body: BODY } : {})}
+      />,
+    );
+    const found = screen.getByTestId('run-card-subject').className;
+    unmount();
+    return found;
+  }
+
+  it('renders the subject identically whether the card is open or shut', () => {
+    expect(subjectClass(true)).toBe(subjectClass(false));
+  });
+
+  it('never lets the subject take a second line, in either state', () => {
+    expect(subjectClass(true)).toContain('truncate');
+    expect(subjectClass(true)).not.toContain('line-clamp');
+  });
+});
+
+/**
+ * The report is written once on this card, at the top, rendered as a document.
+ *
+ * The last turn of a run is the turn that produced the answer, so the model's
+ * own account of that turn *is* the report — and the trace printed it raw,
+ * Markdown syntax and all, in the one-line slot meant for "why these
+ * capabilities". A reader who scrolled to the working-out found the conclusion
+ * again, unrendered, several times taller than the box it sat in.
+ */
+describe('the trace under a card', () => {
+  it("does not print the report again as the last turn's reasoning", () => {
+    const report = '### Incident Investigation Report\n\nThe node was down.';
+    card(
+      {},
+      {
+        report,
+        turns: [
+          { index: 1, rationale: 'Asked the cluster.', model: 'm', calls: [] },
+          { index: 2, rationale: report, model: 'm', calls: [] },
+        ],
+      },
+    );
+
+    const turns = screen.getAllByTestId('run-turn');
+    expect(turns[0]?.textContent).toContain('Asked the cluster.');
+    expect(turns[1]?.textContent).not.toContain('Incident Investigation Report');
   });
 });

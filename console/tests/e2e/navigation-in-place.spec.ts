@@ -110,6 +110,26 @@ test.describe('a link changes the screen without reloading the document', () => 
     expect(after.loads, 'a full page load was issued to leave an empty state').toBe(1);
   });
 
+  test('a second click while the first is still arriving does not undo it', async ({
+    page,
+  }) => {
+    // The failure this is about: the click registered, the transition took a
+    // few hundred milliseconds, nothing on the screen said so, and the reader
+    // — reasonably — pressed again. The second press was the toggle's other
+    // half, so the card they had just opened closed, and the gesture read as
+    // "clicking does nothing". With a document reload the browser swallowed
+    // the second press; a router transition does not, so the toggle has to.
+    await page.goto('/runs');
+    const toggle = page.getByTestId('run-card-toggle').first();
+    await expect(toggle).toBeVisible();
+
+    await toggle.click();
+    await toggle.click({ delay: 0 });
+
+    await expect(page.getByTestId('run-card-body')).toBeVisible();
+    await expect(page).toHaveURL(/[?&]selected=/);
+  });
+
   test('a row opens its own screen without reloading', async ({ page }) => {
     await page.goto('/knowledge?tab=learned');
     const row = page.getByTestId('row').first();

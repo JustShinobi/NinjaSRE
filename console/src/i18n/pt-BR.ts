@@ -606,6 +606,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   // --- Uma investigação, aberta onde ela está --------------------------------------
   'runs.row.open': 'Abrir esta investigação',
+  'runs.row.opening': 'Abrindo esta investigação…',
   'runs.row.close': 'Fechar esta investigação',
   'runs.row.openPage': 'Abrir na página dela',
   'run.evidence.backed': '{backed} de {claims} afirmações sustentadas',
@@ -633,6 +634,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.did.summary': '{events} eventos em {turns} turnos',
   'run.did.calls': '{calls} chamadas',
   'run.did.noRationale': 'Este turno não registrou raciocínio.',
+  'run.did.wroteReport': 'Este turno escreveu o relatório acima.',
   'run.report.copy': 'Copiar como Markdown',
   'run.report.copied': 'Copiado',
   'run.report.copyRefused': 'O navegador recusou a área de transferência',
@@ -1697,6 +1699,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.models.body':
     'Uma etapa nomeia um papel, nunca um modelo. Aquilo em que um papel resolve é configuração, e cada linha aqui diz qual nó forneceu o valor.',
   'agent.models.default': 'padrão do deployment — ninguém vinculou este papel',
+  'agent.models.inherited': 'sem escolha própria — segue o investigador',
   'agent.models.from': 'de {node}',
   'agent.models.empty.heading': 'Nenhum papel está descrito aqui',
   'agent.models.empty.body':

@@ -791,6 +791,7 @@ export const EN = {
   // The list opens a run in place rather than navigating to it, so these
   // strings are read on the list screen and on the run's own page alike.
   'runs.row.open': 'Open this investigation',
+  'runs.row.opening': 'Opening this investigation…',
   'runs.row.close': 'Close this investigation',
   'runs.row.openPage': 'Open on its own page',
   'run.evidence.backed': '{backed} of {claims} claims backed',
@@ -818,6 +819,7 @@ export const EN = {
   'run.did.summary': '{events} events across {turns} turns',
   'run.did.calls': '{calls} calls',
   'run.did.noRationale': 'This turn recorded no reasoning.',
+  'run.did.wroteReport': 'This turn wrote the report above.',
   'run.report.copy': 'Copy as Markdown',
   'run.report.copied': 'Copied',
   'run.report.copyRefused': 'The browser refused the clipboard',
@@ -1994,6 +1996,7 @@ export const EN = {
   'agent.models.body':
     'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
   'agent.models.default': 'deployment default — nobody bound this role',
+  'agent.models.inherited': 'no choice of its own — follows the investigator',
   'agent.models.from': 'from {node}',
   'agent.models.empty.heading': 'No role is described here',
   'agent.models.empty.body':
