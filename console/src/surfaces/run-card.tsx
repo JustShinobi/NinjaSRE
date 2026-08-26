@@ -1,3 +1,4 @@
+import NextLink from 'next/link';
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
@@ -201,8 +202,22 @@ export function RunCard({
       data-open={open}
       className={`bg-raised edge rounded-3 shadow-1 ${open ? 'border-accent' : 'border-border'}`}
     >
-      <a
+      {/* The address still carries which card is open, so the expansion can be
+          sent and survives a reload — but changing it is a router transition
+          rather than a new document. A plain anchor here rebuilt the frame, the
+          sidebar and every other panel on the page to open one card, which is
+          the gesture somebody repeats most on this screen.
+
+          `scroll={false}` because the card being opened is the one under the
+          pointer, and the router's default would answer the click by throwing
+          the reader back to the top of the list. `prefetch={false}` because
+          opening a card costs the deployment three reads on the server, and
+          prefetching every card in the viewport would spend them on the eight
+          nobody asked for. */}
+      <NextLink
         href={toggleHref}
+        scroll={false}
+        prefetch={false}
         aria-expanded={open}
         data-testid="run-card-toggle"
         className="flex items-center gap-4 p-4 motion-hover hover:bg-hover rounded-3"
@@ -225,7 +240,8 @@ export function RunCard({
             {head.subject}
           </span>
           <span className="text-meta text-muted">
-            {triggerLabel(locale, head.trigger)} · <span className="font-mono">{`#${head.runId.slice(0, 8)}`}</span>
+            {triggerLabel(locale, head.trigger)} ·{' '}
+            <span className="font-mono">{`#${head.runId.slice(0, 8)}`}</span>
           </span>
         </span>
         <Badge status={head.status} className="shrink-0" />
@@ -243,10 +259,13 @@ export function RunCard({
         <span className="shrink-0 text-muted" aria-hidden="true">
           {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
         </span>
-      </a>
+      </NextLink>
 
       {open && body !== undefined ? (
-        <div data-testid="run-card-body" className="edge border-border border-x-0 border-b-0">
+        <div
+          data-testid="run-card-body"
+          className="edge border-border border-x-0 border-b-0"
+        >
           <div className="p-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Measure
               label={message(locale, 'run.measure.duration')}
@@ -263,7 +282,9 @@ export function RunCard({
             <Measure
               label={message(locale, 'run.measure.tokens')}
               value={formatNumber(locale, body.tokens)}
-              {...(body.priced ? {} : { note: message(locale, 'run.measure.unpriced') })}
+              {...(body.priced
+                ? {}
+                : { note: message(locale, 'run.measure.unpriced') })}
             />
           </div>
 
@@ -292,7 +313,9 @@ export function RunCard({
 
             <Section label={message(locale, 'run.section.reaches')}>
               {body.touchedResources.length === 0 && body.incidentId === '' ? (
-                <p className="text-small text-muted">{message(locale, 'run.reaches.none')}</p>
+                <p className="text-small text-muted">
+                  {message(locale, 'run.reaches.none')}
+                </p>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
                   {body.incidentId === '' ? null : (
@@ -315,7 +338,9 @@ export function RunCard({
 
             <Section label={message(locale, 'run.section.why')}>
               {body.supporting.length === 0 && body.missing.length === 0 ? (
-                <p className="text-small text-muted">{message(locale, 'run.why.none')}</p>
+                <p className="text-small text-muted">
+                  {message(locale, 'run.why.none')}
+                </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <div className="flex flex-col gap-1">
@@ -356,7 +381,9 @@ export function RunCard({
 
             <Section label={message(locale, 'run.section.todo')}>
               {body.waiting.length === 0 ? (
-                <p className="text-small text-muted">{message(locale, 'run.todo.none')}</p>
+                <p className="text-small text-muted">
+                  {message(locale, 'run.todo.none')}
+                </p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {body.waiting.map((question) => (
@@ -400,7 +427,9 @@ export function RunCard({
                           : turn.rationale}
                       </p>
                       <span className="text-meta text-muted shrink-0">
-                        {message(locale, 'run.did.calls', { calls: String(turn.calls.length) })}
+                        {message(locale, 'run.did.calls', {
+                          calls: String(turn.calls.length),
+                        })}
                       </span>
                     </div>
                     {turn.calls.length === 0 ? null : (
@@ -441,7 +470,9 @@ export function RunCard({
           </div>
 
           <div className="px-4 pb-4">
-            <Link href={`/runs/${head.runId}`}>{message(locale, 'runs.row.openPage')}</Link>
+            <Link href={`/runs/${head.runId}`}>
+              {message(locale, 'runs.row.openPage')}
+            </Link>
           </div>
         </div>
       ) : null}

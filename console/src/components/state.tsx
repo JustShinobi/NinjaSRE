@@ -1,3 +1,4 @@
+import NextLink from 'next/link';
 import type { ReactNode } from 'react';
 
 import { Button, CONTROL_SHAPE, STATE_SKIN, VARIANT_SKIN } from '@/components/action';
@@ -88,15 +89,24 @@ export function EmptyState({
         // One element, not a button beside a hidden link. The identifier stays
         // what every screen's test already looks for; what changes is that
         // there is now exactly one thing carrying it.
-        <a
+        //
+        // A router transition rather than a new document, for the reason every
+        // other link in the console is one: the way out of an empty panel is
+        // still a navigation inside this console, and rebuilding the frame to
+        // make it is a blank flash where a screen change belongs. It is still
+        // an anchor with a real `href`, so it can be opened in a new tab and
+        // works with JavaScript disabled. Prefetching is off — an empty state
+        // is on screen precisely when the deployment has little to spare.
+        <NextLink
           href={action.href}
+          prefetch={false}
           data-testid="way-back"
           data-variant="primary"
           data-state="default"
           className={cx(CONTROL_SHAPE, VARIANT_SKIN.primary, STATE_SKIN.default)}
         >
           {action.label}
-        </a>
+        </NextLink>
       )}
     </div>
   );

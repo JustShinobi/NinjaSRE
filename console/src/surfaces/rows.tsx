@@ -1,5 +1,6 @@
 'use client';
 
+import NextLink from 'next/link';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -168,13 +169,14 @@ function CellValue({ cell }: { readonly cell: Cell }): ReactNode {
 function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
   if (cell.href !== undefined) {
     return (
-      <a
+      <NextLink
         href={cell.href}
+        prefetch={false}
         title={cell.hint}
         className="underline-offset-2 hover:underline"
       >
         <CellValue cell={cell} />
-      </a>
+      </NextLink>
     );
   }
   if (cell.hint !== undefined) {
@@ -293,8 +295,10 @@ export function RowList({
                   )}
                 >
                   {column.sortable === true ? (
-                    <a
+                    <NextLink
                       href={hrefFor(path, next, filters)}
+                      scroll={false}
+                      prefetch={false}
                       data-testid="sort"
                       data-column={column.key}
                       className={cx(
@@ -324,7 +328,7 @@ export function RowList({
                           column.header,
                         )}
                       </span>
-                    </a>
+                    </NextLink>
                   ) : (
                     column.header
                   )}
@@ -362,12 +366,16 @@ export function RowList({
                     )}
                   >
                     {index === 0 ? (
-                      <a href={row.href} className="flex items-center gap-2 min-w-0">
+                      <NextLink
+                        href={row.href}
+                        prefetch={false}
+                        className="flex items-center gap-2 min-w-0"
+                      >
                         <span className="truncate" title={cell.title}>
                           <CellBody cell={cell} />
                         </span>
                         <span className="sr-only">{labels.open}</span>
-                      </a>
+                      </NextLink>
                     ) : (
                       <CellBody cell={cell} />
                     )}
