@@ -247,22 +247,30 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
               key: 'severity',
               header: message(locale, 'incidents.column.severity'),
               sortable: true,
+              width: 'word',
             },
             {
               key: 'state',
               header: message(locale, 'incidents.column.state'),
               sortable: true,
+              width: 'badge',
             },
-            { key: 'detector', header: message(locale, 'incidents.column.detector') },
+            {
+              key: 'detector',
+              header: message(locale, 'incidents.column.detector'),
+              width: 'instant',
+            },
             {
               key: 'opened_at',
               header: message(locale, 'incidents.column.opened'),
               sortable: true,
+              width: 'instant',
             },
             {
               key: 'subjects',
               header: message(locale, 'incidents.column.subjects'),
               numeric: true,
+              width: 'measure',
             },
           ]}
           rows={rows}

@@ -180,6 +180,34 @@
  * pretends to be. They are utilities so that the shell names them rather than
  * writing the numbers.
  */
+/*
+ * How wide a list column is, by what it holds.
+ *
+ * Utilities rather than inline widths, for the reason the shell's two
+ * measurements are: a component names the column's content and the width
+ * follows from the scale, instead of every screen writing a number that drifts
+ * from the next screen's.
+ */
+@utility w-column-word {
+  width: var(--column-word);
+}
+
+@utility w-column-badge {
+  width: var(--column-badge);
+}
+
+@utility w-column-identifier {
+  width: var(--column-identifier);
+}
+
+@utility w-column-instant {
+  width: var(--column-instant);
+}
+
+@utility w-column-measure {
+  width: var(--column-measure);
+}
+
 @utility w-sidebar {
   width: var(--shell-sidebar);
 }

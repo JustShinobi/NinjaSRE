@@ -188,27 +188,32 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
               key: 'status',
               header: message(locale, 'runs.column.status'),
               sortable: true,
+              width: 'badge',
             },
             {
               key: 'trigger',
               header: message(locale, 'runs.column.trigger'),
               sortable: true,
+              width: 'word',
             },
             {
               key: 'run_id',
               header: message(locale, 'runs.column.run'),
               sortable: true,
+              width: 'identifier',
             },
             {
               key: 'started_at',
               header: message(locale, 'runs.column.started'),
               sortable: true,
+              width: 'instant',
             },
             {
               key: 'duration',
               header: message(locale, 'runs.column.duration'),
               numeric: true,
               sortable: true,
+              width: 'measure',
             },
           ]}
           rows={rows}

@@ -413,6 +413,40 @@ export const SHELL = {
 } as const;
 
 /**
+ * How wide a list column is, by what it holds.
+ *
+ * A table of rows lays out fixed, so a column with no declared width takes an
+ * equal share of whatever is going. On a Full HD screen that gave a status
+ * badge and a duration four hundred pixels each and clipped the one column
+ * that says what the row is about — so every row on the screen read
+ * "Proxmox node pve01 backup synchron…" and the reader had to open each one to
+ * tell them apart.
+ *
+ * Named by content rather than by number, and measured from the widest thing
+ * each actually holds: a status badge, a timestamp phrased as "29 minutes
+ * ago", a short opaque identifier. The column carrying the row's subject
+ * declares nothing and takes the rest, which is the whole point of the scale.
+ *
+ * Not on the spacing scale, for the reason `SHELL` is not: a column is as wide
+ * as its content, which is a measurement rather than a step.
+ */
+export const COLUMN_WIDTHS = {
+  /** A severity or trigger word: "critical", "Alert". */
+  word: 112,
+  /** A status badge with its shape and its label: "COMPLETED". */
+  badge: 144,
+  /** A short opaque identifier, monospaced: "#8711ce98". */
+  identifier: 144,
+  /** A relative instant: "29 minutes ago". */
+  instant: 160,
+  /** A number and its unit, right-aligned: "18s", "36,842". */
+  measure: 112,
+} as const;
+
+/** Which content a column holds, and therefore how wide it is. */
+export type ColumnWidth = keyof typeof COLUMN_WIDTHS;
+
+/**
  * The width below which the sidebar becomes a drawer.
  *
  * Declared here and used by the browser suite, so "the documented breakpoint" is
