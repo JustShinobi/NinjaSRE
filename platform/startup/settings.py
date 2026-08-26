@@ -103,6 +103,8 @@ from config.constants.llm import (
     GOOGLE_APPLICATION_CREDENTIALS_ENV,
     GOOGLE_CLOUD_LOCATION_ENV,
     GOOGLE_CLOUD_PROJECT_ENV,
+    NINJASRE_LLM_MODEL_ENV,
+    NINJASRE_LLM_PROVIDER_ENV,
     NINJASRE_LLM_TRANSPORT_ENV,
     NVIDIA_API_KEY_ENV,
     NVIDIA_NIM_BASE_URL_ENV,
@@ -793,6 +795,22 @@ SETTINGS: Final[tuple[Setting, ...]] = (
 #: appears in a diff — which is the whole reason the completeness test can be
 #: strict about everything else.
 NOT_A_DEPLOYMENT_SETTING: Final[tuple[str, ...]] = (
+    # Retired as a choice. These two named the provider and model every role
+    # fell back to, and that fallback is what let a deployment run on two
+    # providers at once: an investigator bound in the console, seven roles left
+    # alone, and all seven answering to whatever a manifest had set months
+    # earlier. What a role runs on is configuration now, and nothing reads
+    # these to decide it — see `core/llm/factory.py`.
+    #
+    # They are not deleted, because three boot-time readers still use the
+    # provider name to *describe* a deployment before its configuration tree
+    # can be read: the egress report, startup validation, and the self-check's
+    # remedy. Those describe a provider they no longer select, which is the
+    # same defect at smaller scale and wants its own change. Listed here rather
+    # than left documented as settings, so nobody sets one expecting it to do
+    # something.
+    NINJASRE_LLM_PROVIDER_ENV,
+    NINJASRE_LLM_MODEL_ENV,
     # Points the persistence contract suite at a live PostgreSQL.
     NINJASRE_TEST_DATABASE_URL_ENV,
     # The evaluation harness's own artefact and baseline paths. A deployment
