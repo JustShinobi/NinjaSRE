@@ -519,7 +519,7 @@ describe('resources: what is watched, and what is merely remembered', () => {
 
     const parts = within(strip)
       .getAllByTestId('count-part')
-      .map((part) => part.textContent ?? '');
+      .map((part) => part.textContent);
     expect(parts.some((part) => /absent/i.test(part))).toBe(false);
 
     const aside = within(strip).getByTestId('count-aside');
