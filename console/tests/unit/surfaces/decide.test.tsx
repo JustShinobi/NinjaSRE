@@ -342,6 +342,8 @@ describe('the attention block and the activity feed', () => {
         oldest=""
         rows={[]}
         openLabel="Open"
+        moreLabel={(over) => `and ${String(over)} more waiting`}
+        moreHref="/decisions"
       />,
     );
 
@@ -364,6 +366,8 @@ describe('the attention block and the activity feed', () => {
           },
         ]}
         openLabel="Open"
+        moreLabel={(over) => `and ${String(over)} more waiting`}
+        moreHref="/decisions"
       />,
     );
 

@@ -792,6 +792,23 @@ export const EN = {
   'incidents.column.subjects': 'Subjects',
   'incidents.filter.state': 'State',
   'incidents.filter.severity': 'Severity',
+  'dashboard.band.active': 'Guardian active',
+  'dashboard.band.silent': 'Guardian silent',
+  'dashboard.band.meta':
+    '{posture} · {live} of {total} detectors live · {watched} resources watched',
+  'dashboard.band.flight': 'Runs in flight',
+  'dashboard.band.blocked': 'Blocked on you',
+  'dashboard.band.detectors': 'Detectors live',
+  'dashboard.band.held': 'Incidents held',
+  'dashboard.band.idle': 'Nothing is being investigated right now.',
+  'dashboard.band.silent.body':
+    'The guardian is not reporting ready, so nothing is being watched and nothing will be raised. Everything below is the last thing this deployment knew.',
+  'dashboard.band.started': 'started {since}',
+  'dashboard.stat.unattended': 'Handled without a person',
+  'dashboard.stat.unattended.context':
+    '{closed} of {total} incidents closed themselves',
+  'dashboard.stat.unattended.context.none': 'nothing has closed yet',
+  'dashboard.attention.more': 'and {count} more waiting',
   'dashboard.recurring.title': 'What keeps happening',
   'dashboard.recurring.note': 'Grouped by subject, not by firing',
   'dashboard.recurring.empty.heading': 'Nothing has recurred',

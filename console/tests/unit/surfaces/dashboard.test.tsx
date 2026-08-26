@@ -211,6 +211,45 @@ async function dashboardWithLiveIncidents(): Promise<void> {
   render(await DashboardScreen(await surfaceContext({})));
 }
 
+/** Render the dashboard over three incidents that ended, two of them on their own. */
+async function dashboardWithClosedIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  const closed = [
+    { state: 'resolved', self_resolved: true },
+    { state: 'resolved', self_resolved: true },
+    { state: 'closed_without_action', self_resolved: false },
+  ].map((over, index) => ({
+    incident_id: `inc-${String(index)}`,
+    public_id: `inc-${String(index)}`,
+    correlation_key: `detector:a:resource:${String(index)}`,
+    title: 'A condition',
+    summary: '',
+    severity: 'critical',
+    detector: 'alertmanager',
+    subjects: [],
+    opened_at: '2026-08-26T06:00:00.000Z',
+    closed_at: '2026-08-26T07:00:00.000Z',
+    ...over,
+  }));
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const address = new URL(String(input), FIXTURES_BASE);
+    if (address.pathname === '/v1/incidents') {
+      const wanted = address.searchParams.getAll('state');
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            incidents: wanted.length === 0 ? closed : [],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
 /** Render the dashboard with a run list every one of which settled clean. */
 async function dashboardWithNothingButCleanFinishes(): Promise<void> {
   serveScenario('populated');
@@ -530,6 +569,8 @@ describe('the "needs you" band’s oldest badge', () => {
           },
         ]}
         openLabel="Open"
+        moreLabel={(over) => `and ${String(over)} more waiting`}
+        moreHref="/decisions"
       />,
     );
 
@@ -650,7 +691,46 @@ describe('the "needs you" band’s oldest badge', () => {
     await dashboardWithLiveIncidents();
 
     // One `investigating`, one `remediating`, out of five incidents served.
-    expect(screen.getByTestId('guardian-holding')).toHaveTextContent('2');
+    expect(screen.getByTestId('tally-held')).toHaveTextContent('2');
+  });
+
+  it('leads with whether the deployment is working before what it has left', async () => {
+    await dashboardWithLiveIncidents();
+
+    const band = screen.getByTestId('guardian-band');
+    const attention = screen.getByTestId('attention');
+    // The band is the first thing on the page. `compareDocumentPosition` says
+    // so structurally rather than by reading class names, so a later layout
+    // change cannot quietly put the backlog back on top.
+    expect(band.compareDocumentPosition(attention)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('shows four figures, and one of them is about the agent', async () => {
+    await dashboardWithLiveIncidents();
+
+    const figures = screen.getAllByTestId('figure');
+    expect(figures).toHaveLength(4);
+    const labels = figures.map((figure) => figure.getAttribute('data-figure'));
+    expect(labels).toContain(EN['dashboard.stat.unattended']);
+    // The two the band and the feed now answer better than a tile could.
+    expect(labels).not.toContain(EN['dashboard.stat.healthy']);
+    expect(labels).not.toContain(EN['dashboard.stat.runs']);
+  });
+
+  it('counts an incident that closed itself as one nobody had to touch', async () => {
+    await dashboardWithClosedIncidents();
+
+    const figure = screen
+      .getAllByTestId('figure')
+      .find(
+        (one) => one.getAttribute('data-figure') === EN['dashboard.stat.unattended'],
+      );
+    expect(figure).toBeDefined();
+    // Two of the three terminal incidents carry `self_resolved`.
+    expect(figure).toHaveTextContent('67%');
+    expect(figure).toHaveTextContent('2 of 3 incidents closed themselves');
   });
 
   it('chooses the oldest timestamp rather than the last source group', () => {

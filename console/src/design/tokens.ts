@@ -322,6 +322,16 @@ export const DURATIONS = {
   hover: 120,
   overlay: 160,
   toast: 200,
+  /**
+   * A mark that says the thing behind it is happening now.
+   *
+   * An order of magnitude slower than every other step, and deliberately so:
+   * the other four are a response to something a person just did, and this one
+   * is not a response at all. At the toast's two hundred milliseconds it reads
+   * as an alarm blinking; at this it reads as breathing, which is the whole
+   * difference between "look at me" and "I am still here".
+   */
+  pulse: 2400,
 } as const;
 
 /** One step of the type scale. */

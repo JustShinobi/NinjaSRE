@@ -265,6 +265,44 @@
 }
 
 /*
+ * A mark that says the thing behind it is still running.
+ *
+ * The ring expands out of the dot and fades, on the toast duration doubled —
+ * slow enough to read as breathing rather than as blinking, which is what an
+ * alarm does. It carries no meaning of its own: the word beside it says
+ * whether the guardian is active, and this only says the page is describing
+ * something live rather than something recorded.
+ *
+ * The reduced-motion block above already removes it, by removal rather than by
+ * shortening, so there is nothing further to declare here.
+ */
+@utility pulse-live {
+  position: relative;
+}
+
+@utility pulse-live-ring {
+  position: absolute;
+  inset: 0;
+  /* Inherited rather than written: the mark this sits inside is already a
+     circle, and a second radius here would be a value nobody could change in
+     one place. */
+  border-radius: inherit;
+  background: currentColor;
+  animation: ninjasre-pulse var(--dur-pulse) ease-out infinite;
+}
+
+@keyframes ninjasre-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+/*
  * The one shape a border-radius cannot make.
  *
  * The triangle is the warning status, and it has to be a shape rather than a

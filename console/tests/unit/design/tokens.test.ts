@@ -122,7 +122,7 @@ describe('the scales', () => {
   });
 
   it('animates on a closed set, and includes the removal reduced motion needs', () => {
-    expect(Object.values(DURATIONS)).toEqual([0, 120, 160, 200]);
+    expect(Object.values(DURATIONS)).toEqual([0, 120, 160, 200, 2400]);
   });
 
   it('types on the eight documented steps, each with its size, line and weight', () => {

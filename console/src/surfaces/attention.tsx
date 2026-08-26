@@ -32,12 +32,32 @@ export interface AttentionRow {
   readonly at?: string;
 }
 
+/**
+ * How many rows the block draws before it stops.
+ *
+ * A list whose length nothing bounds is grouped or paged, never dumped — and
+ * this block was the worst offender on the console, because the rows it dumps
+ * are the ones it most wants read. Sixteen of them is a page nobody reads to
+ * the end of, and what that costs is precisely the rows at the bottom: the
+ * oldest, which is to say the ones that have been waiting longest.
+ *
+ * Six, because the block sits above the fold and has to leave the page below
+ * it visible. It is a drawing decision and nothing else — the heading still
+ * counts the whole queue, and the overflow row reaches every row this one
+ * did not draw.
+ */
+export const ATTENTION_ROWS_SHOWN = 6;
+
 export interface AttentionBlockProps {
   readonly heading: string;
   /** "Oldest 2h 14m", already phrased. */
   readonly oldest: string;
   readonly rows: readonly AttentionRow[];
   readonly openLabel: string;
+  /** What the overflow row says, given how many rows were not drawn. */
+  readonly moreLabel: (over: number) => string;
+  /** Where the overflow row goes: the list holding all of them. */
+  readonly moreHref: string;
 }
 
 /** The danger-bordered block at the top of the overview. */
@@ -46,10 +66,14 @@ export function AttentionBlock({
   oldest,
   rows,
   openLabel,
+  moreLabel,
+  moreHref,
 }: AttentionBlockProps): ReactNode {
   if (rows.length === 0) {
     return null;
   }
+  const shown = rows.slice(0, ATTENTION_ROWS_SHOWN);
+  const over = rows.length - shown.length;
   return (
     <section
       data-testid="attention"
@@ -69,7 +93,7 @@ export function AttentionBlock({
         </span>
       </header>
       <ul className="flex flex-col">
-        {rows.map((row) => (
+        {shown.map((row) => (
           <li key={row.id} data-testid="attention-row" data-kind={row.kind}>
             <a
               href={row.href}
@@ -89,6 +113,20 @@ export function AttentionBlock({
             </a>
           </li>
         ))}
+        {over === 0 ? null : (
+          <li>
+            <a
+              href={moreHref}
+              data-testid="attention-more"
+              className="flex items-center gap-3 px-4 py-3 bg-raised edge border-border border-x-0 border-b-0 text-small motion-hover hover:bg-hover"
+            >
+              {moreLabel(over)}
+              <span className="ml-auto text-muted" aria-hidden="true">
+                <ArrowRightIcon />
+              </span>
+            </a>
+          </li>
+        )}
       </ul>
     </section>
   );

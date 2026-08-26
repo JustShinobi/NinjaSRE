@@ -609,6 +609,23 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.column.subjects': 'Assuntos',
   'incidents.filter.state': 'Estado',
   'incidents.filter.severity': 'Gravidade',
+  'dashboard.band.active': 'Guardião ativo',
+  'dashboard.band.silent': 'Guardião silencioso',
+  'dashboard.band.meta':
+    '{posture} · {live} de {total} detectores vivos · {watched} recursos observados',
+  'dashboard.band.flight': 'Investigações em curso',
+  'dashboard.band.blocked': 'Travado em você',
+  'dashboard.band.detectors': 'Detectores vivos',
+  'dashboard.band.held': 'Incidentes assumidos',
+  'dashboard.band.idle': 'Nada está sendo investigado neste momento.',
+  'dashboard.band.silent.body':
+    'O guardião não está reportando prontidão, então nada está sendo observado e nada será levantado. Tudo abaixo é a última coisa que este deployment soube.',
+  'dashboard.band.started': 'iniciada {since}',
+  'dashboard.stat.unattended': 'Resolvido sem uma pessoa',
+  'dashboard.stat.unattended.context':
+    '{closed} de {total} incidentes se fecharam sozinhos',
+  'dashboard.stat.unattended.context.none': 'nada foi fechado ainda',
+  'dashboard.attention.more': 'e mais {count} esperando',
   'dashboard.recurring.title': 'O que continua acontecendo',
   'dashboard.recurring.note': 'Agrupado por assunto, não por disparo',
   'dashboard.recurring.empty.heading': 'Nada se repetiu',

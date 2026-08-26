@@ -23,7 +23,6 @@ import { subjectOf } from '../run-subject';
 import { SetupHero } from '../setup-hero';
 import {
   authorised,
-  countOf,
   counts,
   dataOf,
   dependencyOf,
@@ -48,6 +47,7 @@ import {
   TUTORIAL_REPLAY_VALUE,
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
+import { GuardianBand, type FlightRow } from '../guardian-band';
 import { IncidentGroupList } from '../incident-group-list';
 import { groupBySubject } from '../incident-groups';
 import { viewerNode } from '../tree';
@@ -97,6 +97,32 @@ const HUMAN_INCIDENT_QUERY = `?${HUMAN_INCIDENT_STATES.map(
 const AGENT_INCIDENT_QUERY = `?${AGENT_INCIDENT_STATES.map(
   (state) => `state=${state}`,
 ).join('&')}`;
+
+/**
+ * How urgent each kind of waiting thing is, smallest first.
+ *
+ * A failure heads it because a failed run can mean the deployment cannot
+ * investigate at all, which is a different order of problem from a queue being
+ * long. An approval is next: it is a production change stopped mid-flight. A
+ * question has somebody's attention already. A proposal is an improvement, and
+ * an improvement waiting is not an incident waiting.
+ *
+ * An incident's kind is its severity, so the two that carry real severity fall
+ * between the question and the proposal, and anything unrecognised sorts last
+ * rather than jumping the queue on a word nobody declared.
+ */
+const ATTENTION_WEIGHT: Readonly<Record<string, number>> = {
+  failure: 0,
+  approval: 1,
+  question: 2,
+  critical: 3,
+  high: 4,
+  proposal: 6,
+};
+
+function attentionWeight(kind: string): number {
+  return ATTENTION_WEIGHT[kind] ?? 5;
+}
 
 /** Return the attention row whose source timestamp is the earliest valid instant. */
 export function oldestAttention(
@@ -255,6 +281,18 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     });
   }
 
+  // Ordered before it is capped, or the cap decides by accident. The rows are
+  // pushed in source order — approvals, then proposals, then incidents, then
+  // failures — so a cap applied to that order drops failures first, and a
+  // failed run is the one row that can mean the product itself cannot
+  // investigate. Within a weight, oldest first, because "waiting longest" is
+  // what the badge beside the heading is pointing at.
+  attention.sort((left, right) => {
+    const byKind = attentionWeight(left.kind) - attentionWeight(right.kind);
+    if (byKind !== 0) return byKind;
+    return Date.parse(left.at ?? '') - Date.parse(right.at ?? '');
+  });
+
   const oldest = oldestAttention(attention);
 
   // --- The narrative ---------------------------------------------------------
@@ -312,7 +350,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
 
   // --- The estate ------------------------------------------------------------
   const watched = number(summary, 'total');
-  const healthy = countOf(summary, 'by_health', 'healthy');
   // The persistence contract defines `problems` as degraded or unhealthy. Keep
   // unknown and stale out: they are gaps in observation, not estate faults, and
   // the problem drill-down must contain exactly what this number counts.
@@ -324,9 +361,32 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const liveDetectors = detectorRecords.filter((record) =>
     flag(record, 'enabled'),
   ).length;
-  const failedRuns = runRecords.filter((record) =>
-    FAILED.has(text(record, 'status')),
-  ).length;
+
+  // The runs the agent is working right now, named rather than counted. A
+  // run's own headline is the one sentence that names it; the listing always
+  // carries one, synthesised from the record when nothing was stored.
+  const flights: FlightRow[] = runRecords
+    .filter((record) => text(record, 'status') === 'running')
+    .map((record) => ({
+      id: text(record, 'run_id'),
+      headline: subjectOf(record, locale).text,
+      status: text(record, 'status'),
+      since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
+      href: `/runs/${text(record, 'run_id')}`,
+    }));
+
+  // What the product exists to do, measured rather than asserted: of the
+  // incidents that ended, how many ended without anybody being involved. This
+  // is a different question from whether an investigation completed — a run
+  // can succeed at telling a person what to go and fix.
+  const endedIncidents = incidentRecords.filter((record) =>
+    isTerminalIncident(text(record, 'state')),
+  );
+  const unattended = endedIncidents.filter((record) => flag(record, 'self_resolved'));
+  const unattendedRate =
+    endedIncidents.length === 0
+      ? null
+      : Math.round((unattended.length / endedIncidents.length) * 100);
 
   // --- The agent, rather than the estate --------------------------------------
   // Every other figure on this page is about what is being watched. This one is
@@ -367,6 +427,21 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           honest at zero. */}
       <NoProviderNotice locale={locale} setup={setup} />
 
+      {/* Is it working, before does it need you. An operator opening this page
+          is asking the first question, and the second is only frightening
+          when the first has no answer. */}
+      <GuardianBand
+        locale={locale}
+        ready={flag(dataOf(health), 'ready')}
+        posture={message(locale, 'shell.guardian.posture.propose')}
+        detectorsLive={liveDetectors}
+        detectorsTotal={detectorRecords.length}
+        watched={watched}
+        blocked={attention.length}
+        held={heldRecords.length}
+        flights={flights}
+      />
+
       <AttentionBlock
         heading={formatCount(
           locale,
@@ -379,6 +454,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         })}
         rows={attention}
         openLabel={message(locale, 'surface.open')}
+        moreLabel={(over) =>
+          message(locale, 'dashboard.attention.more', {
+            count: formatNumber(locale, over),
+          })
+        }
+        moreHref="/decisions"
       />
 
       {attention.length === 0 ? (
@@ -407,7 +488,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           would not compile — see `figure.tsx`. */}
       <div
         data-testid="main-figures"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5"
       >
         <Figure
           label={message(locale, 'dashboard.stat.watched')}
@@ -417,17 +498,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           })}
           href="/resources"
           drillLabel={message(locale, 'dashboard.stat.drill')}
-        />
-        <Figure
-          label={message(locale, 'dashboard.stat.healthy')}
-          value={formatNumber(locale, healthy)}
-          context={message(locale, 'dashboard.stat.healthy.context', {
-            count: formatNumber(locale, healthy),
-            total: formatNumber(locale, watched),
-          })}
-          href="/resources?health=healthy"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={healthy === watched && watched > 0 ? 'up' : 'flat'}
         />
         <Figure
           label={message(locale, 'dashboard.stat.degraded')}
@@ -445,15 +515,26 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={degraded > 0 ? 'down' : 'flat'}
         />
+        {/* The one figure about the product's own promise rather than about
+            the estate it watches. */}
         <Figure
-          label={message(locale, 'dashboard.stat.runs')}
-          value={formatNumber(locale, runRecords.length)}
-          context={message(locale, 'dashboard.stat.runs.context', {
-            failed: formatNumber(locale, failedRuns),
-          })}
-          href="/runs"
+          label={message(locale, 'dashboard.stat.unattended')}
+          value={
+            unattendedRate === null ? '—' : `${formatNumber(locale, unattendedRate)}%`
+          }
+          context={
+            unattendedRate === null
+              ? message(locale, 'dashboard.stat.unattended.context.none')
+              : message(locale, 'dashboard.stat.unattended.context', {
+                  closed: formatNumber(locale, unattended.length),
+                  total: formatNumber(locale, endedIncidents.length),
+                })
+          }
+          href="/incidents"
           drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={failedRuns > 0 ? 'down' : 'flat'}
+          trend={
+            unattendedRate === null ? 'flat' : unattendedRate >= 80 ? 'up' : 'down'
+          }
         />
         {/* The one figure on this page about the agent rather than the
             estate: whether the product itself is doing its job. */}
@@ -531,62 +612,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               down here. Two checklists on one page is the page disagreeing with
               itself about where the operator should look. */}
           <DashboardQuickActions locale={locale} />
-
-          <Panel
-            title={message(locale, 'dashboard.guardian.title')}
-            state={stateOf(health, false)}
-            dependency={dependencyOf(health)}
-            labels={panelLabels(locale, message(locale, 'dashboard.guardian.title'))}
-            empty={{
-              heading: message(locale, 'dashboard.guardian.empty.heading'),
-              body: message(locale, 'dashboard.guardian.empty.body'),
-              actionLabel: message(locale, 'dashboard.guardian.empty.action'),
-              href: '/autonomy',
-            }}
-          >
-            {/* Liveness is on the overview rather than buried in settings for
-                one reason: a guardian that stopped looks exactly like a cluster
-                with no problems. */}
-            <dl className="flex flex-col gap-2 text-small">
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'dashboard.guardian.liveness')}
-                </dt>
-                <dd className="ml-auto" data-testid="guardian-liveness">
-                  {flag(dataOf(health), 'ready')
-                    ? message(locale, 'shell.guardian.active')
-                    : message(locale, 'shell.guardian.silent')}
-                </dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'dashboard.held.title')}
-                </dt>
-                <dd className="ml-auto tabular-nums" data-testid="guardian-holding">
-                  {formatNumber(locale, heldRecords.length)}
-                </dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'dashboard.guardian.posture')}
-                </dt>
-                <dd className="ml-auto">
-                  {message(locale, 'shell.guardian.posture.propose')}
-                </dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'dashboard.guardian.detectors')}
-                </dt>
-                <dd className="ml-auto tabular-nums">
-                  {message(locale, 'dashboard.guardian.detectors.value', {
-                    live: formatNumber(locale, liveDetectors),
-                    total: formatNumber(locale, detectorRecords.length),
-                  })}
-                </dd>
-              </div>
-            </dl>
-          </Panel>
         </div>
       </div>
     </>
