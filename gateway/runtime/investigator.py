@@ -24,8 +24,10 @@ produces and the one nobody would notice.
 
 **The tool selection**, narrowed twice — by the integrations the team has
 connected and by whether this deployment could carry a write out at all — and
-only then ranked and cut at the ceiling. Cutting first spends slots of a small
-budget on capabilities that were about to be removed.
+only then handed to ``capabilities.registry.selection.select``, which does the
+ranking, the plan-first ordering, the skill-directed pull, the reserve and the
+cut. Narrowing first matters: cutting before it spends slots of a small budget
+on capabilities that were about to be removed.
 
 Steering a running investigation — cancelling it, taking it over, queuing a
 message, resuming it — is served against the same loop instance, tracked in
@@ -34,13 +36,26 @@ memory for the run's identity.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from capabilities.registry.catalogue import Registry
-from capabilities.registry.planning import CatalogueRanker, TeamCatalogueResolver
-from config.constants.investigation import MAX_AGENT_TOOL_SCHEMAS
+from capabilities.registry.catalogue import Registry, ResolvedCatalogue
+from capabilities.registry.disclosure import DiscoveredSkill
+from capabilities.registry.planning import TeamCatalogueResolver
+from capabilities.registry.scoring import Incident
+from capabilities.registry.selection import select
+from config.constants.estate import (
+    ALERT_DOMAIN_LABEL,
+    ALERT_RANKING_TAG_LABELS,
+    SUBJECT_CONTEXT_RESOURCE_KIND,
+    SUBJECT_CONTEXT_RESOURCE_NAME,
+    SUBJECT_CONTEXT_RESOURCE_SOURCE,
+)
+from config.constants.investigation import (
+    MAX_AGENT_TOOL_SCHEMAS,
+    MAX_SECONDARY_FALLBACK_TOOLS,
+)
 from config.prompts import INVESTIGATION_SYSTEM_PROMPT
 from core.agent.handoff import HANDOFF_CAPABILITY, HumanHandoff
 from core.agent.interaction.models import Interaction
@@ -54,7 +69,7 @@ from core.capability.ports import ConfiguredIntegrations, IntegrationAvailabilit
 from core.capability.registered import RegisteredTool
 from core.llm.types import LLMClient
 from core.pipeline.build import investigation_hooks
-from core.pipeline.ports import IncidentSignals, RankedCapability
+from core.pipeline.ports import RankedCapability
 from core.pipeline.stages.resolve_integrations import zero_integration_outcome
 from core.state.catalogue import ResolvedCapabilities
 from core.state.types import InvestigationOutcome
@@ -229,7 +244,7 @@ class ReActInvestigationRunner:
         live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
         self._live[request.run_id] = live
 
-        result = await loop.run(self._request_of(request))
+        result = await loop.run(self._request_of(request, skills=selection.skills))
 
         if result.status is RunStatus.FAILED:
             raise InvestigationDidNotComplete(
@@ -448,25 +463,88 @@ class ReActInvestigationRunner:
         if HANDOFF_CAPABILITY in offered:
             offered[HANDOFF_CAPABILITY] = handoff.tool()
 
-        signals = IncidentSignals(alert_source=request.alert_source, summary=request.objective)
-        ranked = CatalogueRanker().rank(
-            tuple(found.metadata for found in offered.values()), signals
+        # Fourth, hand the bounded catalogue to the selection the capability
+        # package owns, rather than taking the top N of a ranking here.
+        #
+        # This runner used to do the cut itself, and the four things
+        # ``select`` does that a top-N does not were therefore written,
+        # tested, and unreachable from a serving deployment: plan entries
+        # first, the tools a selected skill directs, the reserve that keeps
+        # cheap reasoning and recall capabilities from being crowded out by a
+        # well-integrated vendor, and the anti-example suppression that drops
+        # a capability whose own author said "not for this".
+        #
+        # The skills ``select`` chooses are returned with the tools, and both
+        # halves of a skill are then spent: the tools it directs are offered,
+        # and its body is loaded into this turn's system prompt
+        # (``_request_of``). A methodology selected and never shown would be a
+        # catalogue index paid for on every turn and collected on none.
+        narrowed = ResolvedCatalogue(
+            tools=tuple(offered.values()),
+            skills=tuple(catalogue.skills),
+            excluded=tuple(excluded),
+        )
+        # The ceiling is this runner's to state — it is a property of the
+        # model the deployment runs, not of the capability package. The reserve
+        # is clamped to fit inside it, because a deployment that lowers the
+        # ceiling below the reserve wants a smaller turn, not a refusal.
+        ceiling = MAX_AGENT_TOOL_SCHEMAS
+        turn = select(
+            narrowed,
+            self._ranking_signals(request),
+            max_schemas=ceiling,
+            reserved=min(MAX_SECONDARY_FALLBACK_TOOLS, max(ceiling - 1, 0)),
+        )
+        chosen = tuple(turn.tools)
+        by_name = {found.name: found for found in chosen}
+        cut = [
+            f"{scored.name} ({scored.score:.3g})"
+            for scored in turn.scores
+            if scored.kind is CapabilityKind.TOOL and scored.name not in by_name
+        ]
+        return _Selection(
+            tools=chosen,
+            outcome=None,
+            skills=tuple(turn.skills),
+            rationale=_selection_rationale(
+                tuple(
+                    RankedCapability(name=s.name, score=s.score, rationale=s.rationale)
+                    for s in turn.scores
+                ),
+                chosen=chosen,
+                cut=cut,
+            ),
         )
 
-        selected: list[RegisteredTool] = []
-        cut: list[str] = []
-        for entry in ranked:
-            found = offered.get(entry.name)
-            if found is None:
-                continue
-            if len(selected) >= MAX_AGENT_TOOL_SCHEMAS:
-                cut.append(f"{entry.name} ({entry.score:.3g})")
-                continue
-            selected.append(found)
-        return _Selection(
-            tools=tuple(selected),
-            outcome=None,
-            rationale=_selection_rationale(ranked, chosen=selected, cut=cut),
+    def _ranking_signals(self, request: InvestigationStart) -> Incident:
+        """Return what is known about the incident when capabilities are ranked.
+
+        Four of these five fields were never filled by this runner, so four of
+        the scorer's terms could not fire in a deployment however carefully
+        they were weighted. Everything read here is already on the request:
+        intake resolved the alert onto an estate resource and wrote what it
+        found into the run's context, and the alert's own labels ride along
+        beside it.
+
+        The summary is widened past the objective on purpose. The objective a
+        detector writes names its subject by opaque identifier
+        (``res-76ab…``), and lexical overlap against an identifier matches
+        nothing — so the resource's name and kind are appended, which is how
+        "pve01" and "node" reach a term that is looking for them.
+        """
+        context = request.context
+        labels = request.alert_labels
+        subject_source = str(context.get(SUBJECT_CONTEXT_RESOURCE_SOURCE, "")).strip()
+        subject_kind = str(context.get(SUBJECT_CONTEXT_RESOURCE_KIND, "")).strip()
+        subject_name = str(context.get(SUBJECT_CONTEXT_RESOURCE_NAME, "")).strip()
+        return Incident(
+            alert_source=request.alert_source,
+            summary=" ".join(
+                part for part in (request.objective, subject_name, subject_kind) if part
+            ),
+            tags=_ranking_tags(labels, kind=subject_kind, source=subject_source),
+            domain=str(labels.get(ALERT_DOMAIN_LABEL, "")).strip(),
+            subject_sources=(subject_source,) if subject_source else (),
         )
 
     async def _availability(self, request: InvestigationStart) -> IntegrationAvailability:
@@ -507,7 +585,9 @@ class ReActInvestigationRunner:
         desk = self._remediation
         return desk is not None and bool(desk.handles(found.name))
 
-    def _request_of(self, request: InvestigationStart) -> RunRequest:
+    def _request_of(
+        self, request: InvestigationStart, *, skills: Sequence[DiscoveredSkill] = ()
+    ) -> RunRequest:
         """Return the loop's own view of this investigation.
 
         ``session_id`` is the incident's run id, unchanged, so a later
@@ -524,12 +604,19 @@ class ReActInvestigationRunner:
         rather than an effect. An incident investigation is the one caller
         whose toolset can hold such a capability, so it is the one caller that
         has to say so.
+
+        The methodologies selection chose are appended to it, bodies and all.
+        This is the payout of progressive disclosure and the reason the skill
+        index is worth its per-turn cost: a body is read from disk and put in
+        front of the model only on the investigation that selected it. A
+        deployment that selected a skill and never showed it would be paying
+        the index every turn and collecting nothing.
         """
         return RunRequest(
             objective=request.objective,
             alert_source=request.alert_source,
             session_id=request.run_id,
-            system_prompt=INVESTIGATION_SYSTEM_PROMPT,
+            system_prompt=_prompt_with(INVESTIGATION_SYSTEM_PROMPT, skills),
             context=dict(request.context),
         )
 
@@ -569,11 +656,46 @@ class _Selection:
 
     tools: tuple[RegisteredTool, ...]
     outcome: InvestigationOutcome | None
+    #: The methodologies selection chose for this incident. Their bodies are
+    #: loaded into the turn that selected them and nowhere else, which is the
+    #: whole of progressive disclosure: the index costs every turn, the body
+    #: costs only the investigation that won it.
+    skills: tuple[DiscoveredSkill, ...] = ()
     #: Why these were the ones on offer, in the scorer's own words, plus what
     #: the ceiling cut. Carried rather than logged: an operator asking why a
     #: capability was missing from a run is asking about that run, and a line
     #: in a process log has already scrolled past by the time they ask.
     rationale: str = ""
+
+
+def _prompt_with(base: str, skills: Sequence[DiscoveredSkill]) -> str:
+    """Return ``base`` with each selected methodology appended under its name.
+
+    Named, because a body dropped into a prompt anonymously is prose the model
+    cannot attribute or cite, and the investigation's own answer is supposed to
+    be able to say which methodology it followed.
+    """
+    if not skills:
+        return base
+    sections = [f"## Methodology: {skill.name}\n\n{skill.body()}" for skill in skills]
+    return "\n\n".join([base, *sections])
+
+
+def _ranking_tags(labels: Mapping[str, str], *, kind: str, source: str) -> tuple[str, ...]:
+    """Return the tags one incident is matched against a declaration by.
+
+    The alert's own vocabulary plus what the estate says the subject is. A
+    capability declares tags like ``backup`` or ``proxmox`` or ``node``, and
+    until this existed nothing on the incident side was ever put beside them —
+    the tag term of the formula could not fire in a deployment at all.
+    """
+    collected = {
+        str(labels.get(label, "")).strip().lower()
+        for label in ALERT_RANKING_TAG_LABELS
+        if str(labels.get(label, "")).strip()
+    }
+    collected.update(part.lower() for part in (kind, source) if part)
+    return tuple(sorted(collected))
 
 
 def _selection_rationale(

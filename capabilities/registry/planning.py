@@ -62,6 +62,7 @@ class CatalogueRanker:
                 tags=signals.tags,
                 domain=signals.domain,
                 planned_capabilities=signals.planned_capabilities,
+                subject_sources=signals.subject_sources,
             ),
             effectiveness=self.effectiveness,
         )

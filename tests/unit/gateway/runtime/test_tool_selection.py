@@ -26,6 +26,7 @@ from capabilities.registry import build_registry
 from capabilities.registry.catalogue import Registry
 from capabilities.tools.remediation import control_plane
 from capabilities.tools.remediation.control_plane import ControlPlaneState
+from config.constants.capabilities import SECONDARY_EVIDENCE_SOURCES
 from core.capability.ports import ConfiguredIntegrations
 from core.llm.types import (
     FinishReason,
@@ -421,4 +422,126 @@ async def test_the_selection_says_why_these_capabilities_were_the_ones_on_offer(
     assert "offered 1" in selection.rationale, selection.rationale
     assert "cut by the ceiling" in selection.rationale, (
         f"a capability lost to the ceiling and the record does not say so: {selection.rationale!r}"
+    )
+
+
+# --- What the incident is about, not only who reported it --------------------
+#
+# The staging deployment offered an alert about failing Proxmox backup jobs a
+# ranking led by the two Alertmanager tools at 40.4 and 40.0, cut
+# ``proxmox_backup_failures`` at zero, and concluded without reading the
+# machine. The cause was arithmetic: for a tool, "the alert source it declares"
+# is its ``evidence_source`` — the vendor's name — so an Alertmanager alert
+# handed every Alertmanager tool the single largest term in the formula, and
+# nothing about the *subject* of the alert was scored at all.
+#
+# The subject's vendor is known before the first model call: alert resolution
+# already matched the alert onto an estate resource, and that resource says
+# which system holds it. These two tests are that fact reaching the ranking.
+
+#: A Proxmox read for the failure the alert is actually about.
+PROXMOX_READ = "proxmox_backup_failures"
+
+#: What the system that delivered the alert can say about the alert itself.
+ALERTMANAGER_READ = "alertmanager_incident_statistics"
+
+
+def _proxmox_node_start(run_id: str = "run-subject") -> InvestigationStart:
+    """Return an alert-triggered start whose subject resolved to a Proxmox node.
+
+    The context keys are the ones ``gateway/webhooks/router.py`` already fills
+    from alert resolution, so this is the shape a real delivery produces rather
+    than one invented here.
+    """
+    return InvestigationStart(
+        run_id=run_id,
+        objective="Job backup-cold-tier-sync no no pve01 ultrapassou a janela",
+        team_node_id=TEAM,
+        principal_id="alert-router",
+        org_id=ORG,
+        alert_source="alertmanager",
+        context={
+            "resource_id": "res-76ab14661a01d",
+            "resource_kind": "node",
+            "resource_name": "pve01",
+            "resource_source": "proxmox",
+            "resource_zone": "",
+        },
+        alert_labels={
+            "alertname": "CronJobStale",
+            "service": "node-exporter",
+            "severity": "critical",
+        },
+    )
+
+
+async def test_the_vendor_holding_the_subject_outranks_the_system_that_alerted(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With one slot to spend, a Proxmox failure spends it on the Proxmox tool.
+
+    Both capabilities are legitimately relevant — one holds the thing that
+    broke, the other holds the notification about it — and which one survives
+    the ceiling is the whole question. An investigation that spends its budget
+    reading the alerting system about an alert it was handed learns nothing it
+    did not start with.
+
+    Asserted through the ceiling rather than through the order the model is
+    handed, because the loop offers its tools in name order: a positional
+    assertion here would be measuring the alphabet.
+    """
+    monkeypatch.setattr(module, "MAX_AGENT_TOOL_SCHEMAS", 1)
+    _connected(monkeypatch, "proxmox", "alertmanager")
+    llm = _SilentLLM()
+    store = FakePersistence()
+    runner = ReActInvestigationRunner(  # type: ignore[arg-type]
+        llm=llm, registry=_catalogue(PROXMOX_READ, ALERTMANAGER_READ)
+    )
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
+    state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
+
+    await runner.investigate(_proxmox_node_start())
+
+    assert llm.requests, "the loop never called the model, so nothing was offered"
+    offered = tuple(schema.name for schema in llm.requests[0].tools)
+    assert offered == (PROXMOX_READ,), (
+        f"the one slot went to {offered} for an alert about a Proxmox node's backup jobs. "
+        f"The vendor that holds the broken thing has to outrank the vendor that reported "
+        f"it, or the investigation reads the notification back to itself."
+    )
+
+
+async def test_the_reserve_survives_a_vendor_flooding_the_ranking(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reasoning capability keeps its slot when one vendor scores everything.
+
+    ``capabilities/registry/selection.select`` holds the last few slots for
+    cheap, vendor-free reasoning and recall precisely so that a well-integrated
+    vendor cannot take every slot. The serving runner had its own top-N and
+    that reserve never applied to a real investigation.
+    """
+    _connected(monkeypatch, "proxmox", "alertmanager")
+    llm = _SilentLLM()
+    store = FakePersistence()
+    registry = build_registry()
+    runner = ReActInvestigationRunner(llm=llm, registry=registry)  # type: ignore[arg-type]
+    runner.attach_recording(gateway=store, guardrails=GuardrailEngine(), broker=RunEventBroker())
+    state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
+
+    await runner.investigate(_proxmox_node_start())
+
+    assert llm.requests, "the loop never called the model, so nothing was offered"
+    offered = {schema.name for schema in llm.requests[0].tools}
+    reserved = {
+        found.name
+        for found in registry.tools.values()
+        if found.metadata.evidence_source.lower() in SECONDARY_EVIDENCE_SOURCES
+    }
+    assert reserved & offered, (
+        "no vendor-free reasoning or recall capability was offered. The reserve exists "
+        "so an investigation going badly can still think and remember; a selection that "
+        "spends every slot on one vendor has removed both."
     )

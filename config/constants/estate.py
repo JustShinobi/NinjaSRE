@@ -146,6 +146,31 @@ ALERT_VMID_LABEL: Final = "vmid"
 #: wider inference would place an address in a zone by coincidence.
 ALERT_ZONE_INFERENCE_PREFIX: Final[int] = 24
 
+#: What the keys of an investigation's subject context are called.
+#:
+#: Written by the webhook router out of alert resolution, and read by capability
+#: ranking and by the run itself. Constants rather than literals because the two
+#: sides sit in different packages, and a key spelled one way in the writer and
+#: another in the reader looks exactly like an alert that resolved to nothing.
+SUBJECT_CONTEXT_RESOURCE_ID: Final = "resource_id"
+SUBJECT_CONTEXT_RESOURCE_KIND: Final = "resource_kind"
+SUBJECT_CONTEXT_RESOURCE_NAME: Final = "resource_name"
+SUBJECT_CONTEXT_RESOURCE_SOURCE: Final = "resource_source"
+SUBJECT_CONTEXT_RESOURCE_ZONE: Final = "resource_zone"
+SUBJECT_CONTEXT_RESOLVED_FROM: Final = "resolved_from"
+
+#: Alert labels that carry something ranking can match a declaration against.
+#:
+#: ``service`` and ``job`` name what the alert is about in the sender's own
+#: vocabulary, and a capability's tags are written in the same one. ``severity``
+#: is excluded deliberately: every capability that mentions "critical" would
+#: match every critical alert, which is noise wearing a signal's clothes.
+ALERT_RANKING_TAG_LABELS: Final[tuple[str, ...]] = ("service", "job", "alertname")
+
+#: The label a sender uses to say which domain an alert belongs to, when it
+#: says so at all. Matched against a capability's declared domain.
+ALERT_DOMAIN_LABEL: Final = "domain"
+
 #: Unresolved alert targets one listing returns. A finding per alert that
 #: named something unknown, and a deployment pointed at the wrong receiver can
 #: produce them faster than anybody reads them.
@@ -160,6 +185,8 @@ MAX_UNRESOLVED_ALERT_TARGETS: Final[int] = 50
 RETENTION_DAYS_ESTATE_HISTORY: Final[int] = 180
 
 __all__ = [
+    "ALERT_DOMAIN_LABEL",
+    "ALERT_RANKING_TAG_LABELS",
     "ALERT_TARGET_LABELS",
     "ALERT_VMID_LABEL",
     "ALERT_ZONE_INFERENCE_PREFIX",
@@ -184,4 +211,10 @@ __all__ = [
     "MIN_DISCOVERY_INTERVAL_SECONDS",
     "MIN_FRESHNESS_SECONDS",
     "RETENTION_DAYS_ESTATE_HISTORY",
+    "SUBJECT_CONTEXT_RESOLVED_FROM",
+    "SUBJECT_CONTEXT_RESOURCE_ID",
+    "SUBJECT_CONTEXT_RESOURCE_KIND",
+    "SUBJECT_CONTEXT_RESOURCE_NAME",
+    "SUBJECT_CONTEXT_RESOURCE_SOURCE",
+    "SUBJECT_CONTEXT_RESOURCE_ZONE",
 ]

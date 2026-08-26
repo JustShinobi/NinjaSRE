@@ -105,6 +105,12 @@ class ResolvedTarget:
     #: any scheme, path and port were removed.
     label: str
     value: str
+    #: The system the estate swept this resource from — ``proxmox`` for a node
+    #: read out of a Proxmox cluster. Carried because it is the answer to "which
+    #: vendor's tools are about this thing", and capability ranking asks exactly
+    #: that before the first model call. Defaulted rather than required so a
+    #: record written before this field existed still reads back.
+    source: str = ""
     #: Where the resource sits, when the estate knows. Reported rather than
     #: re-derived by every reader: an investigation that says "in the apps zone"
     #: and a screen that says otherwise is a disagreement nobody can settle.
@@ -116,6 +122,7 @@ class ResolvedTarget:
             "resource_id": self.resource_id,
             "kind": self.kind,
             "display_name": self.display_name,
+            "source": self.source,
             "matched_on": self.matched_on.value,
             "label": self.label,
             "value": self.value,
@@ -143,6 +150,7 @@ class ResolvedTarget:
             resource_id=str(record.get("resource_id", "")),
             kind=str(record.get("kind", "")),
             display_name=str(record.get("display_name", "")),
+            source=str(record.get("source", "")),
             matched_on=AlertMatch(record.get("matched_on", AlertMatch.NAME.value)),
             label=str(record.get("label", "")),
             value=str(record.get("value", "")),
@@ -410,6 +418,7 @@ def _target(
         resource_id=resource.resource_id,
         kind=resource.kind,
         display_name=resource.display_name or resource.native_id,
+        source=resource.source,
         matched_on=matched_on,
         label=label,
         value=value,

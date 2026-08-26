@@ -38,7 +38,15 @@ from typing import Final, Protocol, runtime_checkable
 
 from fastapi import APIRouter, Request, Response
 
-from config.constants.estate import MAX_ESTATE_PAGE_SIZE
+from config.constants.estate import (
+    MAX_ESTATE_PAGE_SIZE,
+    SUBJECT_CONTEXT_RESOLVED_FROM,
+    SUBJECT_CONTEXT_RESOURCE_ID,
+    SUBJECT_CONTEXT_RESOURCE_KIND,
+    SUBJECT_CONTEXT_RESOURCE_NAME,
+    SUBJECT_CONTEXT_RESOURCE_SOURCE,
+    SUBJECT_CONTEXT_RESOURCE_ZONE,
+)
 from config.constants.runs import TRIGGER_ALERT
 from config.constants.surfaces import WEBHOOK_MAX_PAYLOAD_BYTES
 from config.constants.transit import (
@@ -814,11 +822,16 @@ def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:
     if target is None:
         return {}
     return {
-        "resource_id": target.resource_id,
-        "resource_kind": target.kind,
-        "resource_name": target.display_name,
-        "resource_zone": target.zone,
-        "resolved_from": f"{target.label}={target.value}",
+        SUBJECT_CONTEXT_RESOURCE_ID: target.resource_id,
+        SUBJECT_CONTEXT_RESOURCE_KIND: target.kind,
+        SUBJECT_CONTEXT_RESOURCE_NAME: target.display_name,
+        # Which vendor holds the subject. The run reads it as context, and
+        # capability ranking reads it to decide whose tools this incident is
+        # about — the difference between offering the Proxmox reads for a
+        # failing Proxmox backup job and offering the alerting system's own.
+        SUBJECT_CONTEXT_RESOURCE_SOURCE: target.source,
+        SUBJECT_CONTEXT_RESOURCE_ZONE: target.zone,
+        SUBJECT_CONTEXT_RESOLVED_FROM: f"{target.label}={target.value}",
     }
 
 
