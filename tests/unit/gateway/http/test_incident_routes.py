@@ -25,6 +25,7 @@ from platform.persistence.ports import (
     ConfigNode,
     ConfigNodeKind,
     IncidentOrigin,
+    IncidentQuery,
     IncidentState,
     IncidentSubject,
     PersistenceGateway,
@@ -185,6 +186,33 @@ async def test_a_listing_names_every_subject_rather_than_counting_them(
     body = response.json()
     assert [entry["subjects"] for entry in body["incidents"]] == [["store-cove"]]
     assert body["incidents"][0]["state"] == "open"
+
+
+async def test_a_listing_carries_the_key_two_firings_of_one_cause_share(
+    deployment: tuple[AsyncClient, PersistenceGateway, str],
+) -> None:
+    """The correlation key reaches the wire, because grouping is impossible without it.
+
+    It is mandatory on the domain object and is built from exactly the two
+    things a reader groups by — the condition and the resource it fired on —
+    and it was dropped at this boundary. Two consequences, both live: the
+    console cannot fold repeated firings of one cause into one row, so an
+    estate that raises the same seven conditions all day reads as fifty
+    unrelated problems; and the global search already filters on this field,
+    against a value that was always the empty string, so searching by
+    correlation key matched nothing and said so to nobody.
+    """
+    client, store, secret = deployment
+    await open_an_incident(store)
+
+    response = await client.get("/v1/incidents", headers=bearer(secret))
+
+    assert response.status_code == 200
+    row = response.json()["incidents"][0]
+    async with store.begin(TenantScope(org_id=ORG)) as uow:
+        stored = (await uow.incidents.query(IncidentQuery()))[0]
+    assert row["correlation_key"] == stored.correlation_key
+    assert row["correlation_key"] != ""
 
 
 async def test_a_state_outside_the_closed_set_is_refused(

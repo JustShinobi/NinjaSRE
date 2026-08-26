@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LIVE_INCIDENT_STATES } from '@/design/status';
 import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
 import { AttentionBlock } from '@/surfaces/attention';
@@ -59,6 +60,72 @@ async function dashboardWithRaisedFailure(): Promise<void> {
                 finished_at: '2026-08-07T10:01:00.000Z',
                 summary:
                   "InvestigatorNotConfigured: Set NINJASRE_INVESTIGATOR to 'module:factory' — a callable returning the runner.",
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/**
+ * Render the dashboard over incidents the deployment has already finished
+ * with, spelled the way the store actually spells them.
+ *
+ * Every state below is a member of the store's enumeration. `closed` is not,
+ * which is the whole point: the screen used to drop an incident only when its
+ * state equalled that word, so the drop never happened.
+ */
+async function dashboardWithFinishedIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURES_BASE).pathname;
+    if (path === '/v1/incidents') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            incidents: [
+              {
+                incident_id: 'inc-resolved',
+                public_id: 'resolved',
+                title: 'ProxmoxGuestStopped cleared upstream',
+                summary: 'The guest came back and the condition cleared.',
+                state: 'resolved',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T09:00:00.000Z',
+                closed_at: '2026-08-07T09:04:00.000Z',
+                self_resolved: true,
+              },
+              {
+                incident_id: 'inc-suppressed',
+                public_id: 'suppressed',
+                title: 'CronJobStale during the maintenance window',
+                summary: 'A suppression rule covered it.',
+                state: 'suppressed',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T08:00:00.000Z',
+                closed_at: '2026-08-07T08:01:00.000Z',
+              },
+              {
+                incident_id: 'inc-shut',
+                public_id: 'shut',
+                title: 'RestoreDrillStale shut by an operator',
+                summary: 'Closed with nothing done.',
+                state: 'closed_without_action',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T07:00:00.000Z',
+                closed_at: '2026-08-07T07:02:00.000Z',
               },
             ],
           }),
@@ -395,6 +462,65 @@ describe('the "needs you" band’s oldest badge', () => {
 
     const badge = screen.getByText('Waiting longest: 2h 14m');
     expect(badge.className).not.toMatch(/\buppercase\b/);
+  });
+
+  it('does not ask a person to look at an incident that has already ended', async () => {
+    // The regression this replaces: the screen dropped an incident only when
+    // its state equalled `closed`, a word the store's enumeration does not
+    // contain, so nothing was ever dropped and three finished incidents were
+    // counted as three things waiting on a person.
+    await dashboardWithFinishedIncidents();
+
+    const band = screen.queryByTestId('attention');
+    const rows = band === null ? [] : within(band).queryAllByTestId('attention-row');
+    const titles = rows.map((row) => row.textContent);
+    expect(titles.some((text) => text.includes('cleared upstream'))).toBe(false);
+    expect(titles.some((text) => text.includes('maintenance window'))).toBe(false);
+    expect(titles.some((text) => text.includes('shut by an operator'))).toBe(false);
+  });
+
+  it('tells the narrative that a self-resolved incident ended well', async () => {
+    // The same comparison, a second time: because `closed` never matched, the
+    // success branch of the activity feed was unreachable and an incident that
+    // resolved itself was drawn in the same red as a live outage.
+    await dashboardWithFinishedIncidents();
+
+    const entries = screen.queryAllByTestId('activity-entry');
+    const resolved = entries.find((entry) =>
+      entry.textContent.includes('cleared upstream'),
+    );
+    expect(resolved).toBeDefined();
+    expect(resolved?.querySelector('[class*="danger"]')).toBeNull();
+  });
+
+  it('asks for live incidents by name rather than hoping they are recent', async () => {
+    // The listing answers with the fifty most recently *opened* incidents. On
+    // an estate that closes a lot, an incident still open from Tuesday is
+    // pushed off that page by Thursday's closures and vanishes from the one
+    // screen whose job is to say what needs a person. So the screen names the
+    // states it wants instead of filtering a page it hoped would contain them.
+    const asked: string[] = [];
+    serveScenario('populated');
+    const scenario = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const address = new URL(String(input), FIXTURES_BASE);
+      if (address.pathname === '/v1/incidents') {
+        asked.push(address.search);
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await DashboardScreen(await surfaceContext({})));
+
+    const live = asked.find((search) => search.includes('state='));
+    expect(live).toBeDefined();
+    for (const state of LIVE_INCIDENT_STATES) {
+      expect(live).toContain(`state=${state}`);
+    }
+    // And never a terminal one: asking for those here would reintroduce the
+    // count this screen just stopped inflating.
+    expect(live).not.toContain('state=resolved');
+    expect(live).not.toContain('state=suppressed');
+    expect(live).not.toContain('state=closed_without_action');
   });
 
   it('chooses the oldest timestamp rather than the last source group', () => {

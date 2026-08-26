@@ -75,6 +75,15 @@ class IncidentSummaryView(BaseModel):
     state: str
     severity: str
     origin: str
+    #: What two firings of one cause share: the condition and the resource it
+    #: fired on, which is what the store opens an incident *for* rather than
+    #: opening a second one. It is mandatory on the domain object and used to
+    #: be dropped here, and dropping it is what made a repeating estate
+    #: unreadable — a client has nothing else to fold fifty firings of seven
+    #: conditions back into seven rows with, because a title is prose and a
+    #: subject list is not the cause. The console's own search already filters
+    #: on this field and was matching the empty string.
+    correlation_key: str
     #: The detector, the alert source, or the person who opened it.
     detector: str
     #: Every subject, named. Never a count — see the module docstring.
@@ -257,6 +266,7 @@ def _row(incident: Incident) -> IncidentSummaryView:
         state=incident.state.value,
         severity=incident.severity,
         origin=incident.origin.value,
+        correlation_key=incident.correlation_key,
         detector=incident.origin_id,
         subjects=list(incident.subject_ids),
         opened_at=incident.opened_at,

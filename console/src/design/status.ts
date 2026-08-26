@@ -106,8 +106,11 @@ export const ATTENTION_STATUSES = [
   'info',
   'open',
   'investigating',
-  'closed',
+  'awaiting_human',
+  'remediating',
+  'resolved',
   'suppressed',
+  'closed_without_action',
   'awaiting_approval',
   'approval',
   'question',
@@ -270,11 +273,29 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   medium: { role: 'warning', shape: 'triangle' },
   low: { role: 'info', shape: 'rotated-square' },
   info: { role: 'info', shape: 'hollow-circle' },
-  // An incident's state.
+  // An incident's state. Every member of the store's own enumeration and
+  // nothing else, which `make check-incident-states` proves in both
+  // directions. `closed` used to sit here and is not a member: the gateway
+  // writes `incident.state.value` verbatim and the route refuses any filter
+  // outside the enumeration by name, so every screen comparing against
+  // `closed` was comparing against a word that cannot arrive.
   open: { role: 'danger', shape: 'square' },
   investigating: { role: 'info', shape: 'rotated-square' },
-  closed: { role: 'success', shape: 'filled-circle' },
+  // Waiting on a person, which is the same fact `suspended` carries for a run
+  // and is drawn the same way for that reason.
+  awaiting_human: { role: 'warning', shape: 'triangle' },
+  // A write to production is happening right now. Warning rather than info:
+  // this is the only incident state during which the estate is being changed,
+  // and its own shape, so it is never mistaken for `investigating` — which is
+  // the agent reading rather than the agent acting.
+  remediating: { role: 'warning', shape: 'square' },
+  // Terminal, and the outcome the product exists to produce.
+  resolved: { role: 'success', shape: 'filled-circle' },
   suppressed: { role: 'neutral', shape: 'dimmed-circle' },
+  // Terminal with nothing done. Neutral rather than success: an incident a
+  // person shut without a fix is not an incident that was solved, and drawing
+  // it green is how a deployment's success rate lies.
+  closed_without_action: { role: 'neutral', shape: 'dash' },
   // What is waiting on a person, and what happened to it.
   awaiting_approval: { role: 'warning', shape: 'triangle' },
   approval: { role: 'warning', shape: 'triangle' },
@@ -383,6 +404,51 @@ export function statusPresentation(status: string): StatusPresentation {
 /** The role `status` is rendered in. */
 export function roleFor(status: string): SemanticRole {
   return statusPresentation(status).role;
+}
+
+/**
+ * Everything an incident may be, in the store's own order.
+ *
+ * A closed set, in the shape `RUN_STATUSES` already has, and held against
+ * `platform.persistence.ports.incident_store.IncidentState` in both directions
+ * by `make check-incident-states`. It exists because the alternative had just
+ * failed in production: the overview compared `state === 'closed'` against an
+ * enumeration with no such member, so the comparison never once matched and
+ * every incident the agent had finished was counted as one waiting on a
+ * person. A word written at a call site is held against nothing.
+ */
+export const INCIDENT_STATES = [
+  'open',
+  'investigating',
+  'awaiting_human',
+  'remediating',
+  'resolved',
+  'suppressed',
+  'closed_without_action',
+] as const;
+
+export type IncidentState = (typeof INCIDENT_STATES)[number];
+
+/** The three the store's own `is_closed` property returns true for. */
+const TERMINAL_INCIDENT_STATES: readonly string[] = [
+  'resolved',
+  'suppressed',
+  'closed_without_action',
+];
+
+/**
+ * The four an incident can still be in, as a listing asks for them.
+ *
+ * Derived rather than written twice: a second literal is a second thing to
+ * forget, which is the whole shape of the defect above.
+ */
+export const LIVE_INCIDENT_STATES: readonly string[] = INCIDENT_STATES.filter(
+  (state) => !TERMINAL_INCIDENT_STATES.includes(state),
+);
+
+/** Whether an incident in `state` has ended and needs nobody. */
+export function isTerminalIncident(state: string): boolean {
+  return TERMINAL_INCIDENT_STATES.includes(state);
 }
 
 /** Whether a run in `status` has finished and will not change again. */

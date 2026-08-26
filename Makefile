@@ -328,6 +328,11 @@ check-raw-sql: ## Reject SQL, Cypher, or a database driver outside platform/pers
 check-run-status-vocabulary: ## Reject a fixture or console run status the persistence store does not declare
 	$(RUN) python -m tools.check_run_status_vocabulary
 
+# The same guard for the enumeration that never had one, and for the same
+# reason it is a module rather than a script.
+check-incident-states: ## Reject a console incident state the persistence store does not declare
+	$(RUN) python -m tools.check_incident_state_vocabulary
+
 check-credentials: ## Reject a credential read outside the vault and the proxy (FR-017)
 	$(RUN) python tools/check_direct_credentials.py
 
@@ -515,7 +520,7 @@ backup-cycle: ## Back up, restore into a clean database, and verify the result
 
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
-	check-run-status-vocabulary \
+	check-run-status-vocabulary check-incident-states \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
 	console-check test ## The single quality gate

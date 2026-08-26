@@ -2976,6 +2976,10 @@
             ],
             "title": "Closed At"
           },
+          "correlation_key": {
+            "title": "Correlation Key",
+            "type": "string"
+          },
           "detector": {
             "title": "Detector",
             "type": "string"
@@ -3055,6 +3059,7 @@
           "state",
           "severity",
           "origin",
+          "correlation_key",
           "detector",
           "opened_at"
         ],

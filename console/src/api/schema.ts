@@ -4515,6 +4515,8 @@ export interface components {
             close_reason: string;
             /** Closed At */
             closed_at?: string | null;
+            /** Correlation Key */
+            correlation_key: string;
             /** Detector */
             detector: string;
             /** Incident Id */

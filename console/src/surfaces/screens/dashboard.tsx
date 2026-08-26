@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react';
 
-import { isSettled, roleFor } from '@/design/status';
+import {
+  isSettled,
+  isTerminalIncident,
+  LIVE_INCIDENT_STATES,
+  roleFor,
+} from '@/design/status';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -71,6 +76,17 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 /** How many activity entries the feed shows before it is a list rather than a narrative. */
 const FEED_LENGTH = 8;
 
+/**
+ * The incidents this screen asks for by name, rather than by hoping.
+ *
+ * `/v1/incidents` answers with the most recently *opened* page. An estate that
+ * closes a lot therefore pushes a still-open incident off that page within a
+ * day or two, and the one screen whose job is to say what needs a person stops
+ * being able to see it. Naming the states costs one query string and makes the
+ * answer complete rather than recent.
+ */
+const LIVE_INCIDENT_QUERY = `?${LIVE_INCIDENT_STATES.map((state) => `state=${state}`).join('&')}`;
+
 /** Return the attention row whose source timestamp is the earliest valid instant. */
 export function oldestAttention(
   rows: readonly AttentionRow[],
@@ -101,6 +117,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     health,
     detectors,
     incidents,
+    liveIncidents,
     checklist,
     effective,
   ] = await Promise.all([
@@ -112,7 +129,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
     panelRead('/health/ready', () => read('/health/ready', init)),
     panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+    // Two reads of one listing, because they are two questions. The narrative
+    // below wants what happened lately, closures included; the attention band
+    // wants everything still open however long ago it opened, and those are
+    // not the same page.
     panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+    panelRead('/v1/incidents', () =>
+      read('/v1/incidents', { ...authorised(credential), query: LIVE_INCIDENT_QUERY }),
+    ),
     panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
     optionalRead('/v1/config/{node_id}', () =>
       node === ''
@@ -128,6 +152,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const approvalRecords = list(dataOf(approvals), 'approvals');
   const proposalRecords = list(dataOf(proposals), 'proposals');
   const incidentRecords = list(dataOf(incidents), 'incidents');
+  const liveIncidentRecords = list(dataOf(liveIncidents), 'incidents');
   const detectorRecords = list(dataOf(detectors), 'detectors');
   const summary = dataOf(estate);
 
@@ -159,8 +184,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       at: text(record, 'proposed_at'),
     });
   }
-  for (const record of incidentRecords) {
-    if (text(record, 'state') === 'closed') continue;
+  for (const record of liveIncidentRecords) {
+    // Belt and braces, and both earn their place. The read above asks for the
+    // four live states by name, so nothing terminal should arrive here; this
+    // holds anyway, because the previous version of this line compared against
+    // `closed` — a word the enumeration does not contain — and therefore never
+    // once skipped anything, which is how every finished incident came to be
+    // counted as one waiting on a person.
+    if (isTerminalIncident(text(record, 'state'))) continue;
     const id = text(record, 'public_id');
     attention.push({
       id,
@@ -206,7 +237,17 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       id: `incident-${id}`,
       kind: 'incident',
       kindLabel: message(locale, 'incidents.list.title'),
-      outcome: text(record, 'state') === 'closed' ? 'success' : 'danger',
+      // The same comparison a second time, and the same defect: because
+      // nothing ever equalled `closed`, this branch was unreachable and an
+      // incident that resolved itself was drawn in the red of a live outage.
+      // Only `resolved` earns the success well — an incident a person shut
+      // with nothing done did not go well, it stopped.
+      outcome:
+        text(record, 'state') === 'resolved'
+          ? 'success'
+          : isTerminalIncident(text(record, 'state'))
+            ? 'neutral'
+            : 'danger',
       title: text(record, 'title'),
       detail: text(record, 'detector'),
       href: `/incidents/${id}`,
