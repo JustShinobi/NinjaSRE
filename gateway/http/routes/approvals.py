@@ -51,14 +51,18 @@ from platform.identity.audit.recorder import (
     AuditContext,
     AuditRecorder,
 )
+from platform.incidents.errors import UnknownIncident
+from platform.incidents.lifecycle import IncidentLifecycle
 from platform.observability.logging import get_logger
-from platform.persistence.errors import AppendOnlyViolation, RecordNotFound
+from platform.persistence.errors import AppendOnlyViolation, PersistenceError, RecordNotFound
 from platform.persistence.ports import ActorKind, AuditOutcome
 from platform.persistence.ports.approval_store import (
     ApprovalRequest,
     ApprovalState,
     RollbackPlan,
 )
+from platform.persistence.ports.transaction import TenantScope
+from platform.remediation.errors import RemediationError
 from platform.remediation.gating import RunContext
 from platform.remediation.models import RemediationAction
 
@@ -339,6 +343,8 @@ async def decide_approval(
 
     if decided.state is ApprovalState.APPROVED:
         await _carry_out(state, decided, principal=auth.principal_id)
+    else:
+        await _record_refusal(state, decided, scope=auth.scope, principal=auth.principal_id)
 
     return ApprovalDecisionResult(
         approval_id=decided.approval_id,
@@ -346,6 +352,54 @@ async def decide_approval(
         decided_at=decided.decided_at.isoformat() if decided.decided_at else "",
         decided_by=decided.decided_by or "",
     )
+
+
+async def _record_refusal(
+    state: GatewayState,
+    decided: ApprovalRequest,
+    *,
+    scope: TenantScope,
+    principal: str,
+) -> None:
+    """Say on the incident that a person refused this change, and why.
+
+    The store and the audit trail already hold the decision, and neither is
+    where anybody looks. An incident whose proposed remediation was refused an
+    hour ago goes on presenting it as waiting for a decision, so the next person
+    to open it picks up a question that has been answered — which is how one
+    refusal becomes three.
+
+    Attributed to the reviewer rather than to the deployment. A refusal is the
+    one event on that timeline that a named person is responsible for, and
+    writing it as ``system`` would lose the only part of it that matters.
+
+    Never raises, for the reason ``_carry_out`` does not: the decision is
+    recorded and the response describes it, and failing to annotate an incident
+    must not tell the reviewer their refusal did not land.
+    """
+    action = _approved_action(decided)
+    if action is None or not action.run_id:
+        return
+
+    reason = (decided.reason or "").strip() or "no reason was recorded"
+    try:
+        async with state.gateway.begin(scope) as uow:
+            incident = await uow.incidents.find_by_run(action.run_id)
+            if incident is None:
+                return
+            await IncidentLifecycle(store=uow.incidents).record_action(
+                incident.incident_id,
+                f"{action.capability} on {action.target} was refused by {principal}: {reason}",
+                actor=principal,
+                now=datetime.now(UTC),
+            )
+    except (RemediationError, PersistenceError, UnknownIncident) as unrecorded:
+        logger.warning(
+            "remediation.refusal_not_recorded_on_incident",
+            approval_id=decided.approval_id,
+            run_id=action.run_id,
+            error=str(unrecorded),
+        )
 
 
 async def _carry_out(state: GatewayState, decided: ApprovalRequest, *, principal: str) -> None:

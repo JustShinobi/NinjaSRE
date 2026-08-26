@@ -16,11 +16,20 @@ The order is the specification and it is the one that survives a crash between
 the two halves. The decision is written first: a recorded approval that did not
 run is something an operator finds and re-runs, while a change applied with
 nothing saying who authorised it is indistinguishable from a compromise.
+
+**A refusal is a decision too, and it leaves the same three traces an approval
+does.** The reason is stored, nothing is carried out, and the incident the
+proposal was raised against says on its own timeline that a person said no and
+why. Across 496 runs this deployment had recorded two approvals and no refusals
+at all, so the path was never exercised — and the third of those traces was in
+fact missing: a rejection reached the store and the audit trail and left the
+incident showing a change still pending review that nobody would ever take.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -30,7 +39,12 @@ from capabilities.tools.remediation import control_plane
 from capabilities.tools.remediation.control_plane import ControlPlaneState
 from gateway.http.remediation import compose_remediation
 from platform.identity.permissions import Role
-from platform.persistence.ports import TenantScope
+from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
+from platform.persistence.ports import (
+    IncidentOrigin,
+    IncidentSubject,
+    TenantScope,
+)
 from platform.remediation.models import (
     RemediationAction,
     RemediationTarget,
@@ -127,6 +141,30 @@ async def _decide(
     )
 
 
+async def _incident_for(deployment: Deployment, *, run_id: str) -> str:
+    """Open the incident the investigation was started for, and attach its run."""
+    at = datetime(2026, 8, 26, 0, 50, tzinfo=UTC)
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(
+            IncidentRaise(
+                correlation_key="checkout:saturated",
+                title="checkout is saturating its replicas",
+                summary="request latency is tracking replica saturation",
+                origin=IncidentOrigin.ALERT,
+                origin_id="alert-1",
+                severity="high",
+                team_node_id=TEAM_PAYMENTS,
+                subjects=(IncidentSubject(resource_id="checkout"),),
+            ),
+            now=at,
+        )
+        await lifecycle.attach_run(
+            incident.incident_id, run_id=run_id, now=at + timedelta(minutes=1)
+        )
+    return incident.incident_id
+
+
 async def _outcome_for(deployment: Deployment) -> Any:
     """Return what the ledger recorded for the action this suite proposes."""
     async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
@@ -211,6 +249,70 @@ async def test_rejecting_carries_nothing_out_and_keeps_the_reason(
         decided = await uow.approvals.get_request(approval_id)
     assert decided is not None
     assert decided.reason and "OOM" in decided.reason
+
+
+async def test_a_refusal_says_so_on_the_incident_it_was_proposed_against(
+    plane: _Plane, deployment: Deployment, client: AsyncClient
+) -> None:
+    """The three traces a refusal leaves, asserted together.
+
+    Separately each is easy to believe and easy to lose. Together they are what
+    "we decided not to do this" means: the reason survives, the change did not
+    happen, and the incident somebody is reading says both. Without the third
+    the incident goes on showing an action pending review that was in fact
+    refused an hour ago, and the next person picks it up again.
+    """
+    incident_id = await _incident_for(deployment, run_id="run-1")
+    approval_id, _ = await _queued(deployment)
+
+    response = await _decide(
+        client,
+        deployment,
+        approval_id,
+        verdict="reject",
+        reason="the replica count is not the cause; the pod is being OOM killed",
+    )
+    assert response.status_code == 200, response.text
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        decided = await uow.approvals.get_request(approval_id)
+        incident = await uow.incidents.get(incident_id)
+        timeline = await uow.incidents.timeline(incident_id)
+
+    assert decided is not None
+    assert decided.reason and "OOM" in decided.reason
+    assert plane.changes == [], "a refused change was carried out anyway"
+
+    assert incident is not None
+    said = [entry for entry in incident.actions if SCALE in entry]
+    assert said, (
+        "the incident does not record that the change proposed for it was refused, so "
+        "it still reads as waiting on a decision that has already been made"
+    )
+    assert "OOM" in said[0], "the incident records the refusal without the reason for it"
+    assert any("reviewer" in entry.actor for entry in timeline), (
+        "the refusal is attributed to the deployment rather than to the person who made it"
+    )
+
+
+async def test_a_refusal_with_no_incident_behind_it_is_still_a_decision(
+    plane: _Plane, deployment: Deployment, client: AsyncClient
+) -> None:
+    """An operator-triggered write has no incident, and refusing it must still work.
+
+    The lookup is best-effort by construction: a proposal can come from a run
+    with no incident, from a run that has been purged, or from no run at all.
+    None of those is a reason to refuse the refusal.
+    """
+    approval_id, _ = await _queued(deployment)
+
+    response = await _decide(
+        client, deployment, approval_id, verdict="reject", reason="not now, we are in a freeze"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["state"] == "rejected"
+    assert plane.changes == []
 
 
 async def test_the_switch_engaged_after_the_decision_refuses_the_execution(

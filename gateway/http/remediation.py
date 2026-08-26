@@ -44,6 +44,7 @@ from typing import Any
 
 from capabilities.tools.remediation import control_plane
 from capabilities.tools.remediation import registry as component_registry
+from gateway.http.verification_sweep import schedule_verification_sweep
 from platform.approvals.models import ChangeType
 from platform.approvals.policy import DEFAULT_POLICY
 from platform.approvals.service import ApprovalService
@@ -54,7 +55,6 @@ from platform.config_service.service import ConfigService
 from platform.identity.audit.recorder import AuditRecorder
 from platform.observability.logging import get_logger
 from platform.persistence.ports import TenantScope
-from platform.persistence.ports.signal_store import Signal
 from platform.remediation.audit import RemediationAuditor
 from platform.remediation.components import ComponentRegistry
 from platform.remediation.errors import RemediationError
@@ -102,6 +102,11 @@ class RemediationDesk:
 
     requests: RequestBuilder
     executor: RemediationExecutor
+    #: What each capability declares about how its effect is verified. Held
+    #: because the sweep that settles this desk's obligations needs the same
+    #: registry the executor wrote them from: a verdict reached against a
+    #: second registry would be reached against a second set of declarations.
+    components: ComponentRegistry
     policy: GatingPolicy
     #: How the posture is resolved at the moment a write is decided, keyed by
     #: the team the run belongs to. A callable rather than a built gate: see the
@@ -229,7 +234,12 @@ async def compose_remediation(
         obligations=LedgerVerification(
             gateway=state.gateway,
             scope=scope,
-            signals=_UnreadSignals(),
+            # Read through the unit of work the recorder already holds, so the
+            # values a verdict is argued from are the ones that stood at the
+            # moment of the change. Reading nothing here is not a smaller
+            # version of this: it is every verdict in the deployment reading
+            # ``inconclusive`` for ever, because a comparison needs two sides.
+            signals_for=lambda uow: uow.signals,
             registry=components,
         ),
     )
@@ -237,6 +247,7 @@ async def compose_remediation(
     desk = RemediationDesk(
         requests=requests,
         executor=executor,
+        components=components,
         policy=GatingPolicy.of_policy(DEFAULT_POLICY),
         autonomy_of=_autonomy_of(state, org_id=org_id),
         capabilities=frozenset(components.components),
@@ -245,6 +256,14 @@ async def compose_remediation(
     )
 
     state.remediation = desk
+    # A deployment that can change production and a deployment that finds out
+    # whether the change worked are the same decision, so the sweep is
+    # registered with the desk rather than somewhere an operator has to
+    # remember. Without it every obligation this executor writes comes due and
+    # nothing reads the due time — which is what left a staging remediation
+    # awaiting a verification for a day, on a screen where that word means
+    # "ask again shortly".
+    await schedule_verification_sweep(state, org_id=org_id)
     attach = getattr(state.investigator, "attach_remediation", None)
     if attach is not None:
         attach(desk)
@@ -316,40 +335,6 @@ def _known_signals(state: Any) -> Sequence[str] | None:
     """
     del state
     return None
-
-
-@dataclass(frozen=True, slots=True)
-class _UnreadSignals:
-    """Reports that this deployment reads no signal on the execution path.
-
-    The obligation to find out whether a change worked is still written — that
-    is the point of wiring the ledger at all — and what is missing is the
-    reading taken at the moment of the change to compare against later.
-
-    It is empty rather than store-backed on purpose. The recorder opens its own
-    unit of work and asks this from inside it, so an implementation that opened
-    another would re-enter a transaction the recorder already holds; against a
-    fake persistence that is a deadlock, and against a real one it is a second
-    connection taken while the first is open. What belongs here is a live
-    metrics source, which this composition root does not build — the observation
-    tick does, per sweep, and giving the executor one is later work rather than
-    something to fake here.
-    """
-
-    async def latest(
-        self,
-        *,
-        names: tuple[str, ...] = (),
-        resource_ids: tuple[str, ...] = (),
-    ) -> tuple[Signal, ...]:
-        """Return nothing, and say so once per action rather than silently."""
-        logger.info(
-            "remediation.signals_unread",
-            signals=list(names),
-            resources=list(resource_ids),
-            reason="no synchronous signal readback is composed on the execution path",
-        )
-        return ()
 
 
 def _isolation(*, proxy_url: str) -> SandboxIsolation | None:

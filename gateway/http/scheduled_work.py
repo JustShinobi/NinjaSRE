@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 from typing import Any
 
+from config.constants.closed_loop import VERIFICATION_SWEEP_JOB_KIND
 from config.constants.estate import ESTATE_DISCOVERY_JOB_KIND
 from config.constants.knowledge import (
     CORPUS_SYNC_JOB_KIND,
@@ -30,6 +31,7 @@ from config.constants.knowledge import (
 from config.constants.observation import OBSERVATION_TICK_JOB_KIND
 from gateway.http.observation_job import ObservationTickJobRunner
 from gateway.http.state import GatewayState
+from gateway.http.verification_sweep import VerificationSweepJobRunner
 from platform.estate.discovery.enriched import EnrichingSweeper
 from platform.estate.discovery.runner import TopologyDiscoveryRunner
 from platform.estate.discovery.sweep import EstateSweeper
@@ -96,6 +98,11 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
     dispatcher.register(TOPOLOGY_DISCOVERY_JOB_KIND, sweep)
     dispatcher.register(ESTATE_DISCOVERY_JOB_KIND, sweep)
     dispatcher.register(OBSERVATION_TICK_JOB_KIND, ObservationTickJobRunner(state=state))
+    # Registered whether or not a desk is composed, for the reason the module
+    # docstring gives about knowledge.sync: a deployment that cannot write owes
+    # no verdicts and the runner says so, while an unregistered kind would read
+    # as a hole in the build to whoever found the job unrunnable.
+    dispatcher.register(VERIFICATION_SWEEP_JOB_KIND, VerificationSweepJobRunner(state=state))
     return dispatcher
 
 

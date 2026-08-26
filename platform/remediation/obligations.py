@@ -50,7 +50,7 @@ from platform.persistence.ports.remediation_ledger import (
     VerificationVerdict,
 )
 from platform.persistence.ports.signal_store import Signal, SignalKind
-from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.persistence.ports.transaction import PersistenceGateway, TenantScope, UnitOfWork
 from platform.remediation.components import ComponentRegistry
 from platform.remediation.declaration import VerificationDeclaration
 from platform.remediation.models import RemediationAction, utc_now
@@ -421,11 +421,20 @@ class LedgerVerification:
     and does not suit an executor that lives for the life of the process — so
     this is the adapter between the two, and it is the same shape
     ``AuditSpendLedger`` uses for the same reason.
+
+    ``signals_for`` is a function of the unit of work rather than a readback
+    held on the field, and the difference is what makes the before-values real.
+    The readback is asked from inside the transaction this class opens, so an
+    implementation holding its own handle would take a second connection while
+    the first is open — against the in-memory backend that deadlocks. Reading
+    through the unit of work already in hand has neither problem, and a
+    deployment that captured nothing before every change is one whose every
+    verdict is ``inconclusive`` for ever.
     """
 
     gateway: PersistenceGateway
     scope: TenantScope
-    signals: SignalReadback
+    signals_for: Callable[[UnitOfWork], SignalReadback]
     registry: ComponentRegistry
     clock: Callable[[], datetime] = field(default=utc_now)
     resource_for: Callable[[RemediationAction], str] = field(default=resource_of)
@@ -433,7 +442,7 @@ class LedgerVerification:
     async def capture(self, action: RemediationAction) -> Mapping[str, float]:
         """Return the declared signals' values as they stand right now."""
         async with self.gateway.begin(self.scope) as uow:
-            return await self._over(uow.remediation).capture(action)
+            return await self._over(uow).capture(action)
 
     async def owe(
         self,
@@ -449,7 +458,7 @@ class LedgerVerification:
     ) -> RemediationOutcome:
         """Record what is owed about ``action``, and return the row."""
         async with self.gateway.begin(self.scope) as uow:
-            return await self._over(uow.remediation).owe(
+            return await self._over(uow).owe(
                 action,
                 before=before,
                 executed_at=executed_at,
@@ -460,11 +469,11 @@ class LedgerVerification:
                 undo=undo,
             )
 
-    def _over(self, ledger: RemediationLedger) -> VerificationObligations:
-        """Return the obligations service bound to one transaction's ledger."""
+    def _over(self, uow: UnitOfWork) -> VerificationObligations:
+        """Return the obligations service bound to one transaction."""
         return VerificationObligations(
-            ledger=ledger,
-            signals=self.signals,
+            ledger=uow.remediation,
+            signals=self.signals_for(uow),
             registry=self.registry,
             clock=self.clock,
             resource_for=self.resource_for,
