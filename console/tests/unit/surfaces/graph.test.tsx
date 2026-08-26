@@ -58,15 +58,18 @@ describe('a hierarchy is sized to its own ranks', () => {
     expect(height).toBe(220);
   });
 
-  it('never scales itself up past the size it was drawn at', () => {
+  it('is drawn at the size it was designed at, and pans when it must', () => {
     render(<HierarchyGraph ranks={ranksOf(6, false)} labels={LABELS} />);
 
-    // Free to shrink on a narrow screen; never stretched across a wide one,
-    // where a 720-wide drawing became a 2100-wide one and took its empty
-    // canvas with it.
-    expect(screen.getByTestId('hierarchy').getAttribute('style')).toContain(
-      'max-inline-size',
-    );
+    const svg = screen.getByTestId('hierarchy');
+    // Never stretched across a wide screen, where a 720-wide drawing became a
+    // 2100-wide one and took its empty canvas up with it — and never shrunk on
+    // a narrow one either. Free to shrink was not free: at a phone's width the
+    // stage labels came out about four pixels tall, which is a picture that is
+    // present, occupies the room, and cannot be read.
+    const style = svg.getAttribute('style') ?? '';
+    expect(style).toContain('min-inline-size');
+    expect(svg.parentElement?.className).toContain('overflow-x-auto');
   });
 });
 

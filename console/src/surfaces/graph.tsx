@@ -232,107 +232,118 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
   const rowY = (index: number): number => index * RANK_HEIGHT + RANK_HEIGHT / 2;
 
   return (
-    <svg
-      role="img"
-      aria-label={labels.title}
-      viewBox={`0 0 ${String(width)} ${String(height)}`}
-      data-testid="hierarchy"
-      className="w-full h-auto"
-      // Free to shrink on a narrow screen and never stretched beyond the size
-      // it was drawn at. Stretched, a 720-wide drawing became a 2100-wide one
-      // and carried its empty canvas up with it.
-      style={{ maxInlineSize: `${String(width)}px` }}
-    >
-      <title>{labels.title}</title>
-      <defs>
-        <marker
-          id="hierarchy-arrow"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 1 L 9 5 L 0 9" className="fill-none stroke-border-strong" />
-        </marker>
-      </defs>
-      <g className="stroke-border" strokeWidth={1} fill="none">
-        {drawn
-          .slice(1)
-          .map((rank, index) =>
-            rank.nodes.map((node) => (
-              <line
-                key={`edge-${node.id}`}
-                x1={width / 2}
-                y1={rowY(index) + NODE_HEIGHT / 2}
-                x2={
-                  acrossFor(rank.nodes.indexOf(node), rank.nodes.length, width) +
-                  NODE_WIDTH / 2
-                }
-                y2={rowY(index + 1) - NODE_HEIGHT / 2}
-              />
-            )),
-          )}
-      </g>
-      {/* The order, where a rank has one. Between the boxes rather than on
+    // Wide content scrolls inside its own box rather than shrinking out of
+    // legibility. Free to shrink was not free: at a phone's width a
+    // twelve-hundred-pixel drawing scaled to three hundred and ninety, and the
+    // stage labels came out about four pixels tall — a picture that is present,
+    // occupies the room, and cannot be read. It is drawn at the size it was
+    // designed at and the reader pans it, which is what every wide table on
+    // these screens already does.
+    <div className="w-full overflow-x-auto">
+      <svg
+        role="img"
+        aria-label={labels.title}
+        viewBox={`0 0 ${String(width)} ${String(height)}`}
+        data-testid="hierarchy"
+        className="h-auto"
+        style={{
+          inlineSize: `${String(width)}px`,
+          maxInlineSize: '100%',
+          minInlineSize: `${String(width)}px`,
+        }}
+      >
+        <title>{labels.title}</title>
+        <defs>
+          <marker
+            id="hierarchy-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 1 L 9 5 L 0 9" className="fill-none stroke-border-strong" />
+          </marker>
+        </defs>
+        <g className="stroke-border" strokeWidth={1} fill="none">
+          {drawn
+            .slice(1)
+            .map((rank, index) =>
+              rank.nodes.map((node) => (
+                <line
+                  key={`edge-${node.id}`}
+                  x1={width / 2}
+                  y1={rowY(index) + NODE_HEIGHT / 2}
+                  x2={
+                    acrossFor(rank.nodes.indexOf(node), rank.nodes.length, width) +
+                    NODE_WIDTH / 2
+                  }
+                  y2={rowY(index + 1) - NODE_HEIGHT / 2}
+                />
+              )),
+            )}
+        </g>
+        {/* The order, where a rank has one. Between the boxes rather than on
           them: the arrow is the claim that one follows another, and a glyph
           inside a box could only ever repeat the box's own name. */}
-      <g className="stroke-border-strong" strokeWidth={1} fill="none">
-        {drawn.flatMap((rank, index) =>
-          rank.sequence !== true
-            ? []
-            : rank.nodes.slice(0, -1).map((node, position) => {
-                const from = acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
-                const to = acrossFor(position + 1, rank.nodes.length, width);
-                return (
-                  <line
-                    key={`sequence-${node.id}`}
-                    data-testid="sequence-edge"
-                    x1={from + 4}
-                    y1={rowY(index)}
-                    x2={to - 4}
-                    y2={rowY(index)}
-                    markerEnd="url(#hierarchy-arrow)"
-                  />
-                );
-              }),
+        <g className="stroke-border-strong" strokeWidth={1} fill="none">
+          {drawn.flatMap((rank, index) =>
+            rank.sequence !== true
+              ? []
+              : rank.nodes.slice(0, -1).map((node, position) => {
+                  const from =
+                    acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
+                  const to = acrossFor(position + 1, rank.nodes.length, width);
+                  return (
+                    <line
+                      key={`sequence-${node.id}`}
+                      data-testid="sequence-edge"
+                      x1={from + 4}
+                      y1={rowY(index)}
+                      x2={to - 4}
+                      y2={rowY(index)}
+                      markerEnd="url(#hierarchy-arrow)"
+                    />
+                  );
+                }),
+          )}
+        </g>
+        {drawn.map((rank, index) =>
+          rank.nodes.map((node, position) => (
+            <g
+              key={node.id}
+              data-testid="hierarchy-node"
+              data-node={node.id}
+              data-rank={rank.id}
+              data-disabled={node.disabled === true ? 'true' : 'false'}
+              data-entry={node.entryPoint === true ? 'true' : 'false'}
+              className={node.disabled === true ? 'opacity-60' : undefined}
+            >
+              <Box
+                node={node}
+                x={acrossFor(position, rank.nodes.length, width)}
+                y={rowY(index) - NODE_HEIGHT / 2}
+              />
+              {rank.sequence !== true ? null : (
+                // Which one this is, so the order survives the picture being
+                // read out of order — or read by something that cannot see the
+                // arrows at all.
+                <text
+                  data-testid={`sequence-ordinal-${node.id}`}
+                  x={acrossFor(position, rank.nodes.length, width) + NODE_WIDTH / 2}
+                  y={rowY(index) - NODE_HEIGHT / 2 - 6}
+                  textAnchor="middle"
+                  className="fill-muted text-micro"
+                >
+                  {position + 1}
+                </text>
+              )}
+            </g>
+          )),
         )}
-      </g>
-      {drawn.map((rank, index) =>
-        rank.nodes.map((node, position) => (
-          <g
-            key={node.id}
-            data-testid="hierarchy-node"
-            data-node={node.id}
-            data-rank={rank.id}
-            data-disabled={node.disabled === true ? 'true' : 'false'}
-            data-entry={node.entryPoint === true ? 'true' : 'false'}
-            className={node.disabled === true ? 'opacity-60' : undefined}
-          >
-            <Box
-              node={node}
-              x={acrossFor(position, rank.nodes.length, width)}
-              y={rowY(index) - NODE_HEIGHT / 2}
-            />
-            {rank.sequence !== true ? null : (
-              // Which one this is, so the order survives the picture being
-              // read out of order — or read by something that cannot see the
-              // arrows at all.
-              <text
-                data-testid={`sequence-ordinal-${node.id}`}
-                x={acrossFor(position, rank.nodes.length, width) + NODE_WIDTH / 2}
-                y={rowY(index) - NODE_HEIGHT / 2 - 6}
-                textAnchor="middle"
-                className="fill-muted text-micro"
-              >
-                {position + 1}
-              </text>
-            )}
-          </g>
-        )),
-      )}
-    </svg>
+      </svg>
+    </div>
   );
 }
 
