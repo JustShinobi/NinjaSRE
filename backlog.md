@@ -140,25 +140,35 @@ facts a reviewer wants in one place, and two of the three are there.
 
 ---
 
-## Nothing reads the signal at the moment of a change
+## Nothing reads the signal at the moment of a change — closed 2026-08-26
 
-**What happens today.** Every executed remediation writes an obligation to check
-later whether it worked. The obligation is written with its "before" values
-empty, because nothing on the execution path reads a live signal. The composer
-passes a reader that declares it has none and logs that fact once per action, so
-the gap is visible rather than silent — but the verification that runs later has
-nothing to compare against.
+**Closed, with the evidence this file asks for.** `_UnreadSignals` is gone: the
+verification sweep reads the declared signals through the unit of work it
+already holds (`signals=uow.signals`), which is the re-entrancy the entry below
+worried about and which turned out to be answerable there rather than needing a
+live metrics source in the composition root.
 
-**Why it is not a small fix.** The obligation recorder asks for the reading from
-inside the unit of work it already holds. An implementation over the persistence
-gateway therefore re-enters an open transaction: against the in-memory
-persistence that is a deadlock, measured, and against a real database it is a
-second connection taken while the first is held. What belongs there is a live
-metrics source, which the composition root that builds the desk does not build.
+Observed rather than argued: the one obligation this deployment had, written
+2026-08-26 00:53 and stuck since, moved on its own at 10:06:53 —
+`awaiting_verification → verified`, verdict recorded, attempts 3. That first
+verdict is `inconclusive` and correctly so: its "before" was written by the old
+empty read-back, so there is nothing to compare against. Actions taken after
+this carry a real "before".
 
-**How it should be judged.** A remediation's recorded obligation carries the
-value of the signal as it was when the change was made, and the later
-verification reports a movement rather than an absence.
+The original entry, kept because it explains why the shape is what it is:
+
+> Every executed remediation writes an obligation to check later whether it
+> worked. The obligation is written with its "before" values empty, because
+> nothing on the execution path reads a live signal. The composer passes a
+> reader that declares it has none and logs that fact once per action, so the
+> gap is visible rather than silent — but the verification that runs later has
+> nothing to compare against.
+>
+> **Why it is not a small fix.** The obligation recorder asks for the reading
+> from inside the unit of work it already holds. An implementation over the
+> persistence gateway therefore re-enters an open transaction: against the
+> in-memory persistence that is a deadlock, measured, and against a real
+> database it is a second connection taken while the first is held.
 
 ---
 
@@ -630,3 +640,110 @@ packages at once. That is a product decision, not a cleanup.
 over says so on the screen, names the scheme, and offers the same two ways out
 the refusal already carries — and a credential refused for its host still says
 that instead.
+
+---
+
+## An alert-raised investigation belongs to no team, so it can remember nothing
+
+**What happens today.** Episodic memory is composed per investigation and scoped
+to the run's team, because `MemoryRetriever` refuses an unscoped one by
+construction — "an unscoped search is one that can return another team's
+incidents". Every investigation this deployment has ever run carries no team:
+`team_node_id` is empty on 512 runs of 512, with principal `alert-router`. So
+the composition declines, logs `memory.run_unscoped`, and `episodes` stays at
+zero however well the read and write halves work.
+
+The mechanism carries a team the whole way — `WebhookSourceConfig.team_node_id`
+into the tenant scope into the run's metadata, with a routing rule able to
+override it. Nothing is missing in the code. What was missing is a team: this
+deployment had exactly one configuration node, `default`, of kind
+`organisation`, and no node of kind `team` at all.
+
+**What has been done.** A team now exists: `default/platform`, under `default`.
+
+**What is left, and why it is not one more API call.** The team a run acts for
+comes from the delivery token, and the router says why: *"The token decides the
+team… this credential lives in an alert router's configuration file, outside
+anything this deployment rotates."* So the remaining steps are to issue a
+delivery token scoped to that team and to replace the secret in Alertmanager's
+own configuration — the second of which is the operator's alerting, not this
+product's. The console's machine-tokens screen offers the alert-delivery scope
+and **no team selector**, so the front door cannot do it either; the API accepts
+`node_id` on token issuance.
+
+**How it should be judged.** An alert-raised investigation carries a team, and
+the investigation after it recalls the episode the first one left.
+
+---
+
+## A recorded remediation says which signal it promised, not which condition it was about
+
+**What happens today.** Verification obligations carry `condition_key` empty.
+The sweep settles them by reading the declared signals, which works, but the row
+cannot say what condition the change was meant to clear — only which signal was
+watched.
+
+**Why it is not a field to fill in.** The executor does not know the condition:
+it receives an action, a target and a rollback plan, and the condition lives
+with whatever raised the incident. Deciding where it enters — carried on the
+action from the proposal, looked up from the incident at settle time, or
+recorded by the gate that approved it — is a product decision about what a
+remediation record is *for*, not a plumbing gap.
+
+**How it should be judged.** A settled outcome names the condition it was about,
+and an operator reading it can tell "the guest is running again" from "the alert
+that asked for this has cleared".
+
+---
+
+## The lexical term of capability ranking is English-only
+
+**What happens today.** `_terms` filters against twenty-six English stop words
+and keeps runs of `[a-z0-9_]+`, so an incident summarised in another language
+scores zero on the use-case overlap component for every candidate at once.
+
+**What changed, and what did not.** The consequence used to be the alphabet: a
+tie at zero broke by name, and the forty tools a turn received were the first
+forty by name. That is no longer the case — ranking now scores the vendor that
+holds the incident's subject, its domain and its tags, all of which are
+language-independent, so a non-English incident still ranks on what it is about.
+Measured: an alert whose text is Portuguese offered the Proxmox reads for a
+Proxmox subject at 48–51 points against a lexical component worth at most 20.
+
+The lexical component itself is still English-only, and it is still the term
+that distinguishes between capabilities of one vendor. It is a narrower problem
+than it was, not a solved one.
+
+**How it should be judged.** Two incidents describing one failure in two
+languages are offered the same capabilities in the same order.
+
+---
+
+## Thirty-six visual baselines are drifted, and the design is being reworked
+
+**What happens today.** `make console-visual` is red for thirty-six screens,
+drifted by the sentence-case sidebar labels. `make verify` contains that suite,
+so it is red too.
+
+**Deliberately not swept in.** The design is being reformulated, so accepting
+these now would freeze as "reviewed" a design that is still moving. Two
+baselines *were* accepted in the same period and are not drift:
+`integrations-panel-1440-light`, because the capture harness stopped cutting a
+panel that scrolls inside itself, and `run-detail-live-1440-light`, because the
+transcript card stopped contradicting itself.
+
+**How it should be judged.** When the design settles, the drifted baselines are
+re-accepted in one reviewed commit, and `make console-visual` is green again.
+
+---
+
+## Sixteen browser tests fail on the branch, in screens this work did not touch
+
+**What happens today.** The `behaviour` suite fails sixteen times across
+incident-detail, the transversal rules, and budgets. Measured with a control
+run: the same sixteen before and after the work of 2026-08-26, so they predate
+it and belong to whatever changed those screens.
+
+**How it should be judged.** The suite is green, or each remaining failure has
+an entry of its own here saying what it is waiting on.
+
