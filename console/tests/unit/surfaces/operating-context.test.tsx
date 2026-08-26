@@ -194,11 +194,21 @@ it('states that this field is for facts and points at where instructions go', ()
   );
 });
 
-it('says which roles this text is sent to', () => {
+it('says which roles this text is sent to, in words and not as statuses', () => {
   editor();
 
-  expect(screen.getByText('investigator')).toBeInTheDocument();
-  expect(screen.getByText('subagent')).toBeInTheDocument();
+  const tags = screen.getAllByTestId('context-role');
+  expect(tags.map((tag) => tag.getAttribute('data-role-name'))).toEqual([
+    'investigator',
+    'subagent',
+  ]);
+  expect(tags.map((tag) => tag.textContent)).toEqual(['Investigator', 'Subagent']);
+  // Through the status badge an unrecognised word takes the hollow ring that
+  // means "a status this console has never heard of", so a list of audiences
+  // rendered as a row of unticked checkboxes. A role is not a state.
+  for (const tag of tags) {
+    expect(tag.querySelector('[data-shape]')).toBeNull();
+  }
 });
 
 it('shows what the context costs against the budget the deployment declares', () => {

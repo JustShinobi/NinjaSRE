@@ -4,8 +4,11 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { Button, Link } from '@/components/action';
-import { Input, Textarea } from '@/components/form';
+import { ProgressBar } from '@/components/feedback';
 import { Badge } from '@/components/status';
+import { Input, Textarea } from '@/components/form';
+import { cx } from '@/design/cx';
+import { humaniseIdentifier } from '@/i18n/format';
 
 /**
  * Writing down what this environment is, and reading the prompt it becomes.
@@ -243,21 +246,44 @@ export function OperatingContextEditor({
         <Link href="/autonomy">{labels.policy}</Link>
       </p>
 
-      <p className="flex flex-wrap items-center gap-2 text-meta text-muted">
+      <p className="flex flex-wrap items-baseline gap-2 text-meta text-muted">
         <span>{labels.roles}</span>
         {roles.map((role) => (
-          <Badge key={role} status={role} />
+          // Plain tags, not status badges. A role is not a state, and going
+          // through the status badge gave every one of them the hollow ring
+          // that means "a status this console has never heard of" — so a list
+          // of audiences read as a row of unticked checkboxes.
+          <span
+            key={role}
+            data-testid="context-role"
+            data-role-name={role}
+            className="rounded-1 bg-neutral-bg px-2 py-1 text-micro text-text"
+          >
+            {humaniseIdentifier(role)}
+          </span>
         ))}
       </p>
 
+      {/* A meter as well as the count. "0 of 1200 tokens" is a figure a reader
+          has to hold two numbers in their head to place; the bar places it for
+          them, and the count stays because a bar alone is an estimate. */}
       <p
         data-testid="context-budget"
-        className={`text-meta tabular-nums ${over ? 'text-danger' : 'text-muted'}`}
+        className={cx(
+          'flex flex-wrap items-center gap-3 text-meta tabular-nums',
+          over ? 'text-danger' : 'text-muted',
+        )}
       >
-        {labels.budget}{' '}
-        {labels.budgetUsed
-          .replace('{used}', String(spent))
-          .replace('{budget}', String(tokenBudget))}
+        <span>
+          {labels.budget}{' '}
+          {labels.budgetUsed
+            .replace('{used}', String(spent))
+            .replace('{budget}', String(tokenBudget))}
+        </span>
+        <ProgressBar
+          label={labels.budget}
+          value={tokenBudget === 0 ? 0 : (spent / tokenBudget) * 100}
+        />
       </p>
       {/* Said before anyone is near the limit, not only once they have crossed
           it: what happens past the budget is a refusal, never a silent cut. */}

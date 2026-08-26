@@ -43,6 +43,7 @@ import {
   text,
   type PanelData,
 } from '../read';
+import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 import { TeamTab } from './team-context';
@@ -1217,10 +1218,11 @@ function AutonomyTab({
               data-decision={text(entry, 'decision')}
               className="flex flex-col gap-1"
             >
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-small text-strong">
-                  {text(entry, 'risk_class')}
-                </span>
+              <span className="flex flex-wrap items-center gap-3">
+                <RiskLadder
+                  riskClass={text(entry, 'risk_class')}
+                  label={humaniseIdentifier(text(entry, 'risk_class'))}
+                />
                 <Badge status={text(entry, 'decision')} />
                 {text(entry, 'refused_by') === '' ? null : (
                   <span className="text-meta text-muted" data-testid="outlook-bound">
@@ -1233,7 +1235,19 @@ function AutonomyTab({
               <span className="text-small" data-testid="outlook-sentence">
                 {text(entry, 'sentence')}
               </span>
-              <span className="text-meta text-muted">{text(entry, 'reason')}</span>
+              {/* Labelled, because unlabelled it read as the sentence above it
+                  said a second time in grey. It is not: the sentence says what
+                  would happen, this says which rule decided — and the two
+                  necessarily share most of their words, so only the label
+                  tells a reader they are two different claims. It is the
+                  decision's own audit text, complete on purpose, because it is
+                  also read on a decision record with none of this around it. */}
+              <span className="text-meta text-muted">
+                <span className="text-strong">
+                  {message(locale, 'agent.outlook.reason')}
+                </span>{' '}
+                {text(entry, 'reason')}
+              </span>
             </li>
           ))}
         </ul>

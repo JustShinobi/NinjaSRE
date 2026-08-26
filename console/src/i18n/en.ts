@@ -1995,6 +1995,7 @@ export const EN = {
   'agent.outlook.title': 'What would happen, by class of action',
   'agent.outlook.body':
     'One sentence per class, answered by the deployment itself under the policy as it stands right now.',
+  'agent.outlook.reason': 'Why:',
   'agent.outlook.bound': 'stopped by the {bound}',
   'agent.outlook.dryRun':
     'Everything here is simulated: dry-run is on for this node, so nothing is performed.',

@@ -1703,6 +1703,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.outlook.title': 'O que aconteceria, por classe de ação',
   'agent.outlook.body':
     'Uma frase por classe, respondida pelo próprio deployment sob a política tal como ela está agora.',
+  'agent.outlook.reason': 'Por quê:',
   'agent.outlook.bound': 'barrado por {bound}',
   'agent.outlook.dryRun':
     'Tudo aqui é simulado: dry-run está ligado para este nó, então nada é executado.',
