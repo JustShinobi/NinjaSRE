@@ -230,6 +230,9 @@ export async function IncidentDetailScreen(
   // that is the sentence to print.
   const runStatus = hasInvestigation ? text(investigation, 'status') : '';
   const runStillGoing = LIVE_RUN_STATUSES.has(runStatus);
+  // A run id attached with no trace row behind it yet. Neither chip is true:
+  // it has not finished, and nothing here has seen it start.
+  const runStateUnknown = hasInvestigation && runStatus === '';
 
   // A read that succeeded and genuinely carries no investigation still
   // says so; that is a fact, not a guess.
@@ -253,17 +256,24 @@ export async function IncidentDetailScreen(
             shape: 'dash',
             label: message(locale, 'incident.chip.investigation.none'),
           }
-        : runStillGoing
+        : runStateUnknown
           ? {
-              role: 'info',
-              shape: 'rotated-square',
-              label: message(locale, 'incident.chip.investigation.running'),
+              role: 'neutral',
+              shape: 'dash',
+              label: message(locale, 'incident.chip.investigation.unknown'),
+              title: message(locale, 'incident.chip.investigation.unknown.explain'),
             }
-          : {
-              role: 'success',
-              shape: 'filled-circle',
-              label: message(locale, 'incident.chip.investigation.finished'),
-            };
+          : runStillGoing
+            ? {
+                role: 'info',
+                shape: 'rotated-square',
+                label: message(locale, 'incident.chip.investigation.running'),
+              }
+            : {
+                role: 'success',
+                shape: 'filled-circle',
+                label: message(locale, 'incident.chip.investigation.finished'),
+              };
 
   // --- Subtitle: rule, source, instant, zone, host -----------------------------
   const rule = text(incident, 'detector');
