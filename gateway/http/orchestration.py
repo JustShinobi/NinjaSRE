@@ -73,13 +73,28 @@ async def start_investigation(
             alert_id=alert_id,
             metadata={RUN_METADATA_TEAM: team_node_id},
         )
-        if incident_id and credential_name:
-            await IncidentLifecycle(store=uow.incidents).record_alert_received(
-                incident_id,
-                labels=alert_labels or {},
-                credential_name=credential_name,
-                now=_utc_now(),
-            )
+        if incident_id:
+            # Attached in the same transaction that reserves the run's
+            # identity, so "this run exists" and "this incident points at it"
+            # become true together. Attaching afterwards leaves a window in
+            # which the incident is under investigation and nothing can tell:
+            # a second alert on the same subject looks for a live run to join,
+            # finds none, and starts its own. The burst that motivated the
+            # joining rule arrived three deliveries inside eighty-two
+            # milliseconds, which is well inside a window like that.
+            #
+            # Idempotent in the run, so the caller that also attaches — the
+            # webhook router, which does it to record the objective on the
+            # timeline — is not a second link.
+            lifecycle = IncidentLifecycle(store=uow.incidents)
+            await lifecycle.attach_run(incident_id, run.run_id, objective=objective, now=_utc_now())
+            if credential_name:
+                await lifecycle.record_alert_received(
+                    incident_id,
+                    labels=alert_labels or {},
+                    credential_name=credential_name,
+                    now=_utc_now(),
+                )
 
     task = asyncio.create_task(
         _drive(

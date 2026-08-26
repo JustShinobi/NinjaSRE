@@ -390,3 +390,32 @@ async def test_a_rule_firing_on_a_different_guest_investigates_for_itself(
         f"leaving nobody looking at it: {answer}"
     )
     assert len(busy.runner.started) == 2
+
+
+async def test_two_alerts_arriving_at_once_still_produce_one_investigation(
+    busy: Ingress,
+) -> None:
+    """Alertmanager posts concurrently, and the burst measured here proves it.
+
+    Three of the five deliveries landed inside eighty-two milliseconds of each
+    other. An incident becomes joinable only once its run is attached to it, so
+    everything between starting the run and attaching it is a window in which a
+    second alert sees nothing running and starts its own — and the window used
+    to contain an estate write.
+
+    Delivered through ``gather`` rather than in sequence because sequential
+    delivery cannot reproduce it: the first request is fully handled before the
+    second begins, which is exactly the case that was never in doubt.
+    """
+    await asyncio.gather(
+        _deliver_without_waiting(busy, adguard_oom("first")),
+        _deliver_without_waiting(
+            busy, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+        ),
+    )
+
+    assert len(busy.runner.started) == 1, (
+        f"{len(busy.runner.started)} investigations for two alerts that arrived together "
+        f"on one container. An incident whose run exists but is not yet attached to it "
+        f"is an incident nothing can join."
+    )
