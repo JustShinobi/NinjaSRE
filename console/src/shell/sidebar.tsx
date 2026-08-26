@@ -94,7 +94,7 @@ export function SidebarNav({
     <div className="flex-1 overflow-y-auto py-1">
       {groupsFor(viewer, { checklistComplete }).map((group) => (
         <div key={group.group} className="px-2 pt-3 pb-1">
-          <p className="px-2 pb-1 text-micro uppercase text-muted">
+          <p className="px-2 pb-1 text-micro text-muted">
             {message(locale, `nav.group.${group.group}`)}
           </p>
           <ul>

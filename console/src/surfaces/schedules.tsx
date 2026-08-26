@@ -597,7 +597,7 @@ export function Schedules({
                 <th
                   key={header}
                   scope="col"
-                  className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                  className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
                 >
                   {header}
                 </th>

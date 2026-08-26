@@ -66,7 +66,7 @@ export function Table({ caption, columns, rows, empty }: TableProps): ReactNode 
                 key={column.key}
                 scope="col"
                 className={cx(
-                  'text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0',
+                  'text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0',
                   column.numeric === true ? 'text-right' : 'text-left',
                 )}
               >

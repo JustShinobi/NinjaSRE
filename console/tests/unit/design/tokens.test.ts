@@ -143,11 +143,15 @@ describe('the scales', () => {
     expect(typeStep('body')).toMatchObject({ size: 14, line: 1.5, weight: 400 });
     expect(typeStep('small')).toMatchObject({ size: 13, line: 1.5, weight: 400 });
     expect(typeStep('meta')).toMatchObject({ size: 12, line: 1.45, weight: 400 });
-    expect(typeStep('micro')).toMatchObject({ size: 11, line: 1.4, weight: 650 });
+    expect(typeStep('micro')).toMatchObject({ size: 12, line: 1.4, weight: 600 });
   });
 
-  it('tracks uppercase micro outwards and headings inwards', () => {
-    expect(typeStep('micro').tracking).toBe('0.06em');
+  it('leaves labels untracked and tracks headings inwards', () => {
+    // `micro` was 11px of capitals tracked to 0.06em. Capitals plus tracking
+    // is what an administrative console of a decade ago used to say "this is
+    // a label", and it costs scanning speed: a reader matches word shapes,
+    // and capitals give every word the same one.
+    expect(typeStep('micro').tracking).toBe('0em');
     expect(typeStep('display').tracking).toBe('-0.03em');
     expect(typeStep('body').tracking).toBe('0em');
   });

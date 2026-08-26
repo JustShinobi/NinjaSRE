@@ -234,7 +234,7 @@ export function Topbar({
               comes from `message()` called in a server component — so what is
               kept is a cookie the next request already reads, and changing it
               reloads rather than only updating what is on screen. */}
-          <span className="pt-2 text-micro uppercase text-muted" id="language-label">
+          <span className="pt-2 text-micro text-muted" id="language-label">
             {message(locale, 'shell.account.language')}
           </span>
           <span className="flex gap-1" role="group" aria-labelledby="language-label">

@@ -426,7 +426,7 @@ function renderBlock(block: Block, key: string): ReactNode {
                   <th
                     key={`${key}-h-${String(index)}`}
                     scope="col"
-                    className="text-left text-micro uppercase text-muted pb-1 pr-3"
+                    className="text-left text-micro text-muted pb-1 pr-3"
                   >
                     {renderInline(cell, `${key}-h-${String(index)}`)}
                   </th>

@@ -275,7 +275,7 @@ export function RowList({
                     sorted ? (state.descending ? 'descending' : 'ascending') : 'none'
                   }
                   className={cx(
-                    'text-micro uppercase text-muted edge border-border border-t-0 border-x-0',
+                    'text-micro text-muted edge border-border border-t-0 border-x-0',
                     // A sortable heading moves the cell's padding onto its own
                     // link, so the padded area is the target rather than the
                     // glyphs. An ordinary heading keeps the spacing every other

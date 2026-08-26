@@ -335,8 +335,16 @@ export interface TypeStep {
 /**
  * The type scale.
  *
- * `micro` tracks outwards because uppercase at eleven pixels closes up, and the
- * headings track inwards because large type at default tracking reads loose.
+ * `micro` is the label step: column headers, section headings, the words above
+ * a group of navigation entries. It used to be eleven pixels of capitals
+ * tracked out to 0.06em, which is a decade-old administrative-console idiom
+ * and a measurable cost — a reader recognises a word by its silhouette, and
+ * capitals flatten every word to the same rectangle. Twelve pixels, sentence
+ * case, no tracking: the label reads as a label because it is smaller and
+ * quieter than what it labels, not because it is shouting.
+ *
+ * The headings still track inwards, because large type at default tracking
+ * reads loose.
  */
 export const TYPE_STEPS: Readonly<Record<string, TypeStep>> = {
   display: { size: 34, line: 1.15, weight: 680, tracking: '-0.03em' },
@@ -346,7 +354,7 @@ export const TYPE_STEPS: Readonly<Record<string, TypeStep>> = {
   body: { size: 14, line: 1.5, weight: 400, tracking: '0em' },
   small: { size: 13, line: 1.5, weight: 400, tracking: '0em' },
   meta: { size: 12, line: 1.45, weight: 400, tracking: '0em' },
-  micro: { size: 11, line: 1.4, weight: 650, tracking: '0.06em' },
+  micro: { size: 12, line: 1.4, weight: 600, tracking: '0em' },
 };
 
 export type TypeName = keyof typeof TYPE_STEPS;

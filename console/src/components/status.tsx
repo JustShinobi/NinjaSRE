@@ -24,13 +24,40 @@ import { message, type Locale } from '@/i18n/messages';
  * different ones for that reason, which is asserted rather than assumed.
  */
 
-/** The tint, foreground and boundary each role wears. */
+/**
+ * The shape every status chip is drawn in.
+ *
+ * One carrier of the signal, not three. This used to be a stroke *and* a tint
+ * *and* coloured text, wrapped around eleven-pixel capitals tracked out to
+ * 0.06em — the vocabulary an administrative console used a decade ago, and a
+ * measurable cost besides: a reader scans by word shape, and capitals flatten
+ * every word to the same rectangle. Fifty of them in a column stopped being
+ * read at all.
+ *
+ * Every value here is a step that already existed. `rounded-full` is a
+ * declared radius rather than a written number, `text-meta` is the
+ * twelve-pixel step at regular weight, and the box is padding rather than a
+ * height nobody could derive.
+ */
+const CHIP = 'inline-flex items-center gap-2 px-2 py-1 rounded-full text-meta';
+
+/**
+ * The tint and foreground each role wears.
+ *
+ * The pair is `${role}` on `${role}-bg`, which the contrast proof already
+ * measures at 4.5:1 in both themes — so losing the border costs no legibility
+ * and WCAG 1.4.11 does not apply to a chip that is not a control.
+ *
+ * Neutral is the one exception and keeps a boundary. Its tint is the page
+ * ground in the dark theme, so an unbordered neutral chip on a raised card
+ * reads as a hole punched through it rather than as an object on it.
+ */
 const ROLE_SKIN: Readonly<Record<SemanticRole, string>> = {
-  success: 'bg-success-bg text-success border-success',
-  warning: 'bg-warning-bg text-warning border-warning',
-  danger: 'bg-danger-bg text-danger border-danger',
-  info: 'bg-info-bg text-info border-info',
-  neutral: 'bg-neutral-bg text-neutral border-border-strong',
+  success: 'bg-success-bg text-success',
+  warning: 'bg-warning-bg text-warning',
+  danger: 'bg-danger-bg text-danger',
+  info: 'bg-info-bg text-info',
+  neutral: 'bg-neutral-bg text-neutral edge border-border',
 };
 
 /** The fill each role gives a shape. */
@@ -101,7 +128,10 @@ export function Badge({ status, className }: BadgeProps): ReactNode {
       data-role={presented.role}
       data-known={presented.known}
       className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro uppercase',
+        CHIP,
+        // The one chip carrying a word the deployment wrote rather than one
+        // this console chose, so it is the one that needs casing at all.
+        'capitalize',
         ROLE_SKIN[presented.role],
         className,
       )}
@@ -207,11 +237,7 @@ export function StatusChip({
       data-credential-status={canonical}
       data-testid={testId}
       title={explain}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[presented.role],
-        className,
-      )}
+      className={cx(CHIP, ROLE_SKIN[presented.role], className)}
     >
       <ShapeMark shape={presented.shape} role={presented.role} />
       {label}
@@ -262,11 +288,7 @@ export function ResolvedChip({
       data-testid={testId}
       data-role={role}
       {...(title === undefined ? {} : { title })}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[role],
-        className,
-      )}
+      className={cx(CHIP, ROLE_SKIN[role], className)}
     >
       <ShapeMark shape={shape} role={role} />
       {label}
@@ -608,11 +630,7 @@ export function CheckChip({
       data-role={role}
       data-check-status={status}
       data-testid={testId}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[role],
-        className,
-      )}
+      className={cx(CHIP, ROLE_SKIN[role], className)}
     >
       <ShapeMark
         shape={

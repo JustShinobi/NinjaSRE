@@ -177,7 +177,7 @@ export function IntegrationCatalogue({
         <>
           {matchingConnected.length === 0 ? null : (
             <section data-testid="connected-section" className="flex flex-col gap-2">
-              <h2 className="text-micro uppercase tracking-wide text-muted">
+              <h2 className="text-micro tracking-wide text-muted">
                 {message(locale, 'catalogue.integrations.connected.title')}
               </h2>
               <ul className="flex flex-col gap-2">
@@ -223,7 +223,7 @@ export function IntegrationCatalogue({
               data-testid="suggested-section"
               className="flex flex-col gap-2 rounded-3 edge border-accent p-3"
             >
-              <h2 className="text-micro uppercase tracking-wide text-accent">
+              <h2 className="text-micro tracking-wide text-accent">
                 {message(locale, 'catalogue.integrations.suggested.title')}
               </h2>
               <ul className="flex flex-col gap-2">
@@ -260,7 +260,7 @@ export function IntegrationCatalogue({
 
           {matchingAvailable.length === 0 ? null : (
             <section data-testid="available-section" className="flex flex-col gap-2">
-              <h2 className="text-micro uppercase tracking-wide text-muted">
+              <h2 className="text-micro tracking-wide text-muted">
                 {message(locale, 'catalogue.integrations.available.title')}
               </h2>
               <ul

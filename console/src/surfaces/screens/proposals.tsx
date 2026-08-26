@@ -134,7 +134,7 @@ export async function ProposalsTab(context: SurfaceContext): Promise<ReactNode> 
               >
                 <header className="flex items-baseline gap-2 flex-wrap">
                   <h3 className="text-section">{text(record, 'summary')}</h3>
-                  <span className="text-micro uppercase edge border-border rounded-1 px-2 text-muted">
+                  <span className="text-micro edge border-border rounded-1 px-2 text-muted">
                     {message(locale, kindKey(kind))}
                   </span>
                   <time

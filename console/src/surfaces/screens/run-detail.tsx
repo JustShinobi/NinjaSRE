@@ -401,22 +401,13 @@ export async function RunDetailScreen(
                   </caption>
                   <thead>
                     <tr>
-                      <th
-                        scope="col"
-                        className="text-left text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-left text-micro text-muted pb-1">
                         {message(locale, 'run.usage.model')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.turns')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.tokens')}
                       </th>
                     </tr>
@@ -442,22 +433,13 @@ export async function RunDetailScreen(
                   </caption>
                   <thead>
                     <tr>
-                      <th
-                        scope="col"
-                        className="text-left text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-left text-micro text-muted pb-1">
                         {message(locale, 'run.usage.turn')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.calls')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.cost')}
                       </th>
                     </tr>

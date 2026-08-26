@@ -46,7 +46,7 @@ export function SettingsSubnav({ groups, locale }: SettingsSubnavProps): ReactNo
     >
       {groups.map((group) => (
         <div key={group.group} className="px-2 pb-3">
-          <p className="px-2 pb-1 text-micro uppercase text-muted">
+          <p className="px-2 pb-1 text-micro text-muted">
             {message(locale, GROUP_LABEL[group.group])}
           </p>
           <ul>

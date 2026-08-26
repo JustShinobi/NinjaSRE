@@ -516,7 +516,7 @@ export function IntegrationPanel({
           ) : null}
           {item.permissions.length === 0 ? null : (
             <div className="flex flex-col gap-2" data-testid="required-permissions">
-              <h3 className="text-micro uppercase tracking-wide text-muted">
+              <h3 className="text-micro tracking-wide text-muted">
                 {labels.permissionsHeading}
               </h3>
               <ul className="flex flex-col gap-1">
@@ -678,7 +678,7 @@ export function IntegrationPanel({
                   className="flex flex-col gap-2 rounded-2 edge px-3 py-2"
                   data-testid="panel-intake-handover"
                 >
-                  <h3 className="text-micro uppercase tracking-wide text-muted">
+                  <h3 className="text-micro tracking-wide text-muted">
                     {labels.intakeTitle}
                   </h3>
                   <p className="text-meta text-muted">{labels.intakeBody}</p>
@@ -716,7 +716,7 @@ export function IntegrationPanel({
                   stored — so this is never hidden behind "Replace credential"
                   or shown only while `showForm` is. */}
               <div className="flex flex-col gap-3" data-testid="certificate-trust">
-                <h3 className="text-micro uppercase tracking-wide text-muted">
+                <h3 className="text-micro tracking-wide text-muted">
                   {labels.trust.heading}
                 </h3>
                 <p className="text-meta text-muted">{labels.trust.intro}</p>
@@ -741,7 +741,7 @@ export function IntegrationPanel({
                     className="flex flex-col gap-2 rounded-2 edge px-3 py-2"
                     data-testid="trust-unverified"
                   >
-                    <h4 className="text-micro uppercase tracking-wide text-muted">
+                    <h4 className="text-micro tracking-wide text-muted">
                       {labels.trust.unverifiedHeading}
                     </h4>
                     <Textarea
