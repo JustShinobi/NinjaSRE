@@ -1844,6 +1844,10 @@ export const EN = {
   'audit.empty.action': 'Widen the period',
 
   // --- Live: a run watched as it happens ------------------------------------------------------------
+  'live.state.live': 'Live',
+  'live.state.refreshing': 'Refreshing',
+  'live.state.stale': 'Not updating',
+  'live.state.paused': 'Paused',
   'live.connection': 'Connection',
   'live.connection.connecting': 'Connecting',
   'live.connection.connected': 'Live',

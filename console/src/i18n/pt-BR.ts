@@ -1563,6 +1563,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'audit.empty.action': 'Alargar o período',
 
   // --- Live -----------------------------------------------------------------------------------------
+  'live.state.live': 'Ao vivo',
+  'live.state.refreshing': 'Atualizando',
+  'live.state.stale': 'Sem atualizar',
+  'live.state.paused': 'Pausado',
   'live.connection': 'Conexão',
   'live.connection.connecting': 'Conectando',
   'live.connection.connected': 'Ao vivo',

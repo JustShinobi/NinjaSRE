@@ -13,6 +13,7 @@ import {
   SearchIcon,
 } from '@/design/icons';
 import { storeDensity } from '@/design/density';
+import { AutoRefresh } from '@/live/auto-refresh';
 import { applyTheme, storeTheme } from '@/design/theme';
 import type { Theme } from '@/design/tokens';
 import { LOCALES, message, type Locale } from '@/i18n/messages';
@@ -128,6 +129,12 @@ export function Topbar({
       >
         {deployment.name}
       </span>
+
+      {/* One indicator for the whole frame, in the bar every screen shares.
+          Never one per panel: six chips saying the same thing is six things to
+          reconcile, and the thing they describe — whether the page is keeping
+          itself current — is a property of the page rather than of a panel. */}
+      <AutoRefresh locale={locale} />
 
       <span className="hidden sm:inline-flex">
         <IconButton
