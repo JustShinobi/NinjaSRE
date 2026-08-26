@@ -42,7 +42,9 @@ export function evidenceOf(record: {
   readonly evidence_missing?: unknown;
 }): RunEvidence {
   const counted = (value: unknown): number =>
-    typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+    typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? Math.trunc(value)
+      : 0;
   return {
     assessed: record.evidence_assessed === true,
     backed: counted(record.evidence_backed),

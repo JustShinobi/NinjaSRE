@@ -134,7 +134,9 @@ describe('the runs list language', () => {
     // The card gives the subject a whole line, so what is shown and what the
     // tooltip carries are the same sentence unless the deployment's own text
     // was longer than the subject reader will truncate.
-    expect(tooltip.getAttribute('title')).toContain(tooltip.textContent.trim().slice(0, 20));
+    expect(tooltip.getAttribute('title')).toContain(
+      tooltip.textContent.trim().slice(0, 20),
+    );
   });
 });
 

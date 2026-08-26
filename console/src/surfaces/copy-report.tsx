@@ -57,7 +57,11 @@ export function CopyReport({ text, labels }: CopyReportProps): ReactNode {
         );
       }}
     >
-      {said === 'copied' ? labels.copied : said === 'refused' ? labels.refused : labels.copy}
+      {said === 'copied'
+        ? labels.copied
+        : said === 'refused'
+          ? labels.refused
+          : labels.copy}
     </Button>
   );
 }

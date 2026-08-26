@@ -29,12 +29,7 @@ import {
 import { evidenceOf } from '../run-evidence';
 import { subjectOf } from '../run-subject';
 import { triggerLabel } from '../run-trigger';
-import {
-  hrefFor,
-  readViewState,
-  withSelection,
-  type FilterName,
-} from '../url-state';
+import { hrefFor, readViewState, withSelection, type FilterName } from '../url-state';
 
 /**
  * Every run this deployment has recorded, and one of them open in place.
@@ -73,7 +68,9 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   const records = list(dataOf(runs), 'runs');
 
   const statuses = [...new Set(records.map((record) => text(record, 'status')))].sort();
-  const triggers = [...new Set(records.map((record) => text(record, 'trigger')))].sort();
+  const triggers = [
+    ...new Set(records.map((record) => text(record, 'trigger'))),
+  ].sort();
 
   const filtered = records.filter((record) =>
     Object.entries(state.filters).every(
