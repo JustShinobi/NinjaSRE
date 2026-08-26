@@ -149,3 +149,28 @@ def test_a_configured_provider_with_no_model_takes_that_providers_default() -> N
 
     assert binding.provider_id == PROVIDER_OLLAMA
     assert binding.model_id != ""
+
+
+def test_a_binding_says_whether_anybody_chose_it() -> None:
+    """The distinction `specs_v2/043`'s own deviations warned about.
+
+    That document put it exactly: "the router has to be able to tell a role
+    somebody chose from one that fell through — a default that looks like a
+    choice is how a deployment comes to believe it split its models when it
+    did not." `TaskRouter` kept the distinction, in `TaskBinding.configured`.
+    This function, which is what the deployment actually calls, threw it away,
+    and a deployment came to believe exactly that: the console had nothing to
+    read but a provider string, so it printed the schema's default as though
+    somebody had picked it.
+
+    Three answers, not two, because "I chose this for extraction" and "this
+    follows the investigator" are different facts to put in front of an
+    operator, and only one of them is worth changing.
+    """
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
+
+    assert resolve_binding(MODEL_ROLE_INVESTIGATOR).source == "configured"
+    assert resolve_binding(MODEL_ROLE_EXTRACTION).source == "investigator"
+
+    reset_configured_bindings()
+    assert resolve_binding(MODEL_ROLE_EXTRACTION).source == "default"

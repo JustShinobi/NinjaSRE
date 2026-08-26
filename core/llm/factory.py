@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Final
 
 from config.constants.config_service import MODEL_ROLE_INVESTIGATOR
 from config.constants.llm import (
@@ -73,14 +74,35 @@ def reset_configured_bindings() -> None:
     _CONFIGURED_BINDINGS.clear()
 
 
+#: Where a binding's answer came from. Three values rather than a boolean,
+#: because "somebody chose this for this role", "this follows the investigator"
+#: and "nothing is configured anywhere" are three different things to put in
+#: front of an operator, and only the middle one is a deployment quietly
+#: running on a decision nobody made for that role specifically.
+BINDING_CONFIGURED: Final = "configured"
+BINDING_INVESTIGATOR: Final = "investigator"
+BINDING_DEFAULT: Final = "default"
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderBinding:
-    """Which provider, model, and transport a role resolves to."""
+    """Which provider, model, and transport a role resolves to, and on whose say-so."""
 
     role: str
     provider_id: str
     model_id: str
     transport: str = DEFAULT_TRANSPORT
+    #: One of the three constants above. Carried rather than derived because a
+    #: caller holding only a provider string cannot tell a choice from a
+    #: fallback — which is how a console came to print a model no call would
+    #: ever reach, and how a deployment came to believe it had split its
+    #: models when it had not.
+    source: str = BINDING_DEFAULT
+
+    @property
+    def configured(self) -> bool:
+        """Return whether this role's own binding was chosen by somebody."""
+        return self.source == BINDING_CONFIGURED
 
     def cache_key(self, descriptor: ModelDescriptor, base_url: str = "") -> ClientCacheKey:
         """Return the cache key this binding produces."""
@@ -136,10 +158,13 @@ def resolve_binding(
     """
     catalogue = registry or default_registry()
     configured_provider, configured_model = _CONFIGURED_BINDINGS.get(role, ("", ""))
+    source = BINDING_CONFIGURED if configured_provider else BINDING_DEFAULT
     if not configured_provider and role != MODEL_ROLE_INVESTIGATOR:
         configured_provider, configured_model = _CONFIGURED_BINDINGS.get(
             MODEL_ROLE_INVESTIGATOR, ("", "")
         )
+        if configured_provider:
+            source = BINDING_INVESTIGATOR
 
     resolved_provider = provider_id or configured_provider or DEFAULT_PROVIDER
     # A model is only inherited from the same source that chose the provider. A
@@ -161,6 +186,7 @@ def resolve_binding(
         provider_id=resolved_provider,
         model_id=resolved_model,
         transport=transport or _configured_transport(),
+        source=source,
     )
 
 
