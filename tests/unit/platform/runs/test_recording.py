@@ -366,3 +366,42 @@ async def test_the_model_s_own_words_survive_into_the_stored_turn(
         "what was written down, and a turn recorded without them leaves the console "
         "printing the selection note under the heading 'Reasoning'."
     )
+
+
+async def test_the_recorded_reasoning_does_not_carry_the_headline_marker(
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+    clock: Callable[[], datetime],
+) -> None:
+    """The line the delivery protocol asked for is consumed here too.
+
+    ``Headline:`` is a control line addressed to the deployment, not something
+    the model is telling a reader — the deployment asked for it, extracted the
+    sentence, and named the run by it. Recording the turn's text verbatim put
+    it straight back on the run page, one panel below an ``h1`` that is already
+    that same sentence: the defect the summary strip exists to prevent, moved
+    into the transcript.
+
+    The record keeps what the model said. It does not keep what the model
+    signalled.
+    """
+    await _seed_run(gateway, scope, clock, "run-marker")
+    hook = RunTraceRecordingHook(gateway=gateway, scope=scope, run_id="run-marker")
+
+    await hook.on_turn_end(
+        Session(id="run-marker", objective="why will the container not start"),
+        Turn(
+            index=1,
+            rationale=(
+                "The guest cannot start: the host has no free memory.\n\n"
+                "Headline: LXC 152 is stopped and cannot start for want of host memory"
+            ),
+        ),
+    )
+
+    async with gateway.begin(scope) as uow:
+        replayed = await replay_run(uow.run_traces, "run-marker")
+
+    recorded = replayed.turns[0].model_rationale
+    assert "Headline:" not in recorded, f"the marker line reached the transcript: {recorded!r}"
+    assert "no free memory" in recorded, "stripping the marker took the reasoning with it"

@@ -32,6 +32,7 @@ from core.capability.telemetry import InvocationOutcome
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.ports.run_trace_store import ToolCallStatus
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.runs.headline import report_body
 from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
 from platform.runs.stream import RunEventBroker
 
@@ -150,7 +151,12 @@ class RunTraceRecordingHook:
             cost=usage.cost_usd if usage is not None else None,
             duration_ms=int(turn.duration_seconds * 1_000),
             selection_rationale=turn.selection_rationale,
-            model_rationale=turn.rationale,
+            # The marker line goes here for the same reason it goes from the
+            # summary: it is a control line the delivery protocol asked the
+            # model to write, the deployment consumed it to name the run, and
+            # leaving it in put the run's own title back on the page one panel
+            # below the heading that already carries it.
+            model_rationale=report_body(turn.rationale),
             offered_capabilities=turn.offered_capabilities,
             started_at=turn.started_at,
             finished_at=finished_at,
