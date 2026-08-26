@@ -37,8 +37,11 @@ async function follow(
   module: string,
   params: Readonly<Record<string, string>> = {},
 ): Promise<string> {
-  const route: { default: (props: unknown) => Promise<unknown> } = await import(module);
-  await route.default({ searchParams: Promise.resolve(params) });
+  const loaded: unknown = await import(module);
+  const page = Reflect.get(Object(loaded), 'default') as (
+    props: unknown,
+  ) => Promise<unknown>;
+  await page({ searchParams: Promise.resolve(params) });
   return redirected.to;
 }
 
