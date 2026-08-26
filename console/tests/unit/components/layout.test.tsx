@@ -232,6 +232,36 @@ describe('the header count strip', () => {
     expect(screen.queryByTestId('count-shortfall')).toBeNull();
   });
 
+  /**
+   * Parts that overshoot the total are a different fault from parts that fall
+   * short, and the strip must not dress one as the other.
+   *
+   * The staging estate does exactly this: 75 healthy + 5 absent + 8 unknown +
+   * 13 unhealthy against a total of 96 — the breakdown counts five more than
+   * the whole it belongs to. Rendered as a remainder that read "-5 unaccounted
+   * for", which is worse than the sentence this replaced.
+   */
+  it('invents no cell for a remainder that is negative', () => {
+    render(
+      <CountStrip
+        total={{ label: 'watched', value: 96 }}
+        parts={[
+          { label: 'healthy', value: 75, role: 'success' },
+          { label: 'absent', value: 5, role: 'neutral' },
+          { label: 'unknown', value: 8, role: 'neutral' },
+          { label: 'unhealthy', value: 13, role: 'danger' },
+        ]}
+        shortfallLabel="unaccounted for"
+      />,
+    );
+
+    expect(screen.queryByTestId('count-shortfall')).toBeNull();
+    // Still reported: the two numbers disagree, and that is the interesting
+    // fact rather than something to smooth over.
+    expect(screen.getByTestId('count-strip')).toHaveAttribute('data-balanced', 'false');
+    expect(screen.getByTestId('count-total')).toHaveAttribute('title', '101 / 96');
+  });
+
   it('balances when they do', () => {
     render(
       <CountStrip

@@ -101,7 +101,18 @@ export interface CountPart {
 export interface CountStripProps {
   /** The whole, which the parts are checked against. */
   readonly total: { readonly label: string; readonly value: number };
+  /** The parts the total is made of. These are expected to add up to it. */
   readonly parts: readonly CountPart[];
+  /**
+   * Counts that sit beside the total rather than inside it.
+   *
+   * The estate's absent resources are the case this exists for: they carry a
+   * health like any other and are deliberately excluded from `total`, because
+   * "watched" means what the estate currently has. Folded in with the parts
+   * they made the arithmetic overshoot by exactly their own number, which
+   * reads as the page being wrong about itself.
+   */
+  readonly aside?: readonly CountPart[];
   /** Said when the parts fall short of the total, naming what is unaccounted for. */
   readonly shortfallLabel?: string;
 }
@@ -132,11 +143,19 @@ const COUNT_ROLE: Readonly<Record<SemanticRole, string>> = {
 export function CountStrip({
   total,
   parts,
+  aside = [],
   shortfallLabel,
 }: CountStripProps): ReactNode {
   const counted = parts.reduce((sum, part) => sum + part.value, 0);
   const shortfall = total.value - counted;
   const balanced = shortfall === 0;
+  // A remainder is something the parts have not reached. Parts that overshoot
+  // the total are a different fault — the breakdown and the total disagree
+  // about what they are counting — and rendering that as "-5 unaccounted for"
+  // is worse than the sentence it was meant to replace. It is still marked
+  // unbalanced, and the total says so on hover, but nothing invents a cell for
+  // a negative remainder.
+  const remainder = shortfall > 0 ? shortfall : 0;
   return (
     <div
       data-testid="count-strip"
@@ -144,7 +163,15 @@ export function CountStrip({
       className="flex items-baseline gap-5"
     >
       <div className="flex flex-col items-end">
-        <span data-testid="count-total" className="text-section">
+        <span
+          data-testid="count-total"
+          className={cx('text-section', balanced ? '' : 'text-warning')}
+          {...(balanced
+            ? {}
+            : {
+                title: `${String(counted)} / ${String(total.value)}`,
+              })}
+        >
           {total.value}
         </span>
         <span className="text-meta text-muted">{total.label}</span>
@@ -166,9 +193,25 @@ export function CountStrip({
           <span className="text-meta text-muted">{part.label}</span>
         </div>
       ))}
-      {balanced || shortfallLabel === undefined ? null : (
+      {aside.length === 0 ? null : (
+        // Set off by a rule, because the eye reads a row of numbers as one sum
+        // and these are not in it.
+        <div className="flex items-baseline gap-5 border-l border-border pl-5">
+          {aside.map((part) => (
+            <div
+              key={part.label}
+              data-testid="count-aside"
+              className="flex flex-col items-end"
+            >
+              <span className="text-section text-muted">{part.value}</span>
+              <span className="text-meta text-muted">{part.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {remainder === 0 || shortfallLabel === undefined ? null : (
         <div data-testid="count-shortfall" className="flex flex-col items-end">
-          <span className="text-section text-muted">{shortfall}</span>
+          <span className="text-section text-muted">{remainder}</span>
           <span className="text-meta text-muted">{shortfallLabel}</span>
         </div>
       )}

@@ -101,6 +101,18 @@ export const RESOURCE_FILTERS: readonly FilterName[] = [
 const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
 
 /**
+ * The one health the estate counts and then leaves out of its own total.
+ *
+ * `summarise` in the estate repository counts an absent resource into
+ * `by_health` and then `continue`s before adding it to `total`, deliberately:
+ * "watched" means what this estate currently has rather than what it once had.
+ * So the breakdown legitimately sums to more than the whole it belongs to, and
+ * a header that added them together read as wrong about itself by exactly the
+ * number of absent resources.
+ */
+const ABSENT = 'absent';
+
+/**
  * Worst first. The order is the triage order, not the alphabet.
  *
  * The endpoint's closed set, in the order somebody triages it. A state this
@@ -283,8 +295,13 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // The health breakdown as the endpoint reports it, in the triage order the
   // table below uses — reversed, so the header reads healthy-first the way a
   // summary is read while the rows stay worst-first the way a queue is worked.
+  // `absent` is deliberately outside `total`: the estate repository counts it
+  // and then does not add it, because "watched" means what this estate
+  // currently has rather than what it once had. Folded in with the rest it made
+  // the parts overshoot the whole by exactly its own number — the page reading
+  // as wrong about itself, which is the fault this strip exists to prevent.
   const healthCounts = [...counts(dataOf(summary), 'by_health')]
-    .filter(([, value]) => value > 0)
+    .filter(([health, value]) => value > 0 && health !== ABSENT)
     .sort((left, right) => {
       const rank = (health: string): number => {
         const found = STATE_ORDER.indexOf(health);
@@ -425,6 +442,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               value,
               role: roleFor(health),
             }))}
+            aside={counts(dataOf(summary), 'by_health')
+              .filter(([health, value]) => health === ABSENT && value > 0)
+              .map(([health, value]) => ({ label: health, value }))}
             shortfallLabel={message(locale, 'resources.summary.unaccounted')}
           />
         }

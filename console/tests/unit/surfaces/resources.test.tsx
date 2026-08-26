@@ -490,3 +490,40 @@ describe('resources: the way back to the wizard', () => {
     expect(screen.queryByTestId('setup-return-banner')).toBeNull();
   });
 });
+
+/**
+ * The estate counts absent resources and then leaves them out of its total.
+ *
+ * `summarise` counts an absent resource into `by_health` and `continue`s before
+ * adding it to `total`, deliberately: "watched" means what this estate
+ * currently has rather than what it once had. Folded in with the rest, the parts
+ * overshoot the whole by exactly the number of absent ones — 75 + 5 + 8 + 13
+ * against a total of 96 on the staging estate — and a header that adds up to
+ * more than itself is the same fault as one that adds up to less.
+ */
+describe('resources: what is watched, and what is merely remembered', () => {
+  it('keeps absent beside the total rather than inside it', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      summary: {
+        total: 96,
+        by_health: { healthy: 75, absent: 5, unknown: 8, unhealthy: 13 },
+        problems: 13,
+        captured_at: '2026-08-07T12:00:00Z',
+      },
+    });
+    await resources();
+
+    const strip = screen.getByTestId('count-strip');
+    expect(strip).toHaveAttribute('data-balanced', 'true');
+
+    const parts = within(strip)
+      .getAllByTestId('count-part')
+      .map((part) => part.textContent ?? '');
+    expect(parts.some((part) => /absent/i.test(part))).toBe(false);
+
+    const aside = within(strip).getByTestId('count-aside');
+    expect(aside).toHaveTextContent('5');
+    expect(aside).toHaveTextContent(/absent/i);
+  });
+});
