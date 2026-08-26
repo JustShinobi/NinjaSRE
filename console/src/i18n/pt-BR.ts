@@ -821,8 +821,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.sorted': 'Pior primeiro',
   'resources.sorted.hint':
     'A ordem padrão — clique no cabeçalho de uma coluna abaixo para ordenar de outro jeito.',
-  'resources.summary':
-    '{watched} observados · {healthy} saudáveis · {degraded} degradados · {unhealthy} com falha',
+  'resources.none.placedOrGraded': 'Nada neste ambiente foi colocado em uma zona nem teve criticidade definida ainda.',
+  'resources.none.placed': 'Nada neste ambiente foi colocado em uma zona ainda.',
+  'resources.none.graded': 'Nada neste ambiente teve criticidade definida ainda.',
+  'resources.none.action': 'Declarar',
+  'resources.summary.watched': 'observados',
+  'resources.summary.unaccounted': 'sem estado',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.divergent.hint':

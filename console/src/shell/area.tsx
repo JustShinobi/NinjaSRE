@@ -45,6 +45,8 @@ export interface AreaHeaderProps {
   /** Anything nested under the area, for a detail route that has a parent. */
   readonly nested?: readonly { readonly label: string; readonly href?: string }[];
   readonly actions?: ReactNode;
+  /** What state the area is in, as counts rather than as a sentence. */
+  readonly meta?: ReactNode;
 }
 
 /** Title, subtitle, breadcrumb where the route is nested, and the page's actions. */
@@ -53,6 +55,7 @@ export function AreaHeader({
   locale,
   nested = [],
   actions,
+  meta,
 }: AreaHeaderProps): ReactNode {
   const trail = trailFor(area, nested);
   const Icon = area.icon;
@@ -72,6 +75,7 @@ export function AreaHeader({
         context={message(locale, area.context)}
         icon={<Icon size="head" />}
         {...(actions === undefined ? {} : { actions })}
+        {...(meta === undefined ? {} : { meta })}
       />
     </div>
   );
@@ -120,6 +124,8 @@ export interface SettingsPageHeaderProps {
   /** Anything nested under the page, for a detail route that has a parent. */
   readonly nested?: readonly { readonly label: string; readonly href?: string }[];
   readonly actions?: ReactNode;
+  /** What state the page is in, as counts rather than as a sentence. */
+  readonly meta?: ReactNode;
   /**
    * The subtitle, when a page has one to say that the catalogue's own static
    * `page.context` cannot — a node and the state it is currently in, neither
@@ -143,6 +149,7 @@ export function SettingsPageHeader({
   locale,
   nested = [],
   actions,
+  meta,
   context,
 }: SettingsPageHeaderProps): ReactNode {
   const trail = trailFor(areaFor('settings'), [
@@ -163,6 +170,7 @@ export function SettingsPageHeader({
         title={message(locale, page.label)}
         context={context ?? message(locale, page.context)}
         {...(actions === undefined ? {} : { actions })}
+        {...(meta === undefined ? {} : { meta })}
       />
     </div>
   );

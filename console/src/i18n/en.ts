@@ -1028,8 +1028,12 @@ export const EN = {
   // unhealthy — which had none anywhere on the screen while `problems` folded
   // it into degraded. A header that cannot be added up against the table under
   // it is a header nobody trusts twice.
-  'resources.summary':
-    '{watched} watched · {healthy} healthy · {degraded} degraded · {unhealthy} unhealthy',
+  'resources.none.placedOrGraded': 'Nothing in this estate has been placed in a zone or graded for criticality yet.',
+  'resources.none.placed': 'Nothing in this estate has been placed in a zone yet.',
+  'resources.none.graded': 'Nothing in this estate has been graded for criticality yet.',
+  'resources.none.action': 'Declare them',
+  'resources.summary.watched': 'watched',
+  'resources.summary.unaccounted': 'unaccounted for',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':
