@@ -1548,7 +1548,7 @@ export const EN = {
   'catalogue.title': 'Capabilities',
   'catalogue.tools': 'Tools',
   'catalogue.skills': 'Skills',
-  'catalogue.search': 'Find a tool or skill by name or domain',
+  'catalogue.search': 'Name, domain or capability',
   'catalogue.search.empty': 'Nothing here matches that search.',
   'catalogue.domains.nav': 'Jump to a domain',
   'catalogue.count': '{enabled} of {total} enabled',

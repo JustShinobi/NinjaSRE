@@ -198,3 +198,19 @@ def test_resolution_is_pure_in_its_inputs() -> None:
     first = resolve(proposed, policies, at=NOON)
     second = resolve(proposed, policies, at=NOON)
     assert first == second
+
+
+def test_the_reason_written_for_a_person_spells_the_level_as_a_person_would() -> None:
+    """The value belongs in a config file and an audit field, not mid-sentence.
+
+    The resolution reason's own docstring says it explains the resolution *to a
+    person*, and it was printing "so it resolves to propose_only:" — the
+    deployment's own spelling, dropped verbatim into English. The console showed
+    that sentence under every class of action on the autonomy screen, four times
+    over.
+    """
+    assert AutonomyLevel.PROPOSE_ONLY.label == "propose-only"
+    assert AutonomyLevel.ACT_ON_LOW_RISK.label == "act-on-low-risk"
+    # The value is untouched: it is what a rule is written against and what an
+    # audit row is compared by, and neither of those wants a prettier word.
+    assert AutonomyLevel.PROPOSE_ONLY.value == "propose_only"

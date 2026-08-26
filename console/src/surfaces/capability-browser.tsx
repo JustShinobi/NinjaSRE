@@ -67,6 +67,17 @@ function anchorId(domain: string): string {
 
 const SKILLS_ANCHOR = 'domain-skills';
 
+/**
+ * The shape a domain jump-link wears.
+ *
+ * `border-strong` rather than `border`: at 1.28:1 against the panel the
+ * fainter token is not a visible boundary, and the boundary is the whole of
+ * what says this is a control. Tall enough to be a target — twelve-pixel text
+ * has a line box about half of what WCAG 2.2 asks.
+ */
+const DOMAIN_CHIP =
+  'inline-flex items-center gap-2 min-h-6 rounded-4 px-3 py-1 edge border-border-strong bg-raised text-meta text-text motion-hover hover:bg-hover';
+
 export interface CapabilityBrowserLabels {
   readonly tableCaption: string;
   readonly search: string;
@@ -146,19 +157,29 @@ export function CapabilityBrowser({
       </div>
 
       {namedGroups.length === 0 && matchingSkills.length === 0 ? null : (
+        // Still anchors — they jump to a section rather than filtering — but
+        // drawn as chips. Seventeen underlined twelve-pixel words wrapped over
+        // two rows read as a paragraph somebody had linked every noun in, and
+        // the underline that makes a link legible inside a sentence is what
+        // makes a row of them illegible. The border and the ground say
+        // "control"; the count stays because it is why you would pick one.
         <nav aria-label={labels.domainsNav} data-testid="domain-nav">
-          <ul className="flex flex-wrap gap-3 text-meta">
+          <ul className="flex flex-wrap gap-2">
             {namedGroups.map((group) => (
               <li key={group.domain}>
-                <a href={`#${anchorId(group.domain)}`} className="underline">
-                  {group.domain} ({group.tools.length})
+                <a href={`#${anchorId(group.domain)}`} className={DOMAIN_CHIP}>
+                  {group.domain}
+                  <span className="text-muted tabular-nums">{group.tools.length}</span>
                 </a>
               </li>
             ))}
             {matchingSkills.length === 0 ? null : (
               <li>
-                <a href={`#${SKILLS_ANCHOR}`} className="underline">
-                  {labels.skillsHeading} ({matchingSkills.length})
+                <a href={`#${SKILLS_ANCHOR}`} className={DOMAIN_CHIP}>
+                  {labels.skillsHeading}
+                  <span className="text-muted tabular-nums">
+                    {matchingSkills.length}
+                  </span>
                 </a>
               </li>
             )}

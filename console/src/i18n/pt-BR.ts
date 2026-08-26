@@ -1292,7 +1292,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.title': 'Capacidades',
   'catalogue.tools': 'Ferramentas',
   'catalogue.skills': 'Competências',
-  'catalogue.search': 'Encontrar uma ferramenta ou competência pelo nome ou domínio',
+  'catalogue.search': 'Nome, domínio ou capacidade',
   'catalogue.search.empty': 'Nada aqui corresponde a essa busca.',
   'catalogue.domains.nav': 'Ir para um domínio',
   'catalogue.count': '{enabled} de {total} habilitadas',

@@ -473,8 +473,15 @@ function TopologyTab({
                     <Badge status="active" />
                   ) : null}
                 </span>
-                <span className="text-meta text-muted">{text(stage, 'summary')}</span>
-                <span className="text-meta text-muted">
+                {/* Capped at a reading measure. The page cap stops a screen at
+                    1360px, which is right for a table and still half again too
+                    wide for prose — the longest of these consults lines runs to
+                    two hundred characters, and a reader loses the start of the
+                    next line looking for it. */}
+                <span className="text-meta text-muted max-w-prose">
+                  {text(stage, 'summary')}
+                </span>
+                <span className="text-meta text-muted max-w-prose">
                   {message(locale, 'agent.stage.consults')}{' '}
                   {list(stage, 'consults').map(String).join('; ')}
                 </span>
@@ -1236,7 +1243,7 @@ function AutonomyTab({
                   </span>
                 )}
               </span>
-              <span className="text-small" data-testid="outlook-sentence">
+              <span className="text-small max-w-prose" data-testid="outlook-sentence">
                 {text(entry, 'sentence')}
               </span>
               {/* Labelled, because unlabelled it read as the sentence above it
@@ -1246,7 +1253,7 @@ function AutonomyTab({
                   tells a reader they are two different claims. It is the
                   decision's own audit text, complete on purpose, because it is
                   also read on a decision record with none of this around it. */}
-              <span className="text-meta text-muted">
+              <span className="text-meta text-muted max-w-prose">
                 <span className="text-strong">
                   {message(locale, 'agent.outlook.reason')}
                 </span>{' '}

@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { EN } from '@/i18n/en';
 import { statusPresentation } from '@/design/status';
 import { message } from '@/i18n/messages';
 import { LOCALE_COOKIE, SESSION_COOKIE } from '@/session/cookies';
@@ -783,10 +784,7 @@ describe("what it can do: the catalogue's own read half", () => {
     it('narrows to the rows a search matches, by name', async () => {
       await renderAgent({ tab: 'tools' });
 
-      await userEvent.type(
-        screen.getByLabelText('Find a tool or skill by name or domain'),
-        'chat',
-      );
+      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'chat');
 
       expect(toolRow('chat.post_message')).toBeDefined();
       expect(
@@ -805,10 +803,7 @@ describe("what it can do: the catalogue's own read half", () => {
         '1 of 3 enabled',
       );
 
-      await userEvent.type(
-        screen.getByLabelText('Find a tool or skill by name or domain'),
-        'chat',
-      );
+      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'chat');
 
       expect(screen.getByTestId('capability-count')).toHaveTextContent(
         '1 of 3 enabled',
@@ -833,7 +828,7 @@ describe("what it can do: the catalogue's own read half", () => {
       await renderAgent({ tab: 'tools' });
 
       await userEvent.type(
-        screen.getByLabelText('Find a tool or skill by name or domain'),
+        screen.getByLabelText(EN['catalogue.search']),
         'nothing-matches-this',
       );
 
@@ -911,10 +906,7 @@ describe("what it can do: the catalogue's own read half", () => {
     it('is found by the same search that finds a tool', async () => {
       await renderAgent({ tab: 'tools' });
 
-      await userEvent.type(
-        screen.getByLabelText('Find a tool or skill by name or domain'),
-        'triage',
-      );
+      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'triage');
 
       expect(screen.getByText('kubernetes-triage')).toBeDefined();
       expect(

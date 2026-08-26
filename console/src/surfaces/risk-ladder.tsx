@@ -72,7 +72,11 @@ export function RiskLadder({
           data-testid="risk-ladder"
           role="img"
           aria-label={`${String(rank + 1)} of ${String(RISK_CLASSES.length)}`}
-          className="flex flex-col-reverse gap-1 shrink-0"
+          // Left to right, not stacked. Five short bars in a column read as a
+          // menu glyph — which is what they looked like on the running screen —
+          // and a scale that has to be explained is not carrying its meaning.
+          // A row fills the way a meter fills, which is the reading wanted.
+          className="flex gap-1 shrink-0"
         >
           {RISK_CLASSES.map((step, index) => (
             <span
@@ -80,7 +84,7 @@ export function RiskLadder({
               data-testid="risk-rung"
               data-filled={index <= rank ? 'true' : 'false'}
               className={cx(
-                'block w-4 h-1 rounded-1',
+                'block w-2 h-1 rounded-1',
                 // An unfilled rung is `border-strong`, not `border`. At four
                 // pixels by one the fainter of the two is not visible at all,
                 // and an invisible empty rung turns one-of-five into a lone
