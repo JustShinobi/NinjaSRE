@@ -132,3 +132,24 @@ describe('a panel that is handed a state', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('estate.inventory');
   });
 });
+
+/**
+ * The panel that *is* the screen does not say the screen's name twice.
+ *
+ * Integrations rendered `<h1>Integrations</h1>` and then a second heading
+ * reading "Integrations" sixty pixels below it, because the page's one panel is
+ * named after the page. The title is still declared — it labels the region,
+ * names the panel when it fails, and is what a screen reader announces on
+ * entering it — it is simply not drawn a second time.
+ */
+it('keeps a hidden title in the accessibility tree and out of the page', () => {
+  render(
+    <Panel titleHidden title="Integrations" state="ready" labels={LABELS} empty={EMPTY}>
+      <p>content</p>
+    </Panel>,
+  );
+
+  const heading = screen.getByRole('heading', { name: 'Integrations' });
+  expect(heading.className).toContain('sr-only');
+  expect(screen.getByTestId('panel')).toHaveAttribute('aria-labelledby', heading.id);
+});

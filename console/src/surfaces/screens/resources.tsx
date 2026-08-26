@@ -4,7 +4,7 @@ import { Link } from '@/components/action';
 import { Input } from '@/components/form';
 import { CountStrip } from '@/components/layout';
 import { roleFor } from '@/design/status';
-import { timestamp } from '@/i18n/format';
+import { humaniseIdentifier, timestamp } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -358,7 +358,11 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               },
             ]
           : []),
-        { kind: 'muted', text: text(record, 'kind') },
+        // The kind a person reads. `virtual_machine` is the provider's own
+        // spelling and the right thing to sort and filter by — which the
+        // column still does, against the raw value — and the wrong thing to
+        // print ninety-six times in a table read by people.
+        { kind: 'muted', text: humaniseIdentifier(text(record, 'kind')) },
         ...(hasZone
           ? [
               {

@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
+import { CountStrip } from '@/components/layout';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
@@ -420,9 +421,33 @@ export async function IntegrationsScreen(
 
   return (
     <>
-      <AreaHeader area={areaFor('integrations')} locale={locale} />
+      <AreaHeader
+        area={areaFor('integrations')}
+        locale={locale}
+        meta={
+          <CountStrip
+            total={{
+              label: message(locale, 'catalogue.integrations.count.total'),
+              value: installed.length,
+            }}
+            parts={[
+              {
+                label: message(locale, 'catalogue.integrations.count.connected'),
+                value: connected.length,
+                role: 'success',
+              },
+              {
+                label: message(locale, 'catalogue.integrations.count.available'),
+                value: installed.length - connected.length,
+                role: 'neutral',
+              },
+            ]}
+          />
+        }
+      />
 
       <Panel
+        titleHidden
         title={message(locale, 'catalogue.integrations.title')}
         state={stateOf(integrations, installed.length === 0)}
         dependency={dependencyOf(integrations)}
@@ -438,6 +463,9 @@ export async function IntegrationsScreen(
         }}
       >
         <div className="flex flex-col gap-5">
+          {/* The counts moved to the page header, where every other screen
+              keeps them. What stays here is the one fact a count cannot
+              carry: that the estate itself suggested some of these. */}
           <p className="text-meta text-muted" data-testid="catalogue-summary">
             {suggested.length > 0
               ? message(locale, 'catalogue.integrations.summary.suggested', {

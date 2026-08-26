@@ -188,39 +188,47 @@ export function IntegrationCatalogue({
                     key={item.name}
                     data-testid="connected-integration"
                     data-integration={item.name}
+                    // Structured rather than a run of siblings that wrap
+                    // wherever they land. As a flat wrapping row, each card
+                    // broke at a different point — one carried its chip inline
+                    // and dropped the button to a second line, the next did
+                    // the opposite — so a column of identical objects had no
+                    // two rows the same shape. The subject grows, the controls
+                    // hold their corner, and nothing separates the chip from
+                    // the action it belongs beside.
                     className="flex flex-wrap items-center gap-3 rounded-3 edge border-border p-3"
                   >
-                    <span className="text-strong">{item.displayName}</span>
-                    <span className="text-meta text-muted">
-                      {item.categoryLabel} · {item.summary}
-                    </span>
-                    {item.healthDetail === '' ? null : (
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="connected-health-detail"
-                      >
-                        {item.healthDetail}
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-strong">{item.displayName}</span>
+                      <span className="text-meta text-muted">
+                        {item.categoryLabel} · {item.summary}
                       </span>
-                    )}
-                    <StatusChip
-                      locale={locale}
-                      status={item.health}
-                      className="ml-auto"
-                    />
-                    {/* The same control shape as Connect below it. Both take
+                      {item.healthDetail === '' ? null : (
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="connected-health-detail"
+                        >
+                          {item.healthDetail}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <StatusChip locale={locale} status={item.health} />
+                      {/* The same control shape as Connect below it. Both take
                         a reader to the same panel to do the same kind of thing;
                         one of them was an underlined word and the other a
                         filled button, which said they were different actions.
                         The hierarchy between them is carried by the variant —
                         connecting something is the step forward — and never by
                         one of them not looking like a control at all. */}
-                    <ScrollCapturingLink
-                      href={hrefTo(item.name)}
-                      data-testid="manage-integration"
-                      className={cx(CONTROL_SHAPE, VARIANT_SKIN.secondary)}
-                    >
-                      {message(locale, 'catalogue.integrations.connected.manage')}
-                    </ScrollCapturingLink>
+                      <ScrollCapturingLink
+                        href={hrefTo(item.name)}
+                        data-testid="manage-integration"
+                        className={cx(CONTROL_SHAPE, VARIANT_SKIN.secondary)}
+                      >
+                        {message(locale, 'catalogue.integrations.connected.manage')}
+                      </ScrollCapturingLink>
+                    </span>
                   </li>
                 ))}
               </ul>

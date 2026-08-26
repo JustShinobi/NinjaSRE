@@ -103,6 +103,17 @@ export interface PanelProps {
   readonly action?: ReactNode;
   /** Whether the panel's body is the whole of it, with no chrome around it. */
   readonly bare?: boolean;
+  /**
+   * Whether the title is for assistive technology only.
+   *
+   * For the panel that *is* the screen. Integrations rendered `<h1>
+   * Integrations</h1>` and then a second heading reading "Integrations" sixty
+   * pixels below it, because the page's one panel is named after the page. The
+   * title is still declared — it labels the region, names the panel when it
+   * fails, and is what a screen reader announces on entering it — it is simply
+   * not drawn a second time.
+   */
+  readonly titleHidden?: boolean;
   readonly children?: ReactNode;
 }
 
@@ -116,6 +127,7 @@ export function Panel({
   icon,
   action,
   bare = false,
+  titleHidden = false,
   children,
 }: PanelProps): ReactNode {
   const headingId = useId();
@@ -148,10 +160,14 @@ export function Panel({
       <header
         className={cx(
           'flex items-center gap-2',
-          bare ? 'pb-3' : 'px-4 py-3 edge border-border border-t-0 border-x-0',
+          titleHidden && action === undefined
+            ? ''
+            : bare
+              ? 'pb-3'
+              : 'px-4 py-3 edge border-border border-t-0 border-x-0',
         )}
       >
-        <h3 id={headingId} className="text-strong">
+        <h3 id={headingId} className={titleHidden ? 'sr-only' : 'text-strong'}>
           {title}
         </h3>
         {action === undefined ? null : <div className="ml-auto">{action}</div>}
