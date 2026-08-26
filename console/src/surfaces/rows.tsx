@@ -276,6 +276,14 @@ export function RowList({
                   }
                   className={cx(
                     'text-micro text-muted edge border-border border-t-0 border-x-0',
+                    // The list windows its rows, so it scrolls inside itself —
+                    // and the headings used to scroll away with them, leaving an
+                    // operator forty rows down reading unlabelled columns. Stuck
+                    // to the cells rather than to `<thead>`, which browsers
+                    // still disagree about, and opaque rather than translucent,
+                    // because rows sliding under a see-through heading are
+                    // harder to read than no heading at all.
+                    'sticky top-0 z-1 bg-raised',
                     // A sortable heading moves the cell's padding onto its own
                     // link, so the padded area is the target rather than the
                     // glyphs. An ordinary heading keeps the spacing every other

@@ -2051,7 +2051,7 @@ export const EN = {
   'page.settings.title': 'Settings',
   'page.settings.context':
     'Everything about this deployment that is not incident work: who has access, how the agent behaves, and where data comes from.',
-  'settings.group.organization': 'Organization',
+  'settings.group.organization': 'Organisation',
   'settings.group.agent': 'Agent',
   'settings.group.data': 'Data',
   'settings.page.membersRoles': 'Members & roles',

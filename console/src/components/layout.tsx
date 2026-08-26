@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 
+import { cx } from '@/design/cx';
+import type { SemanticRole } from '@/design/tokens';
+
 /**
  * Page structure, as components rather than as per-page CSS.
  *
@@ -21,6 +24,15 @@ export interface PageHeaderProps {
   readonly context: string;
   readonly icon?: ReactNode;
   readonly actions?: ReactNode;
+  /**
+   * What state the page is in, as counts rather than as a sentence.
+   *
+   * Separate from `actions` because they are different things wearing the same
+   * corner: an action is something to press, a count is something to read, and
+   * a screen that put its statistics through the actions slot got them styled
+   * as a control and sized like a caption.
+   */
+  readonly meta?: ReactNode;
 }
 
 /**
@@ -36,6 +48,7 @@ export function PageHeader({
   context,
   icon,
   actions,
+  meta,
 }: PageHeaderProps): ReactNode {
   // Stacks below the small breakpoint. Side by side, the actions take whatever
   // they need and the title gets the remainder, which at 320px was narrower
@@ -64,10 +77,98 @@ export function PageHeader({
         </h1>
         <p className="text-meta text-muted">{context}</p>
       </div>
-      {actions === undefined ? null : (
-        <div className="sm:ml-auto flex gap-2">{actions}</div>
+      {meta === undefined && actions === undefined ? null : (
+        <div className="sm:ml-auto flex items-center gap-5">
+          {meta}
+          {actions === undefined ? null : <div className="flex gap-2">{actions}</div>}
+        </div>
       )}
     </header>
+  );
+}
+
+/** One part of a count strip: how many of what, in which role's colour. */
+export interface CountPart {
+  readonly label: string;
+  readonly value: number;
+  /**
+   * Which semantic role colours the number. Absent leaves it in body colour,
+   * which is right for a part that is neither good nor bad.
+   */
+  readonly role?: SemanticRole;
+}
+
+export interface CountStripProps {
+  /** The whole, which the parts are checked against. */
+  readonly total: { readonly label: string; readonly value: number };
+  readonly parts: readonly CountPart[];
+  /** Said when the parts fall short of the total, naming what is unaccounted for. */
+  readonly shortfallLabel?: string;
+}
+
+/** Which token colours each role's number. */
+const COUNT_ROLE: Readonly<Record<SemanticRole, string>> = {
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+  info: 'text-info',
+  neutral: 'text-muted',
+};
+
+/**
+ * A page header's counts, with the arithmetic proved rather than trusted.
+ *
+ * Resources shipped "97 watched · 76 healthy · 0 degraded · 13 unhealthy" — a
+ * sentence with four holes, three of which added to 89. The eight resources in
+ * a state the sentence had no hole for were visible in the table below it, so
+ * the page contradicted itself within one screenful.
+ *
+ * A sentence cannot be made safe by filling in the missing hole, because the
+ * next state added to the enumeration reopens the same gap. This takes the
+ * parts and the whole separately and *checks* them, marks itself when they
+ * disagree, and shows the remainder rather than hiding it. `data-balanced` is on
+ * the element so the suite can hold a real screen's real numbers to it.
+ */
+export function CountStrip({
+  total,
+  parts,
+  shortfallLabel,
+}: CountStripProps): ReactNode {
+  const counted = parts.reduce((sum, part) => sum + part.value, 0);
+  const shortfall = total.value - counted;
+  const balanced = shortfall === 0;
+  return (
+    <div
+      data-testid="count-strip"
+      data-balanced={String(balanced)}
+      className="flex items-baseline gap-5"
+    >
+      <div className="flex flex-col items-end">
+        <span data-testid="count-total" className="text-section">
+          {total.value}
+        </span>
+        <span className="text-meta text-muted">{total.label}</span>
+      </div>
+      {parts.map((part) => (
+        <div key={part.label} data-testid="count-part" className="flex flex-col items-end">
+          <span
+            className={cx(
+              'text-section',
+              part.role === undefined ? '' : COUNT_ROLE[part.role],
+            )}
+          >
+            {part.value}
+          </span>
+          <span className="text-meta text-muted">{part.label}</span>
+        </div>
+      ))}
+      {balanced || shortfallLabel === undefined ? null : (
+        <div data-testid="count-shortfall" className="flex flex-col items-end">
+          <span className="text-section text-muted">{shortfall}</span>
+          <span className="text-meta text-muted">{shortfallLabel}</span>
+        </div>
+      )}
+    </div>
   );
 }
 

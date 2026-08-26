@@ -1840,7 +1840,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.settings.title': 'Ajustes',
   'page.settings.context':
     'Tudo sobre esta instalação que não é trabalho de incidente: quem tem acesso, como o agente se comporta e de onde os dados vêm.',
-  'settings.group.organization': 'Organization',
+  'settings.group.organization': 'Organisation',
   'settings.group.agent': 'Agent',
   'settings.group.data': 'Data',
   'settings.page.membersRoles': 'Members & roles',
