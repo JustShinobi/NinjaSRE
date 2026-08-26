@@ -29,6 +29,7 @@ from gateway.http.discovery_sources import compose_discovery_sources, compose_si
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.integration_access import compose_integration_access
 from gateway.http.log_sources import compose_log_sources
+from gateway.http.memory_sources import compose_memory
 from gateway.http.node_access import compose_node_access
 from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.remediation import compose_remediation
@@ -117,6 +118,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
+        # What this deployment remembers, composed per investigation from the
+        # run's own team. Here rather than earlier because it attaches to the
+        # runner the recomposition above has just replaced, and it resolves the
+        # model the operator bound for extraction. Both halves at once: an
+        # unbound recall reports honestly that memory is not configured, and a
+        # recall bound over a corpus nothing writes to reports that this team
+        # has no history — which is the same sentence with the doubt removed.
+        compose_memory(state, org_id=organisation_id())
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,

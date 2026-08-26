@@ -167,6 +167,44 @@ async def test_an_empty_search_is_a_successful_finding() -> None:
     assert result.evidence == ()
 
 
+async def test_a_real_retriever_over_an_empty_corpus_still_searched() -> None:
+    """The two "nothings", told apart over the store rather than over a stub.
+
+    This is what a freshly composed deployment actually hits: a team that has
+    never written an episode has no vector namespace at all. The stub above
+    proves the tool renders an empty result; this proves that the retriever a
+    composition root binds *produces* one, rather than reporting that there was
+    nowhere to look — which is the answer every deployment's first weeks would
+    otherwise give, and is indistinguishable from memory never having been
+    configured.
+    """
+    from platform.memory.embeddings.local import LocalEmbedder
+    from platform.memory.retrieval import MemoryRetriever
+    from platform.persistence.fakes import FakePersistence
+    from platform.persistence.ports.transaction import TenantScope
+
+    store = FakePersistence()
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation("acme", "Acme")
+
+    binding.bind(
+        MemoryRetriever(
+            gateway=store,
+            scope=TenantScope(org_id="acme", team_node_id="team-payments"),
+            embedder=LocalEmbedder(),
+        )
+    )
+
+    searched = await recall_similar_incidents(query="exit code 137")
+    binding.clear()
+    unconfigured = await recall_similar_incidents(query="exit code 137")
+
+    assert searched.succeeded and searched.value["count"] == 0
+    assert not unconfigured.succeeded
+    assert unconfigured.error is not None
+    assert unconfigured.error.classification is CapabilityErrorClass.UNAVAILABLE
+
+
 async def test_a_match_comes_back_with_its_trajectory_and_its_evidence() -> None:
     """FR-014: the capability sequence is what makes recall cheaper than rediscovery."""
     bind(found(episode()))

@@ -30,6 +30,12 @@ however the run ended: three investigations started inside 82 milliseconds here,
 and a source left over from one of them is the next one searching another team's
 incidents.
 
+Episodic memory arrives through that same seam and carries one thing more. What
+a deployment composes for a run is a search *and* the hook that records the run
+at its end, because the corpus the search reads is built from nothing else — an
+investigation that finishes without leaving an episode behind is one more empty
+answer for every investigation after it.
+
 **The tool selection**, narrowed twice — by the integrations the team has
 connected and by whether this deployment could carry a write out at all — and
 only then handed to ``capabilities.registry.selection.select``, which does the
@@ -72,6 +78,7 @@ from config.constants.investigation import (
 )
 from config.prompts import INVESTIGATION_SYSTEM_PROMPT
 from core.agent.handoff import HANDOFF_CAPABILITY, HumanHandoff
+from core.agent.hooks.registry import HookRegistry
 from core.agent.interaction.models import Interaction
 from core.agent.interaction.registry import InteractionRegistry
 from core.agent.message_queue import MessageQueue
@@ -167,17 +174,55 @@ TopologySourceFactory = Callable[[InvestigationStart], Awaitable[TopologySource 
 
 
 @dataclass(frozen=True, slots=True)
+class RunMemory:
+    """One investigation's episodic memory, as this deployment composed it.
+
+    Two halves, and they arrive together because they are two ends of one
+    mechanism: ``recall`` searches the corpus and ``hooks`` installs what writes
+    into it at run end. Composing only the first is worse than composing
+    neither — a bound search over a corpus nothing fills answers "no similar
+    incidents" forever, and that is the sentence the capability exists to keep
+    an investigation from saying on the strength of a store nobody configured.
+
+    They come from one composition rather than two for a second reason as well.
+    The recall ledger the retriever fills during the run is the one the episode
+    reads at the end to record which recalls the answer actually used, and two
+    compositions would be two ledgers and a corpus that can never say whether
+    consulting it was worth anything.
+
+    Either half may be absent, because a team switches reading and writing
+    separately: ``recall`` is ``None`` for a team that may write but not read —
+    the ablation of a populated corpus nobody consults — and the capability is
+    then withheld rather than offered with nothing behind it.
+    """
+
+    recall: RecallSource | None = None
+    hooks: Callable[[HookRegistry], object] | None = None
+
+
+#: How a deployment builds one investigation's memory. Handed the request for the
+#: reason a recall factory is, and awaited because building it means resolving
+#: that team's memory policy first.
+RunMemoryFactory = Callable[[InvestigationStart], Awaitable[RunMemory | None]]
+
+
+@dataclass(frozen=True, slots=True)
 class _SourceComposition:
     """The factories this deployment supplied for the reads that need a source.
 
-    Either may be absent, and absent means *leave that binding untouched* rather
-    than bind nothing. A deployment that binds a source at boot, and a test that
-    binds one around a call, both keep behaving exactly as they did — the seam
-    adds a way to scope a source to a run and takes nothing away.
+    Any of them may be absent, and absent means *leave that binding untouched*
+    rather than bind nothing. A deployment that binds a source at boot, and a
+    test that binds one around a call, both keep behaving exactly as they did —
+    the seam adds a way to scope a source to a run and takes nothing away.
+
+    ``recall`` and ``memory`` compose the same binding and never both: the first
+    is for a deployment that has somewhere to search and nowhere to record, and
+    the second carries the write half with it.
     """
 
     recall: RecallSourceFactory | None = None
     topology: TopologySourceFactory | None = None
+    memory: RunMemoryFactory | None = None
 
 
 @contextmanager
@@ -268,13 +313,21 @@ class ReActInvestigationRunner:
         *,
         recall: RecallSourceFactory | None = None,
         topology: TopologySourceFactory | None = None,
+        memory: RunMemoryFactory | None = None,
     ) -> None:
         """Give this runner what to build each investigation's read sources with.
 
-        Merged rather than replaced, so recall and topology can be composed by
-        whoever owns each without the second call dropping the first: a factory
-        named here takes the place of the one held for that source, and one left
-        out leaves that source as it was. Passing neither is a no-op.
+        Merged rather than replaced, so recall, topology and memory can be
+        composed by whoever owns each without the second call dropping the
+        first: a factory named here takes the place of the one held for that
+        source, and one left out leaves that source as it was. Passing none is
+        a no-op.
+
+        ``memory`` composes the recall binding *and* the episode write, and is
+        therefore refused alongside ``recall``, which composes the binding
+        alone. Two composers for one binding is a wiring mistake, and a silent
+        precedence between them is one nobody would ever find from a run's
+        behaviour.
 
         A runner nobody called this on binds nothing and behaves exactly as it
         did — a deployment that binds its sources at boot keeps working, and a
@@ -285,11 +338,19 @@ class ReActInvestigationRunner:
         context holds, which is the same gap resume already has for the trace it
         does not write.
         """
-        self._sources = replace(
+        merged = replace(
             self._sources,
             recall=recall if recall is not None else self._sources.recall,
             topology=topology if topology is not None else self._sources.topology,
+            memory=memory if memory is not None else self._sources.memory,
         )
+        if merged.recall is not None and merged.memory is not None:
+            raise ValueError(
+                "this runner was given both a recall factory and a memory factory, and "
+                "they compose the same binding. Compose memory, which carries the "
+                "episode write with it, or compose recall alone — never both."
+            )
+        self._sources = merged
 
     @property
     def can_record(self) -> bool:
@@ -300,6 +361,16 @@ class ReActInvestigationRunner:
     def remediation(self) -> Any:
         """Return the composed remediation desk, or ``None`` when there is none."""
         return self._remediation
+
+    @property
+    def sources(self) -> _SourceComposition:
+        """Return the factories this deployment attached, for a composition to assert on.
+
+        What a composition root built is the only evidence that a source reaches
+        a run at all: a factory nothing attached is the state this deployment
+        was in for every investigation it has ever run.
+        """
+        return self._sources
 
     async def investigate(self, request: InvestigationStart) -> str:
         """Run the investigation to completion and return its summary.
@@ -321,7 +392,7 @@ class ReActInvestigationRunner:
         stay bound until it ends, because the narrowing asks whether each one is
         bound and would otherwise exclude a capability this run can serve.
         """
-        async with self._sources_bound_for(request):
+        async with self._sources_bound_for(request) as memory:
             queue = MessageQueue(run_id=request.run_id)
             handoff = self._handoff_for(request)
             selection = await self._select_tools(request, handoff=handoff)
@@ -330,7 +401,11 @@ class ReActInvestigationRunner:
                 return _outcome_summary(selection.outcome)
 
             loop = self._build_runtime(
-                request, messages=queue, tools=selection.tools, rationale=selection.rationale
+                request,
+                messages=queue,
+                tools=selection.tools,
+                rationale=selection.rationale,
+                memory=memory,
             )
             live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
             self._live[request.run_id] = live
@@ -346,7 +421,9 @@ class ReActInvestigationRunner:
         return result.answer or f"investigation ended {result.status.value}"
 
     @asynccontextmanager
-    async def _sources_bound_for(self, request: InvestigationStart) -> AsyncIterator[None]:
+    async def _sources_bound_for(
+        self, request: InvestigationStart
+    ) -> AsyncIterator[RunMemory | None]:
         """Bind this run's read sources for the body, and put back what they displaced.
 
         One scope rather than a binding per capability body, because the
@@ -358,10 +435,25 @@ class ReActInvestigationRunner:
         is, unbound or bound at boot. Building nothing is different from binding
         nothing, and only the second is a behaviour change for a caller that
         asked for none.
+
+        What is yielded is this run's memory, because its other half — the hook
+        that writes the episode — belongs to the runtime built inside this
+        scope. Returning it rather than stashing it is what keeps one run's
+        composition from reaching another's loop.
         """
         composed = self._sources
         with ExitStack() as scope:
-            if composed.recall is not None:
+            memory: RunMemory | None = None
+            if composed.memory is not None:
+                memory = await composed.memory(request)
+                scope.enter_context(
+                    _bound(
+                        recall_binding.bind,
+                        recall_binding.restore,
+                        memory.recall if memory is not None else None,
+                    )
+                )
+            elif composed.recall is not None:
                 scope.enter_context(
                     _bound(
                         recall_binding.bind,
@@ -377,7 +469,7 @@ class ReActInvestigationRunner:
                         await composed.topology(request),
                     )
                 )
-            yield
+            yield memory
 
     async def cancel(self, run_id: str) -> None:
         """Ask ``run_id`` to stop at its next safe point.
@@ -513,6 +605,7 @@ class ReActInvestigationRunner:
         messages: MessageQueue,
         tools: tuple[RegisteredTool, ...],
         rationale: str = "",
+        memory: RunMemory | None = None,
     ) -> ReActLoop:
         """Return the canonical loop, carrying at most the tools the model may hold."""
         hooks = investigation_hooks(recorder=self._recording_hook_for(request))
@@ -522,6 +615,15 @@ class ReActInvestigationRunner:
             # that decides whether a tool call may happen at all, which is why
             # a write cannot reach a capability body by any other route.
             self._remediation.gate_for(self._run_context(request)).register(hooks)
+        if memory is not None and memory.hooks is not None:
+            # The half of memory that is not a binding. Which hooks it installs
+            # is the team's policy to decide — a team that may write gets the
+            # episode at run end, a team that may read gets the paragraph
+            # telling the agent memory exists — and a switched-off mechanism
+            # registers nothing rather than registering a hook that returns
+            # early, so "memory off" is the same dispatch order a deployment
+            # without memory has.
+            memory.hooks(hooks)
         return ReActLoop(
             llm=self.llm,
             tools=tools,
@@ -938,5 +1040,7 @@ __all__ = [
     "InvestigationDidNotComplete",
     "NoPendingInteraction",
     "ReActInvestigationRunner",
+    "RunMemory",
+    "RunMemoryFactory",
     "team_availability",
 ]
