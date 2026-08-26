@@ -13,6 +13,7 @@ drifting, and the message has to say which one it is.
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -213,3 +214,80 @@ async def test_a_swept_resource_reaches_the_graph_the_topology_read_traverses() 
     assert result.record["discovered"] == 2
     assert answer.searched
     assert answer.dependents.names() == (guest,)
+
+
+# --- A scheduler that comes up before its store ------------------------------
+#
+# The scheduler was started behind `if health.is_ready`, read once during
+# startup. A deployment whose store was still connecting at that instant got no
+# scheduler at all and never asked again, so every recurring job it had was
+# registered, enabled, overdue and unclaimed for as long as the process lived.
+#
+# Measured on staging: eleven estate sweeps inside one twenty-seven-minute
+# window on 24 August, then nothing for two days across several redeploys,
+# while `/health/ready` answered `{"ready": true}` throughout. The estate went
+# stale and the topology graph those sweeps fill stayed empty.
+#
+# The fix is the removal of the gate rather than a better gate. The loop
+# already degrades correctly on its own: a tick against a store that is not
+# there fails, is logged, and is retried on the next interval — and unlike a
+# reading taken once at startup, it can change its mind.
+
+
+@dataclass(slots=True)
+class _StoreThatArrivesLate:
+    """Refuses the first ticks, then works. What a slow store looks like."""
+
+    refusals: int
+    ticks: int = 0
+    claimed: int = 0
+
+    async def tick(self) -> tuple[object, ...]:
+        self.ticks += 1
+        if self.ticks <= self.refusals:
+            raise ConnectionError("the store is still connecting")
+        self.claimed += 1
+        return ()
+
+
+async def test_a_store_that_arrives_late_still_gets_its_jobs_claimed() -> None:
+    """The tick that fails is not the last one."""
+    import asyncio
+
+    from gateway.http.scheduled_work import run_scheduler
+
+    worker = _StoreThatArrivesLate(refusals=3)
+    stop = asyncio.Event()
+    loop = asyncio.create_task(run_scheduler(worker, interval_seconds=0, stop=stop))
+    for _ in range(40):
+        await asyncio.sleep(0)
+    stop.set()
+    loop.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await loop
+
+    assert worker.claimed > 0, (
+        f"the scheduler stopped after {worker.ticks} tick(s) against a store that was "
+        f"not ready yet. A deployment that comes up a moment before its store must "
+        f"still run every recurring job it has once the store is there."
+    )
+
+
+def test_the_scheduler_is_started_whatever_startup_readiness_said() -> None:
+    """Composition, asserted on the composition root rather than described.
+
+    The defect was one word — a condition on the line that creates the task —
+    and nothing about the loop itself could have caught it.
+    """
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[4] / "gateway" / "http" / "lifespan.py"
+    text = source.read_text(encoding="utf-8")
+    started = text.index("scheduler = asyncio.create_task(")
+    preceding = text[:started].rsplit("\n\n", 1)[-1]
+
+    assert "if health.is_ready" not in preceding, (
+        "the scheduler is created under a readiness condition again. That reading is "
+        "one instant during startup, and a deployment that was briefly unready then "
+        "runs no recurring job for the life of the process."
+    )

@@ -180,25 +180,36 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # served no scheduler is one whose estate never fills. Started after the
     # sources it dispatches to are composed, and stopped before the store it
     # writes through is closed.
+    #
+    # Started unconditionally. It used to be gated on the readiness read taken
+    # during startup, and that reading is one instant: a store still connecting
+    # then is ready a second later, and the gate never asked again — so a
+    # deployment that came up a moment early ran no recurring job for the life
+    # of the process. That is what it did here: eleven estate sweeps inside one
+    # window, then two days of jobs registered, enabled, overdue and unclaimed,
+    # with the readiness endpoint answering yes throughout.
+    #
+    # No readiness parameter replaces the gate, because the loop already
+    # degrades correctly without one: a tick against a store that is not there
+    # fails, is logged, and is retried on the next interval. A gate would be a
+    # second mechanism for what one already handles — and the one that already
+    # handles it is the one that can change its mind.
     stop = asyncio.Event()
-    scheduler: asyncio.Task[None] | None = None
-    if health.is_ready:
-        scheduler = asyncio.create_task(
-            run_scheduler(
-                worker_for(state),
-                interval_seconds=SCHEDULER_TICK_INTERVAL_SECONDS,
-                stop=stop,
-            )
+    scheduler = asyncio.create_task(
+        run_scheduler(
+            worker_for(state),
+            interval_seconds=SCHEDULER_TICK_INTERVAL_SECONDS,
+            stop=stop,
         )
+    )
 
     try:
         yield
     finally:
         stop.set()
-        if scheduler is not None:
-            scheduler.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await scheduler
+        scheduler.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await scheduler
         await drain(state)
         await state.gateway.close()
 
