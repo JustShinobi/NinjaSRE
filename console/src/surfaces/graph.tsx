@@ -200,12 +200,14 @@ const LEGIBLE_SCALE = 0.75;
 /**
  * Horizontal gap between two boxes drawn in the same rank.
  *
- * Wide enough for an arrow to be drawn in. At sixteen the six stage boxes did
- * not merely touch — the spacing put them ten pixels *inside* one another, so
- * every sequence arrow was drawn from a point right of where it ended and
- * rendered as nothing at all.
+ * Wide enough for an arrow to be drawn in and no wider. At sixteen the six
+ * stage boxes did not merely touch — the spacing put them ten pixels *inside*
+ * one another, so every sequence arrow was drawn from a point right of where it
+ * ended and rendered as nothing at all. At forty the drawing grew past the
+ * content column on a 1280px display and panned by nineteen pixels, which is a
+ * scrollbar for almost nothing. This leaves a twenty-nine-pixel arrow and fits.
  */
-const NODE_GAP = 40;
+const NODE_GAP = 32;
 
 /**
  * A hierarchy, top to bottom, in the same visual language as the neighbourhood.
