@@ -678,6 +678,14 @@ escorador do próprio produto: `proxmox_start_guest` a 0,0000 em português e
 esta onda e nenhuma feature dela se apropriou dele.** É o achado mais grave
 que esta onda produziu sobre si mesma.
 
+> **Retificado em 26/08.** Este achado foi dado por fechado nas três janelas
+> da CT122, porque a regra de alerta foi reescrita em inglês e a capacidade
+> passou a ser oferecida. Ele nunca foi fechado: a reescrita mudou a entrada,
+> `_terms()` segue com a lista de palavras vazias só em inglês, e um alerta em
+> português continua pontuando tudo em zero. E, por baixo disso, havia um elo
+> mais fundo que ninguém tinha visto. Ver *Retificação — o escorador não foi
+> consertado pela regra em inglês*, ao fim deste documento.
+
 **O sujeito gravado de um incidente pode ser o host do exportador.** O achado
 antigo dizia que o *cabeçalho* lia `instance`. O SQL literal mostra que é mais
 fundo: o incidente de um convidado parado tem como sujeito gravado
@@ -828,3 +836,85 @@ pula sozinho contra o backing de mock e roda de verdade só contra o compose. É
 o comportamento desejado, não uma regressão — e é a diferença entre um skip que
 diz por que está pulando e o que estava ali antes, que não pulava nada e não
 media nada.
+
+---
+
+## Retificação — o escorador não foi consertado pela regra em inglês · 2026-08-26
+
+Este documento e o `progress.json` da onda afirmam, em quatro lugares, que o
+escorador de capacidades foi consertado, e que o conserto foi a reescrita da
+regra de alerta em inglês. As quatro frases continuam escritas onde estavam,
+marcadas. Nenhuma foi apagada: um registro que muda sem dizer que mudou é o
+mesmo defeito que esta onda passou a semana catalogando.
+
+### O que era verdade
+
+A medição. `proxmox_start_guest` saiu de cortada para oferecida — 20ª de 40,
+escore 0,625, lido do `selection_rationale` de runs reais em três janelas
+contra staging. Isso aconteceu, e a regra reescrita em inglês é o que mudou
+entre o antes e o depois. Não há nada a corrigir na medição.
+
+### O que era falso
+
+Que isso fosse um conserto. A reescrita mudou a **entrada** do escorador, não o
+escorador. `capabilities/registry/scoring.py::_terms` segue tokenizando com
+`[a-z0-9_]+` e filtrando por `SCORE_STOP_WORDS`, que segue sendo a lista de 26
+palavras vazias só em inglês. Um alerta em português continua pontuando todas
+as capacidades em zero e o desempate continua sendo ordem alfabética. Escrever
+o alerta na língua que o escorador entende não é consertar o escorador; é parar
+de mostrar a ele a língua que ele não entende.
+
+O achado — *a seleção de ferramentas depende do idioma do alerta e nada declara
+isso* — nunca foi fechado. Segue em `open_questions` como escopo sem dona, que
+é onde sempre esteve.
+
+### O elo que ninguém tinha visto, e que era mais fundo que o idioma
+
+O caminho que serve **nunca chamou** `capabilities.registry.selection.select()`.
+O runner pegava o topo N de uma ordenação e ia embora. Fora do próprio pacote
+`capabilities/registry/`, os únicos importadores de `select` eram dois testes:
+`tests/unit/capabilities/registry/test_selection.py` e
+`tests/contract/integrations/test_catalogue_wide_guarantees.py`.
+
+Quatro mecanismos — a ordenação pelo plano, a puxada dirigida por skill, a
+reserva e a supressão por anti-exemplo — mergeados, testados, e inalcançáveis a
+partir de qualquer raiz de serving. É exatamente o defeito que o Artigo XIV
+nomeia: um teste que passa prova que um mecanismo se comporta como desenhado,
+nunca que algo num deployment em execução o chama.
+
+### Por quanto tempo esteve aberto
+
+**Vinte e um dias.** `capabilities/registry/selection.py` nasceu em `68c1e150`
+(05/08, *build the unified capability catalogue*) e só passou a ser chamado do
+caminho de serving em `fe7229e` (26/08). A onda v7 inteira correu com o elo
+aberto.
+
+Nenhuma das medições contra staging podia tê-lo pego, e vale entender por quê:
+elas mediam o que foi **oferecido**, e a oferta vinha do corte por topo N — a
+mesma linha que tornava o seletor desnecessário, e por isso invisível. Uma
+contagem de runs responde *mudou?*; não responde *quem chama isso?*
+
+### O que fechou o elo
+
+`fe7229e`, *rank on what the incident is about, not on who reported it*. Três
+coisas na aritmética e uma no caminho:
+
+1. um termo novo para o **sujeito** do incidente, peso 40, lido do recurso que a
+   resolução de alerta já tinha casado antes de qualquer chamada de modelo;
+2. o termo da fonte do alerta caiu de 40 para 10 — um deployment que roteia todo
+   alerta por um receiver dava às ferramentas desse receiver o maior termo da
+   fórmula em todo incidente que ele terá;
+3. domínio e tags passaram a ser lidos dos rótulos do próprio alerta, porque
+   chegavam vazios de um deployment que serve, e o resumo contra o qual a
+   sobreposição léxica corre foi alargado além do objetivo;
+4. o runner parou de pegar o topo N e passou a entregar o catálogo estreitado a
+   `select()`.
+
+### A lição, que é sobre método e não sobre este escorador
+
+As quatro frases retificadas foram escritas a partir de uma medição verdadeira.
+O erro não foi medir errado; foi ler uma melhora no resultado como prova de que
+a causa suposta era a causa real. É a mesma família do erro já registrado neste
+documento em *Um erro meu, registrado como erro*: afirmar mais do que se mediu,
+com a diferença de que ali o excesso estava numa frase e aqui estava numa
+conclusão que fechou um achado aberto.

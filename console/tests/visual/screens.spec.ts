@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, test } from '@playwright/test';
 
+import {
+  CAPTURE_VIEWPORT_HEIGHT,
+  CAPTURE_VIEWPORT_WIDTH,
+  fitToInnerScrollers,
+} from '../capture';
 import { signIn } from '../e2e/session';
 
 /**
@@ -19,6 +24,14 @@ import { signIn } from '../e2e/session';
  * three widths and two themes; a baseline that only ever saw one of the six
  * says nothing about the other five, which is exactly where a responsive
  * regression lives.
+ *
+ * The height is the registered one only until something on the screen is found
+ * to scroll inside itself, at which point the viewport grows until it does not
+ * — see `tests/capture.ts`. `fullPage` measures the *document*, and a slide-over
+ * with its own scrollbar is not part of the document's height, so without this
+ * the picture would stop partway down the panel and say nothing about it. A
+ * screen with nothing clipped is captured at exactly the height it declares,
+ * which is why this leaves every existing baseline where it was.
  */
 
 interface Screen {
@@ -112,7 +125,10 @@ const UNAUTHENTICATED = '/sign-in';
 
 for (const screen of registry().screens.filter((each) => each.status === 'baselined')) {
   test(`${screen.id} matches its baseline`, async ({ page, context, baseURL }) => {
-    await page.setViewportSize({ width: screen.viewport ?? 1440, height: 900 });
+    await page.setViewportSize({
+      width: screen.viewport ?? CAPTURE_VIEWPORT_WIDTH,
+      height: CAPTURE_VIEWPORT_HEIGHT,
+    });
 
     const route = routeFor(screen);
 
@@ -128,6 +144,16 @@ for (const screen of registry().screens.filter((each) => each.status === 'baseli
     }, theme);
 
     await page.goto(route);
+
+    // Before the shutter, not after: a capture that cut a panel in half is a
+    // baseline somebody would accept without ever seeing what it left out.
+    const clipped = await fitToInnerScrollers(page);
+    expect(
+      clipped,
+      `${screen.id} has a region a full-page capture cannot reach into, so the ` +
+        `image would be missing part of what this entry protects`,
+    ).toEqual([]);
+
     await expect(page).toHaveScreenshot(`${screen.id}.png`, { fullPage: true });
   });
 }
