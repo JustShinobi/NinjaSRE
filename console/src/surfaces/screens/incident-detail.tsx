@@ -83,6 +83,15 @@ const STEP_HEADING: Readonly<Record<string, MessageKey>> = {
   delivery: 'incident.investigation.step.delivery',
 };
 
+/**
+ * The run statuses that mean the investigation has not stopped.
+ *
+ * Stated as the live set rather than the finished set, because the finished
+ * set is open: a status this console has never met is one it must not draw as
+ * "still running", which would be a claim about a process nobody here can see.
+ */
+const LIVE_RUN_STATUSES: ReadonlySet<string> = new Set(['running', 'suspended']);
+
 const INCIDENT_STATE_LABEL: Readonly<Record<string, MessageKey>> = {
   open: 'incident.chip.state.open',
   investigating: 'incident.chip.state.investigating',
@@ -166,7 +175,6 @@ export async function IncidentDetailScreen(
   const steps = timeline
     .map((entry) => ({ entry, kind: REASONING_KIND[text(entry, 'kind')] ?? '' }))
     .filter((row) => row.kind !== '');
-  const hasReportDelivered = steps.some((row) => row.kind === 'delivery');
   // A diagnosis is the one reasoning step Article I lets a remediation stand
   // on. Without one, whatever is in the store is a hypothesis at best — and
   // proposing a remediation over that is the one outcome this page must never
@@ -212,6 +220,17 @@ export async function IncidentDetailScreen(
   // Four states, derived from the read's own outcome rather than from its
   // body: `unknown` when the read itself failed — naming the dependency
   // that did — never "No investigation" over a read that never answered.
+  // Whether the run is still going, from the run's own status.
+  //
+  // This used to be "the timeline has no delivery step yet", and a run that
+  // completed without delivering anywhere therefore read as running for the
+  // rest of the incident's life — drawn beside a state chip saying the
+  // incident had been resolved two hours earlier. The absence of one kind of
+  // evidence is not the presence of another; the run says where it got to and
+  // that is the sentence to print.
+  const runStatus = hasInvestigation ? text(investigation, 'status') : '';
+  const runStillGoing = LIVE_RUN_STATUSES.has(runStatus);
+
   // A read that succeeded and genuinely carries no investigation still
   // says so; that is a fact, not a guess.
   const investigationExistence = existenceOf(detail, hasInvestigation);
@@ -234,16 +253,16 @@ export async function IncidentDetailScreen(
             shape: 'dash',
             label: message(locale, 'incident.chip.investigation.none'),
           }
-        : hasReportDelivered
+        : runStillGoing
           ? {
-              role: 'success',
-              shape: 'filled-circle',
-              label: message(locale, 'incident.chip.investigation.finished'),
-            }
-          : {
               role: 'info',
               shape: 'rotated-square',
               label: message(locale, 'incident.chip.investigation.running'),
+            }
+          : {
+              role: 'success',
+              shape: 'filled-circle',
+              label: message(locale, 'incident.chip.investigation.finished'),
             };
 
   // --- Subtitle: rule, source, instant, zone, host -----------------------------

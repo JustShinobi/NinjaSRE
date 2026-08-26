@@ -461,6 +461,7 @@ export const EN = {
   'transcript.empty': 'This investigation recorded no events.',
   'transcript.arguments': 'Arguments',
   'transcript.result': 'Result',
+  'transcript.note': 'Why these capabilities were offered',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
   'transcript.events.one': '{count} event',
@@ -761,6 +762,8 @@ export const EN = {
   'run.usage.calls': 'Calls',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Cost',
+  'run.usage.unpriced': 'No published price for this model',
+  'run.usage.unpriced.short': 'unpriced',
   'run.usage.apportioned':
     'The investigation reports one total; the split below is that total apportioned across its turns.',
   'run.usage.empty.heading': 'No cost recorded',

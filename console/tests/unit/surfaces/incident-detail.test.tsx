@@ -193,7 +193,15 @@ describe('an incident whose investigation is still running', () => {
           },
         ],
         actions: [],
-        investigation: { step_count: 1, duration_ms: 5000, cost: 0.5 },
+        // The run says it is still going. The screen used to infer that
+        // from the absence of a delivery step, which made every run that
+        // finished without delivering read as running for ever.
+        investigation: {
+          step_count: 1,
+          duration_ms: 5000,
+          cost: 0.5,
+          status: 'running',
+        },
       },
       '/v1/estate/resources/cedar': {
         resource: {
@@ -315,7 +323,12 @@ describe('what the proposed-action card is allowed to claim', () => {
         observations: [],
         timeline: timelineOf(kinds),
         actions: [],
-        investigation: { step_count: kinds.length, duration_ms: 5000, cost: 0.5 },
+        investigation: {
+          step_count: kinds.length,
+          duration_ms: 5000,
+          cost: 0.5,
+          status: 'completed',
+        },
       },
       '/v1/estate/resources/birch': {
         resource: {

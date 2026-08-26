@@ -489,6 +489,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.empty': 'Esta investigação não registrou eventos.',
   'transcript.arguments': 'Argumentos',
   'transcript.result': 'Resultado',
+  'transcript.note': 'Por que estas capacidades foram oferecidas',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} eventos',
   'transcript.events.one': '{count} evento',
@@ -579,6 +580,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.calls': 'Chamadas',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Custo',
+  'run.usage.unpriced': 'Sem preço publicado para este modelo',
+  'run.usage.unpriced.short': 'sem preço',
   'run.usage.apportioned':
     'A investigação reporta um total; a divisão abaixo é esse total repartido pelos seus passos.',
   'run.usage.empty.heading': 'Nenhum custo registado',

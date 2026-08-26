@@ -55,6 +55,7 @@ const LABELS = {
   empty: 'This run recorded no events.',
   arguments: 'Arguments',
   result: 'Result',
+  note: 'Why these capabilities were offered',
 
   payload: {
     bounded: 'bounded',
@@ -73,6 +74,7 @@ function events(count: number): readonly TranscriptEvent[] {
     at: '2026-08-07T11:56:00+00:00',
     title: 'estate.storage_pressure',
     detail: 'The datastore reading disagrees with the volume reading.',
+    note: '',
     payload: '{"storage":"local-lvm"}',
     status: 'succeeded',
     durationMs: 412,
@@ -148,6 +150,7 @@ describe('every kind of event', () => {
           rawKind: kind,
           at: '',
           title: kind,
+          note: '',
           detail: `what ${kind} means`,
           payload: '',
           status: '',
@@ -201,6 +204,7 @@ describe('a reasoning entry that is the model’s final answer', () => {
             rawKind: 'turn',
             at: '',
             title: '1',
+            note: '',
             detail: rationale,
             payload: '',
             status: '',
@@ -230,7 +234,10 @@ describe('the two shapes a run arrives in', () => {
     turns: [
       {
         turn_id: 'turn-1',
-        index: 0,
+        // The loop counts its own iterations from one, and the store
+        // records what the loop counted. A fixture starting at zero was the
+        // reason the console added one and showed every run counting from two.
+        index: 1,
         model: 'operator-configured',
         selection_rationale: 'storage pressure is a first-party domain',
         calls: [
@@ -265,6 +272,43 @@ describe('the two shapes a run arrives in', () => {
       },
     ],
   };
+
+  it('reads a turn’s reasoning from the model, not from the selection note', () => {
+    // Two different facts, and only one of them is the agent thinking. The
+    // deployment's note about which capabilities were on offer is deterministic
+    // prose it generated itself; putting it under the heading "Reasoning" is the
+    // console reporting the deployment's own words back as the agent's.
+    const built = eventsFromReplay({
+      run_id: 'run-0002',
+      turns: [
+        {
+          turn_id: 'turn-1',
+          index: 1,
+          model: 'gemini-flash-latest',
+          model_rationale: 'The watchdog is stale for two jobs; I will read the tasks.',
+          selection_rationale: 'ranked 60, offered 40, cut by the ceiling 20',
+          calls: [],
+        },
+      ],
+    });
+
+    expect(built[0]?.detail).toBe(
+      'The watchdog is stale for two jobs; I will read the tasks.',
+    );
+    expect(built[0]?.note).toBe('ranked 60, offered 40, cut by the ceiling 20');
+  });
+
+  it('numbers a turn the way the run recorded it', () => {
+    // The store writes turn 1 as index 1. Adding one here made every screen
+    // count from two, so an investigation with five turns showed turns 2 to 6
+    // and no turn 1 anywhere.
+    const built = eventsFromReplay({
+      run_id: 'run-0002',
+      turns: [{ turn_id: 'turn-1', index: 1, calls: [] }],
+    });
+
+    expect(built[0]?.title).toBe('1');
+  });
 
   it('turns a recorded run into a turn’s reasoning, its call and its result', () => {
     const built = eventsFromReplay(replay);
@@ -309,9 +353,45 @@ describe('the two shapes a run arrives in', () => {
     expect(usageFrom({ total_tokens: 0, total_cost: 0, turns: [] })).toEqual({
       tokens: 0,
       cost: 0,
+      unpricedTurns: 0,
+      // A run with no turns is not a priced run. There is nothing to price.
+      priced: false,
       byModel: [],
       byTurn: [],
     });
+  });
+});
+
+describe('what a run cost', () => {
+  it('says how many turns carried no price, instead of calling them free', () => {
+    // The gateway publishes `unpriced_turns` precisely so a screen can tell
+    // "this cost nothing" from "nobody published a price for this model".
+    // Reading only the total prints $0.00 over 36,842 tokens, which is the one
+    // reading that is certainly wrong.
+    const usage = usageFrom({
+      turns: [
+        { turn_id: 't1', index: 1, model: 'gemini-flash-latest', calls: [] },
+        { turn_id: 't2', index: 2, model: 'gemini-flash-latest', calls: [] },
+      ],
+      total_tokens: 36842,
+      total_cost: 0,
+      unpriced_turns: 2,
+    });
+
+    expect(usage.unpricedTurns).toBe(2);
+    expect(usage.priced).toBe(false);
+  });
+
+  it('numbers turns in the cost table the way the run recorded them', () => {
+    const usage = usageFrom({
+      turns: [{ turn_id: 't1', index: 1, model: 'm', calls: [] }],
+      total_tokens: 10,
+      total_cost: 1,
+      unpriced_turns: 0,
+    });
+
+    expect(usage.byTurn[0]?.turn).toBe(1);
+    expect(usage.priced).toBe(true);
   });
 });
 

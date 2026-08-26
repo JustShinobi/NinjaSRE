@@ -144,7 +144,7 @@ export async function RunDetailScreen(
     started.relative,
     trigger,
     seconds === 0 ? '' : formatDuration(locale, seconds),
-    usage.cost === 0 ? '' : formatCurrency(locale, usage.cost, CURRENCY),
+    usage.priced && usage.cost > 0 ? formatCurrency(locale, usage.cost, CURRENCY) : '',
   ]
     .filter((part) => part !== '')
     .join(' · ');
@@ -384,8 +384,14 @@ export async function RunDetailScreen(
                   <span className="text-muted">
                     {message(locale, 'run.usage.cost')}
                   </span>
-                  <span className="ml-auto tabular-nums">
-                    {formatCurrency(locale, usage.cost, CURRENCY)}
+                  <span data-testid="run-cost" className="ml-auto tabular-nums">
+                    {/* "$0.00" over thirty-six thousand tokens is not a
+                        measurement, it is the absence of one wearing a
+                        number. The gateway distinguishes the two and this
+                        reads which it is. */}
+                    {usage.priced
+                      ? formatCurrency(locale, usage.cost, CURRENCY)
+                      : message(locale, 'run.usage.unpriced')}
                   </span>
                 </div>
 
@@ -466,7 +472,9 @@ export async function RunDetailScreen(
                           {formatNumber(locale, turn.calls)}
                         </td>
                         <td className="py-1 text-right tabular-nums">
-                          {formatCurrency(locale, turn.cost, CURRENCY)}
+                          {usage.priced
+                            ? formatCurrency(locale, turn.cost, CURRENCY)
+                            : message(locale, 'run.usage.unpriced.short')}
                         </td>
                       </tr>
                     ))}
