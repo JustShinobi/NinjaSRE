@@ -22,6 +22,7 @@ from gateway.http.routes.tenancy import visible
 from gateway.http.state import GatewayState
 from gateway.http.streaming.subscription import event_source, parse_cursor
 from platform.persistence.ports.run_trace_store import AgentRun
+from platform.runs.evidence import assessment_from_calls
 from platform.runs.headline import synthesize_headline
 from platform.runs.replay import touched_resources_of
 
@@ -61,6 +62,16 @@ class InvestigationSummary(BaseModel):
     #: recorded — never from the alert's declared subjects. Populated on the
     #: same single-run reads as ``incident_id``.
     touched_resources: list[str] = Field(default_factory=list)
+    #: Whether this run completed an assessment of its own evidence. False is
+    #: "it never said", never "it said nothing was backed" — a surface that
+    #: read the two counts without this would give a silent run the same
+    #: chip as a run that found nothing missing.
+    evidence_assessed: bool = False
+    #: How many pieces of evidence the run named as supporting its conclusion,
+    #: and how many it named as still missing. Counted from the run's own
+    #: ``assess_evidence_sufficiency`` call rather than scored here.
+    evidence_backed: int = 0
+    evidence_missing: int = 0
 
 
 class InvestigationList(BaseModel):
@@ -109,10 +120,14 @@ async def linked_summary(run: AgentRun, uow: Any) -> InvestigationSummary:
     """
     incident = await uow.incidents.find_by_run(run.run_id)
     calls = await uow.run_traces.tool_calls_for_run(run.run_id)
+    assessment = assessment_from_calls(calls)
     return summary_of(run).model_copy(
         update={
             "incident_id": incident.incident_id if incident is not None else "",
             "touched_resources": list(touched_resources_of(calls)),
+            "evidence_assessed": assessment.assessed,
+            "evidence_backed": assessment.backed,
+            "evidence_missing": assessment.missing,
         }
     )
 

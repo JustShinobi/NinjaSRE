@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
@@ -117,6 +118,17 @@ class FakeRunTraceStore:
     async def tool_calls_for_run(self, run_id: str) -> tuple[ToolCallRecord, ...]:
         """Return the run's tool calls in the order they were recorded."""
         return tuple(c for c in self.state.tool_calls.values() if c.run_id == run_id)
+
+    async def named_tool_calls_for_runs(
+        self, run_ids: Sequence[str], tool_name: str
+    ) -> tuple[ToolCallRecord, ...]:
+        """Return every call of ``tool_name`` across ``run_ids``, recording order."""
+        wanted = set(run_ids)
+        return tuple(
+            c
+            for c in self.state.tool_calls.values()
+            if c.run_id in wanted and c.tool_name == tool_name
+        )
 
     async def evidence_for_run(self, run_id: str) -> tuple[EvidenceRecord, ...]:
         """Return the run's evidence in the order it was observed."""

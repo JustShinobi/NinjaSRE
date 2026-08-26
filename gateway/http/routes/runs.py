@@ -10,12 +10,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from config.constants.investigation import EVIDENCE_ASSESSMENT_CAPABILITY
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.routes.investigations import InvestigationSummary, linked_summary, summary_of
 from gateway.http.routes.tenancy import visible
 from gateway.http.routes.threads import ThreadTurnView, thread_turn_view
 from gateway.http.state import GatewayState
+from platform.persistence.ports.run_trace_store import ToolCallRecord
+from platform.runs.evidence import assessment_from_calls
 from platform.runs.replay import replay_trace
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
@@ -44,10 +47,38 @@ async def list_runs(
     auth: AuthenticatedRequest = Depends(authorized),
     limit: int = 50,
 ) -> RunList:
-    """Return recent runs visible to the caller, newest first."""
+    """Return recent runs visible to the caller, newest first.
+
+    Each carries how sure it was, because the list is where somebody decides
+    which run to open and "did it actually back this" is the question that
+    decides it. Read in one batched query over the whole page rather than one
+    per row — the per-row version works on a demo and is a fifty-query page in
+    a deployment that has been running a while.
+    """
     async with state.gateway.begin(auth.scope) as uow:
         runs = await uow.run_traces.list_runs(limit=limit)
-    return RunList(runs=[summary_of(run) for run in runs if visible(run, auth)])
+        shown = [run for run in runs if visible(run, auth)]
+        assessments = await uow.run_traces.named_tool_calls_for_runs(
+            [run.run_id for run in shown], EVIDENCE_ASSESSMENT_CAPABILITY
+        )
+
+    by_run: dict[str, list[ToolCallRecord]] = {}
+    for call in assessments:
+        by_run.setdefault(call.run_id, []).append(call)
+
+    listed: list[InvestigationSummary] = []
+    for run in shown:
+        assessment = assessment_from_calls(by_run.get(run.run_id, []))
+        listed.append(
+            summary_of(run).model_copy(
+                update={
+                    "evidence_assessed": assessment.assessed,
+                    "evidence_backed": assessment.backed,
+                    "evidence_missing": assessment.missing,
+                }
+            )
+        )
+    return RunList(runs=listed)
 
 
 @router.get("/{run_id}", response_model=InvestigationSummary)

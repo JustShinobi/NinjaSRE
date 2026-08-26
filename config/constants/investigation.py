@@ -115,6 +115,18 @@ CONTEXT_BUDGET_WARNING_RATIO: Final[float] = 0.9
 #: something measured is competing for the same tokens.
 UNRELIABLE_EVIDENCE_SOURCES: Final[tuple[str, ...]] = ("reasoning",)
 
+#: The capability whose own arguments say what a run could and could not back.
+#: Named here rather than in the console or the gateway because three tiers now
+#: read the same call: the agent offers it, the trace stores its arguments, and
+#: every surface that says how sure a run was counts them.
+EVIDENCE_ASSESSMENT_CAPABILITY: Final[str] = "assess_evidence_sufficiency"
+
+#: The two argument names that capability carries its answer in. A run that
+#: called it with neither said nothing about its own evidence, which is a
+#: different fact from a run that called it and found nothing missing.
+EVIDENCE_SUPPORTING_ARGUMENT: Final[str] = "supporting_evidence"
+EVIDENCE_MISSING_ARGUMENT: Final[str] = "missing_evidence"
+
 # --- Mid-run interaction -----------------------------------------------------
 
 #: How long queued user input is held before it is merged into the next turn.
@@ -347,6 +359,9 @@ __all__ = [
     "DEFAULT_SUBAGENT_ITERATIONS",
     "DEFAULT_TOOL_BUDGET",
     "DERIVED_WINDOW_CONFIDENCE",
+    "EVIDENCE_ASSESSMENT_CAPABILITY",
+    "EVIDENCE_MISSING_ARGUMENT",
+    "EVIDENCE_SUPPORTING_ARGUMENT",
     "EVIDENCE_TRUNCATION_FLOOR_CHARS",
     "EVIDENCE_VALUE_CITED_BONUS",
     "EVIDENCE_VALUE_RECENCY_WEIGHT",
@@ -370,9 +385,9 @@ __all__ = [
     "MAX_SECONDARY_FALLBACK_TOOLS",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
-    "MIN_TOOL_RESULT_CHARS",
     "MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS",
     "MESSAGE_QUEUE_DEBOUNCE_MS",
+    "MIN_TOOL_RESULT_CHARS",
     "NINJASRE_RUNTIME_ENV",
     "NOISE_CLASSIFICATION_THRESHOLD",
     "PLAN_CONFIDENCE_FLOOR",

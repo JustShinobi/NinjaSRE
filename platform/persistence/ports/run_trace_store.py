@@ -20,7 +20,7 @@ a trace table outgrows the database it was meant to fit inside.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -229,6 +229,17 @@ class RunTraceStore(Protocol):
 
     async def tool_calls_for_run(self, run_id: str) -> tuple[ToolCallRecord, ...]:
         """Return the run's tool calls in the order they were recorded."""
+
+    async def named_tool_calls_for_runs(
+        self, run_ids: Sequence[str], tool_name: str
+    ) -> tuple[ToolCallRecord, ...]:
+        """Return every call of ``tool_name`` across ``run_ids``, recording order.
+
+        One read for a whole list. A surface that says something per run about
+        a capability every run offers — how sure it was, how long it took —
+        cannot afford one query per row, and the loop that does it is the
+        version that reaches production and is found later.
+        """
 
     async def evidence_for_run(self, run_id: str) -> tuple[EvidenceRecord, ...]:
         """Return the run's evidence in the order it was observed."""

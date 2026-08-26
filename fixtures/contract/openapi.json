@@ -3618,6 +3618,21 @@
       },
       "InvestigationSummary": {
         "properties": {
+          "evidence_assessed": {
+            "default": false,
+            "title": "Evidence Assessed",
+            "type": "boolean"
+          },
+          "evidence_backed": {
+            "default": 0,
+            "title": "Evidence Backed",
+            "type": "integer"
+          },
+          "evidence_missing": {
+            "default": 0,
+            "title": "Evidence Missing",
+            "type": "integer"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -14863,7 +14878,7 @@
     },
     "/v1/runs": {
       "get": {
-        "description": "Return recent runs visible to the caller, newest first.",
+        "description": "Return recent runs visible to the caller, newest first.\n\nEach carries how sure it was, because the list is where somebody decides\nwhich run to open and \"did it actually back this\" is the question that\ndecides it. Read in one batched query over the whole page rather than one\nper row — the per-row version works on a demo and is a fifty-query page in\na deployment that has been running a while.",
         "operationId": "list_runs_v1_runs_get",
         "parameters": [
           {

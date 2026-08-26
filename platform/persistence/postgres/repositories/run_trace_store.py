@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -283,6 +283,24 @@ class PostgresRunTraceStore(TenantBound):
         rows = await self.session.scalars(
             select(models.ToolCall)
             .where(models.ToolCall.org_id == self.org_id, models.ToolCall.run_id == run_id)
+            .order_by(models.ToolCall.recorded_seq, models.ToolCall.call_id)
+        )
+        return tuple(_to_call(row) for row in rows)
+
+    async def named_tool_calls_for_runs(
+        self, run_ids: Sequence[str], tool_name: str
+    ) -> tuple[ToolCallRecord, ...]:
+        """Return every call of ``tool_name`` across ``run_ids``, recording order."""
+        wanted = list(dict.fromkeys(run_ids))
+        if not wanted:
+            return ()
+        rows = await self.session.scalars(
+            select(models.ToolCall)
+            .where(
+                models.ToolCall.org_id == self.org_id,
+                models.ToolCall.run_id.in_(wanted),
+                models.ToolCall.tool_name == tool_name,
+            )
             .order_by(models.ToolCall.recorded_seq, models.ToolCall.call_id)
         )
         return tuple(_to_call(row) for row in rows)
