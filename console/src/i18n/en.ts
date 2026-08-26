@@ -1620,9 +1620,8 @@ export const EN = {
   'catalogue.integrations.filter.state.degraded': 'Failing',
 
   // --- The integrations catalogue: connected first, the rest a search --------------
-  'catalogue.integrations.summary': '{total} integrations · {connected} connected',
   'catalogue.integrations.summary.suggested':
-    '{total} integrations · {connected} connected · {suggested} suggested',
+    '{suggested} of them are already running in this estate — connect one and it stops being a guess.',
   'catalogue.integrations.connected.title': 'Connected',
   'catalogue.integrations.connected.manage': 'Manage',
   'catalogue.integrations.filter.view.connected': 'Connected · {count}',

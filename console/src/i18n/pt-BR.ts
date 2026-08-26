@@ -1362,9 +1362,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.filter.state.degraded': 'Falhando',
 
   // --- O catálogo de integrações: conectadas primeiro, o resto é uma busca ---------
-  'catalogue.integrations.summary': '{total} integrações · {connected} conectadas',
   'catalogue.integrations.summary.suggested':
-    '{total} integrações · {connected} conectadas · {suggested} sugeridas',
+    '{suggested} delas já estão rodando neste ambiente — conecte uma e ela deixa de ser um chute.',
   'catalogue.integrations.connected.title': 'Conectadas',
   'catalogue.integrations.connected.manage': 'Gerenciar',
   'catalogue.integrations.filter.view.connected': 'Conectadas · {count}',

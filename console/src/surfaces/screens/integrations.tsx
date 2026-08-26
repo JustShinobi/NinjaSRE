@@ -463,21 +463,18 @@ export async function IntegrationsScreen(
         }}
       >
         <div className="flex flex-col gap-5">
-          {/* The counts moved to the page header, where every other screen
-              keeps them. What stays here is the one fact a count cannot
-              carry: that the estate itself suggested some of these. */}
-          <p className="text-meta text-muted" data-testid="catalogue-summary">
-            {suggested.length > 0
-              ? message(locale, 'catalogue.integrations.summary.suggested', {
-                  total: installed.length,
-                  connected: connected.length,
-                  suggested: suggested.length,
-                })
-              : message(locale, 'catalogue.integrations.summary', {
-                  total: installed.length,
-                  connected: connected.length,
-                })}
-          </p>
+          {/* The counts are in the page header, where every other screen keeps
+              them. What is left here is the one fact a count cannot carry —
+              that the estate itself found some of these running — and it is
+              absent entirely when it has found none, rather than restating the
+              header in prose. */}
+          {suggested.length === 0 ? null : (
+            <p className="text-meta text-muted" data-testid="catalogue-summary">
+              {message(locale, 'catalogue.integrations.summary.suggested', {
+                suggested: suggested.length,
+              })}
+            </p>
+          )}
 
           {choices.length === 0 ? null : (
             <FilterBar
