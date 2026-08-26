@@ -820,6 +820,10 @@ REMEDIATION_AUDIT_RESOURCE_KIND: Final = "remediation_action"
 #: The keys a remediation payload carries through the approval store. The
 #: reviewer's diff is rendered from ``steps`` and ``rollback``; the rest is what
 #: makes the decision an informed one rather than a yes/no on a tool name.
+#: The run that proposed a change, inside its payload. Read back when the
+#: approval row is written, so a surface can find the approval by the run
+#: the incident already knows — the only handle any screen has on it.
+APPROVAL_PAYLOAD_RUN: Final = "run_id"
 REMEDIATION_PAYLOAD_STEPS: Final = "steps"
 REMEDIATION_PAYLOAD_ROLLBACK: Final = "rollback"
 REMEDIATION_PAYLOAD_BLAST_RADIUS: Final = "blast_radius"
@@ -991,6 +995,7 @@ __all__ = [
     "REMEDIATION_PAYLOAD_EVIDENCE",
     "REMEDIATION_PAYLOAD_ROLLBACK",
     "REMEDIATION_PAYLOAD_ARGUMENTS",
+    "APPROVAL_PAYLOAD_RUN",
     "REMEDIATION_PAYLOAD_STEPS",
     "REMEDIATION_PAYLOAD_WAIVER",
     "REMEDIATION_ROLLBACK_WINDOW_SECONDS",
