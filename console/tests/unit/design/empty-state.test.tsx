@@ -24,6 +24,18 @@ describe('resolving a CTA target', () => {
     expect(resolved.permission).toBe('integration.manage');
   });
 
+  it('resolves a settings page, which is an address this console also serves', () => {
+    // The hybrid navigation moved half the console's destinations out of the
+    // sidebar and into their own settings pages. A CTA that has to send a
+    // reader to one of them — "the model each role uses" is the motivating
+    // case — was refused as a route that does not exist, which was true of
+    // the *area* list and false of the console.
+    const resolved = resolveCta({ route: '/settings/models-providers' });
+
+    expect(resolved.href).toBe('/settings/models-providers');
+    expect(resolved.permission).toBe('config.write');
+  });
+
   it('carries an anchor as a fragment', () => {
     const resolved = resolveCta({ route: '/agent', anchor: 'models' });
 

@@ -881,6 +881,12 @@ export const EN = {
   'empty.cause.watching':
     'No detector is switched on, so nothing is being watched and nothing will open by itself.',
   'empty.cause.watching.action': 'Turn on continuous observation',
+  // Deliberately two facts and no diagnosis: the console can count finished
+  // investigations and read the corpus, and it cannot read why extraction
+  // failed — no endpoint serves that. See `surfaces/emptiness.ts`.
+  'empty.cause.extraction':
+    '{finished} investigations have finished and none of them left an episode behind. What turns a finished investigation into an episode is a model call, and each role picks its own model.',
+  'empty.cause.extraction.action': 'Check the model each role uses',
 
   'incidents.empty.heading': 'No open incidents',
   'incidents.empty.body':
@@ -1241,6 +1247,12 @@ export const EN = {
   'memory.episodes.empty.heading': 'No episodes yet',
   'memory.episodes.empty.body':
     'An episode is written when an investigation ends, and none has been written yet.',
+  // The same mechanism with its second clause dropped, for the collapsed
+  // section that goes on to name a cause. "None has been written yet"
+  // followed by a sentence counting the investigations that finished is the
+  // panel saying the same thing twice and disagreeing with itself in tone.
+  'memory.episodes.empty.mechanism':
+    'An episode is written when an investigation ends.',
   'memory.episodes.empty.action': 'See what is running',
   'memory.strategies.title': 'Strategies',
   'memory.strategies.lead':

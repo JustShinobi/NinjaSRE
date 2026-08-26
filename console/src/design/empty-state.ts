@@ -1,4 +1,4 @@
-import { areaByPath } from '@/shell/routes';
+import { areaByPath, settingsPageByPath } from '@/shell/routes';
 
 /**
  * Where an empty state's, or a warning's, action goes — declared rather than
@@ -36,7 +36,13 @@ export interface ResolvedCta {
  * somebody clicks a dead link three screens away.
  */
 export function resolveCta(target: CtaTarget): ResolvedCta {
-  const area = areaByPath(target.route);
+  // Both lists, because the hybrid navigation made "a route this console
+  // serves" two lists rather than one: the areas in the sidebar, and the
+  // settings pages behind Settings. A destination in the second is no less
+  // real than one in the first — "the model each role uses" only exists
+  // there — and refusing it would push screens back to the bare `href` this
+  // function exists to replace.
+  const area = areaByPath(target.route) ?? settingsPageByPath(target.route);
   if (area === undefined) {
     throw new Error(
       `"${target.route}" is not a route this console serves. An empty state's action has to ` +

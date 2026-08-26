@@ -80,6 +80,40 @@ export function watchingCause(locale: Locale, live: number): Cause | null {
 }
 
 /**
+ * The cause an empty corpus has when the chain above it plainly ran.
+ *
+ * The episodes panel explains its own mechanism — an episode is written when
+ * an investigation ends, and none has been written yet — and on a deployment
+ * with finished investigations behind it the second half of that is simply
+ * untrue. The two situations it collapses are opposite: a deployment that has
+ * not investigated anything yet is waiting, and a deployment that has
+ * investigated fifty things and written nothing down is losing every one of
+ * them. Rendered identically, the first is what a reader assumes, so the
+ * failure is invisible for as long as nobody counts the runs by hand.
+ *
+ * ``finished`` is investigations that *completed*, not investigations that
+ * stopped. A cancelled or failed run has no conclusion to extract an episode
+ * from, so counting one here would blame the corpus for a gap nothing was
+ * ever going to fill.
+ *
+ * What this deliberately does not say is why. Extraction records its own
+ * reason — the model call it makes, and the failure it came back with — and no
+ * endpoint serves it, so the console cannot read one. It has two facts, the
+ * count and the corpus, and it says exactly what those two support: the runs
+ * ended, nothing came out of them, and the step between the two is a model
+ * call configured per role. Naming a provider error the console has not seen
+ * would be the same invention in the other direction.
+ */
+export function extractionCause(locale: Locale, finished: number): Cause | null {
+  if (finished <= 0) return null;
+  return {
+    body: message(locale, 'empty.cause.extraction', { finished: String(finished) }),
+    actionLabel: message(locale, 'empty.cause.extraction.action'),
+    href: resolveCta({ route: '/settings/models-providers' }).href,
+  };
+}
+
+/**
  * ``empty``, with the local cause replacing its body and its action.
  *
  * The heading stays: it names what would be here, which is true either way.

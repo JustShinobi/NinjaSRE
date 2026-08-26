@@ -59,7 +59,11 @@ function okResponse(body: unknown): Response {
  * it from the same fixture table the dataset helper uses, overriding only the
  * two reads this screen makes decisions from.
  */
-function serveMemory(overrides: { episodes?: unknown; checklist?: unknown }): void {
+function serveMemory(overrides: {
+  episodes?: unknown;
+  checklist?: unknown;
+  runs?: unknown;
+}): void {
   vi.stubGlobal('fetch', (input: unknown) => {
     const path = new URL(String(input), BASE).pathname;
     if (path === '/v1/memory/search' && overrides.episodes !== undefined) {
@@ -67,6 +71,9 @@ function serveMemory(overrides: { episodes?: unknown; checklist?: unknown }): vo
     }
     if (path === '/v1/setup/checklist' && overrides.checklist !== undefined) {
       return Promise.resolve(okResponse(overrides.checklist));
+    }
+    if (path === '/v1/runs' && overrides.runs !== undefined) {
+      return Promise.resolve(okResponse(overrides.runs));
     }
     const body: unknown = bodyFor('populated', path);
     if (body === null || body === undefined) {
@@ -137,7 +144,12 @@ describe('a deployment where no investigation has ever ended', () => {
 
 describe('a deployment whose setup is finished but has not investigated yet', () => {
   it('points at what is running instead of at the setup', async () => {
-    serveMemory({ episodes: { episodes: [] } });
+    // The run list is served empty deliberately. This case is "nothing has
+    // been investigated", and the sentence it asserts is only true while
+    // that holds — reading the populated dataset's fifty finished runs here
+    // would have been the screen describing a deployment other than the one
+    // the fixture set up.
+    serveMemory({ episodes: { episodes: [] }, runs: { runs: [] } });
     await renderMemory();
 
     expect(screen.queryByText(/still being set up/)).toBeNull();
@@ -145,6 +157,62 @@ describe('a deployment whose setup is finished but has not investigated yet', ()
     expect(link).toHaveAttribute('href', '/runs');
     expect(
       screen.getByRole('link', { name: 'See what is running' }),
+    ).toBeInTheDocument();
+  });
+});
+
+/**
+ * The case the whole cause exists for: the chain above the corpus plainly ran.
+ *
+ * A deployment that has finished fifty investigations and holds no episodes is
+ * not a deployment waiting for its first one, and the sentence it was showing
+ * — "none has been written yet" — read as patience while every attempt to
+ * write one was failing. Nobody would ever have gone looking, because the
+ * screen said the thing that means "come back later".
+ */
+describe('a deployment that has investigated and written nothing down', () => {
+  const finished = {
+    runs: [
+      { run_id: 'run-a', status: 'completed', started_at: '2026-01-01T00:00:00Z' },
+      { run_id: 'run-b', status: 'completed', started_at: '2026-01-02T00:00:00Z' },
+      { run_id: 'run-c', status: 'failed', started_at: '2026-01-03T00:00:00Z' },
+    ],
+  };
+
+  it('counts the investigations that finished instead of saying none has', async () => {
+    serveMemory({ episodes: { episodes: [] }, runs: finished });
+    await renderMemory();
+
+    // Two, not three: the failed run had no conclusion to extract from, so
+    // counting it would blame the corpus for a gap nothing was going to fill.
+    expect(screen.getByText(/2 investigations have finished/)).toBeInTheDocument();
+    expect(screen.queryByText(/still being set up/)).toBeNull();
+  });
+
+  it('sends the reader to the model each role uses', async () => {
+    serveMemory({ episodes: { episodes: [] }, runs: finished });
+    await renderMemory();
+
+    expect(screen.getByTestId('way-back')).toHaveAttribute(
+      'href',
+      '/settings/models-providers',
+    );
+  });
+
+  it('names no failure the console cannot read', async () => {
+    serveMemory({ episodes: { episodes: [] }, runs: finished });
+    await renderMemory();
+
+    expect(screen.queryByText(/connection error/i)).toBeNull();
+    expect(screen.queryByText(/credential/i)).toBeNull();
+  });
+
+  it('still explains the mechanism, which is what the reader needs first', async () => {
+    serveMemory({ episodes: { episodes: [] }, runs: finished });
+    await renderMemory();
+
+    expect(
+      screen.getByText(/An episode is written when an investigation ends/),
     ).toBeInTheDocument();
   });
 });

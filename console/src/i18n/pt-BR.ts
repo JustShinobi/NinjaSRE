@@ -690,6 +690,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'empty.cause.watching':
     'Nenhum detector está ligado, portanto nada está sendo observado e nada se abrirá sozinho.',
   'empty.cause.watching.action': 'Ligar a observação contínua',
+  'empty.cause.extraction':
+    '{finished} investigações terminaram e nenhuma delas deixou um episódio para trás. O que transforma uma investigação encerrada em episódio é uma chamada de modelo, e cada papel escolhe o seu.',
+  'empty.cause.extraction.action': 'Ver o modelo de cada papel',
 
   'incidents.empty.heading': 'Nenhum incidente aberto',
   'incidents.empty.body':
@@ -1020,6 +1023,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.episodes.empty.heading': 'Ainda não há episódios',
   'memory.episodes.empty.body':
     'Um episódio é escrito quando uma investigação termina, e nenhum foi escrito ainda.',
+  'memory.episodes.empty.mechanism':
+    'Um episódio é escrito quando uma investigação termina.',
   'memory.episodes.empty.action': 'Ver o que está em execução',
   'memory.strategies.title': 'Estratégias',
   'memory.strategies.lead':
