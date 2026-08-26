@@ -50,7 +50,14 @@ export function Figure({
       href={href}
       data-testid="figure"
       data-figure={label}
-      className="relative block rounded-3 motion-hover hover:opacity-90"
+      // `h-full` on both the link and the tile inside it. The grid already
+      // stretches its cells; without this the tile is content-height inside a
+      // stretched cell, so one figure with a four-line caption grew sixty
+      // pixels taller than the three beside it and stepped the row's bottom
+      // edge. The caption is not clamped — it is the line that makes the
+      // number actionable, and hiding it to straighten an edge is the wrong
+      // trade.
+      className="relative block h-full rounded-3 motion-hover hover:opacity-90"
     >
       <StatTile
         label={label}

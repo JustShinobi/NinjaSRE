@@ -613,6 +613,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.band.silent': 'Guardião silencioso',
   'dashboard.band.meta':
     '{posture} · {live} de {total} detectores vivos · {watched} recursos observados',
+  'dashboard.band.meta.noDetectors': '{posture} · nenhum detector configurado · {watched} recursos observados',
+  'dashboard.stat.degraded.context.noDetectors': '{count} achados abertos por trás deles, e nenhum detector ligado para transformar algum em incidente',
   'dashboard.band.flight': 'Investigações em curso',
   'dashboard.band.blocked': 'Travado em você',
   'dashboard.band.detectors': 'Detectores vivos',

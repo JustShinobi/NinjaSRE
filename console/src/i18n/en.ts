@@ -794,6 +794,8 @@ export const EN = {
   'dashboard.band.silent': 'Guardian silent',
   'dashboard.band.meta':
     '{posture} · {live} of {total} detectors live · {watched} resources watched',
+  'dashboard.band.meta.noDetectors': '{posture} · no detector configured · {watched} resources watched',
+  'dashboard.stat.degraded.context.noDetectors': '{count} open findings behind them, and no detector is switched on to raise one into an incident',
   'dashboard.band.flight': 'Runs in flight',
   'dashboard.band.blocked': 'Blocked on you',
   'dashboard.band.detectors': 'Detectors live',

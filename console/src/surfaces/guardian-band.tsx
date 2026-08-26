@@ -122,12 +122,20 @@ export function GuardianBand({
           {message(locale, ready ? 'dashboard.band.active' : 'dashboard.band.silent')}
         </span>
         <span data-testid="guardian-band-meta" className="text-small text-muted">
-          {message(locale, 'dashboard.band.meta', {
-            posture,
-            live: formatNumber(locale, detectorsLive),
-            total: formatNumber(locale, detectorsTotal),
-            watched: formatNumber(locale, watched),
-          })}
+          {/* "0 of 0 detectors live" is not a ratio. It is a deployment
+              nothing has been pointed at yet, and a fraction says that in the
+              one register a reader cannot act on. */}
+          {detectorsTotal === 0
+            ? message(locale, 'dashboard.band.meta.noDetectors', {
+                posture,
+                watched: formatNumber(locale, watched),
+              })
+            : message(locale, 'dashboard.band.meta', {
+                posture,
+                live: formatNumber(locale, detectorsLive),
+                total: formatNumber(locale, detectorsTotal),
+                watched: formatNumber(locale, watched),
+              })}
         </span>
         <div className="ml-auto flex items-center gap-6">
           <Tally

@@ -506,11 +506,20 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           // and "Incidents: none" stopped making sense together. Naming how
           // many detectors are actually switched on is the bridge: a finding
           // is not an incident until one of these turns it into one.
-          context={message(locale, 'dashboard.stat.degraded.context', {
-            count: formatNumber(locale, number(summary, 'problems')),
-            live: formatNumber(locale, liveDetectors),
-            total: formatNumber(locale, detectorRecords.length),
-          })}
+          // ...and where there are none at all, said as the sentence it is
+          // rather than as "0 of 0", which the guardian band above was already
+          // saying in the same breath.
+          context={
+            detectorRecords.length === 0
+              ? message(locale, 'dashboard.stat.degraded.context.noDetectors', {
+                  count: formatNumber(locale, number(summary, 'problems')),
+                })
+              : message(locale, 'dashboard.stat.degraded.context', {
+                  count: formatNumber(locale, number(summary, 'problems')),
+                  live: formatNumber(locale, liveDetectors),
+                  total: formatNumber(locale, detectorRecords.length),
+                })
+          }
           href="/resources?health=problem"
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={degraded > 0 ? 'down' : 'flat'}
