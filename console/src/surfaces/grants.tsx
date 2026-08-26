@@ -8,6 +8,23 @@ import { Input, Select } from '@/components/form';
 import { ConfirmDestructive } from '@/components/overlay';
 
 /**
+ * The shape a destructive row action wears.
+ *
+ * These were twelve-pixel underlined words about fifty by sixteen pixels,
+ * pressed against the right edge of a row — under the twenty-four pixels WCAG
+ * 2.2 asks of any target, and far under what a thumb needs. The same fix the
+ * sortable column headings already carry: the padding goes on the control
+ * rather than around it, pulled back by an equal negative margin so nothing in
+ * the row moves. A ground on hover, because a destructive action a reader is
+ * about to press should say so before they do.
+ *
+ * Still a text button rather than a filled red one: every row would carry a
+ * filled red button, and a screen of them stops meaning danger.
+ */
+const DESTRUCTIVE_ROW_ACTION =
+  'inline-flex items-center min-h-6 rounded-1 px-2 -mx-2 text-meta text-danger underline underline-offset-2 motion-hover hover:bg-danger-bg';
+
+/**
  * A role grant: given to a principal, taken back, and refused for its own
  * reason when taking it back would leave nobody who could give it again.
  *
@@ -313,7 +330,7 @@ export function GrantPanel({
                   type="button"
                   data-testid="remove-grant"
                   data-grant={row.grantId}
-                  className="text-meta text-danger underline"
+                  className={DESTRUCTIVE_ROW_ACTION}
                   onClick={() => {
                     setConfirming(row.grantId);
                   }}

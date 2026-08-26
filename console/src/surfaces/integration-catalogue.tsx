@@ -4,9 +4,11 @@ import { useMemo, useState, type ReactNode } from 'react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { CONTROL_SHAPE, VARIANT_SKIN } from '@/components/action';
 import { Input } from '@/components/form';
 import { StatusChip } from '@/components/status';
 import { EmptyState } from '@/components/state';
+import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
 import { captureScrollPosition } from './scroll-memory';
 import { ScrollCapturingLink } from './scroll-link';
@@ -200,15 +202,18 @@ export function IntegrationCatalogue({
                         {item.healthDetail}
                       </span>
                     )}
-                    <StatusChip
-                      locale={locale}
-                      status={item.health}
-                      className="ml-auto"
-                    />
+                    <StatusChip locale={locale} status={item.health} className="ml-auto" />
+                    {/* The same control shape as Connect below it. Both take
+                        a reader to the same panel to do the same kind of thing;
+                        one of them was an underlined word and the other a
+                        filled button, which said they were different actions.
+                        The hierarchy between them is carried by the variant —
+                        connecting something is the step forward — and never by
+                        one of them not looking like a control at all. */}
                     <ScrollCapturingLink
                       href={hrefTo(item.name)}
                       data-testid="manage-integration"
-                      className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
+                      className={cx(CONTROL_SHAPE, VARIANT_SKIN.secondary)}
                     >
                       {message(locale, 'catalogue.integrations.connected.manage')}
                     </ScrollCapturingLink>
@@ -248,7 +253,11 @@ export function IntegrationCatalogue({
                     <ScrollCapturingLink
                       href={hrefTo(item.name)}
                       data-testid="connect-suggested"
-                      className="ml-auto text-on-accent bg-accent rounded-2 edge border-accent px-3 py-1 text-meta motion-hover hover:opacity-90"
+                      // The design system's own control, not a second copy of
+                      // it written out by hand — the hand-rolled one had drifted
+                      // to a shorter height and a smaller type step than every
+                      // other button on the screen.
+                      className={cx('ml-auto', CONTROL_SHAPE, VARIANT_SKIN.primary)}
                     >
                       {message(locale, 'catalogue.integrations.suggested.connect')}
                     </ScrollCapturingLink>
