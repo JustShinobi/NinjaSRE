@@ -98,15 +98,11 @@ from config.constants.llm import (
     AZURE_OPENAI_API_VERSION_ENV,
     AZURE_OPENAI_DEPLOYMENT_ENV,
     AZURE_OPENAI_ENDPOINT_ENV,
-    DEFAULT_MODEL_ID,
-    DEFAULT_PROVIDER,
     DEFAULT_TRANSPORT,
     GOOGLE_API_KEY_ENV,
     GOOGLE_APPLICATION_CREDENTIALS_ENV,
     GOOGLE_CLOUD_LOCATION_ENV,
     GOOGLE_CLOUD_PROJECT_ENV,
-    NINJASRE_LLM_MODEL_ENV,
-    NINJASRE_LLM_PROVIDER_ENV,
     NINJASRE_LLM_TRANSPORT_ENV,
     NVIDIA_API_KEY_ENV,
     NVIDIA_NIM_BASE_URL_ENV,
@@ -115,7 +111,6 @@ from config.constants.llm import (
     OPENAI_BASE_URL_ENV,
     OPENROUTER_API_KEY_ENV,
     OPENROUTER_BASE_URL_ENV,
-    SUPPORTED_PROVIDERS,
     SUPPORTED_TRANSPORTS,
     VLLM_BASE_URL_ENV,
 )
@@ -364,25 +359,15 @@ SETTINGS: Final[tuple[Setting, ...]] = (
         section=SECTION_DATABASE,
     ),
     # -- provider --------------------------------------------------------------
-    Setting(
-        name=NINJASRE_LLM_PROVIDER_ENV,
-        effect=(
-            "Which model provider to use. Connecting one is a first-run step, "
-            "done in the console, where the credential goes to the vault instead "
-            "of into this file; setting it here is the other way, for an operator "
-            "who would rather hand the deployment its provider than click one. A "
-            "deployment with neither starts, says it has no provider, and shows "
-            f"where to connect one. One of: {', '.join(SUPPORTED_PROVIDERS)}."
-        ),
-        default=DEFAULT_PROVIDER,
-        section=SECTION_PROVIDER,
-    ),
-    Setting(
-        name=NINJASRE_LLM_MODEL_ENV,
-        effect="Which model, when the effective configuration names none.",
-        default=DEFAULT_MODEL_ID,
-        section=SECTION_PROVIDER,
-    ),
+    # Which provider and model this deployment runs on is deliberately not here.
+    # It was, as a fallback under configuration, and the fallback is what a real
+    # deployment fell into: an investigator bound to one provider in the console,
+    # seven roles left alone as the console invites, and every one of those roles
+    # quietly answering to whatever a manifest had named months earlier. The
+    # answer now lives in the configuration tree, where a screen can show it and
+    # changing it does not need a restart — see `core/llm/factory.py`. What is
+    # left below is what an environment is genuinely for: an endpoint, a
+    # credential, and the wire.
     Setting(
         name=NINJASRE_LLM_TRANSPORT_ENV,
         effect=(

@@ -397,6 +397,77 @@ describe('what a role resolves to when nobody bound it', () => {
     expect(binding.model).toBe('claude-sonnet-5');
   });
 
+  /**
+   * The row for an unbound role has to name the model that will actually be
+   * called, and for a while it named one that never would be.
+   *
+   * `resolve_binding` gives an unbound role the *investigator's* provider —
+   * the one the operator picked in the single box the console offers — and
+   * falls to the shipped default only where nothing at all is configured. The
+   * schema's own default is neither of those. It is the value in a Pydantic
+   * field, and printing it made this panel say `anthropic / claude-sonnet-5`
+   * for a deployment whose every call went somewhere else. That reading was
+   * taken at face value during an incident and sent the search in the wrong
+   * direction for an afternoon.
+   */
+  it('gives an unbound role the investigator s provider, not the schema s default', () => {
+    const declared = [
+      {
+        path: 'models.investigator.provider',
+        value: 'google_gemini',
+        provenance: 'default',
+        default: 'anthropic',
+      },
+      {
+        path: 'models.investigator.model',
+        value: 'gemini-flash-latest',
+        provenance: 'default',
+        default: 'claude-sonnet-5',
+      },
+      {
+        path: 'models.extraction.provider',
+        value: null,
+        provenance: '',
+        default: 'anthropic',
+      },
+      {
+        path: 'models.extraction.model',
+        value: null,
+        provenance: '',
+        default: 'claude-sonnet-5',
+      },
+    ];
+
+    const binding = roleBinding(declared, 'extraction');
+
+    expect(binding.bound).toBe(false);
+    expect(binding.inherited).toBe(true);
+    expect(binding.provider).toBe('google_gemini');
+    expect(binding.model).toBe('gemini-flash-latest');
+  });
+
+  it('does not claim inheritance for the investigator s own row', () => {
+    const declared = [
+      {
+        path: 'models.investigator.provider',
+        value: 'google_gemini',
+        provenance: 'default',
+        default: 'anthropic',
+      },
+      {
+        path: 'models.investigator.model',
+        value: 'gemini-flash-latest',
+        provenance: 'default',
+        default: 'claude-sonnet-5',
+      },
+    ];
+
+    const binding = roleBinding(declared, 'investigator');
+
+    expect(binding.bound).toBe(true);
+    expect(binding.inherited).toBe(false);
+  });
+
   it('still reads as unbound-with-nothing-known when the schema says nothing either', () => {
     const binding = roleBinding([], 'diagnose');
 
@@ -478,7 +549,22 @@ describe('Article VI: the model is a role here, never a vendor', () => {
     }
   });
 
-  it('reads "deployment default" for a role nobody bound', async () => {
+  /**
+   * A role nobody bound says whose choice it is running on.
+   *
+   * This used to assert that such a row named no provider at all, and it
+   * passed for a reason that was never the rule: the fixture's unbound fields
+   * carry no schema default, so the row rendered blank. On a real deployment
+   * they do carry one, the row printed it, and what it printed was a provider
+   * no call would ever reach. The absence this asserted was an accident of the
+   * dataset standing in for a guarantee.
+   *
+   * Article VI is about a *stage* never naming a vendor. This panel is the one
+   * place on the screen where a provider may be named — that is its whole
+   * subject — so what it owes a reader is not silence but provenance: bound by
+   * a node, following the investigator, or the shipped default, said in words.
+   */
+  it('says an unbound role follows the investigator rather than naming a default nobody picked', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
     const unbound = screen
@@ -486,10 +572,8 @@ describe('Article VI: the model is a role here, never a vendor', () => {
       .filter((row) => row.getAttribute('data-bound') === 'false');
     expect(unbound.length).toBeGreaterThan(0);
     for (const row of unbound) {
-      expect(row.textContent).toContain('deployment default');
-      for (const provider of PROVIDERS) {
-        expect(row.textContent).not.toContain(provider);
-      }
+      expect(row.textContent).toContain('follows the investigator');
+      expect(row.textContent).not.toContain('nobody bound this role');
     }
   });
 });
