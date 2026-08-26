@@ -31,6 +31,8 @@ import {
 } from '../read';
 import { RowList, type ListRow } from '../rows';
 import { readViewState, type FilterName } from '../url-state';
+import { IncidentGroupList } from '../incident-group-list';
+import { groupBySubject } from '../incident-groups';
 
 /**
  * What a detector opened, and what happened to it since.
@@ -41,6 +43,27 @@ import { readViewState, type FilterName } from '../url-state';
  */
 
 export const INCIDENT_FILTERS: readonly FilterName[] = ['state', 'severity'];
+
+/** The parameter carrying how the listing is shaped rather than what it holds. */
+export const VIEW_PARAM = 'view';
+
+/** Every firing on its own row, rather than folded under its cause. */
+export const FLAT_VIEW = 'flat';
+
+/**
+ * What the address carries: the filters, and the view.
+ *
+ * The view rides with the filters so that sorting or filtering does not throw
+ * it away — `writeViewState` rebuilds the query from the declared list and
+ * nothing else, so a parameter that is not declared is a parameter every link
+ * on the screen silently drops. It is deliberately *not* in
+ * `INCIDENT_FILTERS`: that list is also what narrows the records, and an
+ * incident has no `view` field to match against.
+ */
+export const INCIDENT_ADDRESS: readonly FilterName[] = [
+  ...INCIDENT_FILTERS,
+  VIEW_PARAM,
+];
 
 /** Most severe first. A list sorted alphabetically by severity is a list nobody reads. */
 const SEVERITY_ORDER = ['critical', 'high', 'warning', 'medium', 'low', 'info'];
@@ -105,7 +128,8 @@ function IncidentPreview({ locale }: Pick<SurfaceContext, 'locale'>): ReactNode 
 
 export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
-  const state = readViewState(search, INCIDENT_FILTERS);
+  const state = readViewState(search, INCIDENT_ADDRESS);
+  const grouped = state.filters[VIEW_PARAM] !== FLAT_VIEW;
   const init = authorised(credential);
 
   const [incidents, detectors, setup] = await Promise.all([
@@ -196,6 +220,28 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
       options: severities.map((value) => ({ value, label: value })),
     },
   ].filter((choice) => choice.options.length > 0);
+
+  const groups = groupBySubject(sorted);
+
+  // The view is offered beside the filters because it belongs to the same
+  // address and is set the same way — and only when it would change what is on
+  // screen. A listing where every incident is its own cause folds to the same
+  // rows either way, so offering to reshape it is the furniture this screen
+  // already refuses to draw for a filter with one option.
+  const shaped: readonly FilterChoice[] =
+    groups.length === sorted.length
+      ? choices
+      : [
+          ...choices,
+          {
+            name: VIEW_PARAM,
+            label: message(locale, 'incidents.filter.view'),
+            unsetLabel: message(locale, 'incidents.view.grouped'),
+            options: [
+              { value: FLAT_VIEW, label: message(locale, 'incidents.view.flat') },
+            ],
+          },
+        ];
   const showPreview = incidents.status === 'ready' && records.length === 0;
 
   return (
@@ -205,9 +251,9 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
       <FilterBar
         path="/incidents"
         state={state}
-        filters={INCIDENT_FILTERS}
+        filters={INCIDENT_ADDRESS}
         anyLabel={message(locale, 'surface.filter.any')}
-        choices={choices}
+        choices={shaped}
       />
 
       <Panel
@@ -232,49 +278,53 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
           cause,
         )}
       >
-        <RowList
-          path="/incidents"
-          state={state}
-          filters={INCIDENT_FILTERS}
-          labels={rowLabels(locale, message(locale, 'incidents.list.caption'))}
-          columns={[
-            {
-              key: 'title',
-              header: message(locale, 'incidents.column.title'),
-              sortable: true,
-            },
-            {
-              key: 'severity',
-              header: message(locale, 'incidents.column.severity'),
-              sortable: true,
-              width: 'word',
-            },
-            {
-              key: 'state',
-              header: message(locale, 'incidents.column.state'),
-              sortable: true,
-              width: 'badge',
-            },
-            {
-              key: 'detector',
-              header: message(locale, 'incidents.column.detector'),
-              width: 'instant',
-            },
-            {
-              key: 'opened_at',
-              header: message(locale, 'incidents.column.opened'),
-              sortable: true,
-              width: 'instant',
-            },
-            {
-              key: 'subjects',
-              header: message(locale, 'incidents.column.subjects'),
-              numeric: true,
-              width: 'measure',
-            },
-          ]}
-          rows={rows}
-        />
+        {grouped ? (
+          <IncidentGroupList groups={groups} locale={locale} now={now} zone={zone} />
+        ) : (
+          <RowList
+            path="/incidents"
+            state={state}
+            filters={INCIDENT_ADDRESS}
+            labels={rowLabels(locale, message(locale, 'incidents.list.caption'))}
+            columns={[
+              {
+                key: 'title',
+                header: message(locale, 'incidents.column.title'),
+                sortable: true,
+              },
+              {
+                key: 'severity',
+                header: message(locale, 'incidents.column.severity'),
+                sortable: true,
+                width: 'word',
+              },
+              {
+                key: 'state',
+                header: message(locale, 'incidents.column.state'),
+                sortable: true,
+                width: 'badge',
+              },
+              {
+                key: 'detector',
+                header: message(locale, 'incidents.column.detector'),
+                width: 'instant',
+              },
+              {
+                key: 'opened_at',
+                header: message(locale, 'incidents.column.opened'),
+                sortable: true,
+                width: 'instant',
+              },
+              {
+                key: 'subjects',
+                header: message(locale, 'incidents.column.subjects'),
+                numeric: true,
+                width: 'measure',
+              },
+            ]}
+            rows={rows}
+          />
+        )}
       </Panel>
       {showPreview ? <IncidentPreview locale={locale} /> : null}
     </>

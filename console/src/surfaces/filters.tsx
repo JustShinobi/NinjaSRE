@@ -21,6 +21,15 @@ export interface FilterChoice {
   readonly label: string;
   /** The values, in the order the screen wants them offered. */
   readonly options: readonly { readonly value: string; readonly label: string }[];
+  /**
+   * What "unset" is called for this control, when "Any" is the wrong word.
+   *
+   * A filter unset means every value, and `anyLabel` says so. A control that
+   * shapes the listing rather than narrowing it has a real default instead —
+   * unset is not "any view", it is the grouped one — and saying "Any" there
+   * would be a control that cannot describe its own resting state.
+   */
+  readonly unsetLabel?: string;
 }
 
 export interface FilterBarProps {
@@ -55,7 +64,10 @@ export function FilterBar({
             label={choice.label}
             name={choice.name}
             value={state.filters[choice.name] ?? ''}
-            options={[{ value: '', label: anyLabel }, ...choice.options]}
+            options={[
+              { value: '', label: choice.unsetLabel ?? anyLabel },
+              ...choice.options,
+            ]}
             onValueChange={(value) => {
               router.push(
                 hrefFor(path, withFilter(state, choice.name, value), filters),
