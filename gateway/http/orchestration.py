@@ -63,6 +63,27 @@ async def start_investigation(
     """
     team_node_id = scope.team_node_id or ""
     async with state.gateway.begin(scope) as uow:
+        if not team_node_id:
+            # A local sign-in issues a token that stands for the person across
+            # the whole organisation rather than for one team of it, so an
+            # operator starting an investigation from the console arrives here
+            # with no team at all. Nothing downstream could tell that apart
+            # from "this run belongs to nobody", and the one mechanism that
+            # acts on it — episodic memory — correctly refuses to write an
+            # episode it cannot scope, because an unscoped episode is one
+            # every team can retrieve. The result was fifty finished
+            # investigations, an empty corpus, and a screen saying none had
+            # ended.
+            #
+            # The root is the honest answer rather than a guess: it is the one
+            # node a deployment with any configuration at all is certain to
+            # have, and it is the same node the console falls back to when
+            # nothing more specific is named. It also cannot hide a run from
+            # anybody — an organisation-wide caller sees every run whatever
+            # team it carries (`routes/tenancy.py`), and a team-scoped caller
+            # could never see an unstamped one in the first place. So this
+            # only ever reveals a run to the team it actually belongs to.
+            team_node_id = (await uow.config.root()).node_id
         recorder = RunRecorder(
             store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
         )

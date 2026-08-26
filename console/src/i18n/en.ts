@@ -1240,7 +1240,7 @@ export const EN = {
   'memory.stats.episodes': 'Episodes',
   'memory.episodes.empty.heading': 'No episodes yet',
   'memory.episodes.empty.body':
-    'An episode is written when an investigation ends. None has ended yet, so there is nothing to recall.',
+    'An episode is written when an investigation ends, and none has been written yet.',
   'memory.episodes.empty.action': 'See what is running',
   'memory.strategies.title': 'Strategies',
   'memory.strategies.lead':

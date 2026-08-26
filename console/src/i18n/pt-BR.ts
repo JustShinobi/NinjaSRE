@@ -1019,7 +1019,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.stats.episodes': 'Episódios',
   'memory.episodes.empty.heading': 'Ainda não há episódios',
   'memory.episodes.empty.body':
-    'Um episódio é escrito quando uma investigação termina. Nenhuma terminou, por isso não há nada a recuperar.',
+    'Um episódio é escrito quando uma investigação termina, e nenhum foi escrito ainda.',
   'memory.episodes.empty.action': 'Ver o que está em execução',
   'memory.strategies.title': 'Estratégias',
   'memory.strategies.lead':
