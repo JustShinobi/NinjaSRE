@@ -291,3 +291,80 @@ def test_the_scheduler_is_started_whatever_startup_readiness_said() -> None:
         "one instant during startup, and a deployment that was briefly unready then "
         "runs no recurring job for the life of the process."
     )
+
+
+# --- The claim a dead replica left behind ------------------------------------
+#
+# `LeaseReaper` releases the leases of workers that stopped existing, and its
+# own docstring names the case exactly: "a pod evicted, a node lost, a process
+# killed". Nothing in a serving deployment ever built one.
+#
+# So a claim outlived the process that took it, and the job it held was never
+# claimable again. Measured on staging: two claims taken on 24 August, leases
+# expiring the same day, still holding `estate.discovery:proxmox` and
+# `observation.tick:estate` two days later — both jobs enabled, overdue, and
+# unclaimable, on a deployment that redeployed several times in between.
+#
+# The store already expires leases and a contract test already proves a job is
+# claimable afterwards. What was missing is the caller.
+
+
+async def test_the_scheduler_reaps_the_leases_of_workers_that_vanished() -> None:
+    """A tick clears what a dead replica left, so its jobs come back."""
+    import asyncio
+
+    from gateway.http.scheduled_work import run_scheduler
+
+    reaped: list[int] = []
+
+    @dataclass(slots=True)
+    class _Reaper:
+        passes: int = 0
+
+        async def reap(self) -> None:
+            self.passes += 1
+            reaped.append(self.passes)
+
+    worker = _CountingTicks()
+    reaper = _Reaper()
+    stop = asyncio.Event()
+    loop = asyncio.create_task(run_scheduler(worker, interval_seconds=0, stop=stop, reaper=reaper))
+    for _ in range(30):
+        await asyncio.sleep(0)
+    stop.set()
+    loop.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await loop
+
+    assert reaped, (
+        "no tick reaped. A claim whose worker is gone holds its job for ever, and "
+        "nothing else in a serving deployment releases one."
+    )
+
+
+async def test_a_scheduler_with_no_reaper_still_ticks() -> None:
+    """The default is unchanged: an existing caller behaves as it did."""
+    import asyncio
+
+    from gateway.http.scheduled_work import run_scheduler
+
+    worker = _CountingTicks()
+    stop = asyncio.Event()
+    loop = asyncio.create_task(run_scheduler(worker, interval_seconds=0, stop=stop))
+    for _ in range(20):
+        await asyncio.sleep(0)
+    stop.set()
+    loop.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await loop
+
+    assert worker.ticks > 0
+
+
+@dataclass(slots=True)
+class _CountingTicks:
+    ticks: int = 0
+
+    async def tick(self) -> tuple[object, ...]:
+        self.ticks += 1
+        return ()

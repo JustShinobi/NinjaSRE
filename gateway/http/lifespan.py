@@ -34,7 +34,7 @@ from gateway.http.node_access import compose_node_access
 from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.remediation import compose_remediation
 from gateway.http.runtime import recompose_investigator
-from gateway.http.scheduled_work import run_scheduler, worker_for
+from gateway.http.scheduled_work import reaper_for, run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from gateway.http.topology_sources import compose_topology_sources
 from platform.observability.logging import get_logger
@@ -200,6 +200,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             worker_for(state),
             interval_seconds=SCHEDULER_TICK_INTERVAL_SECONDS,
             stop=stop,
+            # Without this a claim outlives the worker that took it and the job
+            # it holds is never claimable again — which is how two jobs sat
+            # enabled and overdue for two days behind two dead claims.
+            reaper=reaper_for(state),
         )
     )
 

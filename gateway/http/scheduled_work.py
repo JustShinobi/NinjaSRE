@@ -40,6 +40,7 @@ from platform.knowledge.service import KnowledgeService
 from platform.observability.logging import get_logger
 from platform.persistence.ports.transaction import TenantScope
 from platform.scheduler.dispatch import JobKindDispatcher, ScheduledJobWorker
+from platform.scheduler.reaper import LeaseReaper
 
 
 def _sync_for(state: GatewayState, scope: TenantScope) -> KnowledgeSync:
@@ -98,7 +99,13 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
     return dispatcher
 
 
-async def run_scheduler(worker: Any, *, interval_seconds: float, stop: asyncio.Event) -> None:
+async def run_scheduler(
+    worker: Any,
+    *,
+    interval_seconds: float,
+    stop: asyncio.Event,
+    reaper: Any | None = None,
+) -> None:
     """Claim and run everything due, on an interval, until ``stop`` is set.
 
     The piece that was missing. A job registered through a route is a row with
@@ -110,10 +117,25 @@ async def run_scheduler(worker: Any, *, interval_seconds: float, stop: asyncio.E
     must not take every recurring job with it; the alternative is a deployment
     that looks like one which scheduled nothing, with no line saying otherwise.
 
+    **A pass of the reaper comes first, when there is one.** A claim outlives
+    the worker that took it — a pod evicted, a node lost, a process killed — and
+    the job it holds is unclaimable until its lease is released. The store
+    expires leases and nothing called it, so two claims taken one afternoon held
+    two jobs for two days across several redeploys. Before the claim rather than
+    after, because the point is to make this tick's claim see what the last
+    replica abandoned.
+
     **Stopping is immediate.** The wait is on the event rather than on the
     clock, so a restart does not pause for as long as the slowest schedule.
     """
     while not stop.is_set():
+        if reaper is not None:
+            try:
+                await reaper.reap()
+            except asyncio.CancelledError:
+                raise
+            except Exception as failed:  # noqa: BLE001 — a failed reap must not end the loop
+                logger.warning("scheduler.reap_failed", error=str(failed))
         try:
             results = await worker.tick()
         except asyncio.CancelledError:
@@ -129,6 +151,21 @@ async def run_scheduler(worker: Any, *, interval_seconds: float, stop: asyncio.E
             continue
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=interval_seconds)
+
+
+def reaper_for(state: GatewayState) -> LeaseReaper:
+    """Return the pass that clears up after a replica that stopped existing.
+
+    Composed here because the reaper spans the tenant boundary — leases come off
+    the system unit of work and each abandoned run is marked inside its own
+    tenant's — and this is the root that already holds the gateway both need.
+
+    It was written, documented and tested and nothing ever built one, so a claim
+    outlived every process that took it: two taken on one afternoon still held
+    their jobs two days and several redeploys later, both jobs enabled, overdue,
+    and unclaimable by anybody.
+    """
+    return LeaseReaper(gateway=state.gateway)
 
 
 def worker_for(state: GatewayState, *, worker_id: str = "gateway") -> ScheduledJobWorker:
