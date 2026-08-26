@@ -70,6 +70,38 @@ describe('a hierarchy is sized to its own ranks', () => {
   });
 });
 
+describe('boxes in one rank never touch', () => {
+  it('gives each box a cell wider than the box', () => {
+    render(<HierarchyGraph ranks={ranksOf(6, true)} labels={LABELS} />);
+
+    const edges = [...document.querySelectorAll('[data-rank="stages"] rect')].map(
+      (box) => ({
+        from: Number(box.getAttribute('x')),
+        to: Number(box.getAttribute('x')) + Number(box.getAttribute('width')),
+      }),
+    );
+    // Six boxes at 168px across a step of 158px overlapped their neighbours by
+    // ten, which drew every sequence arrow backwards and so drew nothing.
+    const overlapping = edges.filter(
+      (box, index) => index > 0 && box.from <= (edges[index - 1]?.to ?? 0),
+    );
+    expect(overlapping).toEqual([]);
+  });
+
+  it('drops a rank with nothing in it rather than reserving a row for it', () => {
+    const withEmpty = [
+      ...ranksOf(6, true),
+      { id: 'specialists', label: 'Specialists', nodes: [] },
+    ];
+    render(<HierarchyGraph ranks={withEmpty} labels={LABELS} />);
+
+    const box = screen.getByTestId('hierarchy').getAttribute('viewBox') ?? '';
+    // Two ranks' worth, not three: the empty one was reserving a third of the
+    // canvas and drawing nothing on it.
+    expect(Number(box.split(' ')[3])).toBe(220);
+  });
+});
+
 describe('a rank that runs in order says so', () => {
   it('draws an arrow between each pair of boxes and numbers them', () => {
     render(<HierarchyGraph ranks={ranksOf(6, true)} labels={LABELS} />);

@@ -185,8 +185,15 @@ export interface HierarchyGraphProps {
 /** How many boxes a rank draws before it stops drawing. */
 export const RANK_BOUND = 8;
 
-/** Minimum horizontal gap between two boxes drawn in the same rank. */
-const NODE_GAP = 16;
+/**
+ * Horizontal gap between two boxes drawn in the same rank.
+ *
+ * Wide enough for an arrow to be drawn in. At sixteen the six stage boxes did
+ * not merely touch — the spacing put them ten pixels *inside* one another, so
+ * every sequence arrow was drawn from a point right of where it ended and
+ * rendered as nothing at all.
+ */
+const NODE_GAP = 40;
 
 /**
  * A hierarchy, top to bottom, in the same visual language as the neighbourhood.
@@ -202,10 +209,13 @@ const NODE_GAP = 16;
  * the accessible copy of itself.
  */
 export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNode {
-  const drawn = ranks.map((rank) => ({
-    ...rank,
-    nodes: rank.nodes.slice(0, RANK_BOUND),
-  }));
+  // A rank with nothing in it is not drawn. It reserved a third of the canvas
+  // and put nothing on it: the specialists rank is empty on every deployment
+  // that has declared none, which is most of them, and the panel below already
+  // says so in words.
+  const drawn = ranks
+    .filter((rank) => rank.nodes.length > 0)
+    .map((rank) => ({ ...rank, nodes: rank.nodes.slice(0, RANK_BOUND) }));
   // Sized to the ranks it has, with no floor. The floor was the neighbourhood
   // graph's own constant, and a two-rank hierarchy borrowing it reserved a
   // third more canvas than it drew on — which, because the element scales to
@@ -218,7 +228,7 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
   // top of its neighbour's label, not a visible layout bug so much as a
   // vanished word.
   const widestRank = Math.max(1, ...drawn.map((rank) => rank.nodes.length));
-  const width = Math.max(VIEW_WIDTH, widestRank * (NODE_WIDTH + NODE_GAP));
+  const width = Math.max(VIEW_WIDTH, widestRank * (NODE_WIDTH + NODE_GAP) + NODE_GAP);
   const rowY = (index: number): number => index * RANK_HEIGHT + RANK_HEIGHT / 2;
 
   return (
@@ -326,8 +336,17 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
   );
 }
 
-/** Where the `index`th of `count` boxes sits across a picture `width` wide. */
+/**
+ * Where the `index`th of `count` boxes sits across a picture `width` wide.
+ *
+ * One cell per box, and the box centred in its own cell. Spacing the *centres*
+ * by `width / (count + 1)` — which is what this did — leaves a cell narrower
+ * than the box whenever the count is high enough, and six boxes at a hundred
+ * and sixty-eight pixels across a step of a hundred and fifty-eight overlap
+ * their neighbours by ten. The width above guarantees the cell is the wider of
+ * the two, so boxes in one rank never touch.
+ */
 function acrossFor(index: number, count: number, width: number): number {
-  const step = width / (count + 1);
-  return step * (index + 1) - NODE_WIDTH / 2;
+  const step = width / count;
+  return step * index + (step - NODE_WIDTH) / 2;
 }

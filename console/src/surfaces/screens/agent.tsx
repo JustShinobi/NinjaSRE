@@ -272,13 +272,17 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
       <AreaHeader
         area={areaFor('agent')}
         locale={locale}
-        // The node crumb only where there is a choice of node. A deployment
-        // with one of them was rendering "The agent › default" — a breadcrumb
-        // whose last step is an identifier nobody picked, under a heading that
-        // already says the same thing in words. A trail that names something a
-        // reader cannot navigate away from is a trail that teaches them to stop
-        // reading trails.
-        nested={node === '' || placed.length < 2 ? [] : [{ label: node }]}
+        // The crumb names the node, never its identifier. It read "The agent ›
+        // default" — the last step of a trail spelled as a database key, under
+        // a heading that already says where the reader is. The tree carries a
+        // name for every node it places; this is the one place that was not
+        // asking it for one. With one node there is no choice to describe, so
+        // there is no crumb either.
+        nested={
+          node === '' || placed.length < 2
+            ? []
+            : [{ label: placed.find((each) => each.id === node)?.name ?? node }]
+        }
       />
 
       <TabLinks

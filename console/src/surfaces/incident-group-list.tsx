@@ -151,7 +151,10 @@ export function IncidentGroupList({
                     {group.live ? (
                       <Badge status={group.severity} />
                     ) : (
-                      <span className="text-meta text-muted capitalize">
+                      // No `capitalize`: it title-cases every word, and "Was
+                      // Critical" reads as a proper noun rather than as the
+                      // aside it is.
+                      <span className="text-meta text-muted">
                         {message(locale, 'incidents.group.wasSeverity', {
                           severity: group.severity,
                         })}
