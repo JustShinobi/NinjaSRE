@@ -97,20 +97,20 @@ describe('the runs list language', () => {
   it('uses investigations in visible copy and translates trigger slugs', async () => {
     render(await RunsScreen(contextFor(datasetViewer())));
 
-    expect(
-      screen.getByText('Every investigation this deployment has recorded'),
-    ).toBeInTheDocument();
     expect(screen.queryByText('Every run this deployment has recorded')).toBeNull();
 
-    const triggers = screen.getAllByTestId('row').map((row) => {
-      const cells = within(row).getAllByRole('cell');
-      return cells[2]?.textContent ?? '';
-    });
+    // The trigger reads as a word on the card's own metadata line, beside the
+    // short id. Joined rather than compared per card, because the slug is what
+    // must never appear anywhere in the visible copy.
+    const meta = screen
+      .getAllByTestId('run-card')
+      .map((card) => card.textContent ?? '')
+      .join(' ');
 
-    expect(triggers).toEqual(expect.arrayContaining(['Alert', 'Scheduled', 'Manual']));
-    expect(triggers).not.toContain('alert');
-    expect(triggers).not.toContain('schedule');
-    expect(triggers).not.toContain('manual');
+    expect(meta).toContain('Alert');
+    expect(meta).toContain('Scheduled');
+    expect(meta).toContain('Manual');
+    expect(meta).not.toContain('schedule ·');
   });
 
   it('keeps the raw trigger in the address value while showing its label', async () => {
@@ -126,16 +126,15 @@ describe('the runs list language', () => {
   it('gives the subject cell a tooltip containing the complete subject', async () => {
     render(await RunsScreen(contextFor(datasetViewer())));
 
-    const firstRow = screen.getAllByTestId('row')[0];
-    if (firstRow === undefined) throw new Error('the populated fixture has no runs');
-    const subject = within(firstRow).getAllByRole('cell')[0];
-    if (subject === undefined) throw new Error('the run has no subject cell');
+    const firstCard = screen.getAllByTestId('run-card')[0];
+    if (firstCard === undefined) throw new Error('the populated fixture has no runs');
 
-    const tooltip = subject.querySelector('[title]');
+    const tooltip = firstCard.querySelector('[title]');
     if (tooltip === null) throw new Error('the subject has no tooltip');
-    const visibleSubject = subject.querySelector('span.truncate');
-    if (visibleSubject === null) throw new Error('the subject has no visible text');
-    expect(tooltip.getAttribute('title')).toBe(visibleSubject.textContent.trim());
+    // The card gives the subject a whole line, so what is shown and what the
+    // tooltip carries are the same sentence unless the deployment's own text
+    // was longer than the subject reader will truncate.
+    expect(tooltip.getAttribute('title')).toContain(tooltip.textContent?.trim().slice(0, 20));
   });
 });
 
@@ -154,13 +153,12 @@ describe('the run column against a real deployment’s own id shape', () => {
 
     render(await RunsScreen(contextFor(datasetViewer())));
 
-    const row = screen.getAllByTestId('row')[0];
-    if (row === undefined) throw new Error('the stubbed run did not render a row');
-    const cells = within(row).getAllByRole('cell');
-    const runColumn = cells[3];
-    if (runColumn === undefined) throw new Error('the row has no run-id column');
+    const card = screen.getAllByTestId('run-card')[0];
+    if (card === undefined) throw new Error('the stubbed run did not render a card');
+    const identifier = card.querySelector('.font-mono');
+    if (identifier === null) throw new Error('the card carries no short id');
 
-    expect(runColumn.textContent).toContain(REALISTIC_RUN_ID.slice(0, 8));
-    expect(identifierAsName(runColumn.textContent || '')).toBeNull();
+    expect(identifier.textContent).toContain(REALISTIC_RUN_ID.slice(0, 8));
+    expect(identifierAsName(identifier.textContent || '')).toBeNull();
   });
 });

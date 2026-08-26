@@ -2380,6 +2380,12 @@ export interface paths {
         /**
          * List Runs
          * @description Return recent runs visible to the caller, newest first.
+         *
+         *     Each carries how sure it was, because the list is where somebody decides
+         *     which run to open and "did it actually back this" is the question that
+         *     decides it. Read in one batched query over the whole page rather than one
+         *     per row — the per-row version works on a demo and is a fifty-query page in
+         *     a deployment that has been running a while.
          */
         get: operations["list_runs_v1_runs_get"];
         put?: never;
@@ -4821,6 +4827,21 @@ export interface components {
         };
         /** InvestigationSummary */
         InvestigationSummary: {
+            /**
+             * Evidence Assessed
+             * @default false
+             */
+            evidence_assessed: boolean;
+            /**
+             * Evidence Backed
+             * @default 0
+             */
+            evidence_backed: number;
+            /**
+             * Evidence Missing
+             * @default 0
+             */
+            evidence_missing: number;
             /** Finished At */
             finished_at?: string | null;
             /**

@@ -783,6 +783,42 @@ export const EN = {
     'Resources and incidents are linked as the investigation names them. This one has named none.',
   'run.links.empty.action': 'See the estate',
 
+  // --- One investigation, opened where it sits -------------------------------------
+  //
+  // The list opens a run in place rather than navigating to it, so these
+  // strings are read on the list screen and on the run's own page alike.
+  'runs.row.open': 'Open this investigation',
+  'runs.row.close': 'Close this investigation',
+  'runs.row.openPage': 'Open on its own page',
+  'run.evidence.backed': '{backed} of {claims} claims backed',
+  'run.evidence.unassessed': 'no claim to back',
+  'run.evidence.unassessed.explain':
+    'This investigation never assessed its own evidence, which is not the same as having found nothing.',
+  'run.evidence.missing.explain':
+    'The investigation named {missing} thing(s) it still could not read.',
+  'run.measure.duration': 'Time to a cause',
+  'run.measure.calls': 'Capabilities called',
+  'run.measure.trigger': 'Triggered by',
+  'run.measure.tokens': 'Tokens',
+  'run.measure.unpriced': 'This model publishes no price.',
+  'run.section.happened': 'What happened',
+  'run.section.reaches': 'What it reaches',
+  'run.section.order': 'In order',
+  'run.section.why': 'Why',
+  'run.section.todo': 'What to do',
+  'run.section.did': 'What it did',
+  'run.reaches.none': 'This investigation recorded nothing it touched.',
+  'run.why.supporting': 'What backs it',
+  'run.why.missing': 'What nobody could read',
+  'run.why.none': 'This investigation never assessed its own evidence.',
+  'run.todo.none': 'Nothing from this investigation is waiting on a person.',
+  'run.did.summary': '{events} events across {turns} turns',
+  'run.did.calls': '{calls} calls',
+  'run.did.noRationale': 'This turn recorded no reasoning.',
+  'run.report.copy': 'Copy as Markdown',
+  'run.report.copied': 'Copied',
+  'run.report.copyRefused': 'The browser refused the clipboard',
+
   // --- Incidents -------------------------------------------------------------------
   'incidents.column.severity': 'Severity',
   'incidents.column.title': 'Incident',

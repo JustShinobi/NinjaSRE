@@ -29,6 +29,7 @@ import {
   stateOf,
   text,
 } from '../read';
+import { CopyReport } from '../copy-report';
 import { Report } from '../report';
 import { subjectOf } from '../run-subject';
 import { isLiveRun } from '@/design/status';
@@ -232,19 +233,24 @@ export async function RunDetailScreen(
             ) : reportText !== '' ? (
               <>
                 <Report text={reportText} />
-                {/* Reuses the same disclosure label the failure translation
-                    already has, rather than a new catalogue key: both are
-                    "the raw text behind the friendly reading above", and
-                    `data-testid="report-raw"` still lets a test address this
-                    one on its own. */}
-                <details className="mt-2" data-testid="report-raw">
-                  <summary className="text-meta text-muted cursor-pointer">
-                    {message(locale, 'failure.technical')}
-                  </summary>
-                  <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
-                    {reportText}
-                  </p>
-                </details>
+                {/* What used to sit here was a disclosure holding the Markdown
+                    source of the document rendered directly above it — the same
+                    sentences twice, once as prose and once as `###` headings, on
+                    every run page in the console. The reason it was kept is
+                    real and survives as a control: somebody pastes a report
+                    into a ticket, and what they want is the Markdown. A button
+                    does that in one gesture and costs one line instead of the
+                    document's height. */}
+                <div className="mt-2">
+                  <CopyReport
+                    text={reportText}
+                    labels={{
+                      copy: message(locale, 'run.report.copy'),
+                      copied: message(locale, 'run.report.copied'),
+                      refused: message(locale, 'run.report.copyRefused'),
+                    }}
+                  />
+                </div>
               </>
             ) : headlineSentence !== '' ? (
               <p className="text-small">{headlineSentence}</p>
