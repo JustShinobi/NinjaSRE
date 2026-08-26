@@ -83,14 +83,15 @@ export interface RunCardCall {
 export function turnsFrom(replay: unknown): readonly RunCardTurn[] {
   return list(replay, 'turns').map((turn) => ({
     index: number(turn, 'index'),
-    // Either rationale, whichever the deployment recorded. A turn carries the
-    // model's own account of what it was doing and, separately, why those
-    // capabilities were the ones offered — and a run that wrote only the
-    // second read as a turn that thought nothing.
-    rationale:
-      text(turn, 'model_rationale') === ''
-        ? text(turn, 'selection_rationale')
-        : text(turn, 'model_rationale'),
+    // The model's own account of the turn, and only that. The other
+    // rationale a turn carries — why those capabilities were the ones
+    // offered — reads "ranked 75, offered 40, cut by the ceiling 19" and is
+    // identical on every turn of a run: capability scoring, not reasoning.
+    // Falling back to it filled six group headings with the same machine
+    // sentence, which is worse than the honest line saying the model wrote
+    // none. It stays where the run's own page already keeps it, behind its
+    // own disclosure.
+    rationale: text(turn, 'model_rationale'),
     model: text(turn, 'model'),
     calls: list(turn, 'calls').map((call) => ({
       callId: text(call, 'call_id'),

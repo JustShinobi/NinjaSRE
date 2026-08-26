@@ -296,19 +296,22 @@ describe('reading what the run recorded', () => {
     expect(turns[1]?.rationale).toBe('');
   });
 
-  it('falls back to why the capabilities were offered when the model wrote nothing', () => {
+  it("never puts capability scoring where the turn's reasoning goes", () => {
+    // `selection_rationale` reads "ranked 75, offered 40, cut by the ceiling
+    // 19" and is the same on every turn of a run. A card that fell back to it
+    // filled six group headings with one machine sentence.
     const turns = turnsFrom({
       turns: [
         {
           index: 1,
           model_rationale: '',
-          selection_rationale: 'these three read the cluster',
+          selection_rationale: 'ranked 75, offered 40, cut by the ceiling 19',
           calls: [],
         },
       ],
     });
 
-    expect(turns[0]?.rationale).toBe('these three read the cluster');
+    expect(turns[0]?.rationale).toBe('');
   });
 
   it('reads the named evidence off the run, dropping anything that is not a sentence', () => {
