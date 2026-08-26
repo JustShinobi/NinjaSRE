@@ -42,12 +42,34 @@ const SKELETON_WIDTH = {
   title: 'h-5 w-6',
   line: 'h-3 w-7',
   figure: 'h-6 w-4',
+  // The three above reserve a word inside a panel that is otherwise drawn.
+  // These two reserve a whole row, for the case where nothing around them has
+  // arrived either — a route being fetched, where the alternative is a region
+  // that is simply blank and indistinguishable from one that failed.
+  'row-title': 'h-5 w-full',
+  row: 'h-3 w-full',
+} as const;
+
+/**
+ * What the placeholder is sitting on, which is what decides its tint.
+ *
+ * `neutral-bg` is the same value as the page ground in the light theme, so a
+ * placeholder drawn on the page itself is invisible — which is not a subtle
+ * failure: the region reserved for a heading reads as blank space, and blank
+ * space is what a region that failed to load also reads as. Inside a panel,
+ * over `raised`, the same tint is exactly right.
+ */
+const SKELETON_GROUND = {
+  panel: 'bg-neutral-bg',
+  page: 'bg-hover',
 } as const;
 
 export interface SkeletonProps {
   readonly width: keyof typeof SKELETON_WIDTH;
   /** Whether the real content has arrived. The box does not change either way. */
   readonly loaded?: boolean;
+  /** Which ground it is drawn on. Panels are the common case and the default. */
+  readonly ground?: keyof typeof SKELETON_GROUND;
 }
 
 /**
@@ -57,7 +79,11 @@ export interface SkeletonProps {
  * requirement: a skeleton whose box differs from the content's box is the
  * layout shift it was put there to prevent.
  */
-export function Skeleton({ width, loaded = false }: SkeletonProps): ReactNode {
+export function Skeleton({
+  width,
+  loaded = false,
+  ground = 'panel',
+}: SkeletonProps): ReactNode {
   return (
     <span
       aria-hidden="true"
@@ -65,7 +91,7 @@ export function Skeleton({ width, loaded = false }: SkeletonProps): ReactNode {
       className={cx(
         'block rounded-2',
         SKELETON_WIDTH[width],
-        loaded ? 'bg-transparent' : 'bg-neutral-bg animate-pulse',
+        loaded ? 'bg-transparent' : cx(SKELETON_GROUND[ground], 'animate-pulse'),
       )}
     />
   );
