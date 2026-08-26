@@ -609,6 +609,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.column.subjects': 'Assuntos',
   'incidents.filter.state': 'Estado',
   'incidents.filter.severity': 'Gravidade',
+  'dashboard.recurring.title': 'O que continua acontecendo',
+  'dashboard.recurring.note': 'Agrupado por assunto, não por disparo',
+  'dashboard.recurring.empty.heading': 'Nada se repetiu',
+  'dashboard.recurring.empty.body':
+    'Uma condição que dispara mais de uma vez no mesmo assunto é reunida aqui, para que um problema recorrente seja uma linha e não uma página delas.',
+  'dashboard.recurring.empty.action': 'Ver todos os incidentes',
+  'dashboard.held.title': 'O agente está cuidando',
   'incidents.filter.view': 'Exibição',
   'incidents.view.grouped': 'Por assunto',
   'incidents.view.flat': 'Cada disparo',

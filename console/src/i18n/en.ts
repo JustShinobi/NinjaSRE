@@ -792,6 +792,13 @@ export const EN = {
   'incidents.column.subjects': 'Subjects',
   'incidents.filter.state': 'State',
   'incidents.filter.severity': 'Severity',
+  'dashboard.recurring.title': 'What keeps happening',
+  'dashboard.recurring.note': 'Grouped by subject, not by firing',
+  'dashboard.recurring.empty.heading': 'Nothing has recurred',
+  'dashboard.recurring.empty.body':
+    'A condition that fires more than once on the same subject is collected here, so a problem that keeps coming back is one row rather than a page of them.',
+  'dashboard.recurring.empty.action': 'See every incident',
+  'dashboard.held.title': 'The agent is on it',
   'incidents.filter.view': 'View',
   'incidents.view.grouped': 'By subject',
   'incidents.view.flat': 'Every firing',

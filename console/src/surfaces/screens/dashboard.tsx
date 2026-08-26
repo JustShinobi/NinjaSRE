@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 
 import {
+  AGENT_INCIDENT_STATES,
+  HUMAN_INCIDENT_STATES,
   isSettled,
   isTerminalIncident,
-  LIVE_INCIDENT_STATES,
+  needsAPerson,
   roleFor,
 } from '@/design/status';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
@@ -46,6 +48,8 @@ import {
   TUTORIAL_REPLAY_VALUE,
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
+import { IncidentGroupList } from '../incident-group-list';
+import { groupBySubject } from '../incident-groups';
 import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 
@@ -85,7 +89,14 @@ const FEED_LENGTH = 8;
  * being able to see it. Naming the states costs one query string and makes the
  * answer complete rather than recent.
  */
-const LIVE_INCIDENT_QUERY = `?${LIVE_INCIDENT_STATES.map((state) => `state=${state}`).join('&')}`;
+const HUMAN_INCIDENT_QUERY = `?${HUMAN_INCIDENT_STATES.map(
+  (state) => `state=${state}`,
+).join('&')}`;
+
+/** The same, for what the agent is holding rather than what a person is. */
+const AGENT_INCIDENT_QUERY = `?${AGENT_INCIDENT_STATES.map(
+  (state) => `state=${state}`,
+).join('&')}`;
 
 /** Return the attention row whose source timestamp is the earliest valid instant. */
 export function oldestAttention(
@@ -117,7 +128,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     health,
     detectors,
     incidents,
-    liveIncidents,
+    blocked,
+    held,
     checklist,
     effective,
   ] = await Promise.all([
@@ -135,7 +147,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     // not the same page.
     panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
     panelRead('/v1/incidents', () =>
-      read('/v1/incidents', { ...authorised(credential), query: LIVE_INCIDENT_QUERY }),
+      read('/v1/incidents', { ...authorised(credential), query: HUMAN_INCIDENT_QUERY }),
+    ),
+    panelRead('/v1/incidents', () =>
+      read('/v1/incidents', { ...authorised(credential), query: AGENT_INCIDENT_QUERY }),
     ),
     panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
     optionalRead('/v1/config/{node_id}', () =>
@@ -152,7 +167,20 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const approvalRecords = list(dataOf(approvals), 'approvals');
   const proposalRecords = list(dataOf(proposals), 'proposals');
   const incidentRecords = list(dataOf(incidents), 'incidents');
-  const liveIncidentRecords = list(dataOf(liveIncidents), 'incidents');
+  const blockedRecords = list(dataOf(blocked), 'incidents');
+  // Narrowed in the query and narrowed again here. A read is a request rather
+  // than a guarantee, and a deployment that ignores the parameter would turn
+  // this figure into "every open incident the agent has picked up" — the same
+  // overstatement as the old attention count, pointing the other way.
+  const heldRecords = list(dataOf(held), 'incidents').filter(
+    (record) =>
+      !needsAPerson(text(record, 'state')) &&
+      !isTerminalIncident(text(record, 'state')),
+  );
+  // What keeps happening, from the unfiltered read: a cause that fired four
+  // times and closed each time is exactly what this panel is for, so it must
+  // not be narrowed to what is still open.
+  const recurring = groupBySubject(incidentRecords).filter((group) => group.count > 1);
   const detectorRecords = list(dataOf(detectors), 'detectors');
   const summary = dataOf(estate);
 
@@ -184,14 +212,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       at: text(record, 'proposed_at'),
     });
   }
-  for (const record of liveIncidentRecords) {
+  for (const record of blockedRecords) {
     // Belt and braces, and both earn their place. The read above asks for the
-    // four live states by name, so nothing terminal should arrive here; this
-    // holds anyway, because the previous version of this line compared against
-    // `closed` — a word the enumeration does not contain — and therefore never
-    // once skipped anything, which is how every finished incident came to be
-    // counted as one waiting on a person.
-    if (isTerminalIncident(text(record, 'state'))) continue;
+    // two states that are a person's problem by name, so nothing else should
+    // arrive here; this holds anyway, because the line it replaces compared
+    // against `closed` — a word the enumeration does not contain — and so
+    // never once skipped anything, which is how every incident the agent had
+    // already finished came to be counted as one waiting on a person.
+    if (!needsAPerson(text(record, 'state'))) continue;
     const id = text(record, 'public_id');
     attention.push({
       id,
@@ -448,6 +476,37 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         />
       </div>
 
+      {/* What keeps happening, above the narrative rather than inside it. A
+          cause that fired nine times is one problem and the feed would tell
+          the reader it was nine — which is the whole defect this page was
+          reformulated around. */}
+      <div className="mb-5" data-testid="recurring-problems">
+        <Panel
+          title={message(locale, 'dashboard.recurring.title')}
+          state={stateOf(incidents, recurring.length === 0)}
+          dependency={dependencyOf(incidents)}
+          action={
+            <span className="text-meta text-muted">
+              {message(locale, 'dashboard.recurring.note')}
+            </span>
+          }
+          labels={panelLabels(locale, message(locale, 'dashboard.recurring.title'))}
+          empty={{
+            heading: message(locale, 'dashboard.recurring.empty.heading'),
+            body: message(locale, 'dashboard.recurring.empty.body'),
+            actionLabel: message(locale, 'dashboard.recurring.empty.action'),
+            href: '/incidents',
+          }}
+        >
+          <IncidentGroupList
+            groups={recurring}
+            locale={locale}
+            now={new Date(now)}
+            zone={zone}
+          />
+        </Panel>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 min-w-0">
           <Panel
@@ -497,6 +556,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
                   {flag(dataOf(health), 'ready')
                     ? message(locale, 'shell.guardian.active')
                     : message(locale, 'shell.guardian.silent')}
+                </dd>
+              </div>
+              <div className="flex items-center gap-3">
+                <dt className="text-muted">
+                  {message(locale, 'dashboard.held.title')}
+                </dt>
+                <dd className="ml-auto tabular-nums" data-testid="guardian-holding">
+                  {formatNumber(locale, heldRecords.length)}
                 </dd>
               </div>
               <div className="flex items-center gap-3">

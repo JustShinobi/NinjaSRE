@@ -446,9 +446,39 @@ export const LIVE_INCIDENT_STATES: readonly string[] = INCIDENT_STATES.filter(
   (state) => !TERMINAL_INCIDENT_STATES.includes(state),
 );
 
+/**
+ * The live states that are a person's problem.
+ *
+ * `open` because nothing has picked it up yet, and `awaiting_human` because
+ * the deployment stopped and asked. Those two, and no others.
+ *
+ * This is the distinction the overview never drew, and not drawing it is why
+ * its headline was an indictment: every incident that had not ended went into
+ * "N items need you", the ones the agent had picked up and was actively
+ * working included. A product whose claim is that it investigates without you
+ * was using its first screen to count how much it had left undone.
+ */
+export const HUMAN_INCIDENT_STATES: readonly string[] = ['open', 'awaiting_human'];
+
+/**
+ * The live states the agent is holding — reading, or writing to the estate.
+ *
+ * These belong on the overview too, and prominently. They are the answer to
+ * "is it working", which is a different question from "does it need me" and
+ * the one an operator actually opens the console asking.
+ */
+export const AGENT_INCIDENT_STATES: readonly string[] = LIVE_INCIDENT_STATES.filter(
+  (state) => !HUMAN_INCIDENT_STATES.includes(state),
+);
+
 /** Whether an incident in `state` has ended and needs nobody. */
 export function isTerminalIncident(state: string): boolean {
   return TERMINAL_INCIDENT_STATES.includes(state);
+}
+
+/** Whether an incident in `state` is blocked on a person rather than on the agent. */
+export function needsAPerson(state: string): boolean {
+  return HUMAN_INCIDENT_STATES.includes(state);
 }
 
 /** Whether a run in `status` has finished and will not change again. */

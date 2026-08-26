@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  AGENT_INCIDENT_STATES,
   ATTENTION_STATUSES,
+  HUMAN_INCIDENT_STATES,
   isTerminalIncident,
+  LIVE_INCIDENT_STATES,
   statusPresentation,
 } from '@/design/status';
 
@@ -68,5 +71,33 @@ describe('the vocabulary', () => {
     // An incident a person shut with nothing done is not one that was solved.
     expect(statusPresentation('closed_without_action').role).not.toBe('success');
     expect(statusPresentation('resolved').role).toBe('success');
+  });
+});
+
+/**
+ * Which live states are a person's problem, and which are the agent's.
+ *
+ * This is the distinction the overview never drew. Every incident that was not
+ * terminal went into "N items need you", including the ones the agent had
+ * picked up and was actively working — so a product whose whole claim is that
+ * it investigates without you was using its first screen to announce how much
+ * it had left undone.
+ */
+describe('who a live incident is waiting on', () => {
+  it('is a person when nothing has picked it up, or when it asked one', () => {
+    expect([...HUMAN_INCIDENT_STATES].sort()).toEqual(['awaiting_human', 'open']);
+  });
+
+  it('is the agent while it is reading or writing', () => {
+    expect([...AGENT_INCIDENT_STATES].sort()).toEqual(['investigating', 'remediating']);
+  });
+
+  it('accounts for every live state exactly once', () => {
+    // A partition, not two lists that happen to look right. A state in neither
+    // is an incident nothing on the overview counts; a state in both is one
+    // counted twice, in two places that then disagree.
+    const both = [...HUMAN_INCIDENT_STATES, ...AGENT_INCIDENT_STATES].sort();
+    expect(both).toEqual([...LIVE_INCIDENT_STATES].sort());
+    expect(new Set(both).size).toBe(both.length);
   });
 });

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LIVE_INCIDENT_STATES } from '@/design/status';
+import { AGENT_INCIDENT_STATES, HUMAN_INCIDENT_STATES } from '@/design/status';
 import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
 import { AttentionBlock } from '@/surfaces/attention';
@@ -131,6 +131,79 @@ async function dashboardWithFinishedIncidents(): Promise<void> {
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/**
+ * Render the dashboard over live incidents in all four live states, plus a
+ * cause that fired three times.
+ */
+async function dashboardWithLiveIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  const firing = (over: Record<string, unknown>): Record<string, unknown> => ({
+    incident_id: 'inc',
+    public_id: 'inc',
+    correlation_key: 'detector:a:resource:one',
+    title: 'A condition',
+    summary: '',
+    state: 'open',
+    severity: 'critical',
+    detector: 'alertmanager',
+    subjects: ['one'],
+    opened_at: '2026-08-26T09:00:00.000Z',
+    ...over,
+  });
+  const incidents = [
+    firing({ incident_id: 'a', public_id: 'a', summary: 'nobody has picked up' }),
+    firing({
+      incident_id: 'b',
+      public_id: 'b',
+      state: 'awaiting_human',
+      summary: 'asked a person',
+      opened_at: '2026-08-26T08:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'c',
+      public_id: 'c',
+      state: 'investigating',
+      summary: 'agent is reading',
+      opened_at: '2026-08-26T07:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'd',
+      public_id: 'd',
+      state: 'remediating',
+      correlation_key: 'detector:b:resource:two',
+      summary: 'agent is changing',
+      opened_at: '2026-08-26T06:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'e',
+      public_id: 'e',
+      state: 'resolved',
+      correlation_key: 'detector:b:resource:two',
+      summary: 'over',
+      opened_at: '2026-08-26T05:00:00.000Z',
+    }),
+  ];
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const address = new URL(String(input), FIXTURES_BASE);
+    if (address.pathname === '/v1/incidents') {
+      const wanted = address.searchParams.getAll('state');
+      const served =
+        wanted.length === 0
+          ? incidents
+          : incidents.filter((one) => wanted.includes(String(one.state)));
+      return Promise.resolve(
+        new Response(JSON.stringify({ incidents: served }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
       );
     }
     return scenario(input as Parameters<typeof fetch>[0], init);
@@ -511,16 +584,73 @@ describe('the "needs you" band’s oldest badge', () => {
     });
     render(await DashboardScreen(await surfaceContext({})));
 
-    const live = asked.find((search) => search.includes('state='));
-    expect(live).toBeDefined();
-    for (const state of LIVE_INCIDENT_STATES) {
-      expect(live).toContain(`state=${state}`);
+    // Two narrowed reads, because they answer two questions: what is blocked
+    // on a person, and what the agent is holding. Neither may be derived by
+    // filtering a page of the fifty most recently opened.
+    const blocked = asked.find((search) =>
+      HUMAN_INCIDENT_STATES.every((state) => search.includes(`state=${state}`)),
+    );
+    const held = asked.find((search) =>
+      AGENT_INCIDENT_STATES.every((state) => search.includes(`state=${state}`)),
+    );
+    expect(blocked).toBeDefined();
+    expect(held).toBeDefined();
+    expect(blocked).not.toBe(held);
+
+    // The band's read carries neither what the agent is holding nor anything
+    // terminal. Either would put the screen back to counting the product's own
+    // work as the operator's backlog.
+    for (const state of AGENT_INCIDENT_STATES) {
+      expect(blocked).not.toContain(`state=${state}`);
     }
-    // And never a terminal one: asking for those here would reintroduce the
-    // count this screen just stopped inflating.
-    expect(live).not.toContain('state=resolved');
-    expect(live).not.toContain('state=suppressed');
-    expect(live).not.toContain('state=closed_without_action');
+    for (const state of ['resolved', 'suppressed', 'closed_without_action']) {
+      expect(blocked).not.toContain(`state=${state}`);
+      expect(held).not.toContain(`state=${state}`);
+    }
+  });
+
+  it('does not put what the agent is holding into what is waiting on you', async () => {
+    // The distinction the screen never drew. An incident being investigated or
+    // remediated is the agent's, and a product whose claim is that it works
+    // without you must not use its first screen to count its own work as your
+    // backlog. Only what nothing has picked up, or what stopped to ask a
+    // person, belongs in the band.
+    await dashboardWithLiveIncidents();
+
+    const band = screen.getByTestId('attention');
+    const kinds = within(band)
+      .getAllByTestId('attention-row')
+      .map((row) => row.textContent);
+    expect(kinds.some((text) => text.includes('nobody has picked up'))).toBe(true);
+    expect(kinds.some((text) => text.includes('asked a person'))).toBe(true);
+    expect(kinds.some((text) => text.includes('agent is reading'))).toBe(false);
+    expect(kinds.some((text) => text.includes('agent is changing'))).toBe(false);
+  });
+
+  it('folds what keeps happening into one row per cause', async () => {
+    await dashboardWithLiveIncidents();
+
+    const panel = screen.getByTestId('recurring-problems');
+    const groups = within(panel).getAllByTestId('incident-group');
+    // Five firings, two causes.
+    expect(groups).toHaveLength(2);
+    expect(groups.map((group) => group.getAttribute('data-count')).sort()).toEqual([
+      '2',
+      '3',
+    ]);
+  });
+
+  it('counts only what the agent is holding, whatever the deployment answers with', async () => {
+    // The narrowing is asked for in the query and held again here. A read is a
+    // request, not a guarantee: a deployment that ignores the parameter — the
+    // mock data plane does — would otherwise have this figure report every
+    // open incident as one the agent had picked up, which is the same
+    // overstatement in the opposite direction to the one this screen just
+    // stopped making.
+    await dashboardWithLiveIncidents();
+
+    // One `investigating`, one `remediating`, out of five incidents served.
+    expect(screen.getByTestId('guardian-holding')).toHaveTextContent('2');
   });
 
   it('chooses the oldest timestamp rather than the last source group', () => {
