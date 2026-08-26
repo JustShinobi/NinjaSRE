@@ -206,8 +206,12 @@ export function RunCard({
           <ListIcon size="nav" className="text-muted" />
         </span>
         <span className="min-w-0 grow flex flex-col gap-1">
+          {/* One line closed, at most two open. The subject is the only
+              thing on this row anybody scans, and letting it wrap freely gave
+              the open card a five-line header — the table's clipping back as
+              height. The tooltip carries the whole sentence either way. */}
           <span
-            className={`${open ? 'text-strong' : 'text-body'} ${open ? '' : 'truncate'}`}
+            className={open ? 'text-strong line-clamp-2' : 'text-body truncate'}
             title={head.subjectFull}
           >
             {head.subject}
@@ -224,7 +228,7 @@ export function RunCard({
         <time
           dateTime={started.iso}
           title={started.absolute}
-          className="text-meta text-muted shrink-0 w-column-instant text-right"
+          className="text-meta text-muted shrink-0 w-column-word text-right"
         >
           {started.relative}
         </time>
