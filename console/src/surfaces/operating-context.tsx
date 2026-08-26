@@ -346,7 +346,13 @@ export function OperatingContextEditor({
             value={naming}
             onValueChange={setNaming}
           />
+          {/* The primary is the one that changes something. This screen had
+              the filled button on "Show me the prompt" — a preview — while the
+              action that actually adds a section sat beside it in the secondary
+              skin. A reader following the emphasis was being pointed at the one
+              control that does nothing. */}
           <Button
+            variant="primary"
             data-testid="add-section"
             state={naming.trim() === '' ? 'disabled' : 'default'}
             title={naming.trim() === '' ? labels.addSectionDisabledReason : undefined}
@@ -380,7 +386,7 @@ export function OperatingContextEditor({
       {writable ? (
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            variant="primary"
+            variant="quiet"
             data-testid="ask-context-preview"
             state={
               busy === 'preview' ? 'loading' : previewBlocked ? 'disabled' : 'default'

@@ -483,3 +483,21 @@ it('carries no disabled explanation once a name has been typed', async () => {
   expect(screen.getByTestId('add-section')).not.toBeDisabled();
   expect(screen.getByTestId('add-section')).not.toHaveAttribute('title');
 });
+
+/**
+ * The emphasis points at the control that changes something.
+ *
+ * This screen put the filled button on "Show me the prompt" — a preview — while
+ * the action that actually adds a section sat beside it in the secondary skin.
+ * A reader following the emphasis was being pointed at the one control on the
+ * form that does nothing.
+ */
+it('gives the primary skin to the action that commits, not to the preview', () => {
+  editor();
+
+  expect(screen.getByTestId('add-section')).toHaveAttribute('data-variant', 'primary');
+  expect(screen.getByTestId('ask-context-preview')).not.toHaveAttribute(
+    'data-variant',
+    'primary',
+  );
+});
