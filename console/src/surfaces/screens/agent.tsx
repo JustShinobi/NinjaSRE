@@ -7,6 +7,7 @@ import {
   SpecialistStateChip,
 } from '@/components/status';
 import { statusPresentation } from '@/design/status';
+import { humaniseIdentifier } from '@/i18n/format';
 import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -202,7 +203,8 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
   const init = authorised(credential);
 
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
-  const node = resolveNode(state, viewer, placedTree(dataOf(tree)));
+  const placed = placedTree(dataOf(tree));
+  const node = resolveNode(state, viewer, placed);
   const address = (wanted: AgentTab): string =>
     node === '' ? `?tab=${wanted}` : `?node=${encodeURIComponent(node)}&tab=${wanted}`;
 
@@ -269,7 +271,13 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
       <AreaHeader
         area={areaFor('agent')}
         locale={locale}
-        nested={node === '' ? [] : [{ label: node }]}
+        // The node crumb only where there is a choice of node. A deployment
+        // with one of them was rendering "The agent › default" — a breadcrumb
+        // whose last step is an identifier nobody picked, under a heading that
+        // already says the same thing in words. A trail that names something a
+        // reader cannot navigate away from is a trail that teaches them to stop
+        // reading trails.
+        nested={node === '' || placed.length < 2 ? [] : [{ label: node }]}
       />
 
       <TabLinks
@@ -381,9 +389,15 @@ function TopologyTab({
     {
       id: STAGES,
       label: message(locale, 'agent.rank.stages'),
+      // They run one after another — resolve, intake, plan, gather, diagnose,
+      // deliver — and drawn as a plain row fanning out of the orchestrator,
+      // nothing said which came first.
+      sequence: true,
       nodes: stages.map((stage) => ({
         id: text(stage, 'name'),
-        name: text(stage, 'name'),
+        // The readable form in the box; the identifier keeps its place in the
+        // list below, where a reader matching a log line will look for it.
+        name: humaniseIdentifier(text(stage, 'name')),
         kind: STAGES,
         href: '#agent-stages',
       })),
@@ -393,7 +407,7 @@ function TopologyTab({
       label: message(locale, 'agent.rank.specialists'),
       nodes: specialists.map((specialist) => ({
         id: specialist.name,
-        name: specialist.name,
+        name: humaniseIdentifier(specialist.name),
         kind: SPECIALISTS,
         href: AGENT_ADVANCED_HREF,
         disabled: !specialist.enabled,
@@ -432,8 +446,11 @@ function TopologyTab({
                 data-role={text(stage, 'model_role')}
                 className="flex flex-col gap-1"
               >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-small text-strong">
+                <span className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-strong">
+                    {humaniseIdentifier(text(stage, 'name'))}
+                  </span>
+                  <span className="font-mono text-meta text-muted">
                     {text(stage, 'name')}
                   </span>
                   {text(stage, 'model_role') === '' ? (
@@ -840,6 +857,12 @@ function DocumentPanel({
 }): ReactNode {
   const section = field(values, 'agents');
   const document = JSON.stringify({ agents: section ?? {} }, null, 2);
+  // `{ "agents": {} }` is three lines of punctuation standing where a fact
+  // belongs. The fact is that nothing on this screen has been overridden for
+  // this node, which the panel can say in a sentence — and which the tables
+  // above already say per row.
+  const overridden =
+    typeof section === 'object' && section !== null && Object.keys(section).length > 0;
   return (
     <Panel
       title={message(locale, 'agent.document.title')}
@@ -853,12 +876,25 @@ function DocumentPanel({
         href: AGENT_ADVANCED_HREF,
       }}
     >
-      <pre
-        data-testid="agent-document"
-        className="text-meta font-mono overflow-x-auto whitespace-pre"
-      >
-        {document}
-      </pre>
+      <div className="flex flex-col gap-2">
+        {/* An empty object is three lines of punctuation standing where a fact
+            belongs. The fact — that nothing has been overridden for this node —
+            is said in words above it, and the document stays underneath for
+            anyone who came to read the document. Not the panel's empty state:
+            the specialists panel beside this one already carries that, and two
+            empty states in a row explain the same nothing twice. */}
+        {overridden ? null : (
+          <p data-testid="agent-document-untouched" className="text-small text-muted">
+            {message(locale, 'agent.document.untouched')}
+          </p>
+        )}
+        <pre
+          data-testid="agent-document"
+          className="text-meta font-mono overflow-x-auto whitespace-pre"
+        >
+          {document}
+        </pre>
+      </div>
     </Panel>
   );
 }
@@ -980,7 +1016,6 @@ function ToolsTab({
             domainsNav: message(locale, 'catalogue.domains.nav'),
             skillsHeading: message(locale, 'catalogue.skills'),
             columnName: message(locale, 'catalogue.column.name'),
-            columnDomain: message(locale, 'catalogue.column.domain'),
             columnEffect: message(locale, 'catalogue.column.effect'),
             columnEnabled: message(locale, 'catalogue.column.enabled'),
             none,

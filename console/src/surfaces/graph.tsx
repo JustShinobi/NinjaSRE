@@ -166,6 +166,15 @@ export interface HierarchyRank {
   readonly id: string;
   readonly label: string;
   readonly nodes: readonly HierarchyNode[];
+  /**
+   * Whether this rank's boxes run in order rather than side by side.
+   *
+   * The stages of an investigation do — resolve, intake, plan, gather,
+   * diagnose, deliver — and drawn as a plain row fanning out of their parent,
+   * nothing on the screen said which ran first. A reader was left to guess a
+   * sequence from a picture that had deliberately not drawn one.
+   */
+  readonly sequence?: boolean;
 }
 
 export interface HierarchyGraphProps {
@@ -197,7 +206,12 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
     ...rank,
     nodes: rank.nodes.slice(0, RANK_BOUND),
   }));
-  const height = Math.max(VIEW_HEIGHT, drawn.length * RANK_HEIGHT);
+  // Sized to the ranks it has, with no floor. The floor was the neighbourhood
+  // graph's own constant, and a two-rank hierarchy borrowing it reserved a
+  // third more canvas than it drew on — which, because the element scales to
+  // its container, became roughly three hundred pixels of void beneath the
+  // boxes on a wide screen.
+  const height = drawn.length * RANK_HEIGHT;
   // The widest rank decides how wide the picture is. A fixed canvas sized for
   // a handful of boxes per row draws a wider rank overlapping instead of
   // refusing to — which for an SVG box is one opaque rectangle sitting on
@@ -214,8 +228,25 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
       viewBox={`0 0 ${String(width)} ${String(height)}`}
       data-testid="hierarchy"
       className="w-full h-auto"
+      // Free to shrink on a narrow screen and never stretched beyond the size
+      // it was drawn at. Stretched, a 720-wide drawing became a 2100-wide one
+      // and carried its empty canvas up with it.
+      style={{ maxInlineSize: `${String(width)}px` }}
     >
       <title>{labels.title}</title>
+      <defs>
+        <marker
+          id="hierarchy-arrow"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 9 5 L 0 9" className="fill-none stroke-border-strong" />
+        </marker>
+      </defs>
       <g className="stroke-border" strokeWidth={1} fill="none">
         {drawn
           .slice(1)
@@ -234,6 +265,31 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
             )),
           )}
       </g>
+      {/* The order, where a rank has one. Between the boxes rather than on
+          them: the arrow is the claim that one follows another, and a glyph
+          inside a box could only ever repeat the box's own name. */}
+      <g className="stroke-border-strong" strokeWidth={1} fill="none">
+        {drawn.flatMap((rank, index) =>
+          rank.sequence !== true
+            ? []
+            : rank.nodes.slice(0, -1).map((node, position) => {
+                const from =
+                  acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
+                const to = acrossFor(position + 1, rank.nodes.length, width);
+                return (
+                  <line
+                    key={`sequence-${node.id}`}
+                    data-testid="sequence-edge"
+                    x1={from + 4}
+                    y1={rowY(index)}
+                    x2={to - 4}
+                    y2={rowY(index)}
+                    markerEnd="url(#hierarchy-arrow)"
+                  />
+                );
+              }),
+        )}
+      </g>
       {drawn.map((rank, index) =>
         rank.nodes.map((node, position) => (
           <g
@@ -250,6 +306,20 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
               x={acrossFor(position, rank.nodes.length, width)}
               y={rowY(index) - NODE_HEIGHT / 2}
             />
+            {rank.sequence !== true ? null : (
+              // Which one this is, so the order survives the picture being
+              // read out of order — or read by something that cannot see the
+              // arrows at all.
+              <text
+                data-testid={`sequence-ordinal-${node.id}`}
+                x={acrossFor(position, rank.nodes.length, width) + NODE_WIDTH / 2}
+                y={rowY(index) - NODE_HEIGHT / 2 - 6}
+                textAnchor="middle"
+                className="fill-muted text-micro"
+              >
+                {position + 1}
+              </text>
+            )}
           </g>
         )),
       )}

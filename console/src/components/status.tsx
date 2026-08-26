@@ -594,6 +594,92 @@ export function CapabilityAvailabilityChip({
   );
 }
 
+/** The five side-effect levels, least to most consequential. */
+const SIDE_EFFECT_LEVELS = [
+  'read',
+  'read_sensitive',
+  'write_reversible',
+  'write_irreversible',
+  'destructive',
+] as const;
+
+type SideEffectLevel = (typeof SIDE_EFFECT_LEVELS)[number];
+
+/** Which role and shape each level carries. Escalating, and never colour alone. */
+const SIDE_EFFECT: Readonly<
+  Record<SideEffectLevel, { readonly role: SemanticRole; readonly shape: Shape }>
+> = {
+  read: { role: 'neutral', shape: 'filled-circle' },
+  read_sensitive: { role: 'info', shape: 'hollow-circle' },
+  write_reversible: { role: 'warning', shape: 'rotated-square' },
+  write_irreversible: { role: 'danger', shape: 'triangle' },
+  destructive: { role: 'danger', shape: 'square' },
+};
+
+/** The short label each level wears in a chip. */
+const SIDE_EFFECT_CHIP: Readonly<Record<SideEffectLevel, MessageKey>> = {
+  read: 'sideEffect.chip.read',
+  read_sensitive: 'sideEffect.chip.read_sensitive',
+  write_reversible: 'sideEffect.chip.write_reversible',
+  write_irreversible: 'sideEffect.chip.write_irreversible',
+  destructive: 'sideEffect.chip.destructive',
+};
+
+/** The sentence each level carries as its explanation. */
+const SIDE_EFFECT_SENTENCE: Readonly<Record<SideEffectLevel, MessageKey>> = {
+  read: 'sideEffect.level.read',
+  read_sensitive: 'sideEffect.level.read_sensitive',
+  write_reversible: 'sideEffect.level.write_reversible',
+  write_irreversible: 'sideEffect.level.write_irreversible',
+  destructive: 'sideEffect.level.destructive',
+};
+
+export interface SideEffectChipProps {
+  readonly locale: Locale;
+  /** The level as the catalogue declares it. */
+  readonly level: string;
+  readonly className?: string;
+}
+
+/**
+ * What a capability does to the estate, in words rather than in its spelling.
+ *
+ * This went through `Badge` for a year, which capitalises the first letter of
+ * whatever the API sent and prints the rest — so the column read
+ * `Write_reversible` and `Read_sensitive`: neither an identifier a reader could
+ * paste anywhere nor a phrase in any language. `Badge` is right for a run's or
+ * a resource's status, where a provider one version ahead may invent a word
+ * this console has never heard of and printing it verbatim is the only honest
+ * move. A side-effect level is not that: it is a closed set this console has
+ * carried full sentences for since the guardrails shipped, and it was the one
+ * place those sentences were not being used.
+ *
+ * The sentence stays, as the chip's own explanation. A level the catalogue
+ * invents still falls through to its own spelling rather than to a blank.
+ */
+export function SideEffectChip({
+  locale,
+  level,
+  className,
+}: SideEffectChipProps): ReactNode {
+  const known = (SIDE_EFFECT_LEVELS as readonly string[]).includes(level)
+    ? (level as SideEffectLevel)
+    : undefined;
+  if (known === undefined) {
+    return <Badge status={level} {...(className === undefined ? {} : { className })} />;
+  }
+  return (
+    <ResolvedChip
+      role={SIDE_EFFECT[known].role}
+      shape={SIDE_EFFECT[known].shape}
+      label={message(locale, SIDE_EFFECT_CHIP[known])}
+      title={message(locale, SIDE_EFFECT_SENTENCE[known])}
+      testId="capability-side-effect"
+      className={className}
+    />
+  );
+}
+
 export interface CheckChipProps {
   readonly name: string;
   /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */

@@ -788,6 +788,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // O que o pior efeito colateral da ação proposta significa, para a linha
   // Autonomia acima — os mesmos valores que security.py declara, do menos ao
   // mais perigoso, em palavras em vez do nome cru que o deployment manda.
+  'sideEffect.chip.read': 'Leitura',
+  'sideEffect.chip.read_sensitive': 'Leitura sensível',
+  'sideEffect.chip.write_reversible': 'Escrita reversível',
+  'sideEffect.chip.write_irreversible': 'Escrita irreversível',
+  'sideEffect.chip.destructive': 'Destrutiva',
   'sideEffect.level.read': 'Leitura — nada muda no parque.',
   'sideEffect.level.read_sensitive':
     'Leitura sensível — nada muda, mas o que volta deve ser tratado com cuidado.',
@@ -1665,6 +1670,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.advanced.field.promptDiagnose': 'Substituição do prompt de diagnóstico',
   'agent.advanced.field.operatingContextEnabled': 'Enviar contexto operacional',
   'agent.advanced.field.maxSubagentIterations': 'Máximo de iterações do especialista',
+  'agent.document.untouched': 'Nada foi sobrescrito para este nó: ele roda o pipeline como ele veio. O documento abaixo diz isso nas palavras da própria instalação.',
   'agent.document.title': 'A mesma topologia, como documento',
   'agent.empty.heading': 'Não foi possível descrever o pipeline',
   'agent.empty.body':

@@ -7,6 +7,7 @@ import {
   formatDuration,
   formatNumber,
   formatRelative,
+  humaniseIdentifier,
   timestamp,
 } from '@/i18n/format';
 
@@ -137,5 +138,41 @@ describe('a relative time never travels alone', () => {
     expect(stamped.iso).toBe('');
     expect(stamped.absolute).toBe('');
     expect(stamped.relative).toBe('');
+  });
+});
+
+/**
+ * An internal identifier, made readable without being made unfindable.
+ *
+ * The agent's topology set `resolve_integrations`, `plan_evidence` and
+ * `gather_evidence` at twenty-two pixels as though they were headings, on a
+ * screen whose dashboard two clicks away writes every label in words. Same
+ * product, two vocabularies, and the reader is left to work out that the one
+ * shouting at them is a variable name.
+ *
+ * The identifier is not thrown away — it is what a log line and a config key
+ * are spelled as, and a screen that hid it would make the two impossible to
+ * connect. It moves to where an identifier belongs: beside the name, in the
+ * monospaced face, at the size of a reference rather than of a title.
+ */
+describe('humanising an identifier', () => {
+  it('turns a snake_case name into a sentence', () => {
+    expect(humaniseIdentifier('resolve_integrations')).toBe('Resolve integrations');
+    expect(humaniseIdentifier('gather_evidence')).toBe('Gather evidence');
+    expect(humaniseIdentifier('intake')).toBe('Intake');
+  });
+
+  it('handles the dotted and hyphenated spellings the same way', () => {
+    expect(humaniseIdentifier('agents.max_iterations')).toBe('Agents max iterations');
+    expect(humaniseIdentifier('change-historian')).toBe('Change historian');
+  });
+
+  it('leaves something that is already a sentence alone', () => {
+    expect(humaniseIdentifier('Resolve integrations')).toBe('Resolve integrations');
+  });
+
+  it('gives back nothing for nothing rather than inventing a word', () => {
+    expect(humaniseIdentifier('')).toBe('');
+    expect(humaniseIdentifier('   ')).toBe('');
   });
 });

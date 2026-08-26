@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 
-import { Badge, CapabilityAvailabilityChip } from '@/components/status';
+import { CapabilityAvailabilityChip, SideEffectChip } from '@/components/status';
 import { Input } from '@/components/form';
 import type { Locale } from '@/i18n/messages';
 
@@ -74,7 +74,6 @@ export interface CapabilityBrowserLabels {
   readonly domainsNav: string;
   readonly skillsHeading: string;
   readonly columnName: string;
-  readonly columnDomain: string;
   readonly columnEffect: string;
   readonly columnEnabled: string;
   readonly none: string;
@@ -177,54 +176,55 @@ export function CapabilityBrowser({
             <caption className="sr-only">{labels.tableCaption}</caption>
             <thead>
               <tr>
-                {[
-                  labels.columnName,
-                  labels.columnDomain,
-                  labels.columnEffect,
-                  labels.columnEnabled,
-                ].map((header) => (
+                {/* No Domain column. The rows are grouped by domain and each
+                    group is headed with it, so the column repeated its own
+                    heading once per row — twenty-four times under "cloud
+                    control plane" — for a table whose subject column was
+                    meanwhile breaking names across two lines. */}
+                {[labels.columnName, labels.columnEffect, labels.columnEnabled].map(
+                  (header) => (
                   <th
                     key={header}
                     scope="col"
                     className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
-                  >
-                    {header}
-                  </th>
-                ))}
+                    >
+                      {header}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               {groups.map(({ domain, tools: domainTools }) => (
                 <Fragment key={domain === '' ? ' ' : domain}>
-                  {domain === '' ? null : (
-                    <tr data-testid="capability-domain" data-domain={domain}>
-                      <th
-                        id={anchorId(domain)}
-                        scope="rowgroup"
-                        colSpan={4}
-                        className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
-                      >
-                        {domain}{' '}
-                        <span className="text-muted font-normal">
-                          ({domainTools.length})
-                        </span>
-                      </th>
-                    </tr>
-                  )}
+                  {/* Headed even where the tools declare no domain. With the
+                      column gone the heading is the only thing saying which
+                      group a row is in, so a group without one would be a run
+                      of unattributed rows. */}
+                  <tr data-testid="capability-domain" data-domain={domain}>
+                    <th
+                      {...(domain === '' ? {} : { id: anchorId(domain) })}
+                      scope="rowgroup"
+                      colSpan={3}
+                      className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
+                    >
+                      {domain === '' ? labels.none : domain}{' '}
+                      <span className="text-muted font-normal">
+                        ({domainTools.length})
+                      </span>
+                    </th>
+                  </tr>
                   {domainTools.map((tool) => (
                     <tr
                       key={tool.name}
                       data-testid="capability"
                       data-capability={tool.name}
                     >
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-words">
                         {tool.name}
                       </td>
                       <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        {tool.domain === '' ? labels.none : tool.domain}
-                      </td>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        <Badge status={tool.sideEffect} />
+                        <SideEffectChip locale={locale} level={tool.sideEffect} />
                       </td>
                       <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                         {!tool.known ? (
@@ -272,7 +272,7 @@ export function CapabilityBrowser({
                   </tr>
                   {matchingSkills.map((skill) => (
                     <tr key={skill.name} data-testid="capability">
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-words">
                         {skill.name}
                       </td>
                       <td

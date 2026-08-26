@@ -990,6 +990,11 @@ export const EN = {
   // Autonomy row above — the same slugs `config/constants/security.py`
   // declares, ordered least to most dangerous, in words rather than as the
   // bare deployment spelling.
+  'sideEffect.chip.read': 'Reads',
+  'sideEffect.chip.read_sensitive': 'Reads, sensitive',
+  'sideEffect.chip.write_reversible': 'Writes, reversible',
+  'sideEffect.chip.write_irreversible': 'Writes, irreversible',
+  'sideEffect.chip.destructive': 'Destructive',
   'sideEffect.level.read': 'Read — nothing on the estate changes.',
   'sideEffect.level.read_sensitive':
     'Sensitive read — nothing changes, but what comes back should be handled carefully.',
@@ -1954,6 +1959,7 @@ export const EN = {
   'agent.advanced.field.promptDiagnose': 'Diagnose prompt override',
   'agent.advanced.field.operatingContextEnabled': 'Send operating context',
   'agent.advanced.field.maxSubagentIterations': 'Max specialist iterations',
+  'agent.document.untouched': 'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
   'agent.document.title': 'The same topology, as the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':
