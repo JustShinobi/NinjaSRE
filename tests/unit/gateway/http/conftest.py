@@ -58,8 +58,9 @@ class FakeInvestigationRunner:
     async def resume(self, run_id: str) -> None:
         self.resumed.append(run_id)
 
-    async def queue_message(self, run_id: str, text: str) -> None:
+    async def queue_message(self, run_id: str, text: str) -> bool:
         self.queued.append((run_id, text))
+        return True
 
     async def pending_interactions(self, run_id: str) -> tuple[Interaction, ...]:
         return tuple(held for held in self.interactions.values() if held.run_id == run_id)

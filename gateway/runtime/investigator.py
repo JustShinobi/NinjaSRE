@@ -298,15 +298,19 @@ class ReActInvestigationRunner:
         live.session = None
         await live.loop.resume(session)
 
-    async def queue_message(self, run_id: str, text: str) -> None:
-        """Queue ``text`` for delivery on the run's next turn.
+    async def queue_message(self, run_id: str, text: str) -> bool:
+        """Queue ``text`` for delivery on the run's next turn, and say whether it landed.
 
-        A no-op when ``run_id`` names nothing this process is driving — there
-        is no turn boundary left to deliver it at.
+        ``False`` when ``run_id`` names nothing this process is driving — there
+        is no turn boundary left to deliver it at. Reported rather than
+        swallowed: a caller that attached an incident to this run because it
+        was about to tell it something has to be able to undo that decision.
         """
         live = self._live.get(run_id)
-        if live is not None:
-            live.messages.submit(text, author="operator")
+        if live is None:
+            return False
+        live.messages.submit(text, author="operator")
+        return True
 
     async def pending_interactions(self, run_id: str) -> tuple[Interaction, ...]:
         """Return the open questions ``run_id`` raised, longest-waiting first."""

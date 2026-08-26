@@ -77,6 +77,7 @@ from platform.identity.errors import TokenRejected
 from platform.identity.permissions import Permission
 from platform.incidents.dispatch import objective_for
 from platform.incidents.ingestion import raise_for_alert, resolution_key
+from platform.incidents.joining import JoinTarget, investigation_to_join
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.ingress.ledger import delivery_key, masked_sample, record_delivery
 from platform.ingress.rules import RuleMatch, Signals, evaluate
@@ -369,6 +370,28 @@ def _handler(
                 match, resolution=resolution, run_id=linked_run, incident=incident
             )
             return _ack({"run_id": linked_run, "incident_id": incident.incident_id, "linked": True})
+
+        # A different alert about the thing something is already investigating.
+        # The deduplication above catches the *same* alert firing again; this
+        # catches the second symptom of one failure, which arrives under its own
+        # name and its own fingerprint and is not a repeat of anything.
+        #
+        # One container being shut down produced five of these, and five
+        # investigations that could not see each other. Joining costs nothing
+        # and hands the run in flight the evidence it would otherwise never get.
+        joined = await _join_live_investigation(state, scope=scope, incident=incident, alert=alert)
+        if joined is not None:
+            await recorded.accepted(
+                match, resolution=resolution, run_id=joined.run_id, incident=incident
+            )
+            return _ack(
+                {
+                    "run_id": joined.run_id,
+                    "incident_id": incident.incident_id,
+                    "joined": True,
+                    "subject": joined.subject_id,
+                }
+            )
 
         run_id = await start_investigation(
             state,
@@ -812,6 +835,92 @@ async def _resolve_against_estate(
             zone=resolution.unresolved.zone,
         )
     return resolution
+
+
+async def _join_live_investigation(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    incident: Incident,
+    alert: NormalisedAlert,
+) -> JoinTarget | None:
+    """Attach ``incident`` to an investigation already looking at its subject.
+
+    Returns the investigation joined, or ``None`` when there is none to join and
+    this incident needs one of its own.
+
+    Two writes and a message, in that order. The attachment goes in first
+    because it is the durable half: an operator reading the incident afterwards
+    has to be able to see which investigation covered it whether or not the
+    message ever reached a turn boundary. The message goes second because it is
+    the half that can fail — the run may finish between the decision and the
+    delivery, and a run that has already reported cannot be told anything.
+
+    A message that misses its run leaves the incident attached to an
+    investigation that never saw it. That is a worse outcome than a second
+    investigation, so it is not silent: the delivery is reported and the caller
+    falls back.
+    """
+    async with state.gateway.begin(scope) as uow:
+        target = await investigation_to_join(
+            incident, incidents=uow.incidents, runs=uow.run_traces, now=_utc_now()
+        )
+    if target is None:
+        return None
+
+    delivered = await state.investigator.queue_message(
+        target.run_id, _joined_alert_brief(alert, incident)
+    )
+    if delivered is False:
+        # The run ended between deciding and delivering. Investigate for
+        # ourselves rather than attach to something that never heard of us.
+        logger.info(
+            "incidents.join_missed",
+            incident_id=incident.incident_id,
+            run_id=target.run_id,
+            subject=target.subject_id,
+        )
+        return None
+
+    async with state.gateway.begin(scope) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        await lifecycle.attach_run(
+            incident.incident_id,
+            target.run_id,
+            objective=(
+                f"joined the investigation already running on {target.subject_id}, "
+                f"started for incident {target.incident_id}"
+            ),
+            now=_utc_now(),
+        )
+    logger.info(
+        "incidents.joined_live_investigation",
+        incident_id=incident.incident_id,
+        run_id=target.run_id,
+        subject=target.subject_id,
+    )
+    return target
+
+
+def _joined_alert_brief(alert: NormalisedAlert, incident: Incident) -> str:
+    """Return what the running investigation is told about the alert that joined.
+
+    Named as another symptom rather than as an instruction. The run is in the
+    middle of reasoning about one failure and this is more evidence about that
+    same subject; telling it what to do with the evidence would be this handler
+    doing the investigating.
+    """
+    stated = ", ".join(f"{key}={value}" for key, value in sorted(alert.labels.items()))
+    return (
+        f"Another alert has fired on the same subject while you were working: "
+        f"{alert.alert_name or incident.title}"
+        f"{f' — {alert.summary}' if alert.summary else ''}\n"
+        f"Labels: {stated}\n"
+        f"It was raised as its own incident ({incident.incident_id}) and attached to "
+        f"this investigation because it is about the same resource. Treat it as a "
+        f"further symptom of what you are already looking at, and say in your report "
+        f"whether it has the same cause."
+    )
 
 
 def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:

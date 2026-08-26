@@ -126,7 +126,7 @@ class UnconfiguredInvestigator:
         """Refuse, naming what is missing. Nothing was taken over to hand back."""
         raise InvestigatorNotConfigured
 
-    async def queue_message(self, run_id: str, text: str) -> None:
+    async def queue_message(self, run_id: str, text: str) -> bool:
         """Refuse, naming what is missing. There is no run to deliver a message on."""
         raise InvestigatorNotConfigured
 
