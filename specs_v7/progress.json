@@ -1,6 +1,6 @@
 {
   "wave": "specs_v7",
-  "updated": "2026-08-25",
+  "updated": "2026-08-26",
   "orchestrator": "Opus 5 lead session (/spec-wave specs_v7)",
   "execution": "pares paralelos por slot conforme EXECUCAO.md — S0: 000 | S1: 001+020 | S2: 010+040 | S3: 030+070 | S4: 050+060 | S5: 080. Worktrees isoladas por implementer; single-write com dono por slot (EXECUCAO.md §2); deploy-stg + acceptance contra staging no fim de cada slot (EXECUCAO.md §3); checkpoint do laço mínimo no fim do S2.",
   "feature_order": [
@@ -400,8 +400,8 @@
   "open_questions": [
     "DEFEITO COM DONO — o portao de remediacao recebe call.arguments vazio no pre_tool_use enquanto a linha gravada em tool_calls carrega os argumentos. Nenhuma escrita vira proposta. Localizado; a camada que os perde nao esta apurada.",
     "DESENHO A REVISITAR — core/agent/hooks/registry.py le um crash de pre_tool_use como Allow, por razao declarada e boa para um gancho de mascaramento. Para o portao do Artigo III isso torna um crash um allow, e quem sustenta a garantia hoje e a rede da capacidade.",
-    "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054) e o slide-over de integracoes (060 T052). Um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
-    "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou.",
+    "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054). O slide-over de integracoes (060 T052) saiu desta entrada em 2026-08-26: o arnes de captura foi consertado para alcancar a rolagem interna do painel, a imagem inteira foi revista, e a baseline esta commitada com o registro de aceitacao dizendo contra o que. A frase original segue valendo para as quatro telas de run — um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
+    "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou. SEGUE ABERTA: tres pontos deste arquivo a contaram como fechada pela reescrita da regra de alerta em ingles, e ela nao estava — ver retificacao_escorador_2026_08_26.",
     "ESCOPO SEM DONA — o sujeito gravado de um incidente pode ser o host do exportador em vez do convidado (casamento por endereco na borda).",
     "ESCOPO SEM DONA — a suite transversal nao tem guarda de que esta olhando para a aplicacao: quatro regras passaram contra a tela de login numa corrida contra staging.",
     "ESCOPO SEM DONA — nada e jamais marcado como citado: as 24 linhas de evidence na instancia tem cited = false, sem excecao."
@@ -448,7 +448,7 @@
     "o_bloqueio_caiu": {
       "medido_antes": "catalogo real de 80 ferramentas: descricao em portugues -> proxmox_start_guest 0,0000 e 57a; em ingles -> 1,8182 e 7a",
       "medido_dentro": "run 88b24f72, selection_rationale gravado: 'ranked 60, offered 40, cut by the ceiling 20' com '+ proxmox_start_guest (0.625)' — 20a de 40, OFERECIDA",
-      "conclusao": "a reescrita da regra em ingles corrigiu de fato o corte. O agente teve, pela primeira vez, a acao que desfaz o estado que o alerta descreve."
+      "conclusao": "a reescrita da regra em ingles corrigiu de fato o corte. O agente teve, pela primeira vez, a acao que desfaz o estado que o alerta descreve. RETIFICADO EM 2026-08-26: a medicao esta certa e a atribuicao de causa nao. A reescrita mudou a ENTRADA do escorador, nao o escorador — e o caminho que serve nem chamava capabilities.registry.selection.select(), o que so passou a acontecer em fe7229e. Ver retificacao_escorador_2026_08_26."
     },
     "estacoes": {
       "E1": "cumprida — alerta ativo em 19:31:49Z, 2m59s depois do stop, sem ninguem emitir nada",
@@ -485,7 +485,7 @@
     },
     "explicacoes_eliminadas_por_medicao": [
       "'o catalogo nao tem acao de infraestrutura' — tem 24 de escrita, 20 de remediacao",
-      "'o escorador corta por idioma' — corrigido; oferecida em 20a de 40 em duas janelas",
+      "'o escorador corta por idioma' — corrigido; oferecida em 20a de 40 em duas janelas [RETIFICADO 2026-08-26: 'corrigido' e falso; ver retificacao_escorador_2026_08_26]",
       "'a evidencia do motivo nao chega' — endpoint consertado, as duas leituras passaram",
       "'a parada parece manutencao' — provocada sem registro de tarefa nenhum"
     ],
@@ -505,7 +505,7 @@
     },
     "cadeia_de_cinco_explicacoes_eliminadas": [
       "1 catalogo sem acao de infraestrutura — falso: 24 de escrita, 20 de remediacao",
-      "2 escorador corta pelo idioma — corrigido pela regra em ingles; oferecida em 20a de 40",
+      "2 escorador corta pelo idioma — corrigido pela regra em ingles; oferecida em 20a de 40 [RETIFICADO 2026-08-26: nao foi corrigido; ver retificacao_escorador_2026_08_26]",
       "3 evidencia do motivo nao chega — endpoint do Proxmox consertado, as duas leituras passam",
       "4 a parada parece manutencao — provocada com kill -9 no init, sem registro de tarefa",
       "5 o agente nao sabe que pode propor — INVESTIGATION_SYSTEM_PROMPT; ele chamou",
@@ -513,5 +513,15 @@
     ],
     "licao_de_metodo": "As cinco primeiras foram deduzidas de leitura de codigo e de contagens. A que valeu veio do log do processo no instante da falha, que ninguem tinha aberto em quatro janelas.",
     "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25-c/"
+  },
+  "retificacao_escorador_2026_08_26": {
+    "o_que_este_registro_dizia": "Que o escorador de capacidades estava corrigido, e que o conserto foi a reescrita da regra de alerta em ingles. Aparece em tres lugares: janela_ct122_2026_08_25.o_bloqueio_caiu.conclusao, janela_ct122_2026_08_25_b.explicacoes_eliminadas_por_medicao[1] e janela_ct122_2026_08_25_c.cadeia_de_cinco_explicacoes_eliminadas[1]. As tres frases seguem escritas onde estavam, marcadas com um apontador para aqui. Nenhuma foi apagada: um registro que muda sem dizer que mudou e o mesmo defeito outra vez.",
+    "o_que_era_verdade": "A medicao. proxmox_start_guest saiu de cortada para oferecida — 20a de 40, escore 0,625, lido do selection_rationale de runs reais em tres janelas contra staging. Isso aconteceu, e a reescrita da regra em ingles e o que mudou entre o antes e o depois.",
+    "o_que_era_falso": "Que isso fosse um conserto. A reescrita mudou a ENTRADA, nao o mecanismo: capabilities/registry/scoring.py::_terms segue tokenizando com [a-z0-9_]+ e filtrando 26 palavras vazias so em ingles, e SCORE_STOP_WORDS segue sendo essa lista. Um alerta em portugues continua pontuando todas as capacidades em zero, e o desempate continua sendo ordem alfabetica. Escrever o alerta na lingua que o escorador entende nao e consertar o escorador; e parar de mostrar a ele a lingua que ele nao entende.",
+    "o_elo_que_ninguem_tinha_visto": "Mais fundo que a lingua: o caminho que serve NUNCA chamou capabilities.registry.selection.select(). O runner pegava o topo N de uma ordenacao. Fora do proprio pacote capabilities/registry/, os unicos importadores de select eram dois testes — tests/unit/capabilities/registry/test_selection.py e tests/contract/integrations/test_catalogue_wide_guarantees.py. Quatro mecanismos (ordenacao pelo plano, puxada dirigida por skill, reserva e supressao por anti-exemplo) mergeados, testados e inalcancaveis a partir de qualquer raiz de serving. E exatamente o defeito que o Artigo XIV nomeia: um teste que passa prova que um mecanismo se comporta como desenhado, nunca que algo num deployment em execucao o chama.",
+    "por_quanto_tempo_esteve_aberto": "Vinte e um dias. capabilities/registry/selection.py nasceu em 68c1e150 (2026-08-05, 'build the unified capability catalogue') e so passou a ser chamado do caminho de serving em fe7229e (2026-08-26). A onda v7 inteira correu com o elo aberto. Nenhuma das medicoes contra staging podia te-lo pego: elas mediam o que foi OFERECIDO, e a oferta vinha do corte por topo N — a mesma linha que fazia o seletor ser desnecessario e por isso invisivel.",
+    "o_que_fechou_o_elo": "fe7229e, 'rank on what the incident is about, not on who reported it'. Tres coisas na aritmetica e uma no caminho: (1) um termo novo para o SUJEITO do incidente, peso 40, lido do recurso que a resolucao de alerta ja tinha casado antes de qualquer chamada de modelo; (2) o termo da fonte do alerta caiu de 40 para 10 — um deployment que roteia todo alerta por um receiver dava aos ferramentais desse receiver o maior termo da formula em todo incidente que ele tera; (3) dominio e tags passaram a ser lidos dos rotulos do proprio alerta, porque chegavam vazios de um deployment que serve, e o resumo contra o qual a sobreposicao lexica corre foi alargado alem do objetivo; (4) o runner parou de pegar o topo N e passou a entregar o catalogo estreitado a select().",
+    "o_que_continua_aberto": "A dependencia de idioma. Nada declara que a selecao de ferramentas depende da lingua em que o alerta foi escrito, e o escorador segue com a lista de palavras vazias so em ingles. Continua em open_questions como ESCOPO SEM DONA, que e onde sempre esteve — o que muda aqui e que ela nunca deveria ter sido contada como fechada.",
+    "licao": "As tres frases retificadas foram escritas a partir de uma medicao verdadeira. O erro nao foi medir errado; foi ler uma melhora no resultado como prova de que a causa suposta era a causa real. Uma medicao contra staging responde 'mudou?', nunca 'por que?' — e a pergunta 'quem chama isso?' nao aparece em contagem nenhuma de runs."
   }
 }
