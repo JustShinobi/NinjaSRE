@@ -374,7 +374,11 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
 
       <div className="mt-4">{content}</div>
 
+      {/* One heading, four labels. The word "Advanced" was the first word of
+          all four titles, so the distinguishing word arrived second — down the
+          left edge, which is exactly where the eye scans. */}
       <div className="flex flex-col gap-3 mt-5">
+        <h3 className="text-strong">{message(locale, 'knowledge.advanced.heading')}</h3>
         <AdvancedConfigSection
           title={message(locale, 'knowledge.advanced.changes.title')}
           prefix={CHANGES_ADVANCED_PREFIX}

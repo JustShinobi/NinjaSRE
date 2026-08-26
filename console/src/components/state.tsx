@@ -68,7 +68,13 @@ export function EmptyState({
         {icon ?? <InboxIcon size="empty" />}
       </span>
       <h4 className="text-strong">{heading}</h4>
-      <p className="text-muted text-small max-w-prose">{body}</p>
+      {/* The block stays centred; the sentence does not. Centring is fine for
+          a line and costs a reader real effort at three, because every line
+          starts at a different x and the eye has to find the beginning of each
+          one. Knowledge's empty state is four lines long and explains the two
+          ways a document can arrive — exactly the case where a ragged right
+          edge and a fixed left one is the readable shape. */}
+      <p className="text-muted text-small max-w-prose text-left">{body}</p>
       {action.href === undefined ? (
         <Button
           variant="primary"

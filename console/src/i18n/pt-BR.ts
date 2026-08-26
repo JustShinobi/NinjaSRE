@@ -1007,17 +1007,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'knowledge.proposals.empty.body':
     'Quando uma investigação aprende algo que vale a pena escrever, propõe a mudança aqui em vez de a fazer.',
   'knowledge.proposals.empty.action': 'Ver os documentos',
-  'knowledge.advanced.changes.title': 'Avançado: origem das mudanças',
+  'knowledge.advanced.heading': 'Ajustes avançados',
+  'knowledge.advanced.changes.title': 'Origem das mudanças',
   'knowledge.advanced.field.repositoryPath': 'Caminho do repositório',
   'knowledge.advanced.field.gitHostVendor': 'Provedor do git host',
   'knowledge.advanced.field.gitHostRepository': 'Repositório do git host',
-  'knowledge.advanced.knowledge.title': 'Avançado: acesso ao conhecimento',
+  'knowledge.advanced.knowledge.title': 'Acesso ao conhecimento',
   'knowledge.advanced.field.topologyEnabled': 'Seguir a topologia de recursos',
   'knowledge.advanced.field.knowledgeBaseEnabled': 'Buscar na base de conhecimento',
-  'knowledge.advanced.memory.title': 'Avançado: memória episódica',
+  'knowledge.advanced.memory.title': 'Memória episódica',
   'knowledge.advanced.field.memoryReadEnabled': 'Recuperar incidentes anteriores',
   'knowledge.advanced.field.memoryWriteEnabled': 'Registrar investigações concluídas',
-  'knowledge.advanced.strategy.title': 'Avançado: estratégia',
+  'knowledge.advanced.strategy.title': 'Estratégia',
   'knowledge.advanced.field.strategyEnabled': 'Oferecer playbooks destilados',
 
   'topology.graph.title': 'Vizinhança',
@@ -1769,10 +1770,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.simulate.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'data.simulate.malformed': 'Isso n\u00e3o \u00e9 JSON v\u00e1lido.',
   'data.delivery.title': 'Para onde vai o resultado',
-  'settings.schedulesDestinations.advanced.transit.title':
-    'Avan\u00e7ado: regras de roteamento e destinos de entrega',
-  'settings.schedulesDestinations.advanced.surfaces.title':
-    'Avan\u00e7ado: canais de chat, destinat\u00e1rios de relat\u00f3rio e alvos de notifica\u00e7\u00e3o',
+  'settings.schedulesDestinations.advanced.transit.title': 'Regras de roteamento e destinos de entrega',
+  'settings.schedulesDestinations.advanced.surfaces.title': 'Canais de chat, destinatários de relatório e alvos de notificação',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Regras de roteamento',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Destinos de entrega',

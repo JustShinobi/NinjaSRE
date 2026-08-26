@@ -227,13 +227,11 @@ export const EN = {
   'data.simulate.unreachable': 'The deployment could not be reached.',
   'data.simulate.malformed': 'That is not valid JSON.',
   'data.delivery.title': 'Where the result goes',
-  'settings.schedulesDestinations.advanced.transit.title':
-    'Advanced: routing rules and delivery destinations',
+  'settings.schedulesDestinations.advanced.transit.title': 'Routing rules and delivery destinations',
   // No noun in this title may repeat one from `advanced.transit.title` above
   // — the chain on Alert intake promises "destination" and has to land on
   // the one section that owns it, unambiguously.
-  'settings.schedulesDestinations.advanced.surfaces.title':
-    'Advanced: chat channels, report recipients and notification sinks',
+  'settings.schedulesDestinations.advanced.surfaces.title': 'Chat channels, report recipients and notification sinks',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Routing rules',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Delivery destinations',
@@ -1232,17 +1230,18 @@ export const EN = {
   // Advanced, collapsed sections on the Documents tab: policy switches for
   // what an investigation may consult, and where the change source reads
   // from — technical groups the raw configuration editor used to carry.
-  'knowledge.advanced.changes.title': 'Advanced: change source',
+  'knowledge.advanced.heading': 'Advanced settings',
+  'knowledge.advanced.changes.title': 'Change source',
   'knowledge.advanced.field.repositoryPath': 'Repository path',
   'knowledge.advanced.field.gitHostVendor': 'Git host vendor',
   'knowledge.advanced.field.gitHostRepository': 'Git host repository',
-  'knowledge.advanced.knowledge.title': 'Advanced: knowledge access',
+  'knowledge.advanced.knowledge.title': 'Knowledge access',
   'knowledge.advanced.field.topologyEnabled': 'Follow resource topology',
   'knowledge.advanced.field.knowledgeBaseEnabled': 'Search the knowledge base',
-  'knowledge.advanced.memory.title': 'Advanced: episodic memory',
+  'knowledge.advanced.memory.title': 'Episodic memory',
   'knowledge.advanced.field.memoryReadEnabled': 'Recall past incidents',
   'knowledge.advanced.field.memoryWriteEnabled': 'Record finished investigations',
-  'knowledge.advanced.strategy.title': 'Advanced: strategy',
+  'knowledge.advanced.strategy.title': 'Strategy',
   'knowledge.advanced.field.strategyEnabled': 'Offer distilled playbooks',
 
   // --- Topology ---------------------------------------------------------------------------

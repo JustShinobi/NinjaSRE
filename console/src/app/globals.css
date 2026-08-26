@@ -322,3 +322,33 @@
 @theme inline {
   --container-page: var(--width-page);
 }
+
+/*
+ * A disclosure that opens with the console's own chevron.
+ *
+ * `<details>` ships with the browser's triangle, which is the one glyph on
+ * these screens that no stylesheet here chose: it is a different shape, a
+ * different weight and a different colour on every platform, and it appeared
+ * seven times across Knowledge, The agent and Settings. The marker goes, and
+ * the summary draws a chevron from the same icon set as everything else —
+ * rotated by the element's own open state rather than by any script.
+ */
+@utility disclosure {
+  & > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  & > summary [data-disclosure-chevron] {
+    transition: transform var(--dur-hover) ease;
+  }
+
+  &[open] > summary [data-disclosure-chevron] {
+    transform: rotate(90deg);
+  }
+}
