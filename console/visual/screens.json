@@ -315,14 +315,13 @@
     {
       "id": "run-detail-live-1440-light",
       "route": "/runs/run-0003",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach."
-      },
-      "pending_because": "Reviewed as an image on 2026-08-25 and NOT accepted. The live controls are right and are the asymmetry this entry exists for — take over, stop, the add-context field, and a pending question with its answer controls, none of which the settled baselines show. What blocks acceptance is on the same card: the transcript header counts '6 events' and its body says 'This investigation recorded no events.' A counter and its own list contradicting each other is what the transversal counter rule exists to catch, and freezing it as a baseline would make the picture the record of the defect. Accept once the two agree."
+        "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach. Held once and rejected, on the transcript card contradicting itself: the header counted the replay the server had read while the body drew the stream, so the card said “6 events” over “This investigation recorded no events.” Both halves read the live run now, and the picture is what that looks like — “0 events” beside a Reconnecting badge, over a body saying the same thing. Nought rather than six is the honest reading of this capture and not a loss: the fixture server answers reads and serves no stream, so nothing has arrived, and the badge beside the count is what says so. Reviewed image by image on 2026-08-26 against this entry's own criteria and accepted on what the picture shows. Two things the picture also shows, named here so accepting it does not read as endorsing them. The sidebar's group labels are sentence case — “The environment”, “Settings” — where every other committed baseline still has them shouting; that is the design change that stopped the labels shouting, already committed, and no baseline has been recaptured for it yet, so this one is ahead of the rest of the set rather than the set being wrong. And the run's title is “alert investigation”, a generic label rather than a sentence, for the same reason the settled run-detail baselines carry it: the fixture stores that string in the headline field."
+      }
     },
     {
       "id": "runs-1440-light",
