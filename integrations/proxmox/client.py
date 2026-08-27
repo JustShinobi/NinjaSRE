@@ -919,10 +919,35 @@ def _task(row: Mapping[str, Any]) -> TaskRecord:
         exit_status=str(row.get("exitstatus", "")),
         node=str(row.get("node", packed.get("node", ""))),
         user=str(row.get("user", packed.get("user", ""))),
-        vmid=int(row.get("id", packed.get("id", 0)) or 0),
+        vmid=_guest_of(row.get("id", packed.get("id", 0))),
         started_at=int(row.get("starttime", packed.get("starttime", 0)) or 0),
         ended_at=int(row.get("endtime", 0) or 0),
     )
+
+
+def _guest_of(value: Any) -> int:
+    """Return the guest a task is about, or nought when it is about no guest.
+
+    A task's ``id`` means whatever its type means: the vmid for a guest
+    operation, the datastore for a backup, the node's own name for anything
+    about the node. Reading all three as an integer raised ``ValueError`` on
+    the first ``vzdump`` or ``srvstop`` in the log — and because the parse ran
+    over the whole list, one such row took every task with it.
+
+    That cost three capabilities at once: the guest's task history, backup
+    coverage and backup failures all read this log, so on a cluster that takes
+    backups they failed together and kept failing. It is what stopped an
+    investigation from ever learning that a container had been shut down by
+    hand — the evidence was a few rows below one that would not parse.
+
+    Nought rather than a raise or a sentinel, because ``vmid`` already means
+    "which guest" and every reader compares it to a guest's own id. A task
+    about the node matches no guest, which is exactly true.
+    """
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _with_polls(record: TaskRecord, polls: int) -> TaskRecord:

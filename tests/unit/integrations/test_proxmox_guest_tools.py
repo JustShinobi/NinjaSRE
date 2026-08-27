@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import pytest
 
+from integrations.proxmox.client import _task
 from integrations.proxmox.tools.guest_pressure import proxmox_guest_pressure
 from integrations.proxmox.tools.guest_start_diagnosis import proxmox_guest_start_diagnosis
 from integrations.proxmox.tools.guest_tasks import proxmox_guest_tasks
@@ -325,3 +326,63 @@ async def test_the_targets_that_could_take_the_guest_are_reported_by_name() -> N
     assert PRIMARY in targets
     assert not targets[PRIMARY]["can_receive"]
     assert targets[PRIMARY]["reasons"]
+
+
+class TestATaskThatIsNotAboutAGuest:
+    """A node's task log is not a guest's, and Proxmox says so in the id field.
+
+    ``UPID:node:pid:pstart:starttime:type:id:user:`` packs an ``id`` whose
+    meaning follows the task type. For a guest operation it is the vmid. For a
+    backup it is the storage. For anything about the node itself it is the node
+    name. `_task` read all three as ``int(...)``, so a single ``vzdump`` or
+    ``srvstop`` entry anywhere in the log raised ``ValueError`` and took the
+    whole call down with it.
+
+    That is worse than losing one row, and worse than it looks. Three
+    capabilities read this log — the guest's task history, backup coverage and
+    backup failures — so on a cluster that takes backups, all three fail
+    together and permanently. It is the failure that stopped a real
+    investigation from ever learning that a container had been shut down by
+    hand: the evidence was three rows further down a list that never parsed.
+
+    Compounding it, ``ValueError`` classifies as ``invalid_arguments``, so the
+    model is told the arguments it sent were wrong. They were not, and it
+    retries with different ones.
+    """
+
+    def test_a_task_whose_id_names_a_node_does_not_take_the_log_with_it(self) -> None:
+        record = _task(
+            {
+                "upid": "UPID:pve01:0000ABCD:00000000:68943A10:srvstop:pve01:root@pam:",
+                "type": "srvstop",
+                "status": "OK",
+                "id": "pve01",
+            }
+        )
+
+        assert record.vmid == 0, "a task about the node is not a task about guest 0"
+        assert record.task_type == "srvstop"
+        assert record.node == "pve01"
+
+    def test_a_backup_task_keyed_by_its_datastore_is_read_the_same_way(self) -> None:
+        record = _task(
+            {
+                "upid": "UPID:pve02:0000BEEF:00000000:68943A10:vzdump:local-lvm:root@pam:",
+                "type": "vzdump",
+                "id": "local-lvm",
+            }
+        )
+
+        assert record.vmid == 0
+
+    def test_a_guest_task_still_carries_its_guest(self) -> None:
+        """The whole point of the field, which the repair must not cost."""
+        record = _task(
+            {
+                "upid": "UPID:pve01:0000ABCD:00000000:68943A10:vzshutdown:122:root@pam:",
+                "type": "vzshutdown",
+                "id": "122",
+            }
+        )
+
+        assert record.vmid == 122
