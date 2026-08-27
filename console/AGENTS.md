@@ -49,9 +49,10 @@ delete — the next run provisions it again.
 
 ## Every check, and how to run one
 
-`make verify` runs all of these. Each is also a target of its own, because a
-contributor fixing a type error should not have to sit through a browser suite
-to find out whether they fixed it.
+`make verify` runs the static checks through `make console-static`. The complete
+set remains available through `make console-check`, and each check is also a
+target of its own, because a contributor fixing a type error should not have to
+sit through a browser suite to find out whether they fixed it.
 
 | Target | What fails it |
 |---|---|

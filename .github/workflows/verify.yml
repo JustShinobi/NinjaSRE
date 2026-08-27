@@ -106,8 +106,8 @@ jobs:
     # container runtime and the Windows one runs Windows containers, so this is
     # the only place the comparison is meaningful.
     #
-    # `make verify` runs it too, and skips with a name where it cannot. This job
-    # is where it is enforced.
+    # `make verify` runs the static console checks. This job is where the visual
+    # comparison is enforced.
     runs-on: ubuntu-latest
 
     env:
@@ -161,9 +161,9 @@ jobs:
   console-e2e-compose:
     name: console end to end (compose stack)
     # The deployment's own compose definition: a real gateway against a real
-    # database. `make verify` runs the same suite against the committed dataset,
-    # which is deterministic and fast; this is the half that would catch a
-    # console working against the dataset and not against the application.
+    # database. `make verify` runs the static console checks against the
+    # committed dataset; this job is the half that catches a console working
+    # against the dataset and not against the application.
     #
     # Its own job because it builds four images and brings up a stack, which is
     # minutes rather than seconds.

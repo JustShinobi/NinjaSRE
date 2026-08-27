@@ -23,6 +23,7 @@ Three things are never skipped, whatever the environment:
 Usage::
 
     python -m tools.console_gate all
+    python -m tools.console_gate static
     python -m tools.console_gate typecheck
 
 Exits 0 when the requested checks passed or were skipped by policy, 1 when one
@@ -84,7 +85,8 @@ SCRIPTED: Final[tuple[Check, ...]] = (
     Check("build", "build", "the production build"),
 )
 
-#: Every check name ``all`` runs, in order.
+#: Every check name ``all`` runs, in order. The browser checks stay here so the
+#: complete gate and the dedicated targets retain their full coverage.
 ORDER: Final[tuple[str, ...]] = (
     "lockfile",
     "format-check",
@@ -97,6 +99,11 @@ ORDER: Final[tuple[str, ...]] = (
     "budget",
     "e2e",
     "visual",
+)
+
+#: The checks ``make verify`` runs for the console: everything except browsers.
+STATIC_ORDER: Final[tuple[str, ...]] = tuple(
+    check for check in ORDER if check not in {"e2e", "visual"}
 )
 
 
@@ -430,6 +437,20 @@ def one(name: str) -> int:
     raise SystemExit(f"console gate: {name} is not a check")
 
 
+def _run_checks(names: Iterable[str]) -> int:
+    """Run checks in ``names``, stopping at the first failure."""
+    for name in names:
+        status = one(name)
+        if status != 0:
+            return status
+    return 0
+
+
+def static() -> int:
+    """Run the console checks that do not drive a browser."""
+    return _run_checks(STATIC_ORDER)
+
+
 def every() -> int:
     """Run the whole console gate, stopping at the first failure.
 
@@ -449,18 +470,18 @@ def every() -> int:
             file=sys.stderr,
         )
 
-    for name in names:
-        status = one(name)
-        if status != 0:
-            return status
-    return 0
+    return _run_checks(names)
 
 
 def _main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="console_gate", description=__doc__)
-    parser.add_argument("check", choices=("all", *ORDER))
+    parser.add_argument("check", choices=("all", "static", *ORDER))
     arguments = parser.parse_args(argv)
-    return every() if arguments.check == "all" else one(arguments.check)
+    if arguments.check == "all":
+        return every()
+    if arguments.check == "static":
+        return static()
+    return one(arguments.check)
 
 
 if __name__ == "__main__":

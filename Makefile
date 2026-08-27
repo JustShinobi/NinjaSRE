@@ -18,7 +18,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	console-setup console-install console-format console-format-check \
 	console-lockfile console-lint console-typecheck console-test console-build \
 	console-client console-client-check console-budget console-e2e console-e2e-run \
-	console-e2e-sweep console-visual console-visual-accept console-check \
+	console-e2e-sweep console-visual console-visual-accept console-static console-check \
 	console-dynamic-routes \
 	check-console-boundary \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
@@ -411,10 +411,10 @@ e2e-proxmox-laboratory: ## Run the destructive Proxmox scenarios against the lab
 # --- The console ---------------------------------------------------------------
 #
 # The console is TypeScript, so none of the Python tooling above sees it. These
-# targets are how it is held to the same standard: every one of them is part of
-# `verify`, and every one of them is individually runnable, because a
-# contributor fixing a type error should not have to sit through a browser suite
-# to find out whether they fixed it.
+# targets are how it is held to the same standard: the static checks are part of
+# `verify`, and every check is individually runnable. The browser checks remain
+# explicit targets because a contributor fixing a type error should not have to
+# sit through a browser suite to find out whether they fixed it.
 #
 # Each is a thin wrapper over `tools/console_gate.py`, which owns the one piece
 # of policy that cannot live in a Makefile: what to do on a machine that has no
@@ -481,6 +481,9 @@ console-visual: ## Compare every registered screen against its committed baselin
 # the acceptance is the commit somebody reviews.
 console-visual-accept: ## Recapture the baselines, for review as a committed change
 	$(RUN) python -m tools.console_visual accept
+
+console-static: ## Run the console checks without browser or visual-baseline suites
+	$(RUN) python -m tools.console_gate static
 
 console-check: ## Every console check, cheapest failure first
 	$(RUN) python -m tools.console_gate all
@@ -597,9 +600,9 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 
 # The single gate CI runs. Ordered cheapest-first so an obvious failure reports
 # in seconds rather than after the suite.
-# The console's checks come after the Python ones and before the Python suite:
-# they are the ones a contributor is most likely to have broken while working on
-# the console, and the Python suite is the longest single step in the gate.
+# The console's static checks come after the Python ones and before the Python
+# suite. Browser and visual-baseline checks remain available through their
+# dedicated targets and are included in `ci-run` below.
 
 
 
@@ -715,7 +718,7 @@ verify: lint format-check typecheck check-imports check-constants \
 	check-run-status-vocabulary check-incident-states \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
-	console-check test ## The single quality gate
+	console-static test ## The single quality gate
 
 # Which wave of specs the branch/slug contract reads. Override per invocation
 # (`make close-task SPECS_DIR=specs_v2`) or export NINJASRE_SPECS_DIR once for a

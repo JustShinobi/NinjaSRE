@@ -32,7 +32,7 @@ from config.constants.console import (
     NINJASRE_CONSOLE_BASE_URL_ENV,
 )
 from config.constants.fixtures import FIXTURE_CONTRACT_DIR_NAME, FIXTURE_OPENAPI_FILENAME
-from tools.console_gate import ORDER, SCRIPTED
+from tools.console_gate import ORDER, SCRIPTED, STATIC_ORDER
 from tools.console_toolchain import REPO_ROOT, console_root, read_pin
 
 pytestmark = pytest.mark.contract
@@ -131,15 +131,28 @@ def test_every_check_is_individually_runnable_from_the_makefile(check: str) -> N
     assert f"\nconsole-{check}:" in MAKEFILE, f"there is no `make console-{check}` target"
 
 
-def test_the_gate_runs_every_console_check() -> None:
-    """`make verify` is the definition of done, so nothing may sit outside it."""
+def test_verify_uses_the_static_gate_and_browser_checks_remain_explicit() -> None:
+    """`verify` skips browsers while `all` and dedicated targets retain them."""
     verify = MAKEFILE.split("\nverify:", 1)[1].split("## The single quality gate")[0]
-    assert "console-check" in verify
+    assert "console-static" in verify
+    assert "console-check" not in verify
 
     scripted = {check.name for check in SCRIPTED}
     assert scripted <= set(ORDER), "a scripted check is not in the order `all` runs"
-    for required in ("format-check", "lint", "typecheck", "test", "build", "e2e", "visual"):
-        assert required in ORDER, f"the gate does not run {required}"
+    assert set(STATIC_ORDER) == set(ORDER) - {"e2e", "visual"}
+    assert ORDER[-2:] == ("e2e", "visual")
+    assert "console-check:" in MAKEFILE
+    assert "python -m tools.console_gate all" in MAKEFILE
+    for browser_check in ("e2e", "visual"):
+        assert browser_check in ORDER
+        assert f"\nconsole-{browser_check}:" in MAKEFILE
+        assert f"python -m tools.console_gate {browser_check}" in MAKEFILE
+
+
+def test_the_static_gate_has_its_own_make_target() -> None:
+    """The verify path remains runnable independently of the full console gate."""
+    assert "\nconsole-static:" in MAKEFILE
+    assert "python -m tools.console_gate static" in MAKEFILE
 
 
 def test_the_build_output_is_servable_behind_a_proxy_on_a_configured_path() -> None:
