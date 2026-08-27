@@ -823,9 +823,30 @@ export const EN = {
   'run.why.none': 'This investigation never assessed its own evidence.',
   'run.todo.none': 'Nothing from this investigation is waiting on a person.',
   'run.did.summary': '{events} events across {turns} turns',
+  // What the section counts once the trace records stages. Turns are still
+  // counted for a run whose trace holds none, because that run genuinely has
+  // nothing but turns and saying "0 stages" about it would be a fact about
+  // this console rather than about the investigation.
+  'run.did.stages': '{events} events across {stages} stages',
   'run.did.calls': '{calls} calls',
+  'run.did.more': 'Show {count} more calls',
   'run.did.noRationale': 'This turn recorded no reasoning.',
   'run.did.wroteReport': 'This turn wrote the report above.',
+  // The six stages, named as an operator reads them rather than as the trace
+  // spells them. `gather_evidence` is a field name; "Gather evidence" is what
+  // the stage is called on the screen that has always described the six.
+  'run.stage.resolve_integrations': 'Resolve integrations',
+  'run.stage.intake': 'Intake',
+  'run.stage.plan_evidence': 'Plan evidence',
+  'run.stage.gather_evidence': 'Gather evidence',
+  'run.stage.diagnose': 'Diagnose',
+  'run.stage.deliver': 'Deliver',
+  // What a stage that produced no loop turn shows instead. Not a stand-in for
+  // a turn: intake and diagnosis each make one model call and hand back a
+  // value, and this is that call counted. A stage with neither turns nor model
+  // calls made none, which is also true and also worth being able to see.
+  'run.stage.modelCalls': '{calls} model calls',
+  'run.stage.noFinding': 'This stage recorded no finding.',
   'run.report.copy': 'Copy as Markdown',
   'run.report.copied': 'Copied',
   'run.report.copyRefused': 'The browser refused the clipboard',

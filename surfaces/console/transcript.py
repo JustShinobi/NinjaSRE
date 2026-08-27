@@ -49,6 +49,7 @@ MAX_INLINE_RESULT_CHARS: Final = 2_000
 #: three in the morning should not have to translate.
 EVENT_LABELS: Final[Mapping[TraceEventKind, str]] = {
     TraceEventKind.RUN_STARTED: "Investigation started",
+    TraceEventKind.STAGE_COMPLETED: "Stage finished",
     TraceEventKind.TURN_COMPLETED: "Thought",
     TraceEventKind.CAPABILITY_CALLED: "Capability call",
     TraceEventKind.EVIDENCE_OBSERVED: "Evidence",

@@ -23,12 +23,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
+from config.constants.runs import (
+    STAGE_DETAIL_COMPLETION_TOKENS,
+    STAGE_DETAIL_FINDING,
+    STAGE_DETAIL_LLM_CALLS,
+    STAGE_DETAIL_PROMPT_TOKENS,
+    TURN_PAYLOAD_STAGE,
+)
 from core.agent.session import EvidenceEntry, Session
 from core.agent.turn import Turn
 from core.capability.telemetry import InvocationOutcome
+from core.pipeline.streaming import PipelineEvent, PipelineEventKind
+from core.state.types import StageName
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.ports.run_trace_store import ToolCallStatus
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
@@ -65,6 +74,20 @@ def _result_of(entries: list[EvidenceEntry]) -> Mapping[str, Any]:
     return {"content": entries[0].content}
 
 
+def _counted(value: str | None) -> int:
+    """Return a number the pipeline put on a stage's detail, or nought.
+
+    The stream's detail is a string-to-string mapping, so every count crosses
+    it as text. Anything unreadable counts as nothing rather than raising: a
+    malformed detail should cost a stage its token line, never the run its
+    trace.
+    """
+    try:
+        return int(value or 0)
+    except ValueError:
+        return 0
+
+
 @dataclass(slots=True)
 class RunTraceRecordingHook:
     """Writes what one investigation did, as it happens, through ``RunRecorder``.
@@ -72,6 +95,22 @@ class RunTraceRecordingHook:
     One instance per investigation — the same granularity
     ``ReActInvestigationRunner`` already composes a loop at — so the run id
     this hook writes under is never in question.
+
+    It is registered at two points, on two different channels, and the pairing
+    is the whole reason a trace can be read by stage.
+
+    ``on_turn_end`` is the loop's, once per iteration, and the loop knows
+    nothing about stages. ``emit`` is the *pipeline's*: this is an
+    ``EventSink`` on the stream the pipeline announces ``stage_start`` and
+    ``stage_end`` on. A pipeline runs its stages strictly in order over one
+    run, and this object belongs to that one run, so the stage that is open
+    when a turn ends is the stage the turn belonged to. Read, not inferred —
+    and it stays true if the stage list ever changes, which is what a
+    heuristic over turn indices or capability names would not.
+
+    A caller that composes no stream still records everything it recorded
+    before. Turns then carry no stage, which is the honest answer for a loop
+    that ran under none of the six.
     """
 
     gateway: PersistenceGateway
@@ -79,6 +118,67 @@ class RunTraceRecordingHook:
     run_id: str
     guardrails: GuardrailEngine | None = field(default=None)
     broker: RunEventBroker | None = field(default=None)
+    #: The stage the pipeline currently has open, and when it opened. Mutable
+    #: and unguarded because a pipeline's stages are sequential and this object
+    #: serves exactly one of them at a time; a hook shared between runs would
+    #: be wrong for reasons that start well before this field.
+    _stage: StageName | None = field(default=None, init=False)
+    _stage_started_at: datetime | None = field(default=None, init=False)
+
+    async def emit(self, event: PipelineEvent) -> None:
+        """Follow the pipeline's stage boundaries, and write a record at each end.
+
+        The only three kinds that mean anything here. Everything else on the
+        stream — thoughts, tool calls, the result — already reaches the trace
+        through the loop's own hooks, and taking it twice would double every
+        call in the record.
+
+        A stage that failed is recorded from the ``error`` event rather than
+        from a ``stage_end`` that never arrives: the lifecycle emits one and
+        not the other, and a stage that raised is exactly the stage somebody
+        opens the trace to read about.
+        """
+        match event.kind:
+            case PipelineEventKind.STAGE_START if event.stage is not None:
+                self._stage = event.stage
+                self._stage_started_at = event.occurred_at
+            case PipelineEventKind.STAGE_END if event.stage is not None:
+                await self._write_stage(event, failed=False)
+            case PipelineEventKind.ERROR if event.stage is not None:
+                await self._write_stage(event, failed=True)
+            case _:
+                return
+
+    async def _write_stage(self, event: PipelineEvent, *, failed: bool) -> None:
+        """Record the stage ``event`` closes, and forget it was open."""
+        detail = event.detail
+        finding = detail.get(STAGE_DETAIL_FINDING, "") or (event.text if failed else "")
+        async with self.gateway.begin(self.scope) as uow:
+            await RunRecorder(
+                store=uow.run_traces, guardrails=self.guardrails, broker=self.broker
+            ).record_stage(
+                self.run_id,
+                stage=event.stage.value if event.stage is not None else "",
+                finding=finding,
+                duration_ms=self._elapsed_to(event.occurred_at),
+                prompt_tokens=_counted(detail.get(STAGE_DETAIL_PROMPT_TOKENS)),
+                completion_tokens=_counted(detail.get(STAGE_DETAIL_COMPLETION_TOKENS)),
+                llm_calls=_counted(detail.get(STAGE_DETAIL_LLM_CALLS)),
+                failed=failed,
+            )
+        self._stage = None
+        self._stage_started_at = None
+
+    def _elapsed_to(self, ended_at: datetime) -> int:
+        """Return how long the open stage ran, in milliseconds, or nought.
+
+        Nought when no start was seen — a hook attached to a stream mid-run, or
+        a caller emitting an end on its own. A duration invented from the two
+        events that did arrive would be a measurement of the wrong interval.
+        """
+        if self._stage_started_at is None:
+            return 0
+        return int((ended_at - self._stage_started_at).total_seconds() * 1_000)
 
     async def on_turn_end(self, session: Session, turn: Turn) -> None:
         """Record ``turn``, its calls, and the evidence they produced.
@@ -160,6 +260,11 @@ class RunTraceRecordingHook:
             offered_capabilities=turn.offered_capabilities,
             started_at=turn.started_at,
             finished_at=finished_at,
+            # The stage the pipeline had open when this turn ended. Absent
+            # rather than defaulted for a loop nobody drove through a pipeline:
+            # a sub-agent's own run and a bare loop belong to none of the six,
+            # and naming one of them would be a stage this turn never ran in.
+            payload=({TURN_PAYLOAD_STAGE: self._stage.value} if self._stage is not None else {}),
         )
 
 

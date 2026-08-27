@@ -14,6 +14,7 @@ one, rather than a stage that cannot be constructed.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
 from core.agent.hooks.registry import HookRegistry
 from core.agent.hooks.types import HookPoint
@@ -38,7 +39,14 @@ from core.pipeline.stages.plan_evidence import PlanEvidenceStage
 from core.pipeline.stages.resolve_integrations import ResolveIntegrationsStage
 from core.pipeline.stages.window_guard import IncidentWindowGuard
 from core.pipeline.streaming import EventStream
-from platform.runs.recording import RunTraceRecordingHook
+
+if TYPE_CHECKING:
+    # Named for the annotation and nothing else. The recorder listens to this
+    # pipeline's stream, so it imports ``core.pipeline.streaming``; importing it
+    # back here at run time closes that loop and neither module can be loaded
+    # first. Nothing below calls a constructor — the hook arrives already built,
+    # from the composition root that knows the run it belongs to.
+    from platform.runs.recording import RunTraceRecordingHook
 
 
 def investigation_hooks(*, recorder: RunTraceRecordingHook | None = None) -> HookRegistry:

@@ -28,16 +28,25 @@ from config.constants.runs import (
     MAX_REPLAY_RESULT_BYTES,
     MAX_REPLAY_RESULT_ITEMS,
     MAX_REPLAY_RESULT_STRING_LENGTH,
+    STAGE_DETAIL_COMPLETION_TOKENS,
+    STAGE_DETAIL_FINDING,
+    STAGE_DETAIL_LLM_CALLS,
+    STAGE_DETAIL_PROMPT_TOKENS,
+    STAGE_EVENT_DURATION_MS,
+    STAGE_EVENT_FAILED,
+    STAGE_EVENT_NAME,
     TRUNCATION_MARKER_KEY,
     TURN_PAYLOAD_CAPABILITIES,
     TURN_PAYLOAD_MODEL_RATIONALE,
     TURN_PAYLOAD_RATIONALE,
+    TURN_PAYLOAD_STAGE,
     TURN_USAGE_COMPLETION_TOKENS,
     TURN_USAGE_COST,
     TURN_USAGE_DURATION_MS,
     TURN_USAGE_MODEL,
     TURN_USAGE_PROMPT_TOKENS,
 )
+from core.state.types import STAGE_ORDER, StageName
 from platform.persistence.ports.run_trace_store import (
     AgentRun,
     RunStatus,
@@ -45,8 +54,9 @@ from platform.persistence.ports.run_trace_store import (
     RunTraceStore,
     ToolCallRecord,
     ToolCallStatus,
+    TraceEventRecord,
 )
-from platform.runs.events import RunEvent
+from platform.runs.events import RunEvent, TraceEventKind
 from platform.runs.truncation import Bounds, truncate
 
 #: What a reader gets of a result, as against what the recorder stored of it.
@@ -146,11 +156,44 @@ class ReplayedTurn:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     calls: tuple[ReplayedCall, ...] = ()
+    #: Which of the six stages this turn ran inside. ``None`` for a turn the
+    #: recorder wrote with no stage open — a sub-agent's own loop, a bare
+    #: runtime, or any run recorded before stages reached the trace.
+    stage: StageName | None = None
 
     @property
     def is_priced(self) -> bool:
         """Return whether this turn carries a recorded cost."""
         return self.cost is not None
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayedStage:
+    """One of the six stages, as a reviewer reads it back.
+
+    ``turns`` is the turns that ran inside it, which for five of the six is
+    empty and stays empty. Only the gathering stage drives the loop; intake and
+    diagnosis each make a model call of their own and hand back a value, and
+    resolving and planning make none at all. ``llm_calls`` is what tells the
+    two apart, and it is the reason this type exists rather than a grouping of
+    the turn list: a stage that made a model call and produced no turn is
+    invisible to any view assembled from turns.
+    """
+
+    stage: StageName
+    finding: str = ""
+    duration_ms: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    llm_calls: int = 0
+    failed: bool = False
+    occurred_at: datetime | None = None
+    turns: tuple[ReplayedTurn, ...] = ()
+
+    @property
+    def tokens(self) -> int:
+        """Return what this stage spent, prompt and completion together."""
+        return self.prompt_tokens + self.completion_tokens
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +207,11 @@ class ReplayedRun:
 
     run: AgentRun
     turns: tuple[ReplayedTurn, ...] = ()
+    #: The stages that finished, in pipeline order. Empty for a run driven
+    #: without a pipeline, and for every run recorded before stages reached the
+    #: trace — which is what ``total_tokens`` below reads to decide whether it
+    #: can state a total or only a floor.
+    stages: tuple[ReplayedStage, ...] = ()
     events: tuple[RunEvent, ...] = ()
     evidence_ids: tuple[str, ...] = ()
 
@@ -182,9 +230,34 @@ class ReplayedRun:
         return sum(1 for turn in self.turns if turn.cost is None)
 
     @property
-    def total_tokens(self) -> int:
-        """Return prompt and completion tokens across every turn."""
+    def turn_tokens(self) -> int:
+        """Return prompt and completion tokens across the recorded turns.
+
+        The loop's spend and nothing else, which for a pipelined run is the
+        gathering stage's alone.
+        """
         return sum(turn.prompt_tokens + turn.completion_tokens for turn in self.turns)
+
+    @property
+    def total_tokens(self) -> int:
+        """Return what the whole run spent, every model call included.
+
+        Summed over the stages when the run recorded any, because only the
+        gathering stage produces turns: intake classifies and diagnosis
+        structures, each on a model call of its own, and a total summed over
+        the turn records leaves both of them out. That is not a rounding error
+        — it is the second and fifth of six stages missing from the number an
+        operator uses to decide whether this is affordable to run on every
+        alert.
+
+        Falls back to the turns for a run with no stages recorded, which is
+        every run written before stages reached the trace and every loop driven
+        without a pipeline. The number is a floor there, and the empty stage
+        list is what says so.
+        """
+        if not self.stages:
+            return self.turn_tokens
+        return sum(stage.tokens for stage in self.stages)
 
     @property
     def degraded_calls(self) -> tuple[ReplayedCall, ...]:
@@ -251,6 +324,7 @@ def replay_trace(
             started_at=record.started_at,
             finished_at=record.finished_at,
             calls=tuple(calls_by_turn.get(record.turn_id, ())),
+            stage=_stage_named(record.payload.get(TURN_PAYLOAD_STAGE)),
         )
         for record in trace.turns
     )
@@ -258,9 +332,68 @@ def replay_trace(
     return ReplayedRun(
         run=trace.run,
         turns=turns,
+        stages=_stages_of(trace.events, turns),
         events=tuple(RunEvent.of(record) for record in trace.events),
         evidence_ids=tuple(item.evidence_id for item in trace.evidence),
     )
+
+
+def _stages_of(
+    events: Sequence[TraceEventRecord], turns: Sequence[ReplayedTurn]
+) -> tuple[ReplayedStage, ...]:
+    """Return the stages ``events`` recorded, in pipeline order, holding their turns.
+
+    Ordered by ``STAGE_ORDER`` rather than by the order the events came back.
+    The pipeline's order is a property of the pipeline; a log paged back out of
+    sequence, or a stage written by a replica whose clock disagreed, must not
+    reorder the account of a run.
+
+    A turn is placed by the stage it recorded for itself, never by falling
+    between two stage boundaries. A turn with no stage on it — a run recorded
+    before this, a loop driven without a pipeline — belongs to no stage and
+    stays where it always was, in ``ReplayedRun.turns``.
+    """
+    recorded: dict[StageName, ReplayedStage] = {}
+    turns_by_stage: dict[StageName, list[ReplayedTurn]] = {}
+    for turn in turns:
+        if turn.stage is not None:
+            turns_by_stage.setdefault(turn.stage, []).append(turn)
+
+    for event in events:
+        if event.kind != TraceEventKind.STAGE_COMPLETED.value:
+            continue
+        named = _stage_named(event.payload.get(STAGE_EVENT_NAME))
+        if named is None:
+            continue
+        recorded[named] = ReplayedStage(
+            stage=named,
+            finding=str(event.payload.get(STAGE_DETAIL_FINDING, "")),
+            duration_ms=int(event.payload.get(STAGE_EVENT_DURATION_MS, 0) or 0),
+            prompt_tokens=int(event.payload.get(STAGE_DETAIL_PROMPT_TOKENS, 0) or 0),
+            completion_tokens=int(event.payload.get(STAGE_DETAIL_COMPLETION_TOKENS, 0) or 0),
+            llm_calls=int(event.payload.get(STAGE_DETAIL_LLM_CALLS, 0) or 0),
+            failed=bool(event.payload.get(STAGE_EVENT_FAILED, False)),
+            occurred_at=event.occurred_at,
+            turns=tuple(turns_by_stage.get(named, ())),
+        )
+
+    return tuple(recorded[name] for name in STAGE_ORDER if name in recorded)
+
+
+def _stage_named(value: Any) -> StageName | None:
+    """Return the stage ``value`` names, or ``None`` when it names none.
+
+    A name outside the six is dropped rather than raised on. A trace written by
+    a newer version of the pipeline is still a trace worth reading, and the
+    stage it holds that this code cannot place is one section missing rather
+    than a run nobody can open.
+    """
+    if not value:
+        return None
+    try:
+        return StageName(str(value))
+    except ValueError:
+        return None
 
 
 def bounded_result(call: ReplayedCall) -> tuple[dict[str, Any], bool]:
@@ -355,6 +488,7 @@ __all__ = [
     "CapabilityDescriptions",
     "ReplayedCall",
     "ReplayedRun",
+    "ReplayedStage",
     "ReplayedTurn",
     "bounded_result",
     "replay_run",

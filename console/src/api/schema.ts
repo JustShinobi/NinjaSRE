@@ -2481,6 +2481,15 @@ export interface paths {
          *     the result since it was recorded; until it was served here, a reader could
          *     see which capabilities a run asked and not one thing any of them answered,
          *     which is a transcript of the questions and none of the findings.
+         *
+         *     The turns arrive twice, and deliberately: flat in ``turns`` and grouped in
+         *     ``stages``. An investigation is six stages, and only the fourth of them
+         *     runs the loop — so the flat list is a complete account of the gathering and
+         *     says nothing about the classification that decided the run was worth
+         *     starting or the diagnosis that structured what it found. The grouping is
+         *     what a reader wants; the flat list is what a client that has never heard of
+         *     a stage still gets, including for the runs recorded before stages reached
+         *     the trace, whose ``stages`` is empty.
          */
         get: operations["replay_v1_runs__run_id__replay_get"];
         put?: never;
@@ -6051,6 +6060,53 @@ export interface components {
             status: string;
         };
         /**
+         * ReplayStageView
+         * @description One of the six stages, with the turns that ran inside it.
+         *
+         *     Five of the six hold no turns and that is the point of serving them. Only
+         *     the gathering stage drives the loop, so a replay of turns alone is a
+         *     detailed account of one stage and silence about the other five — including
+         *     intake and diagnosis, which each spend a model call and turn nothing.
+         *     ``llm_calls`` is what separates "made no turn" from "did nothing", and a
+         *     reader who has only the turn list cannot tell those apart.
+         */
+        ReplayStageView: {
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /**
+             * Failed
+             * @default false
+             */
+            failed: boolean;
+            /**
+             * Finding
+             * @default
+             */
+            finding: string;
+            /**
+             * Llm Calls
+             * @default 0
+             */
+            llm_calls: number;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /** Stage */
+            stage: string;
+            /** Turns */
+            turns: components["schemas"]["ReplayTurnView"][];
+        };
+        /**
          * ReplayTurnView
          * @description One turn as a replay serves it, its calls carrying their results.
          *
@@ -6400,10 +6456,16 @@ export interface components {
             is_interrupted: boolean;
             /** Run Id */
             run_id: string;
+            /** Stages */
+            stages: components["schemas"]["ReplayStageView"][];
             /** Total Cost */
             total_cost: number;
+            /** Total Events */
+            total_events: number;
             /** Total Tokens */
             total_tokens: number;
+            /** Turn Tokens */
+            turn_tokens: number;
             /** Turns */
             turns: components["schemas"]["ReplayTurnView"][];
             /** Unpriced Turns */

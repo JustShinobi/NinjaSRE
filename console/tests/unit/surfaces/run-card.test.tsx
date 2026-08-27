@@ -6,9 +6,11 @@ import { CopyReport } from '@/surfaces/copy-report';
 import {
   RunCard,
   namedEvidence,
+  stagesFrom,
   turnsFrom,
   type RunCardBody,
   type RunCardHead,
+  type RunCardStage,
 } from '@/surfaces/run-card';
 import { EvidenceChip, evidenceOf } from '@/surfaces/run-evidence';
 
@@ -65,6 +67,7 @@ const BODY: RunCardBody = {
   ],
   calls: 2,
   events: 5,
+  stages: [],
   decisions: [],
   waiting: ['May I start the container?'],
   supporting: ['the guest task log names a person'],
@@ -281,6 +284,163 @@ describe('an open card', () => {
     expect(screen.getAllByTestId('run-call')).toHaveLength(2);
     expect(screen.getByText(EN['run.did.noRationale'])).toBeInTheDocument();
     expect(screen.getByText('no log source configured')).toBeInTheDocument();
+  });
+});
+
+/**
+ * An investigation is six stages, and only one of them runs the loop.
+ *
+ * The card used to say "16 events across 6 turns" and list the loop's
+ * iterations, which is a complete account of the fourth stage and silence
+ * about the other five. Two of those five each spend a model call and produce
+ * no turn at all, so they cannot be recovered from the turn list by any amount
+ * of grouping — the deployment has to record them, and this is the half that
+ * draws what it recorded.
+ *
+ * The rule the tests below hold the card to is that a stage which turned
+ * nothing says what it did and does not borrow a turn to look busy.
+ */
+const STAGES: readonly RunCardStage[] = [
+  {
+    stage: 'resolve_integrations',
+    finding: '15 capabilities available on this team',
+    durationMs: 200,
+    llmCalls: 0,
+    failed: false,
+    turns: [],
+  },
+  {
+    stage: 'intake',
+    finding: 'A new incident, not a repeat of one already open',
+    durationMs: 1400,
+    llmCalls: 1,
+    failed: false,
+    turns: [],
+  },
+  {
+    stage: 'gather_evidence',
+    finding: '11 observations gathered',
+    durationMs: 28000,
+    llmCalls: 6,
+    failed: false,
+    turns: BODY.turns,
+  },
+];
+
+describe('the six stages an investigation ran', () => {
+  it('draws the stages in order, each with its own line and its own duration', () => {
+    card({}, { stages: STAGES });
+
+    const stages = screen.getAllByTestId('run-stage');
+    expect(stages.map((stage) => stage.getAttribute('data-stage'))).toEqual([
+      'resolve_integrations',
+      'intake',
+      'gather_evidence',
+    ]);
+    expect(stages[1]).toHaveTextContent(
+      'A new incident, not a repeat of one already open',
+    );
+    expect(stages[1]).toHaveTextContent(EN['run.stage.intake']);
+  });
+
+  it('counts the run by stage rather than by loop iteration', () => {
+    card({}, { stages: STAGES, events: 26 });
+
+    expect(
+      screen.getByText(
+        EN['run.did.stages'].replace('{events}', '26').replace('{stages}', '3'),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('says what a stage that produced no turn did, without inventing one', () => {
+    card({}, { stages: STAGES });
+
+    const intake = screen.getAllByTestId('run-stage')[1];
+    expect(intake?.querySelectorAll('[data-testid="run-call"]')).toHaveLength(0);
+    // The model call it made is the fact that separates "turned nothing" from
+    // "did nothing", and it is the only thing standing in for a turn here.
+    expect(intake).toHaveTextContent(
+      EN['run.stage.modelCalls'].replace('{calls}', '1'),
+    );
+  });
+
+  it('keeps the flat list of turns for a run whose trace recorded no stages', () => {
+    // Every run recorded before the stages reached the trace. The section is
+    // the one it always was rather than an empty grouping.
+    card({}, { stages: [] });
+
+    expect(screen.queryAllByTestId('run-stage')).toHaveLength(0);
+    expect(screen.getAllByTestId('run-turn')).toHaveLength(2);
+  });
+
+  it('still shows a turn whose stage has not finished, rather than dropping it', () => {
+    // A stage is recorded when it *ends*, so a run still gathering has turns
+    // belonging to a stage the trace does not hold yet. Grouping strictly by
+    // the recorded stages would make those turns disappear off the card while
+    // the run they belong to is the one somebody is watching.
+    card({}, { stages: STAGES.slice(0, 2) });
+
+    expect(screen.getAllByTestId('run-stage')).toHaveLength(2);
+    expect(screen.getAllByTestId('run-turn')).toHaveLength(2);
+  });
+
+  it('folds a long stage away past the first few calls', () => {
+    const many = Array.from({ length: 11 }, (_, index) => ({
+      callId: `call-${String(index)}`,
+      name: `capability_${String(index)}`,
+      status: 'succeeded',
+      error: '',
+      durationMs: 100,
+    }));
+    card(
+      {},
+      {
+        stages: STAGES.slice(2).map((stage) => ({
+          ...stage,
+          turns: [{ index: 1, rationale: '', model: 'm', calls: many }],
+        })),
+      },
+    );
+
+    expect(screen.getAllByTestId('run-call')).toHaveLength(11);
+    expect(
+      screen.getByText(EN['run.did.more'].replace('{count}', '6')),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('reading the stages off a replay', () => {
+  it('returns nothing for a replay that recorded none', () => {
+    expect(stagesFrom({})).toEqual([]);
+  });
+
+  it('takes each stage and the turns that ran inside it', () => {
+    const stages = stagesFrom({
+      stages: [
+        {
+          stage: 'intake',
+          finding: 'a new incident',
+          duration_ms: 1400,
+          llm_calls: 1,
+          failed: false,
+          turns: [],
+        },
+        {
+          stage: 'gather_evidence',
+          finding: '2 observations gathered',
+          duration_ms: 28000,
+          llm_calls: 3,
+          failed: false,
+          turns: [{ index: 0, model_rationale: 'look', calls: [] }],
+        },
+      ],
+    });
+
+    expect(stages).toHaveLength(2);
+    expect(stages[0]?.turns).toEqual([]);
+    expect(stages[0]?.llmCalls).toBe(1);
+    expect(stages[1]?.turns[0]?.rationale).toBe('look');
   });
 });
 
