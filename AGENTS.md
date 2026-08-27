@@ -206,6 +206,11 @@ reads the working tree, so it is meant to be run *during* an edit rather than
 after a commit; name the scope yourself when you want something else
 (`make test-fast SCOPE=tests/unit/core/llm`).
 
+A scope goes through the same mapping the automatic mode uses, so
+`SCOPE=platform/memory` — the directory you just edited, not a test path — runs
+`tests/unit/platform/memory`. A scope that maps to nothing is a failure, not an
+empty pass: the target names it and exits non-zero without reaching pytest.
+
 It is not the gate and does not pretend to be. It runs no whole-repository
 sweep, no latency budget, nothing that wants a container, and no console check;
 no rule maps a source file to `tests/architecture`, so a change to the tiers is
