@@ -17,6 +17,8 @@
                 "duration_ms": 412,
                 "error": null,
                 "name": "estate.storage_pressure",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -32,6 +34,8 @@
                 "duration_ms": 188,
                 "error": null,
                 "name": "estate.volume_fill",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -39,6 +43,8 @@
                 "duration_ms": 96,
                 "error": null,
                 "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -125,6 +131,7 @@
                     "start": "2026-08-05T05:19:00+00:00"
                   }
                 },
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -194,6 +201,8 @@
                 "duration_ms": 233,
                 "error": null,
                 "name": "estate.failed_units",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -209,6 +218,8 @@
                 "duration_ms": 0,
                 "error": null,
                 "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
                 "status": "running"
               }
             ],
@@ -274,6 +285,8 @@
                 "duration_ms": 205,
                 "error": null,
                 "name": "estate.backup_job_status",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -284,6 +297,8 @@
                 "duration_ms": 179,
                 "error": null,
                 "name": "estate.backup_job_status",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -302,6 +317,8 @@
                 "duration_ms": 91,
                 "error": null,
                 "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -312,6 +329,8 @@
                 "duration_ms": 133,
                 "error": null,
                 "name": "estate.backup_schedule",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],

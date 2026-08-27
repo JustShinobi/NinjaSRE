@@ -47,6 +47,28 @@ MAX_TRACE_PAYLOAD_DEPTH: Final[int] = 12
 #: marker records how many were dropped.
 MAX_TRACE_SEQUENCE_ITEMS: Final[int] = 200
 
+# --- What a replay serves of those payloads ----------------------------------
+#
+# The bounds above are per *stored row*. A replay serves every call of a run in
+# one response, so the same ceiling multiplied by a run's call count is a
+# multi-megabyte page: forty calls at the trace bound is 2.6 MB. The three
+# below are the reading bounds, an eighth of the writing ones, and they exist
+# so a reader gets enough to state what a call found without the raw vendor
+# body coming with it. The whole recorded body stays in the trace and is
+# reachable per call; it is the summary view that is bounded.
+
+#: Largest JSON one replayed call's result may carry. A forty-call run's replay
+#: stays around 320 KiB at this ceiling, which is a page rather than a download.
+MAX_REPLAY_RESULT_BYTES: Final[int] = 8_192
+
+#: Longest single string kept inside a replayed result. A timeline row is a
+#: sentence; a result that carried a log file is not what it renders.
+MAX_REPLAY_RESULT_STRING_LENGTH: Final[int] = 1_024
+
+#: Most entries kept from one sequence inside a replayed result. Enough for the
+#: handful a reader is shown, far short of the thousand-row table behind it.
+MAX_REPLAY_RESULT_ITEMS: Final[int] = 25
+
 # --- What a run record carries beside its own columns ------------------------
 
 #: Keys inside a run's metadata. They are named here rather than written at each
@@ -172,6 +194,9 @@ __all__ = [
     "MAX_HEADLINE_LENGTH",
     "MAX_MISFIRE_CATCH_UP_RUNS",
     "MAX_STREAM_BUFFER_EVENTS",
+    "MAX_REPLAY_RESULT_BYTES",
+    "MAX_REPLAY_RESULT_ITEMS",
+    "MAX_REPLAY_RESULT_STRING_LENGTH",
     "MAX_TRACE_PAYLOAD_BYTES",
     "MAX_TRACE_PAYLOAD_DEPTH",
     "MAX_TRACE_SEQUENCE_ITEMS",
