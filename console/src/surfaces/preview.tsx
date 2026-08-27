@@ -1060,7 +1060,7 @@ function ObjectList({
     <fieldset
       data-testid="object-list"
       data-path={field.path}
-      className="flex flex-col gap-3 border-l border-subtle pl-3"
+      className="flex flex-col gap-3 border-l border-border pl-3"
     >
       <legend className="text-meta text-strong">{field.label}</legend>
       {field.help === '' ? null : <p className="text-meta text-muted">{field.help}</p>}

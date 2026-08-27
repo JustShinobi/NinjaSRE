@@ -38,8 +38,16 @@ import { message, type Locale } from '@/i18n/messages';
  * declared radius rather than a written number, `text-meta` is the
  * twelve-pixel step at regular weight, and the box is padding rather than a
  * height nobody could derive.
+ *
+ * Exported because a chip outside this module is still a chip. The frame's
+ * freshness indicator was written with `h-control` in place of `py-1` and so
+ * rendered with no vertical padding at all — visibly thinner than every other
+ * chip in the product, on the one chip that is on every screen. Naming the
+ * geometry once is what makes that a thing a test can hold rather than a thing
+ * a reviewer has to notice at four chips' distance.
  */
-const CHIP = 'inline-flex items-center gap-2 px-2 py-1 rounded-full text-meta';
+export const CHIP_SHAPE =
+  'inline-flex items-center gap-2 px-2 py-1 rounded-full text-meta';
 
 /**
  * The tint and foreground each role wears.
@@ -60,13 +68,39 @@ const ROLE_SKIN: Readonly<Record<SemanticRole, string>> = {
   neutral: 'bg-neutral-bg text-neutral edge border-border',
 };
 
-/** The fill each role gives a shape. */
+/** The fill each role gives a solid shape. */
 const ROLE_FILL: Readonly<Record<SemanticRole, string>> = {
   success: 'bg-success border-success',
   warning: 'bg-warning border-warning',
   danger: 'bg-danger border-danger',
   info: 'bg-info border-info',
   neutral: 'bg-neutral border-neutral',
+};
+
+/**
+ * The ring each role gives a hollow shape, and no fill at all.
+ *
+ * A table of its own rather than `ROLE_FILL` with `bg-transparent` added
+ * beside it, because that arrangement did not work and passed every test
+ * anyway. Two background utilities on one element are not decided by the order
+ * of the class attribute; they are decided by the order of the generated
+ * stylesheet, which Tailwind writes alphabetically. `bg-transparent` therefore
+ * beat `bg-danger`, `bg-info`, `bg-neutral` and `bg-success`, and lost to
+ * `bg-warning` — so a warning hollow circle rendered solid, and `pending` and
+ * `propose` became the same filled disc as `completed` with only a hue between
+ * them. On the one pair of statuses this whole module exists to keep apart.
+ *
+ * Splitting the two tables means the mark never carries two backgrounds, so
+ * there is no ordering left to lose. That property is asserted directly, and
+ * it survives a role named alphabetically after `transparent` — which the
+ * previous arrangement would have silently broken all over again.
+ */
+const ROLE_RING: Readonly<Record<SemanticRole, string>> = {
+  success: 'bg-transparent border-success',
+  warning: 'bg-transparent border-warning',
+  danger: 'bg-transparent border-danger',
+  info: 'bg-transparent border-info',
+  neutral: 'bg-transparent border-neutral',
 };
 
 /**
@@ -78,7 +112,7 @@ const ROLE_FILL: Readonly<Record<SemanticRole, string>> = {
  */
 const SHAPE_CLASS: Readonly<Record<Shape, string>> = {
   'filled-circle': 'icon-inline rounded-full',
-  'hollow-circle': 'icon-inline rounded-full bg-transparent edge-ring',
+  'hollow-circle': 'icon-inline rounded-full edge-ring',
   'dimmed-circle': 'icon-inline rounded-full opacity-50',
   square: 'icon-inline',
   'rotated-square': 'icon-inline rotate-45',
@@ -86,21 +120,44 @@ const SHAPE_CLASS: Readonly<Record<Shape, string>> = {
   dash: 'icon-inline h-0 edge-ring rounded-full',
 };
 
+/**
+ * The shapes drawn as an outline, which are the ones that take the ring.
+ *
+ * `dash` is deliberately not one of them: its box has no height, so the fill
+ * has nothing to paint and the border is the whole of the mark either way.
+ * Listing it here would change nothing on screen and would claim a difference
+ * that is not there.
+ */
+const HOLLOW_SHAPES: readonly Shape[] = ['hollow-circle'];
+
 export interface ShapeMarkProps {
   readonly shape: Shape;
   readonly role: SemanticRole;
+  /**
+   * What to call the mark when it is the only thing saying what the status is.
+   *
+   * Absent for the ordinary case, where a word sits beside it and a mark that
+   * announced itself would say "healthy" twice on every row.
+   */
+  readonly name?: string;
   readonly className?: string;
 }
 
 /** The glyph itself, which is what carries the meaning when colour cannot. */
-function ShapeMark({ shape, role, className }: ShapeMarkProps): ReactNode {
+function ShapeMark({ shape, role, name, className }: ShapeMarkProps): ReactNode {
   return (
     <span
       data-shape={shape}
-      aria-hidden="true"
+      {...(name === undefined
+        ? // Decorative, because a word is sitting next to it.
+          { 'aria-hidden': true as const }
+        : // The only thing saying what the status is, so it is named — and it
+          // carries the role, which is what a suite reads when the mark is
+          // standing on its own rather than inside a chip that already has one.
+          { role: 'img', 'aria-label': name, 'data-role': role })}
       className={cx(
         SHAPE_CLASS[shape],
-        ROLE_FILL[role],
+        HOLLOW_SHAPES.includes(shape) ? ROLE_RING[role] : ROLE_FILL[role],
         'edge inline-block shrink-0',
         className,
       )}
@@ -128,7 +185,7 @@ export function Badge({ status, className }: BadgeProps): ReactNode {
       data-role={presented.role}
       data-known={presented.known}
       className={cx(
-        CHIP,
+        CHIP_SHAPE,
         // The one chip carrying a word the deployment wrote rather than one
         // this console chose, so it is the one that needs casing at all.
         'capitalize',
@@ -171,18 +228,16 @@ export function StatusDot({
       />
     );
   }
+  // The same mark, named. Composed by `ShapeMark` rather than beside it: this
+  // branch used to spell the class list out a second time, which is how the two
+  // copies would eventually disagree about how a shape is drawn — and one of
+  // them would be the copy nobody looked at.
   return (
-    <span
-      role="img"
-      aria-label={presented.label}
-      data-shape={presented.shape}
-      data-role={presented.role}
-      className={cx(
-        SHAPE_CLASS[presented.shape],
-        ROLE_FILL[presented.role],
-        'edge inline-block shrink-0',
-        className,
-      )}
+    <ShapeMark
+      shape={presented.shape}
+      role={presented.role}
+      name={presented.label}
+      className={cx('', className)}
     />
   );
 }
@@ -237,7 +292,7 @@ export function StatusChip({
       data-credential-status={canonical}
       data-testid={testId}
       title={explain}
-      className={cx(CHIP, ROLE_SKIN[presented.role], className)}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[presented.role], className)}
     >
       <ShapeMark shape={presented.shape} role={presented.role} />
       {label}
@@ -288,7 +343,7 @@ export function ResolvedChip({
       data-testid={testId}
       data-role={role}
       {...(title === undefined ? {} : { title })}
-      className={cx(CHIP, ROLE_SKIN[role], className)}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[role], className)}
     >
       <ShapeMark shape={shape} role={role} />
       {label}
@@ -716,7 +771,7 @@ export function CheckChip({
       data-role={role}
       data-check-status={status}
       data-testid={testId}
-      className={cx(CHIP, ROLE_SKIN[role], className)}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[role], className)}
     >
       <ShapeMark
         shape={

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { message, type Locale } from '@/i18n/messages';
+import { CHIP_SHAPE } from '@/components/status';
 import { cx } from '@/design/cx';
 import { delayAfter, freshnessOf, type Freshness } from './freshness';
 
@@ -52,13 +53,23 @@ const LABEL: Readonly<
   paused: 'live.state.paused',
 };
 
-/** The mark each state carries, so colour is never the only difference. */
+/**
+ * The mark each state carries, so colour is never the only difference.
+ *
+ * Sized on the icon scale, like every `ShapeMark` in the component library.
+ * These four were written at `size-2` — eight pixels, a step of the *spacing*
+ * scale — which put a five-pixel difference between this mark and the status
+ * mark sitting a few centimetres away in the page header. `status.tsx` says
+ * why the icon scale is the right one and the spacing scale is not: a glyph
+ * sits on a text baseline, and one that grows with the padding drifts away
+ * from the letters beside it.
+ */
 function Mark({ state }: { readonly state: Freshness }): ReactNode {
   if (state === 'live') {
     return (
       <span
         aria-hidden="true"
-        className="pulse-live inline-block size-2 rounded-full bg-accent"
+        className="pulse-live inline-block icon-inline rounded-full bg-accent"
       >
         <span className="pulse-live-ring" />
       </span>
@@ -68,7 +79,7 @@ function Mark({ state }: { readonly state: Freshness }): ReactNode {
     return (
       <span
         aria-hidden="true"
-        className="inline-block size-2 rounded-full edge-ring border-info bg-transparent"
+        className="inline-block icon-inline rounded-full edge-ring border-info bg-transparent"
       />
     );
   }
@@ -76,14 +87,17 @@ function Mark({ state }: { readonly state: Freshness }): ReactNode {
     return (
       <span
         aria-hidden="true"
-        className="inline-block size-2 rounded-full bg-neutral opacity-50"
+        className="inline-block icon-inline rounded-full bg-neutral opacity-50"
       />
     );
   }
+  // Paused: the dash, drawn the way `status.tsx` draws its own — a box with no
+  // height, so the ring is the whole of the mark. It used to carry a width and
+  // no height at all, which is the same picture arrived at by accident.
   return (
     <span
       aria-hidden="true"
-      className="inline-block w-2 rounded-full edge-ring border-border-strong"
+      className="inline-block icon-inline h-0 rounded-full edge-ring border-border-strong"
     />
   );
 }
@@ -152,10 +166,11 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
       data-testid="freshness"
       data-state={state}
       role="status"
-      className={cx(
-        'inline-flex items-center gap-2 h-control px-2 rounded-full edge text-meta',
-        SKIN[state],
-      )}
+      // The shared chip geometry, named rather than rewritten. Written out
+      // here it had drifted to a control height with horizontal padding only,
+      // so the one chip that appears on every screen was the one drawn
+      // differently from all the others.
+      className={cx(CHIP_SHAPE, 'edge', SKIN[state])}
     >
       <Mark state={state} />
       {message(locale, LABEL[state])}

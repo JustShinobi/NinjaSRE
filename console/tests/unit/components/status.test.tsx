@@ -9,12 +9,20 @@ import {
   CheckChip,
   DetectorStateChip,
   PrincipalKindChip,
+  ResolvedChip,
   SideEffectChip,
   SpecialistStateChip,
   StatusDot,
   TokenGroupStateChip,
 } from '@/components/status';
-import { RESOURCE_STATUSES, RUN_STATUSES, statusPresentation } from '@/design/status';
+import {
+  RESOURCE_STATUSES,
+  RUN_STATUSES,
+  SHAPES,
+  type Shape,
+  statusPresentation,
+} from '@/design/status';
+import { SEMANTIC_ROLES, type SemanticRole } from '@/design/tokens';
 
 /**
  * Status, shown twice: once in colour and once in something else.
@@ -250,5 +258,60 @@ describe('a side-effect level outside the closed set', () => {
     const chip = screen.getByTestId('capability-side-effect');
     expect(chip).toHaveTextContent('Writes, reversible');
     expect(chip.getAttribute('title')).toMatch(/can be undone/i);
+  });
+});
+
+describe('the shape, as the stylesheet resolves it rather than as it was meant', () => {
+  /**
+   * A hollow shape has to survive the cascade, not only the class list.
+   *
+   * It used to be drawn by putting `bg-transparent` in the shape's classes and
+   * leaving the role's `bg-{role}` beside it, trusting the first to win. The
+   * cascade does not read the order of the class attribute; it reads the order
+   * of the stylesheet, which Tailwind writes alphabetically. So `bg-transparent`
+   * beat `bg-danger`, `bg-info`, `bg-neutral` and `bg-success` — and lost to
+   * `bg-warning`. Every warning hollow circle rendered solid, which drew
+   * `pending` and `propose` as the same solid thirteen-pixel disc as
+   * `completed`, separated from it by hue alone. That is precisely the failure
+   * the second carrier exists to prevent, and it shipped while a test
+   * asserting `bg-transparent` was present passed on every run.
+   *
+   * So what is asserted here is the absence of a contest: one background
+   * utility on the mark, never two. An invariant over the composition cannot be
+   * won or lost by an ordering, which is why it holds where the intention did
+   * not — and why it will still hold for a role named after `transparent`.
+   */
+  const backgrounds = (mark: Element): readonly string[] =>
+    [...mark.classList].filter((name) => name.startsWith('bg-'));
+
+  function markOf(role: SemanticRole, shape: Shape): Element {
+    const { container } = render(
+      <ResolvedChip role={role} shape={shape} label="a word" testId="probe" />,
+    );
+    const mark = container.querySelector('[data-shape]');
+    if (mark === null) throw new Error(`${shape} drew no mark`);
+    return mark;
+  }
+
+  it.each(SHAPES)('puts one background utility on a %s, never two', (shape) => {
+    for (const role of SEMANTIC_ROLES) {
+      expect(backgrounds(markOf(role, shape)), `${shape} / ${role}`).toHaveLength(1);
+    }
+  });
+
+  it('leaves a hollow circle without the fill it is meant to be missing', () => {
+    for (const role of SEMANTIC_ROLES) {
+      const classes = [...markOf(role, 'hollow-circle').classList];
+      expect(classes, role).not.toContain(`bg-${role}`);
+      expect(classes, role).toContain('bg-transparent');
+    }
+  });
+
+  it('keeps a filled circle filled, in every role', () => {
+    for (const role of SEMANTIC_ROLES) {
+      expect([...markOf(role, 'filled-circle').classList], role).toContain(
+        `bg-${role}`,
+      );
+    }
   });
 });

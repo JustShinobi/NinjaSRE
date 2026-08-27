@@ -2,7 +2,13 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Avatar, Breadcrumb, Pagination, Tabs } from '@/components/navigation';
+import {
+  Avatar,
+  Breadcrumb,
+  Pagination,
+  TabLinks,
+  Tabs,
+} from '@/components/navigation';
 
 /**
  * The patterns with a keyboard contract, tested by pressing keys.
@@ -69,6 +75,58 @@ describe('Tabs', () => {
       'tabindex',
       '-1',
     );
+  });
+});
+
+describe('the two tab rows, which a reader cannot tell apart', () => {
+  /**
+   * `Tabs` and `TabLinks` are deliberately two components with two different
+   * keyboard contracts, and the module says so. What they are not is two
+   * appearances: a reader moving between a screen whose section is in its
+   * address and one whose section is not should see the same row of tabs.
+   *
+   * They were not. `TabLinks` gives each tab `edge border-t-0 border-x-0`, so
+   * the selected one paints its `border-accent` as an underline. `Tabs` had
+   * the colour and no width to paint it on, so its selected tab was marked by
+   * a change of text colour alone — no rule under it at all. Which meant the
+   * accent underline, the console's mark for "you are here", appeared on some
+   * tab rows and not others depending on a distinction the reader has no way
+   * to see.
+   */
+  const LINKS = TABS.map((tab) => ({ ...tab, href: `?section=${tab.id}` }));
+
+  it('draws the selected tab with an underline in both of them', () => {
+    const { unmount } = render(
+      <Tabs tabs={TABS} selected="evidence" onSelect={vi.fn()} label="Investigation" />,
+    );
+    const owned = [...screen.getByRole('tab', { name: 'Evidence' }).classList];
+    unmount();
+
+    render(<TabLinks tabs={LINKS} selected="evidence" label="Investigation" />);
+    const addressed = [...screen.getByRole('link', { name: 'Evidence' }).classList];
+
+    // The underline is a border width plus the two removals that leave only
+    // the bottom edge. Whatever paints it, both rows have to have it.
+    for (const utility of ['edge', 'border-t-0', 'border-x-0', 'border-accent']) {
+      expect(addressed, `${utility} on TabLinks`).toContain(utility);
+      expect(owned, `${utility} on Tabs`).toContain(utility);
+    }
+  });
+
+  it('gives an unselected tab the same quiet treatment in both of them', () => {
+    const { unmount } = render(
+      <Tabs tabs={TABS} selected="evidence" onSelect={vi.fn()} label="Investigation" />,
+    );
+    const owned = [...screen.getByRole('tab', { name: 'Transcript' }).classList];
+    unmount();
+
+    render(<TabLinks tabs={LINKS} selected="evidence" label="Investigation" />);
+    const addressed = [...screen.getByRole('link', { name: 'Transcript' }).classList];
+
+    for (const utility of ['text-muted', 'border-transparent']) {
+      expect(addressed, `${utility} on TabLinks`).toContain(utility);
+      expect(owned, `${utility} on Tabs`).toContain(utility);
+    }
   });
 });
 
