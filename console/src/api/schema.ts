@@ -1950,6 +1950,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/memory/episode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Episode For Run
+         * @description Return the episode ``run_id`` produced, or nothing.
+         *
+         *     Addressed by the run rather than by the episode, because the caller with
+         *     the question is a screen showing an investigation and it has the run id and
+         *     not the episode's. ``run_id`` is required: without it this would answer
+         *     with whatever the store returned first, which is a different question
+         *     wearing this one's address.
+         *
+         *     Filtering a corpus search down to one run in the caller would be the same
+         *     read at the wrong layer — fine at fifty episodes and wrong at the size a
+         *     corpus becomes worth having, which is exactly the size this feature is for.
+         */
+        get: operations["episode_for_run_v1_memory_episode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/memory/search": {
         parameters: {
             query?: never;
@@ -1982,6 +2012,26 @@ export interface paths {
          * @description Return what the episodic corpus holds for this team.
          */
         get: operations["memory_stats_v1_memory_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/models/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Roles
+         * @description Return what every declared role resolves to, and on whose say-so.
+         */
+        get: operations["model_roles_v1_models_roles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6128,6 +6178,22 @@ export interface components {
             /** Token Ids */
             token_ids: string[];
         };
+        /** RoleBindingView */
+        RoleBindingView: {
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Role */
+            role: string;
+            /** Source */
+            source: string;
+        };
+        /** RoleBindings */
+        RoleBindings: {
+            /** Roles */
+            roles: components["schemas"]["RoleBindingView"][];
+        };
         /**
          * RoleList
          * @description Every role, least privileged first.
@@ -6221,6 +6287,19 @@ export interface components {
         RulesView: {
             /** Rules */
             rules?: components["schemas"]["RuleView"][];
+        };
+        /**
+         * RunEpisode
+         * @description What one investigation left behind, or nothing.
+         *
+         *     ``None`` rather than a 404 for a run that wrote none. A run with no episode
+         *     is an ordinary run — extraction skips a conclusion too short to learn from,
+         *     and a run that failed reached none at all — and answering "not found" would
+         *     turn a section that should print a calm sentence into an error state on
+         *     every card that has nothing to show.
+         */
+        RunEpisode: {
+            episode?: components["schemas"]["EpisodeView"] | null;
         };
         /** RunList */
         RunList: {
@@ -10183,6 +10262,39 @@ export interface operations {
             };
         };
     };
+    episode_for_run_v1_memory_episode_get: {
+        parameters: {
+            query: {
+                run_id: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunEpisode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_memory_v1_memory_search_get: {
         parameters: {
             query?: {
@@ -10235,6 +10347,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_roles_v1_models_roles_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleBindings"];
                 };
             };
             /** @description Validation Error */

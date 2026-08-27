@@ -6094,6 +6094,50 @@
         "title": "RevocationResult",
         "type": "object"
       },
+      "RoleBindingView": {
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "provider",
+          "model",
+          "source"
+        ],
+        "title": "RoleBindingView",
+        "type": "object"
+      },
+      "RoleBindings": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleBindingView"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "RoleBindings",
+        "type": "object"
+      },
       "RoleList": {
         "description": "Every role, least privileged first.",
         "properties": {
@@ -6303,6 +6347,23 @@
           }
         },
         "title": "RulesView",
+        "type": "object"
+      },
+      "RunEpisode": {
+        "description": "What one investigation left behind, or nothing.\n\n``None`` rather than a 404 for a run that wrote none. A run with no episode\nis an ordinary run — extraction skips a conclusion too short to learn from,\nand a run that failed reached none at all — and answering \"not found\" would\nturn a section that should print a calm sentence into an error state on\nevery card that has nothing to show.",
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpisodeView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RunEpisode",
         "type": "object"
       },
       "RunList": {
@@ -13688,6 +13749,65 @@
         ]
       }
     },
+    "/v1/memory/episode": {
+      "get": {
+        "description": "Return the episode ``run_id`` produced, or nothing.\n\nAddressed by the run rather than by the episode, because the caller with\nthe question is a screen showing an investigation and it has the run id and\nnot the episode's. ``run_id`` is required: without it this would answer\nwith whatever the store returned first, which is a different question\nwearing this one's address.\n\nFiltering a corpus search down to one run in the caller would be the same\nread at the wrong layer — fine at fifty episodes and wrong at the size a\ncorpus becomes worth having, which is exactly the size this feature is for.",
+        "operationId": "episode_for_run_v1_memory_episode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEpisode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Episode For Run",
+        "tags": [
+          "memory"
+        ]
+      }
+    },
     "/v1/memory/search": {
       "get": {
         "description": "Return episodes involving ``component``, most recent first.",
@@ -13805,6 +13925,56 @@
         "summary": "Memory Stats",
         "tags": [
           "memory"
+        ]
+      }
+    },
+    "/v1/models/roles": {
+      "get": {
+        "description": "Return what every declared role resolves to, and on whose say-so.",
+        "operationId": "model_roles_v1_models_roles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleBindings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Model Roles",
+        "tags": [
+          "models"
         ]
       }
     },
