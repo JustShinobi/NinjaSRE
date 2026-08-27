@@ -192,7 +192,7 @@ function Entry({
                 lines of what the investigation actually did. */}
             <pre
               data-testid="event-note-body"
-              className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap font-mono text-meta text-muted"
+              className="mt-1 max-h-scroll-entry overflow-auto whitespace-pre-wrap font-mono text-meta text-muted"
             >
               {event.note}
             </pre>

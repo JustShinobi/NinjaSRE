@@ -127,7 +127,7 @@ export function Tutorial({ locale, nodeId, replay = false }: TutorialProps): Rea
             whole of what this overlay was missing: a click at the coordinate
             Next was just at lands on Next again. */}
         <div
-          className="flex h-44 flex-col gap-2 overflow-y-auto"
+          className="flex h-scroll-slot flex-col gap-2 overflow-y-auto"
           data-testid="tutorial-body"
         >
           <h2 className="text-strong">

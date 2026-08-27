@@ -585,7 +585,7 @@ export async function RunDetailScreen(
                 <span
                   data-testid="investigation-mark"
                   aria-label={message(locale, 'run.changes.investigation')}
-                  className="absolute top-0 h-6 w-0.5 bg-danger"
+                  className="absolute top-0 h-6 w-stroke-emphasis bg-danger"
                   style={{
                     insetInlineStart: `${String(ruler.investigation.percent)}%`,
                   }}

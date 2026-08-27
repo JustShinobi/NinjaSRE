@@ -130,24 +130,40 @@ fast: lint test-fast ## The inner loop: lint, then the tests that mirror what yo
 #: The test paths `test-fast` runs. Empty means "work it out from git".
 SCOPE ?=
 
-# How the paths are worked out when SCOPE is not given, from `git status` — the
-# working tree, which is what "after every edit" means. Three rules:
+# How a path is worked out. Three rules, and they are applied to whatever names
+# a path — a file `git status` reported, or an entry a person put in `SCOPE`:
 #
-#   1. A file under a runtime package selects the mirroring directory under
+#   1. A path under a runtime package selects the mirroring directory under
 #      `tests/unit`, walking up until one exists: `platform/memory/store.py`
 #      selects `tests/unit/platform/memory`, `core/llm/x/y/z.py` selects
-#      `tests/unit/core/llm`.
+#      `tests/unit/core/llm`. A path that *is* a directory maps from itself
+#      rather than from its parent, so `SCOPE=platform/memory` selects
+#      `tests/unit/platform/memory` and not `tests/unit/platform`.
 #   2. Any component of its path that names a suite under `tests/contract` or
 #      `tests/security` selects that suite too. `gateway/http/routes/runs.py`
 #      selects `tests/contract/runs`; `platform/persistence/store.py` selects
 #      `tests/contract/persistence`. Crude, and it earns its keep: those are the
 #      suites that break for a reason `tests/unit` never sees.
-#   3. A file under `tests/` selects itself.
+#   3. A path under `tests/` selects itself.
+#
+# Without SCOPE the paths come from `git status --untracked-files=all` — the
+# working tree, which is what "after every edit" means.
 #
 # `console/` selects nothing here — it has its own gate, `make console-check`.
 # Anything else that maps to nothing is *named on stdout* rather than passed
 # over in silence, because a file whose change this tier cannot test is the one
 # thing somebody needs to be told.
+#
+# **One mapping, used by both modes.** It used to exist only in the automatic
+# branch, and `SCOPE=` handed its string to pytest untouched — so naming the
+# source directory you had just edited collected zero tests, hit pytest's exit
+# code 5, and was reported as a pass. A fast tier that runs nothing and goes
+# green is one people stop believing, so the mapping moved into `map_path` and
+# both branches call it. The two branches differ only in what an unmappable
+# path means: the automatic mode is reading a working tree it did not choose,
+# so it names the file and carries on, while a SCOPE entry is a request that
+# cannot be honoured and refuses the whole invocation before spending a minute
+# on the paths that did map.
 #
 # **One pytest per path, not one pytest over all of them.** Several test modules
 # import their sibling `conftest` by bare name, which resolves through the
@@ -163,41 +179,66 @@ SCOPE ?=
 # here and only here. Editing a module whose every test is a `sweep` deselects
 # the lot, and a tier that went red for having correctly skipped what it says it
 # skips would be untrustworthy within a week. Every other non-zero code fails.
+# It stays a pass because the selection is now proved to name real test
+# directories before pytest is reached; an empty selection never gets that far.
 test-fast: ## The inner loop: the tests that mirror what you changed, in seconds
-	@paths="$(SCOPE)"; \
-	if [ -z "$$paths" ]; then \
-		unmapped=""; \
+	@map_path() { \
+		file="$${1%/}"; \
+		case "$$file" in \
+			console|console/*) return 2 ;; \
+			tests|tests/*) \
+				if [ -e "$$file" ]; then printf '%s\n' "$$file"; return 0; fi; \
+				return 2 ;; \
+		esac; \
+		hit=1; \
+		if [ -d "$$file" ]; then dir="tests/unit/$$file"; \
+		else dir="tests/unit/$${file%/*}"; fi; \
+		while [ "$$dir" != "tests/unit" ] && [ ! -d "$$dir" ]; do \
+			dir="$${dir%/*}"; \
+		done; \
+		if [ -d "$$dir" ] && [ "$$dir" != "tests/unit" ]; then \
+			printf '%s\n' "$$dir"; hit=0; \
+		fi; \
+		for part in $$(echo "$$file" | tr / ' '); do \
+			for suite in tests/contract/$$part tests/security/$$part; do \
+				if [ -d "$$suite" ]; then printf '%s\n' "$$suite"; hit=0; fi; \
+			done; \
+		done; \
+		return $$hit; \
+	}; \
+	paths=""; unmapped=""; \
+	if [ -n "$(SCOPE)" ]; then \
+		for file in $(SCOPE); do \
+			selected=$$(map_path "$$file"); code=$$?; \
+			if [ $$code -eq 0 ]; then paths="$$paths $$selected"; \
+			else unmapped="$$unmapped $$file"; fi; \
+		done; \
+		if [ -n "$$unmapped" ]; then \
+			printf 'test-fast: SCOPE selects no tests:\n'; \
+			printf '  %s\n' $$unmapped; \
+			printf '  A scope that runs nothing must not report success, so this is a\n'; \
+			printf '  failure rather than an empty pass. Name a source path — it is\n'; \
+			printf '  mapped the same way the automatic mode maps it — or a tests/ path.\n'; \
+			case "$$unmapped" in *console*) \
+				printf '  The console is not in this tier at all: make console-check.\n' ;; \
+			esac; \
+			exit 2; \
+		fi; \
+	else \
 		for file in $$(git status --porcelain=1 --untracked-files=all \
 				| cut -c4- | sed 's/.* -> //'); do \
-			case "$$file" in \
-				tests/*) [ -e "$$file" ] && paths="$$paths $$file"; continue ;; \
-				console/*) continue ;; \
-			esac; \
-			hit=""; \
-			case "$$file" in */*) \
-				dir="tests/unit/$${file%/*}"; \
-				while [ "$$dir" != "tests/unit" ] && [ ! -d "$$dir" ]; do \
-					dir="$${dir%/*}"; \
-				done; \
-				if [ -d "$$dir" ] && [ "$$dir" != "tests/unit" ]; then \
-					paths="$$paths $$dir"; hit=yes; \
-				fi ;; \
-			esac; \
-			for part in $$(echo "$$file" | tr / ' '); do \
-				for suite in tests/contract/$$part tests/security/$$part; do \
-					if [ -d "$$suite" ]; then paths="$$paths $$suite"; hit=yes; fi; \
-				done; \
-			done; \
-			[ -z "$$hit" ] && unmapped="$$unmapped $$file"; \
+			selected=$$(map_path "$$file"); code=$$?; \
+			if [ $$code -eq 0 ]; then paths="$$paths $$selected"; \
+			elif [ $$code -eq 1 ]; then unmapped="$$unmapped $$file"; fi; \
 		done; \
-		if [ -n "$$paths" ]; then \
-			paths=$$(printf '%s\n' $$paths | sort -u | tr '\n' ' '); \
-		fi; \
 		if [ -n "$$unmapped" ]; then \
 			printf 'test-fast: no test path mirrors these, so nothing here covers them:\n'; \
 			printf '  %s\n' $$unmapped; \
 			printf '  `make verify` does. This tier is not a substitute for it.\n'; \
 		fi; \
+	fi; \
+	if [ -n "$$paths" ]; then \
+		paths=$$(printf '%s\n' $$paths | sort -u | tr '\n' ' '); \
 	fi; \
 	if [ -z "$$paths" ]; then \
 		echo "test-fast: nothing selected. Name it — make test-fast SCOPE=tests/unit/core"; \

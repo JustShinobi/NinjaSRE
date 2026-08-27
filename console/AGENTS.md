@@ -241,13 +241,41 @@ through `src/design/status.ts`, and nothing else decides. A status the console
 has never heard of is neutral with its own raw text — never blank, never an
 error.
 
-**The scales are closed sets**, and they are enforced twice. Tailwind is given
-the seven spacing steps explicitly and no base, so `p-9` is not a utility and
-produces no CSS at all. And `eslint-rules/no-design-literals.mjs` rejects a
+**The scales are closed sets**, and they are enforced twice.
+
+The first enforcement is the stylesheet, and it takes two declarations rather
+than one. `@theme inline` in `src/app/globals.css` names the seven spacing
+steps, but `@theme` *adds* names and never clears what Tailwind's own theme
+declared — so `--spacing: initial` is what actually closes the scale, and
+`--container-*: initial` closes the second set of lengths that arrives with it.
+With no base there is nothing to multiply, so `p-9`, `max-h-96` and `max-w-md`
+are not utilities and produce no CSS at all. `--spacing-0` is declared
+alongside, because zero is the removal of a step rather than an eighth one and
+`inset-0` has to keep working. `tests/unit/design/spacing-scale.test.ts`
+compiles the real stylesheet and asserts both halves; the claim was false for a
+year without it, which is why it exists.
+
+Measurements that are genuinely not steps get named tokens and their own
+utilities, the way `SHELL` and `COLUMN_WIDTHS` already did:
+`max-h-scroll-pane`, `max-h-scroll-entry`, `h-scroll-slot`, `max-w-reading`
+and `w-stroke-emphasis`. A scroll ceiling is measured from how much content is
+worth showing at once, and the largest spacing step is a gutter — rounding one
+to the other would be a worse answer than naming it.
+
+The second enforcement is `eslint-rules/no-design-literals.mjs`, which rejects a
 colour, an off-scale length, a raw duration and every arbitrary-value utility in
 `src/`, with `scripts/check-css-literals.mjs` covering the stylesheets ESLint
-does not parse. Two files are exempt, and both are where values are *declared*:
+does not parse. Its list of spacing-taking utilities covers the width, height,
+inset and translate families as well as padding, margin and gap — it did not,
+which is how four off-scale lengths passed both checks at once. It is a list
+rather than an inference, because `z-10` and `grid-cols-3` also end in a number.
+Two files are exempt, and both are where values are *declared*:
 `src/design/tokens.ts` and `src/design/css.ts`.
+
+The two checks catch different failures and neither replaces the other. The
+closed scale is stronger and arrives earlier, but it fails *silently* — an
+element with no rule keeps whatever it inherited, and the screen looks nearly
+right. Lint is what turns that silence into an error naming the file.
 
 **Reduced motion removes the animation.** One rule in the base layer sets every
 duration to `--dur-none`, which is a member of the duration scale rather than an

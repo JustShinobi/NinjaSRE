@@ -485,7 +485,7 @@ export function AutonomyEditor({
           height, reachable without scrolling past every row first. */}
       <div
         data-testid="rule-editor-list"
-        className="flex flex-col gap-3 max-h-96 overflow-y-auto"
+        className="flex flex-col gap-3 max-h-scroll-pane overflow-y-auto"
       >
         {allRules.map((rule) => (
           <div
