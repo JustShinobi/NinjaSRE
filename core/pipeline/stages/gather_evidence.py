@@ -30,7 +30,7 @@ like.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from config.constants.investigation import (
@@ -88,6 +88,13 @@ class GatherEvidenceStage:
     #: default, which is what a deployment that configured nothing gets — and it
     #: is the loop that supplies it, so this stage never names a prompt.
     system_prompt: str = ""
+    #: What the deployment already established about the subject and no alert
+    #: payload carries — which estate resource the alert resolved onto, and so
+    #: which vendor holds it. It travels beside what this stage derives rather
+    #: than instead of it, and the stage's own keys are reserved: a caller
+    #: naming one is passing a snapshot taken before the five stages that write
+    #: the values it would displace.
+    context: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def name(self) -> StageName:
@@ -139,7 +146,7 @@ class GatherEvidenceStage:
             alert_source=alert.alert_source.value,
             session_id=state.run_id,
             system_prompt=self.system_prompt,
-            context=_context(alert, window, state),
+            context=_merged_context(_context(alert, window, state), self.context),
         )
 
     def _promote(self, result: RunResult, state: AgentState) -> tuple[EvidenceEntry, ...]:
@@ -226,20 +233,38 @@ def _window_note(window: IncidentWindow | None) -> str:
 def _context(
     alert: NormalisedAlert, window: IncidentWindow | None, state: AgentState
 ) -> dict[str, str]:
-    """Return the structured context the run carries alongside its objective."""
-    context = {
+    """Return every key this stage derives, empties included.
+
+    Unfiltered, because the key set is what ``_merged_context`` reserves. A key
+    dropped for being empty here would be a key a caller could then fill with a
+    value this run's own state contradicts.
+    """
+    return {
         CONTEXT_ALERT_NAME: alert.alert_name,
         CONTEXT_ALERT_SOURCE: alert.alert_source.value,
         CONTEXT_SEVERITY: alert.severity.value,
         CONTEXT_COMPONENTS: ", ".join(alert.components),
         CONTEXT_PLAN: ", ".join(state.investigation.plan.capabilities),
         CONTEXT_PLAN_RATIONALE: state.investigation.plan.rationale,
+        CONTEXT_WINDOW_START: window.start.isoformat() if window is not None else "",
+        CONTEXT_WINDOW_END: window.end.isoformat() if window is not None else "",
+        CONTEXT_WINDOW_CONFIDENCE: f"{window.confidence:.2f}" if window is not None else "",
     }
-    if window is not None:
-        context[CONTEXT_WINDOW_START] = window.start.isoformat()
-        context[CONTEXT_WINDOW_END] = window.end.isoformat()
-        context[CONTEXT_WINDOW_CONFIDENCE] = f"{window.confidence:.2f}"
-    return {key: value for key, value in context.items() if value}
+
+
+def _merged_context(derived: Mapping[str, str], supplied: Mapping[str, str]) -> dict[str, str]:
+    """Return what the run carries: the caller's facts, then this stage's own.
+
+    Empty values are dropped from both halves. The model reads this as a list
+    of stated facts, and a stated fact with nothing after the colon reads as
+    "we checked and there is nothing" — which is a different claim from having
+    nothing to say.
+    """
+    merged = {
+        key: value for key, value in supplied.items() if str(value).strip() and key not in derived
+    }
+    merged.update({key: value for key, value in derived.items() if value})
+    return merged
 
 
 __all__ = [

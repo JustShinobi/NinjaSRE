@@ -1,18 +1,24 @@
-"""One investigation orchestration serves production, and the other says it does not.
+"""The six stages are what serves a request, and the loop is what one of them drives.
 
 Two things in this repository assemble an investigation: the six-stage pipeline
-and the runner that drives the canonical loop directly. Both are written, both
-are tested, and only one of them is reachable from a composition root. That is
-allowed — a mechanism kept for an instrument rather than for serving is a real
-thing to have — but it is only allowed when the module says so, because
+and the runner that drives the canonical loop directly. For a long time only the
+second was reachable from a composition root, and the first declared itself
+dormant — which was the honest arrangement while nobody had decided, because
 "reachable and unused" and "unreachable" are facts a reader cannot tell apart by
 looking at the code.
 
-So the property here is not "delete one". It is: exactly one is composed by the
-path that serves a request, the other declares itself dormant, and the
-declaration names what does build it. A dormancy note that says only "nothing
-uses this" leaves the next reader to search the tree; naming the caller turns
-the search into a sentence.
+The decision has been made, and it was forced by a screen. `/agent` has always
+shown "the stages an investigation runs" — six of them, in order, with what each
+consults — and a served investigation ran none of them: it ran a flat loop of
+numbered turns. The console was describing a shape the deployment did not have,
+which is the same class of defect as a panel naming a model no call reaches, and
+the fix is not to soften the screen. The stages are the product's own account of
+what an investigation *is*, so a served investigation runs them.
+
+So the property inverts. The serving path composes the pipeline; the loop is
+what the gather stage is built with, not a second orchestration beside it; and
+no dormancy note survives, because a note saying "nothing serving builds this"
+would now be false.
 """
 
 from __future__ import annotations
@@ -37,14 +43,10 @@ SERVING_PACKAGES = (
     "surfaces",
 )
 
-#: The two assemblers, and where each is declared.
 PIPELINE_BUILDER = "build_pipeline"
 PIPELINE_MODULE = "core/pipeline/build.py"
 SERVING_RUNNER = "ReActInvestigationRunner"
 SERVING_RUNNER_MODULE = "gateway/runtime/investigator.py"
-
-#: What the dormant module has to name, so a reader does not have to search.
-NAMES_ITS_CALLER = ("harness", "corpus")
 
 
 def _call_sites(name: str, *, excluding: str) -> list[str]:
@@ -66,32 +68,6 @@ def _call_sites(name: str, *, excluding: str) -> list[str]:
     return found
 
 
-def _constructions(name: str, *, excluding: str) -> list[str]:
-    """Return every place serving source constructs ``name``."""
-    return _call_sites(name, excluding=excluding)
-
-
-def test_the_serving_runner_is_constructed_by_serving_source() -> None:
-    """The canonical path: something a request reaches builds this one."""
-    built = _constructions(SERVING_RUNNER, excluding=SERVING_RUNNER_MODULE)
-
-    assert built, (
-        f"{SERVING_RUNNER} is constructed nowhere a request can reach. The path that "
-        f"serves an investigation would then be nobody's."
-    )
-
-
-def test_the_staged_pipeline_has_no_serving_caller() -> None:
-    """Not a complaint — the fact the declaration below has to state."""
-    built = _call_sites(PIPELINE_BUILDER, excluding=PIPELINE_MODULE)
-
-    assert built == [], (
-        f"{PIPELINE_BUILDER} is now called from {built}. Two orchestrations reachable "
-        f"from serving is the duplication this test exists to keep decided; if that is "
-        f"the intent, the dormancy note below is the thing to remove."
-    )
-
-
 def _docstring_of(function: str, *, module: str) -> str:
     """Return ``function``'s docstring, read from the file rather than by importing."""
     tree = ast.parse((REPO_ROOT / module).read_text(encoding="utf-8"), filename=module)
@@ -103,38 +79,48 @@ def _docstring_of(function: str, *, module: str) -> str:
     return ast.get_docstring(found) or ""
 
 
-def test_the_dormant_orchestration_says_so_of_itself() -> None:
-    said = _docstring_of(PIPELINE_BUILDER, module=PIPELINE_MODULE).lower()
+def test_the_serving_runner_is_constructed_by_serving_source() -> None:
+    """The surface a request arrives at still has to be somebody's."""
+    built = _call_sites(SERVING_RUNNER, excluding=SERVING_RUNNER_MODULE)
 
-    assert "dormant" in said, (
-        f"{PIPELINE_MODULE} assembles an investigation that no serving path builds and "
-        f"does not say so. A reader cannot tell that apart from a path that is used."
+    assert built, (
+        f"{SERVING_RUNNER} is constructed nowhere a request can reach. The path that "
+        f"serves an investigation would then be nobody's."
     )
 
 
-def test_the_dormancy_note_names_what_builds_it() -> None:
-    """ "Nothing uses this" leaves a search; naming the caller ends it."""
-    said = _docstring_of(PIPELINE_BUILDER, module=PIPELINE_MODULE).lower()
+def test_the_staged_pipeline_is_what_a_served_investigation_runs() -> None:
+    """The whole of the change, as one assertion.
 
-    assert any(word in said for word in NAMES_ITS_CALLER), (
-        f"the dormancy note in {PIPELINE_MODULE} does not name what does construct the "
-        f"pipeline. It is built by the evaluation harness that runs the scenario "
-        f"corpus, and saying which turns a search into a sentence."
+    `/agent` names six stages and says an investigation runs them. It has to be
+    true of a served run, not only of the corpus harness — otherwise the screen
+    is describing the instrument and calling it the product.
+    """
+    built = _call_sites(PIPELINE_BUILDER, excluding=PIPELINE_MODULE)
+
+    assert built, (
+        f"{PIPELINE_BUILDER} is called from nowhere a request can reach, so a served "
+        f"investigation runs no stages while `/agent` says it runs six. Compose it in "
+        f"the serving path, or change what that screen claims."
     )
 
 
-def test_the_note_does_not_read_as_dead_code() -> None:
-    """Dormant is about composition, not about worth."""
+def test_no_dormancy_note_survives_the_composition() -> None:
+    """A note saying nothing serving builds this would now be false.
+
+    Kept as a test rather than left to a reviewer because the note was correct
+    for as long as it stood, and the failure mode is somebody composing the
+    pipeline and leaving the paragraph that says nobody has.
+    """
     said = _docstring_of(PIPELINE_BUILDER, module=PIPELINE_MODULE).lower()
 
-    for wrong in ("dead", "unused", "deprecated"):
-        assert wrong not in said, (
-            f"the dormancy note calls the staged pipeline {wrong!r}. It has a caller and "
-            f"a purpose; what it does not have is a place in the serving path."
-        )
+    assert "dormant" not in said, (
+        f"{PIPELINE_MODULE} still calls itself dormant while the serving path builds "
+        f"it. The note outlived what it described."
+    )
 
 
-def test_the_walk_would_notice_a_caller_appearing() -> None:
+def test_the_walk_would_notice_a_caller_disappearing() -> None:
     """A check nobody has shown a failure to is a check that passes vacuously."""
     tree = ast.parse("pipeline = build_pipeline(llm=llm, runtime=loop)\n")
     calls = [

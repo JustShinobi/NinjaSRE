@@ -26,7 +26,7 @@ from config.constants.investigation import (
 from core.agent.handoff import HumanHandoff
 from core.agent.interaction.registry import InteractionRegistry
 from core.agent.react_loop import CANONICAL_RUNTIME_NAME, ReActLoop
-from core.agent.runtime_port import RunResult, RunStatus
+from core.agent.runtime_port import RunRequest, RunResult, RunStatus
 from core.agent.session import Session
 from gateway.http.services import InvestigationStart
 from gateway.runtime.investigator import (
@@ -57,6 +57,43 @@ def _request(run_id: str = "run-1") -> InvestigationStart:
         principal_id="operator-1",
         alert_source="prometheus",
     )
+
+
+class _RecordingRuntime:
+    """The loop, replaced by something that keeps the request it was driven with.
+
+    A served investigation runs the six stages, and the fourth of them builds
+    the request the loop is given. That request is no longer a value this
+    runner hands out, so the only honest place to read it is where it arrives.
+    """
+
+    name = CANONICAL_RUNTIME_NAME
+    is_canonical = True
+
+    def __init__(self) -> None:
+        self.requests: list[RunRequest] = []
+
+    async def run(self, request: RunRequest) -> RunResult:
+        self.requests.append(request)
+        return RunResult(
+            session=_session(request.session_id), status=RunStatus.COMPLETED, answer="done"
+        )
+
+    async def cancel(self, session_id: str) -> None: ...
+
+
+async def _requested(monkeypatch: pytest.MonkeyPatch, request: InvestigationStart) -> RunRequest:
+    """Return the request the gathering stage built while serving ``request``."""
+    runtime = _RecordingRuntime()
+    runner = ReActInvestigationRunner(
+        llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
+    )
+    monkeypatch.setattr(ReActInvestigationRunner, "_build_runtime", lambda *_a, **_k: runtime)
+
+    await runner.investigate(request)
+
+    assert runtime.requests, "the gathering stage never drove the runtime"
+    return runtime.requests[0]
 
 
 # -- T016: the composed runtime is the canonical loop, and its bounds hold ----
@@ -123,16 +160,24 @@ class TestComposesTheCanonicalLoop:
         with pytest.raises(ValueError, match="tool schemas"):
             ReActLoop(llm=ScriptedLLM([text_turn("x")]), tools=too_many)
 
-    def test_the_run_request_carries_the_iteration_and_wall_clock_ceilings(self) -> None:
-        """The composed request asks for the full ceiling, never a private smaller one."""
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+    async def test_the_run_request_carries_the_iteration_and_wall_clock_ceilings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The request asks for the full ceiling, never a private smaller one.
 
-        built = runner._request_of(_request())
+        Read off the request the gathering stage actually built, rather than
+        off a method of this runner. The runner used to compose that request
+        itself; now the stage that drives the loop composes it, and asserting
+        against anything else would be asserting about a value no run uses.
+        """
+        built = await _requested(monkeypatch, _request())
 
         assert built.max_iterations == MAX_INVESTIGATION_LOOPS
         assert built.wall_clock_seconds == RUN_WALL_CLOCK_SECONDS
 
-    def test_the_run_request_tells_the_agent_that_proposing_is_part_of_the_job(self) -> None:
+    async def test_the_run_request_tells_the_agent_that_proposing_is_part_of_the_job(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A write in the toolset is useless to a model told only to investigate.
 
         The loop falls back to ``DEFAULT_RUNTIME_SYSTEM_PROMPT`` when a request
@@ -146,18 +191,20 @@ class TestComposesTheCanonicalLoop:
         ``proxmox_start_guest``, declared its own evidence sufficient with
         nothing missing and nothing preventing the guest from running, and
         stopped without calling it. It did what it was told.
-        """
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
 
-        built = runner._request_of(_request())
+        The prompt now reaches the loop through the gathering stage rather than
+        from a request this runner built, so it is read off the run — which is
+        the only place that can show it survived the journey.
+        """
+        built = await _requested(monkeypatch, _request())
 
         assert built.system_prompt, "the serving path must not fall back to the loop's own framing"
         assert "propose" in built.system_prompt.lower()
 
-    def test_the_run_request_carries_this_runs_own_identity(self) -> None:
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
-
-        built = runner._request_of(_request("run-xyz"))
+    async def test_the_run_request_carries_this_runs_own_identity(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = await _requested(monkeypatch, _request("run-xyz"))
 
         assert built.session_id == "run-xyz"
 
@@ -229,6 +276,10 @@ class TestInvestigate:
 
         class _FailingLoop:
             is_canonical = True
+            # Named, because the stage that drives it records which runtime
+            # produced the run's numbers — a published number has to be
+            # attributable to the runtime that made it.
+            name = "failing-double"
 
             async def run(self, request: object) -> RunResult:
                 return RunResult(

@@ -30,7 +30,7 @@ from core.pipeline.streaming import (
     replay,
 )
 from core.state.agent_state import AgentState, StateUpdates
-from core.state.types import OutcomeKind, StageName
+from core.state.types import InvestigationOutcome, OutcomeKind, StageName
 from tests.unit.core.pipeline.conftest import alertmanager_state, tool
 
 pytestmark = pytest.mark.unit
@@ -72,8 +72,6 @@ class _Destination:
 
 
 def _halting(name: StageName, kind: OutcomeKind = OutcomeKind.NOISE) -> _Stage:
-    from core.state.types import InvestigationOutcome
-
     return _Stage(
         name,
         updates=StateUpdates(
@@ -388,6 +386,40 @@ async def test_no_destination_configured_still_produces_the_report() -> None:
     assert outcome is not None
     assert outcome.kind is OutcomeKind.DIAGNOSED
     assert "not shipped" in outcome.detail
+
+
+async def test_a_run_that_failed_is_still_reported_as_failed_after_delivery() -> None:
+    """Delivery ships the report; it does not overturn the run's own verdict.
+
+    Gathering records ``FAILED`` when the runtime produced nothing usable, and
+    that outcome deliberately does not halt the run — the remaining stages
+    still say what little can be said. What they must not do is replace it: a
+    caller reading the finished state to decide whether the run completed would
+    otherwise be told "diagnosed" about an investigation that gathered nothing,
+    and the reason the runtime gave would be gone with it.
+    """
+    state = _delivered_state()
+    failed = replace(
+        state,
+        investigation=replace(
+            state.investigation,
+            outcome=InvestigationOutcome(
+                kind=OutcomeKind.FAILED,
+                headline="Investigation did not complete",
+                detail="the provider stopped answering",
+            ),
+        ),
+    )
+
+    updates = await DeliverStage((_Destination("slack"),))(failed)
+
+    outcome = updates.investigation.outcome  # type: ignore[union-attr]
+    assert outcome is not None
+    assert outcome.kind is OutcomeKind.FAILED
+    assert outcome.detail == "the provider stopped answering"
+    assert updates.investigation.delivery is not None, (  # type: ignore[union-attr]
+        "the report was withheld as well, which is not what this preserves"
+    )
 
 
 async def test_delivery_never_executes_a_remediation_step() -> None:
