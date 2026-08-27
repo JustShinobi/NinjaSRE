@@ -355,10 +355,7 @@ function renderInline(nodes: readonly Inline[], keyPrefix: string): ReactNode {
         return <em key={key}>{renderInline(node.children, key)}</em>;
       case 'code':
         return (
-          <code
-            key={key}
-            className="rounded-1 bg-surface-sunken px-1 font-mono text-meta"
-          >
+          <code key={key} className="rounded-1 bg-sunken px-1 font-mono text-meta">
             {node.value}
           </code>
         );
@@ -455,10 +452,7 @@ function renderBlock(block: Block, key: string): ReactNode {
       );
     case 'code':
       return (
-        <div
-          key={key}
-          className="w-full overflow-x-auto rounded-2 bg-surface-sunken p-3"
-        >
+        <div key={key} className="w-full overflow-x-auto rounded-2 bg-sunken p-3">
           <pre className="text-meta font-mono whitespace-pre">{block.text}</pre>
         </div>
       );

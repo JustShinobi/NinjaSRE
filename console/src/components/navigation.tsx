@@ -16,6 +16,25 @@ import { ChevronRightIcon } from '@/design/icons';
  * it is a tab list that does not work.
  */
 
+/**
+ * One tab's box, shared by both rows below.
+ *
+ * The two components have two keyboard contracts and both are right, which is
+ * why there are two of them. They do not have two appearances, and writing the
+ * box out twice is how they got one: `TabLinks` carried `edge border-t-0
+ * border-x-0`, so its selected tab painted `border-accent` as an underline,
+ * and `Tabs` carried the colour with no width for it to land on — so the
+ * console's mark for "you are here" was a rule under the tab on some screens
+ * and a change of text colour on others, split along a distinction (is the
+ * section in the address?) that a reader cannot see.
+ */
+const TAB_SHAPE = 'px-3 py-2 text-small motion-hover edge border-t-0 border-x-0';
+
+/** The selected tab's underline and colour, or the quiet treatment. */
+function tabSkin(selected: boolean): string {
+  return selected ? 'text-accent border-accent' : 'text-muted border-transparent';
+}
+
 export interface Tab {
   readonly id: string;
   readonly label: string;
@@ -84,12 +103,7 @@ export function Tabs({
             onClick={() => {
               onSelect(tab.id);
             }}
-            className={cx(
-              'px-3 py-2 text-small motion-hover',
-              tab.id === selected
-                ? 'text-accent border-accent'
-                : 'text-muted border-transparent',
-            )}
+            className={cx(TAB_SHAPE, tabSkin(tab.id === selected))}
           >
             {tab.label}
           </button>
@@ -146,12 +160,7 @@ export function TabLinks({ tabs, selected, label }: TabLinksProps): ReactNode {
               data-testid="tab-link"
               data-tab={tab.id}
               aria-current={tab.id === selected ? 'page' : undefined}
-              className={cx(
-                'block px-3 py-2 text-small motion-hover edge border-t-0 border-x-0',
-                tab.id === selected
-                  ? 'text-accent border-accent'
-                  : 'text-muted border-transparent',
-              )}
+              className={cx('block', TAB_SHAPE, tabSkin(tab.id === selected))}
             >
               {tab.label}
             </a>

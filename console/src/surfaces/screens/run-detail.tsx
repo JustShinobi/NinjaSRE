@@ -580,7 +580,7 @@ export async function RunDetailScreen(
                 fraction of the window each one fell at — the same axis for the
                 deploy and for the moment the investigation began, which is the
                 whole point of drawing it rather than listing it. */}
-            <div className="relative h-6 rounded-full bg-subtle">
+            <div className="relative h-6 rounded-full bg-sunken">
               {ruler.investigation === undefined ? null : (
                 <span
                   data-testid="investigation-mark"

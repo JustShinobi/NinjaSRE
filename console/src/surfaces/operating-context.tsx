@@ -421,7 +421,7 @@ export function OperatingContextEditor({
           {answer.accepted ? (
             <pre
               data-testid="context-prompt"
-              className="rounded-2 bg-surface-sunken p-3 text-meta whitespace-pre-wrap break-words max-h-96 overflow-y-auto"
+              className="rounded-2 bg-sunken p-3 text-meta whitespace-pre-wrap break-words max-h-96 overflow-y-auto"
             >
               {answer.prompt}
             </pre>
