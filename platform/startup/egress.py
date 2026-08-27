@@ -23,6 +23,17 @@ The empty host is the case worth naming. A hosted provider used without a base
 URL override reaches the vendor's own endpoint, whose address this code has no
 business knowing — the SDK owns it. Such a destination is recorded with no host
 and is never on-host, which is exactly the answer the air-gapped check needs.
+
+**A model provider is derived from what the environment equips, never from what
+it names.** ``NINJASRE_LLM_PROVIDER`` used to decide, falling back to the
+shipped default when nothing set it, and this report therefore named a vendor
+on every deployment whose provider is bound in the configuration tree — which
+is all of them now, because that variable no longer selects anything. What an
+environment still says honestly is narrower and truer: a credential equips a
+vendor, and an endpoint override says where that vendor's calls go. Both are
+settings somebody can remove, which is the property this whole module is for.
+Every equipped provider is listed, because which one a role runs on is a
+question this layer cannot answer and must not appear to.
 """
 
 from __future__ import annotations
@@ -40,23 +51,33 @@ from config.constants.deployment import (
     SETTING_LIST_SEPARATOR,
 )
 from config.constants.llm import (
+    ANTHROPIC_API_KEY_ENV,
     ANTHROPIC_BASE_URL_ENV,
+    AWS_ACCESS_KEY_ID_ENV,
     AWS_BEDROCK_ENDPOINT_ENV,
+    AWS_PROFILE_ENV,
+    AWS_SECRET_ACCESS_KEY_ENV,
+    AZURE_OPENAI_API_KEY_ENV,
     AZURE_OPENAI_ENDPOINT_ENV,
-    DEFAULT_PROVIDER,
-    LOCAL_PROVIDERS,
-    NINJASRE_LLM_PROVIDER_ENV,
+    GOOGLE_API_KEY_ENV,
+    GOOGLE_APPLICATION_CREDENTIALS_ENV,
+    NVIDIA_API_KEY_ENV,
     NVIDIA_NIM_BASE_URL_ENV,
     OLLAMA_BASE_URL_ENV,
+    OPENAI_API_KEY_ENV,
     OPENAI_BASE_URL_ENV,
+    OPENROUTER_API_KEY_ENV,
     OPENROUTER_BASE_URL_ENV,
     PROVIDER_ANTHROPIC,
     PROVIDER_AWS_BEDROCK,
     PROVIDER_AZURE_OPENAI,
+    PROVIDER_GOOGLE_GEMINI,
+    PROVIDER_GOOGLE_VERTEX_AI,
     PROVIDER_NVIDIA_NIM,
     PROVIDER_OLLAMA,
     PROVIDER_OPENAI,
     PROVIDER_OPENROUTER,
+    SUPPORTED_PROVIDERS,
 )
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
@@ -72,6 +93,27 @@ PROVIDER_ENDPOINT_ENV: Mapping[str, str] = {
     PROVIDER_NVIDIA_NIM: NVIDIA_NIM_BASE_URL_ENV,
     PROVIDER_OLLAMA: OLLAMA_BASE_URL_ENV,
 }
+
+#: What each provider needs in the environment before it can authenticate. A
+#: provider whose entry holds several names is satisfied by any one of them:
+#: Bedrock takes a key pair or a named profile, and Vertex takes a key or an
+#: application-credentials file. Ollama is absent because a local server needs
+#: none, which is why the two mappings are not one.
+#:
+#: It lives here rather than beside the validator that also reads it because
+#: this module is the one that answers "what can this configuration reach", and
+#: a credential is now the plainest statement an environment makes about that.
+PROVIDER_CREDENTIAL_ENV: Mapping[str, tuple[str, ...]] = {
+    PROVIDER_ANTHROPIC: (ANTHROPIC_API_KEY_ENV,),
+    PROVIDER_OPENAI: (OPENAI_API_KEY_ENV,),
+    PROVIDER_AZURE_OPENAI: (AZURE_OPENAI_API_KEY_ENV,),
+    PROVIDER_AWS_BEDROCK: (AWS_ACCESS_KEY_ID_ENV, AWS_SECRET_ACCESS_KEY_ENV, AWS_PROFILE_ENV),
+    PROVIDER_GOOGLE_GEMINI: (GOOGLE_API_KEY_ENV,),
+    PROVIDER_GOOGLE_VERTEX_AI: (GOOGLE_API_KEY_ENV, GOOGLE_APPLICATION_CREDENTIALS_ENV),
+    PROVIDER_OPENROUTER: (OPENROUTER_API_KEY_ENV,),
+    PROVIDER_NVIDIA_NIM: (NVIDIA_API_KEY_ENV,),
+}
+
 
 #: Name suffixes that resolve inside a cluster or a private network.
 _INTERNAL_SUFFIXES: tuple[str, ...] = (
@@ -150,18 +192,74 @@ class EgressDestination:
         return f"{where} ({self.purpose}, from {self.setting})"
 
 
-def _provider_of(source: Mapping[str, str]) -> str:
-    return (source.get(NINJASRE_LLM_PROVIDER_ENV) or DEFAULT_PROVIDER).strip().lower()
+def _credential_set(source: Mapping[str, str], provider: str) -> str:
+    """Return the credential setting ``provider`` is equipped by here, or empty."""
+    for name in PROVIDER_CREDENTIAL_ENV.get(provider, ()):
+        if source.get(name, "").strip():
+            return name
+    return ""
+
+
+def _provider_destinations(source: Mapping[str, str]) -> tuple[EgressDestination, ...]:
+    """Return one destination per provider this environment equips, in declared order.
+
+    An endpoint override is the stronger statement and wins: an operator who
+    pointed a provider at their own gateway has said where its calls go, however
+    many credentials sit beside it. A credential with no override stands for the
+    vendor's own endpoint, whose address the SDK owns and this code does not —
+    recorded with no host, which is never on-host.
+
+    Every equipped provider is reported rather than one, because nothing in an
+    environment says which provider a role runs on any more. Picking one would
+    be a guess at exactly the question that caused the failure this derivation
+    was rewritten for: a deployment that ran on two providers because a manifest
+    named one and the console had bound another.
+    """
+    found: list[EgressDestination] = []
+    for provider in SUPPORTED_PROVIDERS:
+        endpoint_env = PROVIDER_ENDPOINT_ENV.get(provider, "")
+        endpoint = source.get(endpoint_env, "").strip() if endpoint_env else ""
+        if endpoint:
+            found.append(
+                EgressDestination(
+                    host=host_of(endpoint),
+                    purpose=f"{PURPOSE_PROVIDER} {provider}",
+                    setting=endpoint_env,
+                )
+            )
+            continue
+        credential = _credential_set(source, provider)
+        if credential:
+            found.append(
+                EgressDestination(
+                    host="",
+                    purpose=f"{PURPOSE_PROVIDER} {provider}",
+                    setting=credential,
+                )
+            )
+    return tuple(found)
+
+
+def provider_destinations(
+    environ: Mapping[str, str] | None = None,
+) -> tuple[EgressDestination, ...]:
+    """Return every model provider this environment equips this deployment to reach."""
+    return _provider_destinations(environ if environ is not None else os.environ)
 
 
 def configured_destinations(
     environ: Mapping[str, str] | None = None,
 ) -> tuple[EgressDestination, ...]:
-    """Return every destination this configuration implies, in a stable order.
+    """Return every destination this environment implies, in a stable order.
 
     Deliberately derived rather than observed. A list built from what a run
     happened to connect to would grow a destination the first time something
     reached one, which is the opposite of the guarantee.
+
+    Derived from the *environment* rather than from the whole configuration,
+    because the earliest caller is startup validation, which runs before the
+    database is open. That bounds what can honestly be said here — see the
+    module docstring on model providers, which is where the bound bites.
     """
     source = environ if environ is not None else os.environ
     found: list[EgressDestination] = []
@@ -176,16 +274,7 @@ def configured_destinations(
             )
         )
 
-    provider = _provider_of(source)
-    endpoint_env = PROVIDER_ENDPOINT_ENV.get(provider, "")
-    endpoint = source.get(endpoint_env, "") if endpoint_env else ""
-    found.append(
-        EgressDestination(
-            host=host_of(endpoint),
-            purpose=f"{PURPOSE_PROVIDER} {provider}",
-            setting=endpoint_env or NINJASRE_LLM_PROVIDER_ENV,
-        )
-    )
+    found.extend(_provider_destinations(source))
 
     proxy = source.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
     if proxy:
@@ -241,19 +330,20 @@ def external_destinations(
 
 
 def provider_is_local(environ: Mapping[str, str] | None = None) -> bool:
-    """Return whether the configured provider runs on the operator's own infrastructure.
+    """Return whether every model provider this environment equips runs on-host.
 
-    True for a provider that is local by nature, and for any provider whose
-    endpoint the operator has pointed at something on-host — which is how a
-    vLLM or a gateway in front of one is configured.
+    True for a provider whose endpoint the operator has pointed at something
+    on-host — an Ollama server, or a vLLM behind a gateway — and true when the
+    environment equips no provider at all, which is a deployment whose provider
+    credential lives in the vault and is the supported first-run shape. An
+    absent statement is not a statement that something leaves the host, and
+    treating it as one is what used to refuse an air-gapped boot over the
+    shipped default provider nobody had asked for.
     """
-    source = environ if environ is not None else os.environ
-    provider = _provider_of(source)
-    if provider in LOCAL_PROVIDERS:
-        return True
-    endpoint_env = PROVIDER_ENDPOINT_ENV.get(provider, "")
-    endpoint = source.get(endpoint_env, "") if endpoint_env else ""
-    return bool(endpoint) and is_on_host(host_of(endpoint))
+    return all(
+        destination.on_host
+        for destination in _provider_destinations(environ if environ is not None else os.environ)
+    )
 
 
 def permitted_hosts(environ: Mapping[str, str] | None = None) -> frozenset[str]:
@@ -298,6 +388,7 @@ __all__ = [
     "host_of",
     "is_on_host",
     "permitted_hosts",
+    "provider_destinations",
     "provider_is_local",
     "unexpected",
 ]

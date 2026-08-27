@@ -37,7 +37,11 @@ from config.constants.security import (
     NINJASRE_CREDENTIAL_PROXY_URL_ENV,
     NINJASRE_SANDBOX_PROFILE_ENV,
 )
-from platform.startup.validation import Severity, validate
+from platform.startup.validation import (
+    PROVIDER_CREDENTIAL_SETTING,
+    Severity,
+    validate,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -47,7 +51,6 @@ pytestmark = pytest.mark.unit
 MINIMUM_VIABLE = {
     NINJASRE_DEPLOYMENT_PROFILE_ENV: DEPLOYMENT_PROFILE_STANDARD,
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
-    NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
     NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8081",
@@ -71,12 +74,6 @@ def with_(**overrides: str) -> dict[str, str]:
 #: the remedy must contain). The last element is what turns "it failed" into
 #: "an operator knows what to type next".
 MISCONFIGURATIONS: tuple[tuple[str, dict[str, str], str, str], ...] = (
-    (
-        "no provider credential",
-        without(ANTHROPIC_API_KEY_ENV),
-        ANTHROPIC_API_KEY_ENV,
-        "anthropic",
-    ),
     (
         "an encryption key that is not base64",
         with_(**{NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "not base64!!"}),
@@ -120,9 +117,9 @@ MISCONFIGURATIONS: tuple[tuple[str, dict[str, str], str, str], ...] = (
         "proxy",
     ),
     (
-        "air-gapped with a hosted provider",
+        "air-gapped with a hosted provider's credential in the environment",
         with_(**{NINJASRE_AIR_GAPPED_ENV: "1"}),
-        NINJASRE_LLM_PROVIDER_ENV,
+        ANTHROPIC_API_KEY_ENV,
         "local",
     ),
     (
@@ -170,7 +167,6 @@ def test_the_dev_profile_needs_neither_a_proxy_url_nor_a_container_runtime() -> 
     environ = {
         NINJASRE_DEPLOYMENT_PROFILE_ENV: DEPLOYMENT_PROFILE_DEV,
         NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@localhost:5432/ninjasre",
-        NINJASRE_LLM_PROVIDER_ENV: "anthropic",
         ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
     }
 
@@ -184,7 +180,6 @@ def test_an_air_gapped_deployment_with_a_local_model_is_valid() -> None:
     environ = with_(
         **{
             NINJASRE_AIR_GAPPED_ENV: "true",
-            NINJASRE_LLM_PROVIDER_ENV: "ollama",
             OLLAMA_BASE_URL_ENV: "http://ollama:11434/v1",
         }
     )
@@ -215,18 +210,18 @@ def test_every_finding_is_reported_rather_than_the_first_one() -> None:
 
     settings = {finding.setting for finding in report.findings}
     assert {
-        ANTHROPIC_API_KEY_ENV,
+        PROVIDER_CREDENTIAL_SETTING,
         NINJASRE_DATABASE_URL_ENV,
         NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
     } <= settings
 
 
 def test_the_summary_reads_as_something_an_operator_can_act_on() -> None:
-    report = validate(without(ANTHROPIC_API_KEY_ENV))
+    report = validate(without(NINJASRE_DATABASE_URL_ENV))
 
     summary = report.summary()
 
-    assert ANTHROPIC_API_KEY_ENV in summary
+    assert NINJASRE_DATABASE_URL_ENV in summary
     assert summary.count("\n") >= 1, "one line per finding, so a boot log shows them all"
 
 
@@ -237,7 +232,7 @@ def test_a_valid_configuration_summarises_as_much() -> None:
 # -- the model provider is a first-run step, not a deployment setting ---------
 
 
-def test_a_deployment_with_no_provider_starts_and_is_told_it_has_none() -> None:
+def test_a_deployment_that_equips_no_provider_starts_and_is_told_it_equips_none() -> None:
     """Connecting a model provider is a first-run step, so the boot must reach it.
 
     The console ships a screen for exactly this state, and the setup checklist
@@ -245,24 +240,57 @@ def test_a_deployment_with_no_provider_starts_and_is_told_it_has_none() -> None:
     the process that would render either of them, so the absence is advisory:
     reported at every boot, and never a reason to refuse one.
     """
-    report = validate(without(NINJASRE_LLM_PROVIDER_ENV, ANTHROPIC_API_KEY_ENV))
+    report = validate(without(ANTHROPIC_API_KEY_ENV))
 
     assert report.ok, report.summary()
     advisory = [
-        finding for finding in report.warnings if finding.setting == NINJASRE_LLM_PROVIDER_ENV
+        finding for finding in report.warnings if finding.setting == PROVIDER_CREDENTIAL_SETTING
     ]
-    assert advisory, "a deployment with no provider should still be told that it has none"
+    assert advisory, "a deployment equipping no provider should still be told that it equips none"
     assert "first run" in advisory[0].remedy.lower(), (
         f"the remedy should send the operator to the step that fixes it: {advisory[0].remedy!r}"
     )
 
 
-def test_a_provider_that_was_asked_for_without_a_credential_is_still_fatal() -> None:
-    """Silence is a deployment that has not been set up; a named provider is a request."""
+def test_the_advisory_names_no_variable_that_does_nothing() -> None:
+    """``NINJASRE_LLM_PROVIDER`` selects nothing, so telling somebody to set it is advice to type an inert line."""
     report = validate(without(ANTHROPIC_API_KEY_ENV))
 
-    assert not report.ok
-    assert any(finding.setting == ANTHROPIC_API_KEY_ENV for finding in report.fatal)
+    for finding in report.findings:
+        assert NINJASRE_LLM_PROVIDER_ENV not in str(finding), str(finding)
+
+
+def test_a_local_model_server_counts_as_a_provider_this_deployment_equips() -> None:
+    """Ollama needs no credential, so a credential count alone would nag a working deployment."""
+    environ = without(ANTHROPIC_API_KEY_ENV) | {OLLAMA_BASE_URL_ENV: "http://ollama:11434/v1"}
+
+    report = validate(environ)
+
+    assert not [
+        finding for finding in report.findings if finding.setting == PROVIDER_CREDENTIAL_SETTING
+    ], report.summary()
+
+
+def test_a_stale_provider_name_in_a_manifest_does_not_refuse_a_boot() -> None:
+    """The availability half of the change this file's provider checks are about.
+
+    ``NINJASRE_LLM_PROVIDER`` no longer selects anything: what a role runs on
+    lives in the configuration tree, which validation cannot read because it
+    runs before the database is open. So a value left in a manifest describes a
+    provider this deployment may never call — and refusing to start over one,
+    which is what a credential requirement keyed to the name did, takes a
+    working deployment down for a line that has no effect.
+    """
+    report = validate(without(ANTHROPIC_API_KEY_ENV) | {NINJASRE_LLM_PROVIDER_ENV: "openai"})
+
+    assert report.ok, report.summary()
+
+
+def test_a_provider_name_nothing_supports_is_not_a_reason_to_refuse_a_boot() -> None:
+    """It used to be fatal, and it was fatal about a spelling nothing reads."""
+    report = validate(with_(**{NINJASRE_LLM_PROVIDER_ENV: "not-a-provider"}))
+
+    assert report.ok, report.summary()
 
 
 # -- the encryption key is what the provider requirement turned into ----------

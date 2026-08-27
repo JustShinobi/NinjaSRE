@@ -110,12 +110,17 @@ async def _publish_model_bindings(deployment: Deployment) -> None:
     saves a form, not between two calls in the same investigation.
 
     Advisory in both directions. A deployment that has configured nothing
-    publishes nothing and every role falls through to the environment and then
-    to the shipped default — which is the state a deployment starts in, before
-    anybody has been to the first-run screen. And a failure to read
-    configuration is logged rather than raised: a console, a history and a
+    publishes nothing, every role falls through to the shipped default, and
+    nothing in the environment gets a say — which is the state a deployment
+    starts in, before anybody has been to the first-run screen. And a failure to
+    read configuration is logged rather than raised: a console, a history and a
     health endpoint that all work are worth having up while somebody fixes the
     configuration tree.
+
+    Note the ordering against ``run_startup`` in ``boot`` below. Validation runs
+    first and cannot read any of this, because the database it would read is not
+    open yet — which is why nothing it reports may describe a provider as
+    *chosen*. The choice is made here, one step later.
     """
     try:
         scope = TenantScope(org_id=organisation_id())

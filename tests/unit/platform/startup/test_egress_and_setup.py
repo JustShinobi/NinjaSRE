@@ -24,10 +24,12 @@ from config.constants.llm import (
     ANTHROPIC_BASE_URL_ENV,
     NINJASRE_LLM_PROVIDER_ENV,
     OLLAMA_BASE_URL_ENV,
+    OPENAI_API_KEY_ENV,
 )
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from platform.startup.egress import (
+    PURPOSE_PROVIDER,
     configured_destinations,
     external_destinations,
     host_of,
@@ -45,16 +47,18 @@ from platform.startup.setup import (
 
 pytestmark = pytest.mark.unit
 
+#: A hosted deployment. The Anthropic credential is what makes Anthropic
+#: reachable — nothing in an environment names which provider a role runs on any
+#: more, so a credential and an endpoint are the only things left that say
+#: anything about where a model call could go.
 HOSTED = {
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre:secret@postgres:5432/ninjasre",
-    NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 
 AIR_GAPPED = {
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre:secret@postgres:5432/ninjasre",
-    NINJASRE_LLM_PROVIDER_ENV: "ollama",
     OLLAMA_BASE_URL_ENV: "http://ollama:11434/v1",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
     NINJASRE_AIR_GAPPED_ENV: "true",
@@ -101,6 +105,63 @@ def test_every_destination_names_the_setting_that_configured_it() -> None:
     for destination in configured_destinations(HOSTED):
         assert destination.setting
         assert destination.purpose
+
+
+def test_a_provider_credential_is_what_makes_that_vendor_reachable() -> None:
+    """The environment stopped naming a provider, so a credential is the signal left.
+
+    An operator who put an Anthropic key in the manifest has equipped this
+    deployment to reach Anthropic, whatever the configuration tree later binds
+    any role to. That is a destination derived from a setting somebody can
+    remove, which is the whole of what this report promises.
+    """
+    [destination] = [
+        entry for entry in configured_destinations(HOSTED) if PURPOSE_PROVIDER in entry.purpose
+    ]
+
+    assert destination.setting == ANTHROPIC_API_KEY_ENV
+    assert "anthropic" in destination.purpose
+
+
+def test_an_environment_that_equips_no_provider_reports_no_provider_destination() -> None:
+    """The report stopped inventing one.
+
+    It used to synthesise a destination for whichever provider
+    ``NINJASRE_LLM_PROVIDER`` named, falling back to the shipped default when
+    nothing named one — so a deployment whose provider credential lives in the
+    vault, which is the supported shape, had its egress report name a vendor no
+    call would ever reach.
+    """
+    environ = {NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre"}
+
+    assert configured_destinations(environ) == configured_destinations(
+        environ | {NINJASRE_LLM_PROVIDER_ENV: "openai"}
+    )
+    assert not [
+        entry for entry in configured_destinations(environ) if PURPOSE_PROVIDER in entry.purpose
+    ]
+
+
+def test_a_stale_provider_name_changes_nothing_about_what_is_reachable() -> None:
+    """The variable is inert, and a report that still read it would say otherwise."""
+    assert configured_destinations(HOSTED | {NINJASRE_LLM_PROVIDER_ENV: "ollama"}) == (
+        configured_destinations(HOSTED)
+    )
+
+
+def test_every_provider_the_environment_equips_is_reported_not_just_one() -> None:
+    """Two credentials are two destinations. Which one a role uses is not an
+    environment's answer any more, so an egress report that picked one would be
+    guessing at exactly the thing that went wrong."""
+    environ = HOSTED | {OPENAI_API_KEY_ENV: "sk-not-a-real-key"}
+
+    providers = [
+        entry.purpose
+        for entry in configured_destinations(environ)
+        if PURPOSE_PROVIDER in entry.purpose
+    ]
+
+    assert len(providers) == 2
 
 
 def test_a_hosted_provider_is_the_one_thing_that_leaves_the_host() -> None:

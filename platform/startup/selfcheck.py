@@ -517,6 +517,12 @@ def model_provider_check(verify: Callable[[], Any] | None = None) -> Check:
     injected rather than imported and called, because verifying a provider makes
     real calls against the operator's endpoint and the self-check must be able to
     run without spending anything.
+
+    The remedy sends an operator to the console rather than to an environment
+    variable. It used to name ``NINJASRE_LLM_PROVIDER``, which stopped selecting
+    anything when what each role runs on moved into the configuration tree — so
+    an operator who followed it would set the line, restart, and find this check
+    still red, having been told to type the one thing that could not fix it.
     """
 
     async def body() -> CheckOutcome:
@@ -525,8 +531,9 @@ def model_provider_check(verify: Callable[[], Any] | None = None) -> Check:
                 CHECK_MODEL_PROVIDER,
                 problem="no model provider is configured, so nothing can reason about anything",
                 action=(
-                    "set NINJASRE_LLM_PROVIDER and the credential it needs, then run the "
-                    "self-check again — it will verify tool calling rather than assume it"
+                    "connect a provider in the console — first run stores its credential "
+                    "in the vault and binds it to the investigator — then run the "
+                    "self-check again; it will verify tool calling rather than assume it"
                 ),
                 blocks=BLOCKS_INVESTIGATION,
             )

@@ -315,6 +315,35 @@ async def test_every_finding_the_check_can_produce_names_a_problem_and_an_action
         }
 
 
+async def test_no_action_tells_an_operator_to_set_a_variable_that_selects_nothing() -> None:
+    """A self-check exists to say what to type next, so a dead instruction is worse than none.
+
+    ``NINJASRE_LLM_PROVIDER`` stopped choosing a provider: what each role runs
+    on lives in the configuration tree now. An operator who followed a remedy
+    naming it would set the line, restart, and find the check still red — which
+    is the failure mode a first-run diagnostic exists to prevent.
+    """
+    from config.constants.llm import NINJASRE_LLM_PROVIDER_ENV
+    from platform.persistence.fakes import FakePersistence
+    from platform.startup.selfcheck import deployment_checks
+
+    down = FakePersistence()
+    await down.close()
+
+    report = await run_checks(
+        deployment_checks(
+            down,
+            free_bytes=lambda: 0,
+            reference_clock=lambda: datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+
+    for finding in report.findings:
+        assert NINJASRE_LLM_PROVIDER_ENV not in finding.action, (
+            f"{finding.check} tells an operator to set a variable nothing reads: {finding.action!r}"
+        )
+
+
 async def test_an_unusable_integration_is_reported_one_finding_at_a_time() -> None:
     """The ninth check's failing path. Separated because "no integrations
     configured" is not a problem, so it cannot be driven by absence."""

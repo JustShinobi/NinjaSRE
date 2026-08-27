@@ -49,6 +49,18 @@ MAX_SKILL_BODY_TOKENS: Final[int] = 4_000
 #: payload is carrying prose that belongs in the skill body.
 MAX_TOOL_DESCRIPTION_TOKENS: Final[int] = 192
 
+#: How much of a failed capability's own error text reaches the model and the
+#: console, in characters.
+#:
+#: The message used to carry the exception's class name and nothing else, so a
+#: reader looking at an incident card saw the word "ValueError". Carrying the
+#: text instead means carrying whatever a vendor put in it, and a gateway
+#: having a bad day answers with a page of HTML — which would arrive in the
+#: turn's context at the moment the investigation can least afford it. The
+#: whole of it is still kept in the result's ``detail``, which the trace holds
+#: and nothing sends to a model.
+MAX_CAPABILITY_ERROR_MESSAGE_CHARS: Final[int] = 300
+
 # --- Discovery ---------------------------------------------------------------
 
 #: The manifest that makes a directory a skill. Its presence is the whole of the
@@ -174,6 +186,7 @@ __all__ = [
     "CAPABILITY_SKILLS_PACKAGE",
     "CAPABILITY_TOOLS_PACKAGE",
     "INTEGRATION_TOOLS_SUBPACKAGE",
+    "MAX_CAPABILITY_ERROR_MESSAGE_CHARS",
     "MAX_CATALOGUE_METADATA_TOKENS",
     "MAX_SELECTED_SKILLS",
     "MAX_SKILL_BODY_TOKENS",

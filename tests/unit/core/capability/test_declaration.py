@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from config.constants.capabilities import MAX_CAPABILITY_ERROR_MESSAGE_CHARS
 from core.capability.base import BaseTool
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceType, SideEffectLevel
@@ -173,7 +174,8 @@ async def test_an_exception_inside_a_tool_becomes_a_result() -> None:
         (TimeoutError("slow"), CapabilityErrorClass.TIMEOUT),
         (PermissionError("nope"), CapabilityErrorClass.PERMISSION_DENIED),
         (ConnectionError("down"), CapabilityErrorClass.UPSTREAM_ERROR),
-        (ValueError("bad"), CapabilityErrorClass.INVALID_ARGUMENTS),
+        (ValueError("bad"), CapabilityErrorClass.INTERNAL),
+        (TypeError("bad"), CapabilityErrorClass.INTERNAL),
     ],
 )
 async def test_common_exceptions_are_classified_rather_than_lumped_together(
@@ -200,6 +202,135 @@ async def test_common_exceptions_are_classified_rather_than_lumped_together(
 
     assert result.error is not None
     assert result.error.classification is expected
+
+
+async def test_a_failure_inside_the_body_is_not_blamed_on_the_arguments() -> None:
+    """Measured on staging, and the retry it caused is the expensive half.
+
+    ``proxmox_guest_tasks`` was called with ``{"kind": "lxc", "node": "pve01",
+    "vmid": 122}`` — correct in every field — and failed parsing the reply
+    Proxmox sent back. ``ValueError`` classified as ``invalid_arguments``, so
+    the model was told its arguments were wrong, and it did the only thing that
+    advice permits: it called again with different ones, which failed the same
+    way.
+
+    Arguments are checked against the schema *before* the body runs, so an
+    exception escaping the body says something about the call the tool made,
+    never about the call the model made. ``internal`` is the class the module
+    already reserves for a failure nobody recognised, and it is not retried.
+    """
+
+    @tool(
+        name="parses_a_reply",
+        display_name="Parses a reply",
+        description="Fails the way a vendor's unexpected reply makes a parser fail.",
+        evidence_source="reasoning",
+        evidence_type=EvidenceType.ANALYSIS,
+        side_effect_level=SideEffectLevel.READ,
+        parallel_safe=True,
+    )
+    async def parses_a_reply(node: str) -> None:
+        raise ValueError("invalid literal for int() with base 10: 'pve01'")
+
+    registered = capability_marker(parses_a_reply)
+    assert registered is not None
+
+    result = await registered.invoke({"node": "pve01"})
+
+    assert result.error is not None
+    assert result.error.classification is CapabilityErrorClass.INTERNAL
+    assert not result.error.retryable
+
+
+async def test_a_tool_can_still_say_the_arguments_were_wrong_itself() -> None:
+    """The judgement moved to the only place that holds it, rather than being lost.
+
+    A tool knows what its arguments meant; the wrapper only knows an exception
+    type. So the wrapper stopped guessing, and a tool that really was sent
+    something it cannot use returns the classification rather than raising for
+    one.
+    """
+
+    @tool(
+        name="refuses_an_argument",
+        display_name="Refuses an argument",
+        description="Refuses an argument it can see is wrong.",
+        evidence_source="reasoning",
+        evidence_type=EvidenceType.ANALYSIS,
+        side_effect_level=SideEffectLevel.READ,
+        parallel_safe=True,
+    )
+    async def refuses_an_argument(vmid: int) -> CapabilityResult:
+        return CapabilityResult.failed(
+            "refuses_an_argument",
+            CapabilityErrorClass.INVALID_ARGUMENTS,
+            "vmid must be positive",
+        )
+
+    registered = capability_marker(refuses_an_argument)
+    assert registered is not None
+
+    result = await registered.invoke({"vmid": -1})
+
+    assert result.error is not None
+    assert result.error.classification is CapabilityErrorClass.INVALID_ARGUMENTS
+
+
+async def test_the_failure_message_says_what_went_wrong_and_not_just_its_type() -> None:
+    """A console that renders the message alone showed a reader the word "ValueError".
+
+    The message is what the model reads and what the incident card prints; the
+    detail is what the trace keeps. A message carrying only an exception class
+    name tells neither of them anything, and both of them had it.
+    """
+
+    @tool(
+        name="fails_with_something_to_say",
+        display_name="Fails with something to say",
+        description="Raises with a message worth putting in front of somebody.",
+        evidence_source="reasoning",
+        evidence_type=EvidenceType.ANALYSIS,
+        side_effect_level=SideEffectLevel.READ,
+        parallel_safe=True,
+    )
+    async def fails_with_something_to_say() -> None:
+        raise RuntimeError("node pve01 answered 500")
+
+    registered = capability_marker(fails_with_something_to_say)
+    assert registered is not None
+
+    result = await registered.invoke({})
+
+    assert result.error is not None
+    assert "node pve01 answered 500" in result.error.message
+    assert "RuntimeError" in result.error.message
+
+
+async def test_a_vendors_wall_of_text_does_not_become_the_whole_message() -> None:
+    """An HTML error page is a plausible ``str(error)``, and it goes to a model."""
+
+    @tool(
+        name="fails_at_length",
+        display_name="Fails at length",
+        description="Raises with the kind of body a gateway returns on a bad day.",
+        evidence_source="reasoning",
+        evidence_type=EvidenceType.ANALYSIS,
+        side_effect_level=SideEffectLevel.READ,
+        parallel_safe=True,
+    )
+    async def fails_at_length() -> None:
+        raise RuntimeError("x" * 10_000)
+
+    registered = capability_marker(fails_at_length)
+    assert registered is not None
+
+    result = await registered.invoke({})
+
+    assert result.error is not None
+    assert len(result.error.message) <= MAX_CAPABILITY_ERROR_MESSAGE_CHARS + len(
+        "fails_at_length failed with RuntimeError: "
+    )
+    assert result.error.detail == "x" * 10_000, "the trace still keeps the whole of it"
 
 
 async def test_a_tool_returning_a_result_is_not_wrapped_twice() -> None:
