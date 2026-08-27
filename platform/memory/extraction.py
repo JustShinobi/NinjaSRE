@@ -41,7 +41,7 @@ from core.agent.session import Session
 from core.capability.telemetry import InvocationOutcome
 from core.llm.types import InvokeRequest, LLMClient, Message, Role
 from core.llm.usage import UsageRecord
-from platform.memory.models import Component, EpisodeSeverity, KeyFinding
+from platform.memory.models import Component, EpisodeSeverity, IssueType, KeyFinding
 from platform.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -49,14 +49,32 @@ logger = get_logger(__name__)
 #: What the model is asked to return. Every field is optional in the schema and
 #: defaulted here: a model that could not tell what the severity was should leave
 #: it out, and a schema that made it required would get a guess instead.
+#:
+#: ``issue_type`` is an enum rather than free text, and that is the writing half
+#: of a controlled vocabulary. Two runs describing one incident chose
+#: ``manual_shutdown`` and ``ProxmoxGuestStopped``, and a corpus filed under both
+#: is a corpus neither of them can search. A list is also easier to answer than
+#: an instruction to invent a short lowercase label, which is worth something on
+#: its own: the reply that fails to parse is usually the reply the model had to
+#: compose rather than choose.
 EPISODE_EXTRACTION_SCHEMA: Mapping[str, Any] = {
     "type": "object",
     "properties": {
         "issue_type": {
             "type": "string",
+            "enum": [member.value for member in IssueType],
             "description": (
-                "A short lowercase label for the class of failure — "
-                "'oom_kill', 'certificate_expiry', 'connection_pool_exhaustion'."
+                "The class of failure, chosen from this list. Pick the closest one; "
+                "use 'other' only when none of them describes what went wrong, and "
+                "put your own words in 'issue_label' when you do."
+            ),
+        },
+        "issue_label": {
+            "type": "string",
+            "description": (
+                "The failure class in your own words, when the listed type does not "
+                "say it precisely — 'ceph_pg_inconsistent', 'ProxmoxGuestStopped'. "
+                "Kept verbatim beside the classification, never instead of it."
             ),
         },
         "issue_description": {
@@ -121,6 +139,7 @@ class EpisodeExtraction:
     """What one investigation turned out to be about."""
 
     issue_type: str = ""
+    issue_label: str = ""
     issue_description: str = ""
     severity: EpisodeSeverity = EpisodeSeverity.UNKNOWN
     components: tuple[Component, ...] = ()
@@ -136,8 +155,18 @@ class EpisodeExtraction:
         An extraction with neither a classification nor a summary embeds to
         nothing and matches nothing, so writing it costs a row, a vector, and a
         neighbour slot in every future search, and returns none of them.
+
+        ``other`` alone does not count as a classification. Before the vocabulary
+        existed an unclassified reply left ``issue_type`` empty and this test saw
+        it; a schema with an escape hatch in it means a model can now answer the
+        question with the word for having not answered it, and an enum member is
+        still a non-empty string.
         """
-        return bool(self.issue_type.strip() or self.summary.strip())
+        return bool(
+            self.summary.strip()
+            or self.issue_label.strip()
+            or IssueType.classify(self.issue_type).classified
+        )
 
     @classmethod
     def from_structured(cls, document: Mapping[str, Any]) -> EpisodeExtraction:
@@ -146,9 +175,29 @@ class EpisodeExtraction:
         Every field is read defensively and none of them can raise. A model that
         returned a string where a list was asked for should cost that field, not
         the episode.
+
+        The issue type is the one field that is *transformed* rather than read.
+        It arrives as whatever the model said and leaves as a member of the
+        vocabulary, with the model's own words preserved on ``issue_label`` — so
+        the corpus is filed under a word two runs can both find, and no run's
+        description of its own incident is thrown away to get there.
         """
+        raw_type = _text(document.get("issue_type"))
+        raw_label = _text(document.get("issue_label"))
+        # Classified rather than trusted. The enum is a request the provider may
+        # or may not enforce, and an unenforced one comes back as whatever the
+        # model would have written anyway — which is the free-text problem the
+        # enum was added to end.
+        classified = IssueType.classify(raw_type or raw_label)
+        # The label carries only what the bucket lost. A model that picked from
+        # the list said nothing the classification does not already say, and
+        # echoing it back would make "the model had words of its own" true of
+        # every episode — including the one that answered ``other`` and nothing
+        # else, which is a reply with no content wearing a vocabulary member.
+        words = raw_label or raw_type
         return cls(
-            issue_type=_text(document.get("issue_type")),
+            issue_type=classified.value,
+            issue_label="" if words.lower() == classified.value else words,
             issue_description=_text(document.get("issue_description")),
             severity=EpisodeSeverity.parse(_text(document.get("severity"))),
             components=_components(document.get("components")),
@@ -286,10 +335,21 @@ class EpisodeExtractor:
 
         extraction = EpisodeExtraction.from_structured(result.structured)
         if not extraction.usable:
+            # The keys are named, the values are not. Which fields arrived tells
+            # an operator whether the model answered a different question, whether
+            # generation was cut off partway, or whether the object was empty —
+            # three causes with three different fixes, and the message that said
+            # only "neither an issue type nor a summary" separated none of them.
+            # The values would be the investigation's own text and do not belong
+            # in a log line.
+            carried = ", ".join(sorted(str(key) for key in result.structured)) or "no keys at all"
             logger.warning("memory.extraction_empty", failure="the reply carried no content")
             return ExtractionOutcome(
                 reason=EPISODE_EXTRACTION_FAILED.format(
-                    failure="the structured reply named neither an issue type nor a summary"
+                    failure=(
+                        "the structured reply named neither an issue type nor a summary; "
+                        f"it carried {carried}"
+                    )
                 ),
                 usage=result.usage,
             )

@@ -23,8 +23,10 @@ from config.constants.memory import DEFAULT_MEMORY_RECALL_RESULTS
 from core.capability.metadata import EvidenceSource, EvidenceType, SideEffectLevel
 from core.capability.registered import capability_marker
 from core.capability.result import CapabilityErrorClass
+from platform.memory.extraction import EPISODE_EXTRACTION_SCHEMA
 from platform.memory.models import (
     Component,
+    IssueType,
     MemoryEpisode,
     RecallQuery,
     ScoredEpisode,
@@ -113,6 +115,37 @@ def test_the_declaration_takes_a_query_and_the_two_optional_filters() -> None:
     properties = registered.input_schema["properties"]
     assert set(properties) == {"query", "component", "issue_type", "limit"}
     assert registered.input_schema["required"] == ["query"]
+
+
+def test_the_agent_is_offered_the_same_closed_vocabulary_the_extractor_uses() -> None:
+    """The reading half of the controlled vocabulary, in the schema the model sees.
+
+    One list, declared once and read by both ends. Two lists that agreed on the
+    day they were written is how the corpus arrived at ``manual_shutdown`` on one
+    side and ``ProxmoxGuestStopped`` on the other, and a tool schema that merely
+    *described* the vocabulary in prose would be the second list.
+    """
+    registered = capability_marker(recall_similar_incidents)
+    assert registered is not None
+
+    issue_type = registered.input_schema["properties"]["issue_type"]
+    assert issue_type["enum"] == [member.value for member in IssueType]
+    assert issue_type["enum"] == EPISODE_EXTRACTION_SCHEMA["properties"]["issue_type"]["enum"]
+
+
+def test_the_issue_type_is_described_as_a_preference_rather_than_a_filter() -> None:
+    """The model must not be told it is narrowing the search, because it is not.
+
+    An agent that believes naming a class of failure excludes everything else
+    will name one it is only half sure of, and then read an empty result as
+    "this has never happened". It is ranking, and the schema says so.
+    """
+    registered = capability_marker(recall_similar_incidents)
+    assert registered is not None
+
+    described = registered.input_schema["properties"]["issue_type"]["description"].lower()
+    assert "rank" in described
+    assert "nothing is excluded" in described
 
 
 def test_the_description_tells_the_agent_when_to_search() -> None:
@@ -266,6 +299,7 @@ def test_the_shaped_result_carries_both_the_text_and_the_structure() -> None:
         "similarity",
         "resolved",
         "component_overlap",
+        "issue_type_match",
         "effectiveness",
         "recency",
     }

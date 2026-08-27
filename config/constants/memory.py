@@ -96,21 +96,49 @@ EFFECTIVENESS_TRAJECTORY_REFERENCE_ITERATIONS: Final[int] = 5
 
 # --- The ranking formula -----------------------------------------------------
 
-#: Bumped whenever a ranking weight changes, for the same reason as above.
-RANKING_FORMULA_VERSION: Final[int] = 1
+#: Bumped whenever a ranking weight changes, for the same reason as above. At 2
+#: because the issue-type term below was added: every episode scored under
+#: version 1 was scored by a formula with one fewer term in it.
+RANKING_FORMULA_VERSION: Final[int] = 2
 
 #: ``score = w_similarity * similarity + w_resolved * resolved
-#:         + w_components * component_overlap + w_effectiveness * effectiveness
-#:         + w_recency * recency``
+#:         + w_components * component_overlap + w_issue_type * issue_type_match
+#:         + w_effectiveness * effectiveness + w_recency * recency``
 #:
 #: Similarity leads because a precedent that is not about this failure helps
-#: nobody however well it went. The other four break ties among things that are
+#: nobody however well it went. The other five break ties among things that are
 #: all plausibly about this failure, which is the case that actually occurs.
-RANK_WEIGHT_SIMILARITY: Final[float] = 0.45
-RANK_WEIGHT_RESOLVED: Final[float] = 0.15
-RANK_WEIGHT_COMPONENT_OVERLAP: Final[float] = 0.15
-RANK_WEIGHT_EFFECTIVENESS: Final[float] = 0.15
-RANK_WEIGHT_RECENCY: Final[float] = 0.10
+#:
+#: The issue-type term is what the named classification became when it stopped
+#: being a filter. A filter on it excluded the episode that would have explained
+#: the incident whenever the run that wrote it chose different words; a weight
+#: promotes the episode that agrees and merely declines to promote the one that
+#: does not.
+#:
+#: Room for it was made by scaling all five original weights by 0.9 — 0.45
+#: becomes 0.405, 0.15 becomes 0.135, 0.10 becomes 0.09 — rather than by taking
+#: it out of whichever term looked least important. A uniform haircut leaves
+#: every preference among the original five exactly as it was, so a reordering
+#: after this change is the new term's doing and nothing else's.
+RANK_WEIGHT_SIMILARITY: Final[float] = 0.405
+RANK_WEIGHT_RESOLVED: Final[float] = 0.135
+RANK_WEIGHT_COMPONENT_OVERLAP: Final[float] = 0.135
+RANK_WEIGHT_ISSUE_TYPE_MATCH: Final[float] = 0.10
+RANK_WEIGHT_EFFECTIVENESS: Final[float] = 0.135
+RANK_WEIGHT_RECENCY: Final[float] = 0.09
+
+#: Credit a component scores when the query and the episode agree on its *name*
+#: but not on what kind of thing it is. The corpus proves the case: two runs
+#: recorded the same container as ``container:lxc/122`` and ``guest:lxc/122``,
+#: and one of them had to be wrong about nothing at all for the pair to stop
+#: matching. Half, rather than one, because the two runs did disagree about
+#: something — and rather than zero, because they plainly meant the same box.
+#:
+#: A query naming a component with no type at all scores full credit on a name
+#: match instead. That caller asserted nothing to disagree with: an agent that
+#: knows the failing workload is called ``payments-api`` should not have to know
+#: whether an earlier run filed it as a service or as a deployment.
+RANK_COMPONENT_NAME_ONLY_CREDIT: Final[float] = 0.5
 
 #: Days after which an episode's recency term has halved. A month, because that
 #: is roughly the interval over which a service's failure modes stop being the
@@ -216,8 +244,10 @@ __all__ = [
     "NINJASRE_MEMORY_WRITE_ENV",
     "RANKING_FORMULA_VERSION",
     "RANKING_RECENCY_HALF_LIFE_DAYS",
+    "RANK_COMPONENT_NAME_ONLY_CREDIT",
     "RANK_WEIGHT_COMPONENT_OVERLAP",
     "RANK_WEIGHT_EFFECTIVENESS",
+    "RANK_WEIGHT_ISSUE_TYPE_MATCH",
     "RANK_WEIGHT_RECENCY",
     "RANK_WEIGHT_RESOLVED",
     "RANK_WEIGHT_SIMILARITY",

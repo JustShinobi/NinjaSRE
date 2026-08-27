@@ -15,6 +15,20 @@ first few weeks of any deployment, and it must come back as an empty tuple with
 the agent needs is between "there is nothing like this" and "there was nowhere to
 look", and only the second is a reason to change strategy.
 
+**Recall has two halves and both always run.** A similarity search over the
+episode vectors answers "what does this incident resemble". An exact lookup by
+fingerprint answers "has this alert fired before", and it depends on no
+embedding and on nobody having chosen the same words twice, which is what makes
+it the half that cannot be defeated by vocabulary. A caller that carries filters
+still gets both; skipping the exact half whenever the agent said something
+specific would switch off the robust one exactly when the agent knew most.
+
+Neither the component nor the issue type excludes anything. They are ranking
+signals, and the reason is a measured one: an investigation that named the
+failing exporter searched a corpus whose episode had named the failing
+container, and every filter it carried excluded the one episode that would have
+explained the incident.
+
 **Every recall is recorded.** Query, filters, what came back, and — filled in
 later, at run end — whether the agent actually used any of it. That last field is
 what turns "the agent has memory" into a number: a deployment where recall runs
@@ -94,6 +108,11 @@ class RecallRecord:
     query: str
     component: str = ""
     issue_type: str = ""
+    #: The bucket ``issue_type`` was classified into before it was compared. Both
+    #: are recorded because they answer different questions: the agent's words
+    #: say what it was looking for, and the bucket says why an episode filed
+    #: under other words came back anyway.
+    canonical_issue_type: str = ""
     returned: tuple[str, ...] = ()
     searched: bool = True
     reason: str = ""
@@ -111,6 +130,7 @@ class RecallRecord:
             "query": self.query,
             "component": self.component,
             "issue_type": self.issue_type,
+            "canonical_issue_type": self.canonical_issue_type,
             "returned": list(self.returned),
             "searched": self.searched,
             "reason": self.reason,
@@ -137,6 +157,7 @@ class RecallLedger:
             query=result.query.text,
             component=result.query.component,
             issue_type=result.query.issue_type,
+            canonical_issue_type=result.query.canonical_issue_type().value,
             returned=result.correlation_ids,
             searched=result.searched,
             reason=result.reason,
@@ -243,6 +264,11 @@ class MemoryRetriever:
         an unavailability, because then there really was nowhere to look and the
         agent should not conclude anything from it.
 
+        Both halves run, and the exact one runs first so that a store failure in
+        the similarity half cannot cost a fingerprint match. An episode found by
+        both is one episode: the halves are unioned on the correlation id, and
+        the exact flag survives the union.
+
         ``record=False`` is for the searches the *system* makes on the agent's
         behalf — widening an episode set before synthesising a playbook over it.
         Those did not happen because the agent decided to look something up, and
@@ -258,11 +284,17 @@ class MemoryRetriever:
 
         limit = bounded_limit(query.limit)
         try:
-            matches = await self._neighbours(query, limit=limit)
-            episodes = await self._load(matches, query, limit=limit)
-        except VectorNamespaceUnknown:
-            logger.info("memory.corpus_empty", team=self.scope.team_node_id)
-            return self._recorded(RecallResult(query=query), record=record)
+            exact = await self._by_signature(query, limit=limit)
+            try:
+                matches = await self._neighbours(query, limit=limit)
+            except VectorNamespaceUnknown:
+                # An empty corpus for the similarity half. The exact half reads
+                # rows rather than vectors, so whatever it found still stands —
+                # returning nothing here would discard a fingerprint match
+                # because a *different* index had never been declared.
+                logger.info("memory.corpus_empty", team=self.scope.team_node_id)
+                matches = ()
+            episodes = await self._load(matches, query, limit=limit, exact=exact)
         except PersistenceError as error:
             logger.warning("memory.recall_unavailable", error=str(error))
             return self._recorded(
@@ -275,9 +307,38 @@ class MemoryRetriever:
             query=query.text,
             component=query.component,
             issue_type=query.issue_type,
+            canonical_issue_type=query.canonical_issue_type().value,
             returned=len(episodes),
+            exact_matches=sum(1 for found in episodes if found.exact_match),
         )
         return self._recorded(result, record=record)
+
+    async def _by_signature(self, query: RecallQuery, *, limit: int) -> dict[str, MemoryEpisode]:
+        """Return the episodes carrying this query's exact fingerprint, by id.
+
+        The half that owes nothing to an embedding or to two runs having picked
+        the same words. It is keyed on the canonical issue type and the
+        components the caller named, so it answers the narrow question "has this
+        alert, on these things, fired before" — and it answers it whether or not
+        the similarity half has anything to say.
+
+        ``VectorNamespaceUnknown`` cannot arise here and is not caught: this
+        reads episode rows. A team with a populated corpus and no vector index
+        still gets its exact matches.
+        """
+        signature = query.signature()
+        if not signature:
+            return {}
+
+        async with self.gateway.begin(self.scope) as uow:
+            stored = await uow.episodes.by_signature(signature, limit=limit)
+
+        found: dict[str, MemoryEpisode] = {}
+        for row in stored:
+            episode = MemoryEpisode.from_stored(row, org_id=self.scope.org_id)
+            if self._visible(episode, {}):
+                found[episode.correlation_id] = episode
+        return found
 
     async def _neighbours(self, query: RecallQuery, *, limit: int) -> tuple[SimilarityMatch, ...]:
         """Return the raw similarity matches for ``query``, filtered in the index."""
@@ -291,17 +352,21 @@ class MemoryRetriever:
             )
 
     def _filters(self, query: RecallQuery) -> dict[str, Any]:
-        """Return the metadata filter this search runs under.
+        """Return the metadata filter this search runs under: the team, and nothing else.
 
-        The team is always present. The issue type is added when the caller named
-        one; the component is not, because the index filters by equality and an
-        episode's components are a list — component matching happens in ranking,
-        where partial overlap is expressible.
+        The team is a boundary — an episode belonging to another team is one this
+        caller may not see under any ranking. Everything the *agent* said is a
+        preference and is applied by the ranker instead. The issue type used to
+        be filtered here, and it cost a live investigation the only episode that
+        described its own incident, because the run that wrote that episode had
+        called the same failure something else.
+
+        ``query`` is still taken. Reducing this to a constant would move the
+        decision about what may narrow an index read out of the one method whose
+        name says that is what it decides.
         """
-        filters: dict[str, Any] = {TEAM_METADATA_KEY: self.scope.team_node_id}
-        if query.issue_type.strip():
-            filters["issue_type"] = query.issue_type.strip()
-        return filters
+        del query
+        return {TEAM_METADATA_KEY: self.scope.team_node_id}
 
     async def _load(
         self,
@@ -309,14 +374,38 @@ class MemoryRetriever:
         query: RecallQuery,
         *,
         limit: int,
+        exact: Mapping[str, MemoryEpisode],
     ) -> tuple[ScoredEpisode, ...]:
-        """Return the matched episodes, scored and ranked, or an empty tuple."""
-        if not matches:
+        """Return both halves' episodes, scored and ranked, or an empty tuple.
+
+        Unioned on the correlation id, so an episode the fingerprint and the
+        index both found is scored once — with the similarity the index measured
+        *and* the exact flag, because the two halves agreeing is not a reason to
+        lose either fact.
+
+        An episode only the fingerprint found is scored with a similarity of
+        zero. That is the truthful number: no embedding was consulted for it. It
+        still leads the results, because ``rank`` gives an exact match precedence
+        over the weighted sum rather than a weight inside it.
+        """
+        if not matches and not exact:
             return ()
 
         moment = self.clock()
         wanted = query.components()
+        classification = query.canonical_issue_type()
         scored: list[ScoredEpisode] = []
+        seen: set[str] = set()
+
+        def score(episode: MemoryEpisode, *, similarity: float) -> ScoredEpisode:
+            return score_episode(
+                episode,
+                similarity=similarity,
+                query_components=wanted,
+                query_issue_type=classification,
+                now=moment,
+                exact_match=episode.correlation_id in exact,
+            )
 
         async with self.gateway.begin(self.scope) as uow:
             for match in matches:
@@ -331,16 +420,14 @@ class MemoryRetriever:
                 episode = MemoryEpisode.from_stored(stored, org_id=self.scope.org_id)
                 if not self._visible(episode, match.metadata):
                     continue
-                if not self._matches_component(episode, query):
-                    continue
-                scored.append(
-                    score_episode(
-                        episode,
-                        similarity=match.score,
-                        query_components=wanted,
-                        now=moment,
-                    )
-                )
+                seen.add(episode.correlation_id)
+                scored.append(score(episode, similarity=match.score))
+
+        scored.extend(
+            score(episode, similarity=0.0)
+            for correlation_id, episode in exact.items()
+            if correlation_id not in seen
+        )
 
         return rank(scored, limit=limit)
 
@@ -360,24 +447,6 @@ class MemoryRetriever:
             requesting_team=team,
         )
         return False
-
-    @staticmethod
-    def _matches_component(episode: MemoryEpisode, query: RecallQuery) -> bool:
-        """Return whether ``episode`` satisfies a named component filter.
-
-        Matched on the name alone when the caller gave no type. An agent that
-        knows the failing workload is called ``payments-api`` should not have to
-        know whether a previous run recorded it as a service or a deployment.
-        """
-        named = query.component.strip()
-        if not named:
-            return True
-
-        wanted = query.components()[0]
-        return any(
-            component.label == wanted.label or (not wanted.type and component.name == wanted.name)
-            for component in episode.components
-        )
 
     def _recorded(self, result: RecallResult, *, record: bool = True) -> RecallResult:
         """Store ``result`` in the run's ledger and return it unchanged."""

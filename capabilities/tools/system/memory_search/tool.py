@@ -6,11 +6,21 @@ by name and tells the agent *when* in the five phases to reach for it, and
 renaming it would have silently detached the methodology from the capability it
 is methodology about.
 
-What changed is that it now searches. The two optional filters are new and they
-are filters rather than hints — a caller that names a component gets only
-episodes touching it. Ranking handles the softer preference for overlap, and
-keeping the two apart lets an agent that knows the failing workload say so
-without excluding the episode that would have explained it.
+What changed is that it now searches, and that the two optional arguments are
+*signals* rather than filters. A caller that names a component or a class of
+failure says which episodes it would rather read first; it never says which
+episodes exist. That distinction was measured rather than reasoned about: an
+investigation searching for ``ProxmoxGuestStopped`` on ``pve-exporter`` returned
+nothing from a corpus holding the episode about its own incident, written
+forty-four seconds earlier by a run that had called the same failure
+``manual_shutdown`` on ``service:redis``. Both filters excluded it. Neither run
+was wrong; nothing made them agree.
+
+``issue_type`` is now drawn from a closed vocabulary — the same
+``IssueType`` the extractor writes episodes under, so that the agent searching
+and the agent that recorded are choosing from one list rather than each
+inventing a word. Anything outside the list is still accepted and classified
+into it, because a schema enum is a request most providers do not enforce.
 
 The unavailability path is kept and is still explicit. A recall tool that quietly
 returned nothing would be indistinguishable from one that searched and found
@@ -26,9 +36,47 @@ from config.prompts.memory import MEMORY_UNCONFIGURED
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceSource, EvidenceType, SideEffectLevel
 from core.capability.result import CapabilityErrorClass, CapabilityResult
-from platform.memory.models import RecallQuery
+from platform.memory.models import IssueType, RecallQuery
 
 TOOL_NAME = "recall_similar_incidents"
+
+#: The arguments the model sees, declared rather than derived from the
+#: signature, so ``issue_type`` can carry the vocabulary as an enum. A prose
+#: description of the same list would be a second copy of it, and a second copy
+#: is how the two ends came to disagree in the first place.
+_RECALL_INPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": (
+                "Evidence you have gathered — an error string, an exit code, a failing "
+                "component. Not the alert text."
+            ),
+        },
+        "component": {
+            "type": "string",
+            "description": (
+                "The system you believe is failing, as 'type:name' or a bare name. "
+                "Episodes touching it rank first; nothing is excluded, so a component "
+                "an earlier run recorded under another name is still returned."
+            ),
+        },
+        "issue_type": {
+            "type": "string",
+            "enum": [member.value for member in IssueType],
+            "description": (
+                "The class of failure you believe this is. Episodes filed under it "
+                "rank first; nothing is excluded, so a guess costs you nothing."
+            ),
+        },
+        "limit": {
+            "type": "integer",
+            "description": "How many episodes to return at most.",
+        },
+    },
+    "required": ["query"],
+}
 
 _RECALL_USE_CASES = (
     "find previous incidents with the same symptom on the same service",
@@ -52,7 +100,9 @@ _RECALL_ANTI_EXAMPLES = (
         "returned alongside them — common causes, an effective investigation order, "
         "and approaches that previously led nowhere. Search on evidence you have "
         "gathered — an error string, an exit code, a failing component — not on the "
-        "alert text."
+        "alert text. Naming a component or an issue type ranks those episodes "
+        "first and excludes nothing, so name what you believe even when you are "
+        "not sure of it."
     ),
     domain="methodology",
     evidence_source=EvidenceSource.MEMORY,
@@ -65,6 +115,7 @@ _RECALL_ANTI_EXAMPLES = (
     tags=("memory", "recall", "history"),
     use_cases=_RECALL_USE_CASES,
     anti_examples=_RECALL_ANTI_EXAMPLES,
+    input_schema=_RECALL_INPUT_SCHEMA,
 )
 async def recall_similar_incidents(
     query: str,
@@ -73,6 +124,11 @@ async def recall_similar_incidents(
     limit: int = DEFAULT_MEMORY_RECALL_RESULTS,
 ) -> CapabilityResult:
     """Return ranked past episodes, an empty search, or an explicit unavailability.
+
+    ``component`` and ``issue_type`` are passed through verbatim. Classifying
+    here would leave the trace holding the bucket and not the words, and "what
+    did the agent actually search for" is the first question a surprising recall
+    gets asked; the retriever canonicalises for comparison and records both.
 
     Three outcomes, and they are three because the agent's next move differs for
     each. Episodes are a lead to check. An empty search means this failure is new

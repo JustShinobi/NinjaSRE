@@ -27,6 +27,7 @@ measures how well the system does on incidents it already handles.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -75,6 +76,154 @@ class EpisodeSeverity(StrEnum):
             return cls(str(value).strip().lower())
         except ValueError:
             return cls.UNKNOWN
+
+
+class IssueType(StrEnum):
+    """The closed set of failure classes an episode may be filed under.
+
+    A corpus is only searchable to the extent that two people describing the
+    same failure choose the same word for it, and two free-text guesses made at
+    different moments do not. One deployment wrote ``manual_shutdown`` for a
+    container somebody powered off and searched for ``ProxmoxGuestStopped``
+    forty-four seconds later; both are reasonable English for the same event and
+    neither matched the other.
+
+    So the extractor picks from this list and the recall capability searches
+    within it, and ``classify`` maps whatever either end says onto it. The set is
+    deliberately coarse — a dozen or so buckets, each one a class of failure with
+    a different investigation attached to it. Finer than that and it is free text
+    again with extra steps; coarser and every incident is one bucket.
+
+    ``OTHER`` is a real member and not a failure. A failure nobody anticipated is
+    still worth remembering, and an episode dropped for being unclassifiable is
+    the one case where the corpus loses exactly the incident nobody has seen
+    before. The words the classifier could not place are kept beside it, on
+    ``MemoryEpisode.issue_label``, rather than discarded.
+    """
+
+    OOM_KILL = "oom_kill"
+    CRASH_LOOP = "crash_loop"
+    WORKLOAD_STOPPED = "workload_stopped"
+    DEPLOY_REGRESSION = "deploy_regression"
+    CONFIGURATION_ERROR = "configuration_error"
+    RESOURCE_SATURATION = "resource_saturation"
+    DISK_PRESSURE = "disk_pressure"
+    CONNECTION_POOL_EXHAUSTION = "connection_pool_exhaustion"
+    NETWORK_FAILURE = "network_failure"
+    DEPENDENCY_FAILURE = "dependency_failure"
+    CERTIFICATE_EXPIRY = "certificate_expiry"
+    AUTHENTICATION_FAILURE = "authentication_failure"
+    DATA_INTEGRITY = "data_integrity"
+    SCHEDULED_JOB_FAILURE = "scheduled_job_failure"
+    LATENCY_REGRESSION = "latency_regression"
+    OTHER = "other"
+
+    @classmethod
+    def classify(cls, value: str) -> IssueType:
+        """Return the member ``value`` belongs to, or ``OTHER``.
+
+        Three passes, cheapest first. An exact match on a member's own value is
+        what a caller that already picked from the list gets. Otherwise the text
+        is broken into words — on punctuation *and* on camel case, because an
+        alert name arrives as ``ProxmoxGuestStopped`` and an extraction as
+        ``manual_shutdown`` — and scored against each member's keywords, most
+        keywords matched winning. Ties go to whichever member is declared first,
+        so the answer does not depend on dictionary order.
+
+        No model call, for the same reason ranking makes none: this runs inside a
+        tool call the agent is waiting on, and it has to give the same answer
+        twice or a trajectory comparison means nothing.
+        """
+        text = value.strip().lower()
+        if not text:
+            return cls.OTHER
+        try:
+            return cls(text)
+        except ValueError:
+            pass
+
+        words = frozenset(word.lower() for word in _WORD_PATTERN.findall(value))
+        best, best_hits = cls.OTHER, 0
+        for member, keywords in ISSUE_TYPE_KEYWORDS.items():
+            hits = len(words & keywords)
+            if hits > best_hits:
+                best, best_hits = member, hits
+        return best
+
+    @property
+    def classified(self) -> bool:
+        """Return whether this is a real classification rather than the bucket."""
+        return self is not IssueType.OTHER
+
+
+#: Words that place a free-text failure description into a bucket. Each set is
+#: the vocabulary observed in alert names, exporter labels, and the sentences a
+#: model writes about that class of failure — matched as whole words, so
+#: ``oom`` does not fire on ``room``.
+ISSUE_TYPE_KEYWORDS: Mapping[IssueType, frozenset[str]] = {
+    IssueType.OOM_KILL: frozenset(
+        {"oom", "oomkill", "oomkilled", "oomkiller", "137", "memorylimit"}
+    ),
+    IssueType.CRASH_LOOP: frozenset(
+        {"crashloop", "crashloopbackoff", "crash", "crashed", "restarting", "backoff", "panic"}
+    ),
+    IssueType.WORKLOAD_STOPPED: frozenset(
+        {
+            "stopped",
+            "stop",
+            "shutdown",
+            "vzshutdown",
+            "poweroff",
+            "powered",
+            "halted",
+            "terminated",
+            "evicted",
+            "drained",
+        }
+    ),
+    IssueType.DEPLOY_REGRESSION: frozenset(
+        {"deploy", "deployment", "release", "rollout", "regression", "rollback", "canary"}
+    ),
+    IssueType.CONFIGURATION_ERROR: frozenset(
+        {"config", "configuration", "misconfiguration", "misconfigured", "manifest", "flag"}
+    ),
+    IssueType.RESOURCE_SATURATION: frozenset(
+        {"saturation", "saturated", "throttling", "throttled", "cpu", "quota", "exhausted"}
+    ),
+    IssueType.DISK_PRESSURE: frozenset(
+        {"disk", "diskpressure", "volume", "filesystem", "inode", "storage", "full"}
+    ),
+    IssueType.CONNECTION_POOL_EXHAUSTION: frozenset(
+        {"pool", "connections", "maxconnections", "toomanyconnections", "checkout"}
+    ),
+    IssueType.NETWORK_FAILURE: frozenset(
+        {"network", "dns", "timeout", "unreachable", "refused", "packet", "resolve", "tcp"}
+    ),
+    IssueType.DEPENDENCY_FAILURE: frozenset(
+        {"dependency", "upstream", "downstream", "502", "503", "504", "gateway"}
+    ),
+    IssueType.CERTIFICATE_EXPIRY: frozenset(
+        {"certificate", "cert", "tls", "ssl", "expiry", "expired", "expiring", "x509"}
+    ),
+    IssueType.AUTHENTICATION_FAILURE: frozenset(
+        {"auth", "authentication", "authorisation", "authorization", "credential", "token", "401"}
+    ),
+    IssueType.DATA_INTEGRITY: frozenset(
+        {"corruption", "corrupt", "integrity", "checksum", "replication", "consistency"}
+    ),
+    IssueType.SCHEDULED_JOB_FAILURE: frozenset(
+        {"cron", "cronjob", "job", "scheduled", "batch", "pipeline", "dag"}
+    ),
+    IssueType.LATENCY_REGRESSION: frozenset(
+        {"latency", "slow", "slowness", "p95", "p99", "degradation", "degraded"}
+    ),
+}
+
+#: Splits text into the words ``classify`` scores, on punctuation and on case.
+#: Case matters because an alert name arrives as one token — ``ProxmoxGuestStopped``
+#: lowercased whole matches nothing, and split it yields ``stopped``. A run of
+#: capitals stays whole, so ``OOMKilled`` gives ``oom`` and ``killed``.
+_WORD_PATTERN = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+|[0-9]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,7 +315,14 @@ class MemoryEpisode:
     correlation_id: str
     org_id: str
     team_node_id: str
+    #: The bucket this failure was filed under: one of ``IssueType``, or the free
+    #: text an episode written before the vocabulary existed still carries.
+    #: ``canonical_issue_type`` is what a comparison should read, never this.
     issue_type: str = ""
+    #: What the model called this failure in its own words, kept verbatim beside
+    #: the bucket. A classification is what makes the corpus searchable; the
+    #: words are what tell a reader which of a dozen shutdowns this one was.
+    issue_label: str = ""
     issue_description: str = ""
     severity: EpisodeSeverity = EpisodeSeverity.UNKNOWN
     components: tuple[Component, ...] = ()
@@ -221,6 +377,18 @@ class MemoryEpisode:
         """Return the flat labels a metadata filter and the stored row use."""
         return tuple(component.label for component in self.components)
 
+    @property
+    def canonical_issue_type(self) -> IssueType:
+        """Return the bucket this episode is comparable in.
+
+        Derived rather than stored, so the whole corpus becomes comparable the
+        day the vocabulary lands. An episode written before it holds free text in
+        ``issue_type``; classifying on read means the previous six months of
+        incidents are searchable under the same buckets as the next six, with no
+        migration and no rewrite of rows nobody is otherwise touching.
+        """
+        return IssueType.classify(self.issue_type or self.issue_label)
+
     def embedding_text(self) -> str:
         """Return the text this episode is embedded from.
 
@@ -238,12 +406,19 @@ class MemoryEpisode:
     def signature(self) -> str:
         """Return the fingerprint episodes of the same shape share.
 
-        Issue type and the components involved, which is the pair that makes two
-        incidents "the same alert again" without making every incident on one
-        service the same incident.
+        The *canonical* issue type and the components involved, which is the pair
+        that makes two incidents "the same alert again" without making every
+        incident on one service the same incident. Canonical rather than
+        verbatim, because a fingerprint built from free text fingerprints the
+        wording: the same alert extracted once as ``manual_shutdown`` and once as
+        ``ProxmoxGuestStopped`` would hash to two different incidents.
+
+        Components are still the words the run used, so two episodes that named
+        the same container ``container:lxc/122`` and ``guest:lxc/122`` remain
+        distinct fingerprints. Closing that vocabulary too is a separate problem
+        and this method does not pretend to have solved it.
         """
-        material = "|".join((self.issue_type.lower(), *sorted(self.component_labels)))
-        return blake2b(material.encode("utf-8"), digest_size=SIGNATURE_LENGTH // 2).hexdigest()
+        return fingerprint(self.canonical_issue_type, self.components)
 
     def merged_with(self, earlier: MemoryEpisode) -> MemoryEpisode:
         """Return this episode carrying ``earlier``'s capability history too.
@@ -265,6 +440,7 @@ class MemoryEpisode:
         """Return the fields the stored row keeps in its JSON payload."""
         return {
             "issue_type": self.issue_type,
+            "issue_label": self.issue_label,
             "issue_description": self.issue_description,
             "severity": self.severity.value,
             "capabilities_used": list(self.capabilities_used),
@@ -312,6 +488,7 @@ class MemoryEpisode:
             org_id=org_id,
             team_node_id=str(payload.get("team_node_id", "")),
             issue_type=str(payload.get("issue_type", "")),
+            issue_label=str(payload.get("issue_label", "")),
             issue_description=str(payload.get("issue_description", "")),
             severity=EpisodeSeverity.parse(str(payload.get("severity", ""))),
             components=tuple(Component.parse(label) for label in stored.components),
@@ -347,7 +524,7 @@ class MemoryEpisode:
         """
         return {
             "team_node_id": self.team_node_id,
-            "issue_type": self.issue_type,
+            "issue_type": self.canonical_issue_type.value,
             "resolved": self.resolved,
             "components": list(self.component_labels),
             "effectiveness_score": self.effectiveness_score,
@@ -369,10 +546,16 @@ class ScoredEpisode:
     similarity: float = 0.0
     resolved: float = 0.0
     component_overlap: float = 0.0
+    issue_type_match: float = 0.0
     effectiveness: float = 0.0
     recency: float = 0.0
     score: float = 0.0
     formula_version: int = RANKING_FORMULA_VERSION
+    #: This episode carries the query's exact fingerprint. Not a ranking term but
+    #: a precedence: a weight can be outvoted by five other weights, and "this
+    #: alert has fired before under exactly this shape" is not a preference to be
+    #: outvoted. It sorts ahead of everything the similarity half found.
+    exact_match: bool = False
 
     @property
     def correlation_id(self) -> str:
@@ -385,6 +568,7 @@ class ScoredEpisode:
             "similarity": self.similarity,
             "resolved": self.resolved,
             "component_overlap": self.component_overlap,
+            "issue_type_match": self.issue_type_match,
             "effectiveness": self.effectiveness,
             "recency": self.recency,
         }
@@ -394,11 +578,16 @@ class ScoredEpisode:
 class RecallQuery:
     """What the agent asked memory for.
 
-    The two filters are optional and are *filters*, not weights: a caller that
-    names a component gets only episodes touching it. Ranking handles the softer
-    "prefer episodes that overlap", and keeping the two mechanisms separate is
-    what lets an agent that knows the failing service say so without silently
-    excluding the episode that would have explained it.
+    ``component`` and ``issue_type`` are *signals*, not filters. They say which
+    episodes the caller would rather read first; they never say which episodes
+    exist. That is the difference between an agent that knows the failing
+    workload saying so, and an agent excluding the episode that would have
+    explained the incident because it called the workload something else.
+
+    The words are kept verbatim. Comparison happens on the canonical bucket, but
+    a trace that recorded only the bucket could not answer what the agent
+    actually searched for — and "why did this match" is the question a surprising
+    recall gets asked.
     """
 
     text: str
@@ -409,6 +598,31 @@ class RecallQuery:
     def components(self) -> tuple[Component, ...]:
         """Return the named component, if one was named."""
         return (Component.parse(self.component),) if self.component.strip() else ()
+
+    def canonical_issue_type(self) -> IssueType:
+        """Return the bucket this recall is searching within."""
+        return IssueType.classify(self.issue_type)
+
+    def signature(self) -> str:
+        """Return the fingerprint an exact-match lookup uses, or ``""``.
+
+        Empty only when the caller described the incident's *shape* not at all —
+        no component, and an issue type that could not be classified. Both of
+        those reduce to the ``other`` bucket over no components, and an episode
+        carries that fingerprint whenever its own extraction managed neither: the
+        lookup would promote every unclassifiable, component-less episode in the
+        corpus to the top of every unfiltered search, on the strength of two runs
+        having each failed to say anything.
+
+        A component alone is enough, and so is a classified issue type alone.
+        Each is a real claim about what happened, and a fingerprint over one of
+        them matches only episodes that made the same claim.
+        """
+        components = self.components()
+        classification = self.canonical_issue_type()
+        if not components and not classification.classified:
+            return ""
+        return fingerprint(classification, components)
 
 
 def now() -> datetime:
@@ -421,15 +635,30 @@ def component_set(components: Sequence[Component]) -> frozenset[str]:
     return frozenset(component.label for component in components)
 
 
+def fingerprint(issue_type: IssueType, components: Sequence[Component]) -> str:
+    """Return the hash two incidents of the same shape share.
+
+    One function, called by the episode that stores a fingerprint and by the
+    query that looks one up. Two implementations of "the same alert again" that
+    agreed on the day they were written and drifted afterwards is precisely the
+    failure this whole module is being changed to stop.
+    """
+    material = "|".join((issue_type.value, *sorted(component_set(components))))
+    return blake2b(material.encode("utf-8"), digest_size=SIGNATURE_LENGTH // 2).hexdigest()
+
+
 __all__ = [
     "COMPONENT_SEPARATOR",
     "SIGNATURE_LENGTH",
+    "ISSUE_TYPE_KEYWORDS",
     "Component",
     "EpisodeSeverity",
+    "IssueType",
     "KeyFinding",
     "MemoryEpisode",
     "RecallQuery",
     "ScoredEpisode",
     "component_set",
+    "fingerprint",
     "now",
 ]

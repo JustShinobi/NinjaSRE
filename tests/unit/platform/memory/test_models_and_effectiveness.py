@@ -197,6 +197,7 @@ def test_a_scored_episode_exposes_every_term_of_its_rank() -> None:
         "similarity",
         "resolved",
         "component_overlap",
+        "issue_type_match",
         "effectiveness",
         "recency",
     }
