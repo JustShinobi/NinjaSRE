@@ -55,6 +55,22 @@ MAX_AGENT_TOOL_SCHEMAS: Final[int] = 40
 #: so a flood of high-scoring vendor tools cannot crowd them out.
 MAX_SECONDARY_FALLBACK_TOOLS: Final[int] = 5
 
+#: Evidence entries, most recent first, that re-ranking reads back as "what this
+#: run has learned". The cap above bounds what a turn *sends*; this bounds what
+#: the turn's ranking is *scored against*, which is a separate budget and needs
+#: to be one: the whole of a long run's evidence would swamp the vocabulary a
+#: capability declares itself with, and every capability would then score the
+#: same against everything.
+MAX_TURN_RANKING_EVIDENCE: Final[int] = 12
+
+#: Characters of that run progress the ranking actually reads. The entry count
+#: alone is not a bound — one observation can be a megabyte of log lines — and
+#: the scorer's lexical term is a ratio over the union of both vocabularies, so
+#: an unbounded incident side drives every use-case overlap towards zero and
+#: quietly turns the term off. Measured against declarations whose use cases run
+#: to a sentence or two apiece.
+MAX_TURN_RANKING_CHARS: Final[int] = 2000
+
 #: Capabilities the planning stage shortlists before the loop starts.
 DEFAULT_TOOL_BUDGET: Final[int] = 8
 
@@ -383,6 +399,8 @@ __all__ = [
     "MAX_PARALLEL_TOOL_CALLS",
     "MAX_REMEDIATION_STEPS",
     "MAX_SECONDARY_FALLBACK_TOOLS",
+    "MAX_TURN_RANKING_CHARS",
+    "MAX_TURN_RANKING_EVIDENCE",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
     "MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS",

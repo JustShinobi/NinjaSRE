@@ -41,12 +41,23 @@ at its end, because the corpus the search reads is built from nothing else — a
 investigation that finishes without leaving an episode behind is one more empty
 answer for every investigation after it.
 
-**The tool selection**, narrowed twice — by the integrations the team has
-connected and by whether this deployment could carry a write out at all — and
-only then handed to ``capabilities.registry.selection.select``, which does the
-ranking, the plan-first ordering, the skill-directed pull, the reserve and the
-cut. Narrowing first matters: cutting before it spends slots of a small budget
-on capabilities that were about to be removed.
+**The tool selection**, narrowed three ways — by the integrations the team has
+connected, by whether this deployment could carry a write out at all, and by
+whether a read has anything bound to read from — and only then handed to
+``capabilities.registry.selection.select``, which does the ranking, the
+plan-first ordering, the skill-directed pull, the reserve and the cut.
+Narrowing first matters: cutting before it spends slots of a small budget on
+capabilities that were about to be removed.
+
+That cut is made again before every turn, not once before the first. The
+ceiling is a bound on what one turn sends, and holding a single selection for
+the whole run had turned it into a bound on what the run could ever reach — a
+staging investigation ranked 76 capabilities, was offered 40, and spent twenty
+iterations unable to call any of the rest whatever it went on to establish. So
+this runner hands the loop a selector rather than only a tuple, and the loop
+asks it again each turn, against what the run has learned by then. The cap is
+unchanged and applies to every one of those payloads; what moves is which
+capabilities fill it.
 
 Steering a running investigation — cancelling it, taking it over, queuing a
 message, resuming it — is served against the same loop instance, tracked in
@@ -62,9 +73,14 @@ from typing import Any
 
 from capabilities.registry.catalogue import Registry, ResolvedCatalogue
 from capabilities.registry.disclosure import DiscoveredSkill
-from capabilities.registry.planning import CatalogueRanker, TeamCatalogueResolver
+from capabilities.registry.planning import (
+    CatalogueRanker,
+    TeamCatalogueResolver,
+    TurnCatalogueSelector,
+    TurnProgress,
+    TurnSelection,
+)
 from capabilities.registry.scoring import Incident
-from capabilities.registry.selection import select
 from capabilities.tools.system.memory_search import binding as recall_binding
 from capabilities.tools.system.memory_search.binding import RecallSource
 from capabilities.tools.system.sources import has_a_source, unmet_source
@@ -87,7 +103,7 @@ from core.agent.hooks.registry import HookRegistry
 from core.agent.interaction.models import Interaction
 from core.agent.interaction.registry import InteractionRegistry
 from core.agent.message_queue import MessageQueue
-from core.agent.react_loop import ReActLoop
+from core.agent.react_loop import ReActLoop, TurnToolSelector
 from core.agent.runtime_port import RunStatus
 from core.agent.session import Session
 from core.capability.metadata import CapabilityKind, ExcludedCapability
@@ -100,7 +116,6 @@ from core.pipeline.lifecycle import Pipeline, PipelineRun
 from core.pipeline.ports import (
     NO_CATALOGUE,
     FixedCatalogueResolver,
-    RankedCapability,
     StaticCatalogue,
 )
 from core.pipeline.stages.resolve_integrations import zero_integration_outcome
@@ -436,6 +451,7 @@ class ReActInvestigationRunner:
                 tools=selection.tools,
                 rationale=selection.rationale,
                 memory=memory,
+                selector=selection.selector,
             )
             live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
             self._live[request.run_id] = live
@@ -690,8 +706,16 @@ class ReActInvestigationRunner:
         tools: tuple[RegisteredTool, ...],
         rationale: str = "",
         memory: RunMemory | None = None,
+        selector: TurnCatalogueSelector | None = None,
     ) -> ReActLoop:
-        """Return the canonical loop, carrying at most the tools the model may hold."""
+        """Return the canonical loop, carrying at most the tools the model may hold.
+
+        ``tools`` and ``rationale`` are the opening turn's, and ``selector`` is
+        what replaces both before every turn after it. Handing over all three
+        rather than only the selector keeps the loop's own cap check on a real
+        payload at construction: a run that could never send a legal first turn
+        should fail where it is composed, not on its third iteration.
+        """
         hooks = investigation_hooks(recorder=self._recording_hook_for(request))
         if self._remediation is not None:
             # Registered at ``pre_tool_use`` after the guardrails and before
@@ -714,6 +738,7 @@ class ReActInvestigationRunner:
             hooks=hooks,
             messages=messages,
             selection_rationale=rationale,
+            turn_tools=_reranks_every_turn(selector) if selector is not None else None,
         )
 
     def _recording_hook_for(self, request: InvestigationStart) -> RunTraceRecordingHook | None:
@@ -756,6 +781,13 @@ class ReActInvestigationRunner:
         Only then rank against what the alert says and cut at the ceiling.
         Cutting earlier would spend the budget on capabilities that were about
         to be removed.
+
+        The first three narrowings are facts about the deployment and hold for
+        the whole run, so they are answered once. The fourth is a fact about
+        the incident, which the run is in the business of changing its mind
+        about — so the ranking is returned as a selector the loop asks again
+        before every turn, and the tuple returned beside it is only the opening
+        turn's answer.
         """
         availability = await self._availability(request)
         catalogue = TeamCatalogueResolver(self.registry).for_availability(availability)
@@ -808,25 +840,24 @@ class ReActInvestigationRunner:
             excluded=tuple(excluded),
         )
         # The ceiling is this runner's to state — it is a property of the
-        # model the deployment runs, not of the capability package. The reserve
-        # is clamped to fit inside it, because a deployment that lowers the
-        # ceiling below the reserve wants a smaller turn, not a refusal.
-        ceiling = MAX_AGENT_TOOL_SCHEMAS
-        turn = select(
-            narrowed,
-            self._ranking_signals(request),
-            max_schemas=ceiling,
-            reserved=min(MAX_SECONDARY_FALLBACK_TOOLS, max(ceiling - 1, 0)),
+        # model the deployment runs, not of the capability package.
+        #
+        # Held as a selector rather than spent here, because the answer is not
+        # one answer. This is the opening turn's; the loop asks the same object
+        # again before every turn that follows, and gets the ranking as the run
+        # understands the incident by then. That is what makes the capabilities
+        # this cut leaves out reachable later rather than for ever gone.
+        selector = TurnCatalogueSelector(
+            catalogue=narrowed,
+            opening=self._ranking_signals(request),
+            max_schemas=MAX_AGENT_TOOL_SCHEMAS,
+            reserved=MAX_SECONDARY_FALLBACK_TOOLS,
         )
+        turn = selector.for_turn()
         chosen = tuple(turn.tools)
-        by_name = {found.name: found for found in chosen}
-        cut = [
-            f"{scored.name} ({scored.score:.3g})"
-            for scored in turn.scores
-            if scored.kind is CapabilityKind.TOOL and scored.name not in by_name
-        ]
         return _Selection(
             tools=chosen,
+            selector=selector,
             outcome=None,
             catalogue=StaticCatalogue(
                 tools=chosen,
@@ -841,14 +872,7 @@ class ReActInvestigationRunner:
             ),
             integrations=connected,
             skills=tuple(turn.skills),
-            rationale=_selection_rationale(
-                tuple(
-                    RankedCapability(name=s.name, score=s.score, rationale=s.rationale)
-                    for s in turn.scores
-                ),
-                chosen=chosen,
-                cut=cut,
-            ),
+            rationale=_selection_rationale(turn),
         )
 
     def _ranking_signals(self, request: InvestigationStart) -> Incident:
@@ -992,6 +1016,13 @@ class _Selection:
     #: capability was missing from a run is asking about that run, and a line
     #: in a process log has already scrolled past by the time they ask.
     rationale: str = ""
+    #: The thing that produced ``tools``, kept so it can produce them again.
+    #: The tuple above is one turn's answer; this is what answers the same
+    #: question before each of the turns after it, against what the run has
+    #: learned by then. Without it the opening cut would be permanent, which is
+    #: what it was: a run ranked 76 capabilities, was offered 40, and could not
+    #: reach the other 36 however the investigation went.
+    selector: TurnCatalogueSelector | None = None
 
 
 def _state_of(request: InvestigationStart, selection: _Selection) -> AgentState:
@@ -1083,12 +1114,7 @@ def _ranking_tags(labels: Mapping[str, str], *, kind: str, source: str) -> tuple
     return tuple(sorted(collected))
 
 
-def _selection_rationale(
-    ranked: Sequence[RankedCapability],
-    *,
-    chosen: Sequence[RegisteredTool],
-    cut: Sequence[str],
-) -> str:
+def _selection_rationale(turn: TurnSelection) -> str:
     """Return why these capabilities were offered and what the ceiling cut.
 
     Both halves, because only together do they answer the question an operator
@@ -1098,21 +1124,87 @@ def _selection_rationale(
     use cases do not describe the incident, the second is a budget too small
     for a deployment this well connected.
 
+    Written once per turn rather than once per run, and that is not a detail:
+    once the offered set is re-decided every turn, an operator asking why a
+    capability was missing is asking about a turn. A rationale carried forward
+    from the opening selection would be describing a payload that no longer
+    exists — and worse, it would say a capability was cut when the very next
+    turn had gone and offered it.
+
     Scores are the scorer's own, not a re-derivation. A rationale computed a
     second way is a second opinion, and the day the two disagree the record
     stops being evidence.
     """
-    by_name = {entry.name: entry for entry in ranked}
-    lines = [f"ranked {len(ranked)}, offered {len(chosen)}, cut by the ceiling {len(cut)}"]
-    for registered in chosen:
+    by_name = {entry.name: entry for entry in turn.ranked}
+    lines = [
+        f"ranked {len(turn.ranked)}, offered {len(turn.tools)}, cut by the ceiling {len(turn.cut)}"
+    ]
+    for registered in turn.tools:
         entry = by_name.get(registered.name)
         if entry is None:
             continue
         why = "; ".join(entry.rationale) if entry.rationale else "no term matched"
         lines.append(f"+ {registered.name} ({entry.score:.3g}): {why}")
-    if cut:
-        lines.append("cut by the ceiling, highest first: " + ", ".join(cut))
+    if turn.cut:
+        lines.append(
+            "cut by the ceiling, highest first: "
+            + ", ".join(f"{entry.name} ({entry.score:.3g})" for entry in turn.cut)
+        )
     return "\n".join(lines)
+
+
+def _turn_progress(session: Session) -> TurnProgress:
+    """Return what this run has learned so far, in the shape the ranking reads.
+
+    Most recent first, because both budgets on the ranker's input cut from the
+    end: what the model just said about what it is looking for is the signal
+    least worth losing to a long run's history.
+
+    Two things go in and one deliberately stays out.
+
+    In: the model's own words from the last turn, which is the "I need X" the
+    fixed toolset had no way to hear at all; and the evidence summaries, newest
+    first, which are what the run has actually established.
+
+    Out: the *source* each evidence entry came from. Feeding that back would
+    make selection self-reinforcing — a turn that called an Alertmanager tool
+    would score Alertmanager tools higher on the next turn for no reason beyond
+    having called one — and an investigation that entrenches its opening guess
+    is the failure this whole mechanism exists to undo.
+
+    ``in_flight`` is the previous turn's calls and only those. That is what
+    "mid-way through using" means concretely: the model has a result in hand and
+    a follow-up to make, and the capability has to still be there for it.
+    """
+    learned: list[str] = []
+    if session.turns and session.turns[-1].rationale.strip():
+        learned.append(session.turns[-1].rationale.strip())
+    learned.extend(
+        entry.summary.strip() for entry in reversed(session.evidence) if entry.summary.strip()
+    )
+    in_flight = tuple(
+        dict.fromkeys(
+            execution.capability
+            for turn in session.turns[-1:]
+            for execution in turn.executions
+            if execution.capability
+        )
+    )
+    return TurnProgress(learned=tuple(learned), in_flight=in_flight)
+
+
+def _reranks_every_turn(selector: TurnCatalogueSelector) -> TurnToolSelector:
+    """Return the callable the loop re-decides each turn's payload with.
+
+    A closure over one run's own selector, so two investigations running side
+    by side re-rank their own narrowed catalogues rather than a shared one.
+    """
+
+    def choose(session: Session) -> tuple[Sequence[RegisteredTool], str]:
+        turn = selector.for_turn(_turn_progress(session))
+        return tuple(turn.tools), _selection_rationale(turn)
+
+    return choose
 
 
 def _unsourced(found: RegisteredTool) -> ExcludedCapability:
