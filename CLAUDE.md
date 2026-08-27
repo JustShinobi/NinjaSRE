@@ -152,6 +152,26 @@ version: `platform/` shadows the stdlib module and only wins the name when the
 repository root leads `sys.path`; `lint_imports()` inserts `os.getcwd()` at the
 head of `sys.path`; `import-linter` layer delimiters are `|` and `:`, not commas.
 
+## Browser
+
+Prefer the Orca Browser (the browser embedded in the Orca app) over Playwright
+for any interactive or exploratory use of a browser — visiting a URL to look
+at something, checking how a screen renders, clicking through a flow to
+confirm a fix. It is built for agent use and does not carry the overhead of
+spinning up a Playwright context for a one-off look.
+
+Playwright stays the tool for anything that is actually test infrastructure:
+`console/tests/e2e/*.spec.ts`, `console/playwright.config.ts`,
+`tools/console_e2e.py`, the visual suite, and CI. Those exist as committed,
+repeatable specs — an agent's interactive browser session is not a substitute
+for them, and they must keep running through Playwright exactly as documented
+in `console/AGENTS.md`.
+
+Before driving the Orca Browser, load `ORCA skills get orca-cli` for the
+current command surface — it is served by the running Orca binary rather than
+pinned here, precisely so it never drifts from the version actually handling
+the commands.
+
 ## CodeGraph
 
 `.codegraph/` exists at the repository root. Prefer `codegraph_explore` (MCP) or

@@ -25,7 +25,7 @@ something in `make verify`, or it is not a rule.
 | **Single datastore** | One Postgres, reached through the thirteen repository ports. `make check-raw-sql` fails on SQL, Cypher, or a database driver imported outside `platform/persistence/`. |
 | **The operator owns their data** | No telemetry, analytics, crash reporting, or version check that transmits off-host. `make check-deps` enforces the dependency half. |
 | **Test-first** | The test lands before the implementation. A behaviour-preserving refactor gets a characterisation test first. |
-| **English** | All source, comments, identifiers, commit messages, documentation, prompts, and user-facing text — whatever language the conversation is happening in. |
+| **Language** | Source code, identifiers, comments, and commit messages in English; documentation, specifications, prompts, and user-facing text in Brazilian Portuguese (pt-BR) or English. |
 
 ## Repository map
 

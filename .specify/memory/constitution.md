@@ -1,14 +1,20 @@
 # NinjaSRE Constitution
 
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Ratified:** 2026-08-04
-**Last amended:** 2026-08-24 — Article XIII: attribution must be complete in
-`README.md` and `NOTICE`, and is no longer forbidden elsewhere, see
-[ADR 0018](../../docs/adr/0018-attribution-complete-not-unique.md)
+**Last amended:** 2026-08-27 — Article XIII: documentation, specifications, prompts,
+agent instructions, and user-facing text may be in Brazilian Portuguese (pt-BR)
+or English, while source code, identifiers, and commit messages remain in English,
+see [ADR 0019](../../docs/adr/0019-portuguese-documentation-prompts-and-text.md)
 **Status:** Active
 
 **Amendment history:**
 
+- 2026-08-27 — Article XIII: documentation, specifications, planning artifacts,
+  prompts, agent instructions, and user-facing text may be in Brazilian
+  Portuguese (pt-BR) or English; source code identifiers, comments, and commit
+  messages remain in English. See
+  [ADR 0019](../../docs/adr/0019-portuguese-documentation-prompts-and-text.md)
 - 2026-08-04 — Article XIII, see [ADR 0011](../../docs/adr/0011-attribution-in-readme-only.md)
 - 2026-08-24 — Article XIII: the clause forbidding attribution from appearing
   anywhere but `README.md` and `NOTICE` is replaced. Completeness there is what
@@ -293,8 +299,12 @@ ask for.
 
 ## Article XIII — Language and Attribution
 
-1. All source, comments, identifiers, commit messages, documentation, prompts,
-   and user-facing text are in **English**.
+1. Source code, identifiers, comments, and commit messages are in **English**.
+   Documentation, specifications, planning artifacts (`specs_v*/`), prompts,
+   agent instructions, and user-facing text MAY be in **Brazilian Portuguese
+   (pt-BR)** or **English**. Where a bilingual context exists, English remains
+   normative for code identifiers, while Brazilian Portuguese is fully supported
+   for user surfaces, prompts, and documentation.
 2. Attribution for the Apache-2.0 work NinjaSRE draws on lives in `README.md`
    and `NOTICE`, and MUST be complete there.
 3. It MAY be repeated elsewhere. A provenance record, a "derived from" note or
@@ -382,5 +392,5 @@ this happen more than once.
 | X | Operator Owns Their Data | Does anything leave the host without an explicit opt-in? |
 | XI | Single Datastore | Does this reach storage only through a repository port? |
 | XII | Test-First, Trace-Backed | Were the tests written first, and is the scenario-suite delta reported? |
-| XIII | Language and Attribution | Is it in English, and does every reference in it resolve inside the repository? |
+| XIII | Language and Attribution | Are code/commits in English, documentation/prompts/text in pt-BR or English, and references resolved? |
 | XIV | Composed or It Is Not Shipped | Who constructs this in production, and where? |
