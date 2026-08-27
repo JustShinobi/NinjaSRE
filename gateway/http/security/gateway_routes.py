@@ -116,6 +116,7 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     ),
     # --- Memory ----------------------------------------------------------------
     Route(method="GET", path="/v1/memory/search", permission=Permission.MEMORY_READ),
+    Route(method="GET", path="/v1/memory/episode", permission=Permission.MEMORY_READ),
     Route(method="GET", path="/v1/memory/stats", permission=Permission.MEMORY_READ),
     # What every role resolves to, and on whose say-so. A read of what this
     # deployment runs on, which is configuration — never a write, and never a
