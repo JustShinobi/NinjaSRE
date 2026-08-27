@@ -180,6 +180,7 @@ def test_a_protocol_nested_in_a_class_is_still_a_protocol(tmp_path: Path) -> Non
 # --- The repository itself ---------------------------------------------------
 
 
+@pytest.mark.sweep
 def test_the_repository_has_no_filled_protocol_bodies() -> None:
     from tools.check_protocol_bodies import DEFAULT_SCAN_ROOTS
 

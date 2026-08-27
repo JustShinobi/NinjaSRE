@@ -255,6 +255,7 @@ def test_an_unqualified_execute_is_never_exempt(tmp_path: Path) -> None:
     assert [violation.rule for violation in find_violations([tmp_path])] == [QUERY_EXECUTION_RULE]
 
 
+@pytest.mark.sweep
 def test_the_repository_writes_no_query_outside_the_storage_tree() -> None:
     """The check, run over the repository it guards."""
     assert find_violations([Path(__file__).resolve().parents[3]]) == []

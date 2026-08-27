@@ -198,6 +198,7 @@ def _stated_totals(line: str) -> list[int]:
     return [value for value in stated if value >= NOT_A_TOTAL_BELOW]
 
 
+@pytest.mark.sweep
 def test_no_committed_file_states_a_catalogue_size_that_is_not_the_real_one() -> None:
     size = _catalogue_size()
     offenders: dict[str, list[str]] = {}

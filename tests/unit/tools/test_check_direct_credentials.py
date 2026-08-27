@@ -150,6 +150,7 @@ def test_ordinary_configuration_names_are_not_credentials(name: str) -> None:
     assert not is_credential_name(name)
 
 
+@pytest.mark.sweep
 def test_the_repository_itself_is_clean() -> None:
     """The rule holds for the code that ships, not only for fixtures."""
     found = find_violations()

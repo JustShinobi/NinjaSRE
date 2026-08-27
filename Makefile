@@ -14,7 +14,7 @@ PYTHON_SOURCE_PATHS := config core platform integrations capabilities gateway su
 # `wildcard` keeps the targets usable before either directory exists.
 LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
-.PHONY: install lint format format-check typecheck test \
+.PHONY: install lint format format-check typecheck test fast test-fast test-sweeps \
 	console-setup console-install console-format console-format-check \
 	console-lockfile console-lint console-typecheck console-test console-build \
 	console-client console-client-check console-budget console-e2e console-e2e-run \
@@ -91,6 +91,135 @@ HELD_OUT_OF_TEST := \
 
 test: ## Run the test suite: behaviour across $(PYTEST_WORKERS) workers, budgets alone
 	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup -m "not benchmark" $(HELD_OUT_OF_TEST)
+	$(RUN) pytest -m benchmark $(HELD_OUT_OF_TEST)
+
+# --- The inner loop ----------------------------------------------------------
+#
+# `verify` is the gate, it runs before a push, and nothing below takes anything
+# away from it. This is the other target: what to run *during* an edit, when the
+# question is "did I just break something" rather than "does the repository
+# still hold". Those are different questions and they deserve different runs.
+#
+# Two measurements decided the shape, and both are worth writing down because
+# the obvious design fails on them.
+#
+# **Collection costs more than most tests do.** Importing all thirteen thousand
+# of them takes about fifty seconds here — and a marker filter cannot buy any of
+# it back, because `-m` deselects *after* collection. `pytest -m "not slow"`
+# over the whole tree therefore has a fifty-second floor no matter what it then
+# skips. A tier that finishes in seconds has to collect less, which means naming
+# paths, not naming markers. `tests/unit/platform/memory` collects in two.
+#
+# **A few tests are not about the edit at all.** They walk every committed file
+# and answer "does the repository still hold" — one directory of scenario
+# fixtures, no committed module importing a removed vendor, no stated catalogue
+# total that has gone stale. An edit to `platform/memory` cannot change their
+# answer, and they are most of what makes `tests/unit/tools` take thirty-five
+# seconds rather than twelve. They now carry the `sweep` marker. One more test
+# posts a thousand webhooks to prove the shedder bounds them: that is a real
+# behaviour assertion and it stays in `make test`, but the wall clock is the
+# volume rather than the assertion, so it carries `load` and sits this out.
+#
+# So: paths from what changed, markers to drop what an edit cannot change.
+
+# The one to type. `lint` costs four tenths of a second over the whole tree and
+# catches the break that would otherwise be found sixty seconds into a
+# selection, so the inner loop pays for it without noticing.
+fast: lint test-fast ## The inner loop: lint, then the tests that mirror what you changed
+
+#: The test paths `test-fast` runs. Empty means "work it out from git".
+SCOPE ?=
+
+# How the paths are worked out when SCOPE is not given, from `git status` — the
+# working tree, which is what "after every edit" means. Three rules:
+#
+#   1. A file under a runtime package selects the mirroring directory under
+#      `tests/unit`, walking up until one exists: `platform/memory/store.py`
+#      selects `tests/unit/platform/memory`, `core/llm/x/y/z.py` selects
+#      `tests/unit/core/llm`.
+#   2. Any component of its path that names a suite under `tests/contract` or
+#      `tests/security` selects that suite too. `gateway/http/routes/runs.py`
+#      selects `tests/contract/runs`; `platform/persistence/store.py` selects
+#      `tests/contract/persistence`. Crude, and it earns its keep: those are the
+#      suites that break for a reason `tests/unit` never sees.
+#   3. A file under `tests/` selects itself.
+#
+# `console/` selects nothing here — it has its own gate, `make console-check`.
+# Anything else that maps to nothing is *named on stdout* rather than passed
+# over in silence, because a file whose change this tier cannot test is the one
+# thing somebody needs to be told.
+#
+# **One pytest per path, not one pytest over all of them.** Several test modules
+# import their sibling `conftest` by bare name, which resolves through the
+# `sys.path` entry pytest adds per rootdir-relative test directory. Hand it two
+# directories that both have a `conftest.py` and the wrong one can win:
+# `tests/unit/gateway/http` plus `tests/contract/runs` fails collection with
+# `cannot import name ORG from conftest`, naming the other suite's file. The
+# whole-tree run in `make test` does not hit this and neither does either path
+# alone, so the defect belongs to the combination, not to the tests. A process
+# per path also means one broken selection reports and the rest still run.
+#
+# Pytest's exit code 5 — "collected something, selected nothing" — is a pass
+# here and only here. Editing a module whose every test is a `sweep` deselects
+# the lot, and a tier that went red for having correctly skipped what it says it
+# skips would be untrustworthy within a week. Every other non-zero code fails.
+test-fast: ## The inner loop: the tests that mirror what you changed, in seconds
+	@paths="$(SCOPE)"; \
+	if [ -z "$$paths" ]; then \
+		unmapped=""; \
+		for file in $$(git status --porcelain=1 --untracked-files=all \
+				| cut -c4- | sed 's/.* -> //'); do \
+			case "$$file" in \
+				tests/*) [ -e "$$file" ] && paths="$$paths $$file"; continue ;; \
+				console/*) continue ;; \
+			esac; \
+			hit=""; \
+			case "$$file" in */*) \
+				dir="tests/unit/$${file%/*}"; \
+				while [ "$$dir" != "tests/unit" ] && [ ! -d "$$dir" ]; do \
+					dir="$${dir%/*}"; \
+				done; \
+				if [ -d "$$dir" ] && [ "$$dir" != "tests/unit" ]; then \
+					paths="$$paths $$dir"; hit=yes; \
+				fi ;; \
+			esac; \
+			for part in $$(echo "$$file" | tr / ' '); do \
+				for suite in tests/contract/$$part tests/security/$$part; do \
+					if [ -d "$$suite" ]; then paths="$$paths $$suite"; hit=yes; fi; \
+				done; \
+			done; \
+			[ -z "$$hit" ] && unmapped="$$unmapped $$file"; \
+		done; \
+		if [ -n "$$paths" ]; then \
+			paths=$$(printf '%s\n' $$paths | sort -u | tr '\n' ' '); \
+		fi; \
+		if [ -n "$$unmapped" ]; then \
+			printf 'test-fast: no test path mirrors these, so nothing here covers them:\n'; \
+			printf '  %s\n' $$unmapped; \
+			printf '  `make verify` does. This tier is not a substitute for it.\n'; \
+		fi; \
+	fi; \
+	if [ -z "$$paths" ]; then \
+		echo "test-fast: nothing selected. Name it — make test-fast SCOPE=tests/unit/core"; \
+		exit 0; \
+	fi; \
+	echo "test-fast: $$paths"; \
+	status=0; \
+	for path in $$paths; do \
+		$(RUN) pytest "$$path" -p no:cacheprovider --no-header -q \
+			-m "not benchmark and not sweep and not load and not e2e" \
+			$(HELD_OUT_OF_TEST); \
+		code=$$?; \
+		if [ $$code -ne 0 ] && [ $$code -ne 5 ]; then status=1; fi; \
+	done; \
+	exit $$status
+
+# What `test-fast` drops, by name, so the drop is a thing you can run rather
+# than a thing you have to reconstruct. `verify` runs all of it through `test`;
+# this target is here for the moment you have touched a guard on purpose and
+# want its answer without waiting for the whole gate.
+test-sweeps: ## Run only the whole-repository sweeps, the budgets, and the load assertion
+	$(RUN) pytest -m "sweep or load" $(HELD_OUT_OF_TEST)
 	$(RUN) pytest -m benchmark $(HELD_OUT_OF_TEST)
 
 # Not part of `verify`: it builds a PostgreSQL image, starts it, and creates a

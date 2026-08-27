@@ -95,5 +95,6 @@ def test_the_report_names_the_line_and_the_field() -> None:
     assert str(violation.line) in rendered
 
 
+@pytest.mark.sweep
 def test_the_repository_itself_is_clean() -> None:
     assert find_violations(None) == []

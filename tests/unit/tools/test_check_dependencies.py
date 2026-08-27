@@ -182,6 +182,7 @@ def test_a_missing_root_package_is_an_error() -> None:
 # --- The repository itself ---------------------------------------------------
 
 
+@pytest.mark.sweep
 def test_the_repository_ships_no_telemetry() -> None:
     """SC-005: zero runtime dependencies match the deny-list."""
     from tools.check_dependencies import LOCK_FILE, PROJECT_NAME

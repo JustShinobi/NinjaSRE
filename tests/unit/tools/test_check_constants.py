@@ -145,6 +145,7 @@ def test_ignores_non_python_files(tmp_path: Path) -> None:
     assert find_violations([tmp_path]) == []
 
 
+@pytest.mark.sweep
 def test_the_repository_itself_is_clean() -> None:
     """The rule holds for the code that ships, not only for fixtures."""
     from tools.check_constants import DEFAULT_SCAN_ROOTS
