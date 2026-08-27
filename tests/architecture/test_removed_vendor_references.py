@@ -322,6 +322,7 @@ def _reference_files() -> tuple[Path, ...]:
     return tuple(found)
 
 
+@pytest.mark.sweep
 def test_no_committed_python_module_imports_a_removed_vendor_package() -> None:
     offenders: dict[str, list[str]] = {}
     for path in _python_files():
@@ -337,6 +338,7 @@ def test_no_committed_python_module_imports_a_removed_vendor_package() -> None:
     )
 
 
+@pytest.mark.sweep
 def test_no_reference_surface_names_a_removed_vendor() -> None:
     offenders: dict[str, list[str]] = {}
     for path in _reference_files():

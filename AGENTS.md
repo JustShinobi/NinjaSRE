@@ -194,6 +194,26 @@ success for a credential that cannot do the job.
 form. [`docs/integrations-catalogue.md`](docs/integrations-catalogue.md) is
 generated from the declarations and is what the console reads.
 
+## While you work
+
+```bash
+make fast
+```
+
+Lint, then the tests that mirror what `git status` says you have touched — a
+few seconds for most edits, about a minute for the largest directories. It
+reads the working tree, so it is meant to be run *during* an edit rather than
+after a commit; name the scope yourself when you want something else
+(`make test-fast SCOPE=tests/unit/core/llm`).
+
+It is not the gate and does not pretend to be. It runs no whole-repository
+sweep, no latency budget, nothing that wants a container, and no console check;
+no rule maps a source file to `tests/architecture`, so a change to the tiers is
+only caught by the gate; and a file it cannot map at all gets no tests, which it
+says out loud rather than passing over. `make verify` runs all of it. What
+`make fast` drops is runnable on its own as `make test-sweeps`, and the Makefile
+states the split above the targets.
+
 ## Before you push
 
 ```bash

@@ -116,6 +116,7 @@ def test_a_violation_names_the_file_and_the_line(tmp_path: Path) -> None:
     assert str(violation).startswith(f"{module}:1: [{PYTHON_RULE}]")
 
 
+@pytest.mark.sweep
 def test_the_repository_keeps_the_boundary() -> None:
     """The rule this feature added, asserted against the tree it was added to."""
     assert check(DEFAULT_PYTHON_ROOTS, REPO_ROOT / "console") == []

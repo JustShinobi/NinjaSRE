@@ -269,6 +269,7 @@ def test_main_exits_one_and_prints_the_violation(
 # --- The repository itself: red until the migration lands, green after ---------
 
 
+@pytest.mark.sweep
 def test_the_repository_serves_a_run_status_vocabulary_the_console_fully_knows() -> None:
     """The check exercised against the real tree: fixtures and the console vocabulary."""
     from tools.check_run_status_vocabulary import DEFAULT_CONSOLE_STATUS_PATH, DEFAULT_FIXTURES_ROOT

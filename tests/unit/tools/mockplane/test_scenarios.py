@@ -175,6 +175,7 @@ def test_generating_it_twice_gives_the_same_thing() -> None:
 # --- Budgets ----------------------------------------------------------------------
 
 
+@pytest.mark.benchmark
 def test_loading_any_scenario_stays_within_its_budget() -> None:
     for name in FIXTURE_SCENARIO_NAMES:
         started = time.perf_counter()

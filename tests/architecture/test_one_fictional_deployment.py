@@ -89,6 +89,7 @@ def _searchable(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
     )
 
 
+@pytest.mark.sweep
 def test_exactly_one_fictional_deployment_exists_in_the_repository() -> None:
     offenders = [
         path.relative_to(REPO_ROOT)
@@ -102,6 +103,7 @@ def test_exactly_one_fictional_deployment_exists_in_the_repository() -> None:
     )
 
 
+@pytest.mark.sweep
 def test_only_one_directory_holds_scenario_fixtures() -> None:
     trees = [
         path.parent.parent

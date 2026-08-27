@@ -120,6 +120,7 @@ def test_a_relative_import_is_not_mistaken_for_a_vendor(tmp_path: Path) -> None:
     assert module_violations(Path("core/pipeline/diagnose.py"), source) == []
 
 
+@pytest.mark.sweep
 def test_the_repository_is_clean() -> None:
     """The rule holds right now, which is the only version of it that matters."""
     from tools.check_vendor_sdks import DEFAULT_SCAN_ROOTS
