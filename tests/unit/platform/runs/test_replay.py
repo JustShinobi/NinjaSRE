@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from datetime import datetime
 
 import pytest
 from conftest import PRINCIPAL, TEAM
 
-from config.constants.runs import TRIGGER_ALERT
+from config.constants.runs import (
+    MAX_REPLAY_RESULT_BYTES,
+    TRIGGER_ALERT,
+    TRUNCATION_MARKER_KEY,
+)
 from platform.persistence.ports import RunStatus, ToolCallStatus, UnitOfWork
 from platform.runs.cursor import Cursor
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
-from platform.runs.replay import replay_run
+from platform.runs.replay import ReplayedCall, bounded_result, replay_run
 from platform.runs.stream import RunEventBroker, RunStream
 
 
@@ -230,3 +235,66 @@ async def test_a_stream_snapshot_and_a_replay_agree_on_the_log(
 
     assert snapshot == replayed.events
     assert await stream.replay_from(Cursor.start_of(run_id)) == snapshot
+
+
+async def test_a_recorded_result_inside_the_bound_reaches_a_reader_untouched(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    # The projection has to be a no-op on the ordinary case, or a console
+    # reading one would have to guess whether a small result had been edited.
+    run_id = await investigate(uow, clock)
+    replayed = await replay_run(uow.run_traces, run_id)
+
+    served, truncated = bounded_result(replayed.turns[0].calls[0])
+
+    assert served == {"pods": ["checkout-1"]}
+    assert truncated is False
+
+
+def test_a_result_too_large_for_a_replay_is_cut_and_says_it_was() -> None:
+    # A replay carries every call of a run in one response, so the recorder's
+    # per-row ceiling multiplied by a run's call count is a page nothing can
+    # hold. Cutting is fine here for the same reason it is fine on the way in;
+    # cutting silently is not.
+    call = ReplayedCall(
+        call_id="c",
+        turn_id="t",
+        name="loki.query",
+        status=ToolCallStatus.SUCCEEDED,
+        result={"statement": "the probe failed", "lines": ["x" * 900 for _ in range(400)]},
+    )
+
+    served, truncated = bounded_result(call)
+
+    assert truncated is True
+    assert len(json.dumps(served).encode("utf-8")) <= MAX_REPLAY_RESULT_BYTES
+    assert TRUNCATION_MARKER_KEY in served
+    # The small field survives: shedding drops the largest first, so what a
+    # reader can still state about the call is what is left standing.
+    assert served["statement"] == "the probe failed"
+
+
+async def test_a_result_the_recorder_shed_whole_is_still_declared_as_cut(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    # The recorder's byte ceiling drops an oversized field wholesale, so the
+    # stored body has no ``result`` left at all — only the marker beside it.
+    # Reading truncation out of the result would find an empty mapping here and
+    # report a call that returned nothing, which is not what happened.
+    writer = RunRecorder(store=uow.run_traces, clock=clock, ids=lambda: "id-0")
+    run = await writer.start_run(trigger=TRIGGER_ALERT, principal_id=PRINCIPAL, team_node_id=TEAM)
+    turn = await writer.record_turn(RecordedTurn(run_id=run.run_id, index=0, model="m"))
+    await writer.record_call(
+        RecordedCall(
+            run_id=run.run_id,
+            turn_id=turn.turn_id,
+            name="loki.query",
+            result={"lines": ["x" * 900 for _ in range(400)]},
+        )
+    )
+
+    replayed = await replay_run(uow.run_traces, run.run_id)
+
+    call = replayed.turns[0].calls[0]
+    assert call.result_truncated is True
+    assert bounded_result(call)[1] is True

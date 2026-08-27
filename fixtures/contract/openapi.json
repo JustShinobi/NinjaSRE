@@ -5731,6 +5731,119 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "ReplayCallView": {
+        "description": "One call as a replay serves it: the thread's fields, plus what came back.\n\nThe thread view deliberately stops at \"which capability, how it went\". A\nreplay is read to answer what the run *found*, and a reader that cannot see\na single result can only list the questions the agent asked — the answers\nare in the trace and were being thrown away here.",
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          },
+          "result_truncated": {
+            "default": false,
+            "title": "Result Truncated",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "name",
+          "status"
+        ],
+        "title": "ReplayCallView",
+        "type": "object"
+      },
+      "ReplayTurnView": {
+        "description": "One turn as a replay serves it, its calls carrying their results.\n\nThe turn's own fields are the thread view's, restated rather than\ninherited: a subclass cannot narrow ``list[ThreadCallView]`` to\n``list[ReplayCallView]``, because a list is mutable and so invariant. The\n*values* still come from ``thread_turn_view`` below, which is the half that\ncould actually drift.",
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayCallView"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "model": {
+            "default": "",
+            "title": "Model",
+            "type": "string"
+          },
+          "model_rationale": {
+            "default": "",
+            "title": "Model Rationale",
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "selection_rationale": {
+            "default": "",
+            "title": "Selection Rationale",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "index",
+          "calls"
+        ],
+        "title": "ReplayTurnView",
+        "type": "object"
+      },
       "RequiredPermissionView": {
         "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared — `tools.verify_integrations` makes the\ncall each names.",
         "properties": {
@@ -6402,7 +6515,7 @@
           },
           "turns": {
             "items": {
-              "$ref": "#/components/schemas/ThreadTurnView"
+              "$ref": "#/components/schemas/ReplayTurnView"
             },
             "title": "Turns",
             "type": "array"
@@ -15181,7 +15294,7 @@
     },
     "/v1/runs/{run_id}/replay": {
       "get": {
-        "description": "Return ``run_id`` reconstructed from its recorded events alone.",
+        "description": "Return ``run_id`` reconstructed from its recorded events alone.\n\nEach call carries what it returned, bounded for reading. The trace has held\nthe result since it was recorded; until it was served here, a reader could\nsee which capabilities a run asked and not one thing any of them answered,\nwhich is a transcript of the questions and none of the findings.",
         "operationId": "replay_v1_runs__run_id__replay_get",
         "parameters": [
           {

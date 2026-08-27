@@ -22,9 +22,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Final, Protocol, runtime_checkable
 
 from config.constants.runs import (
+    MAX_REPLAY_RESULT_BYTES,
+    MAX_REPLAY_RESULT_ITEMS,
+    MAX_REPLAY_RESULT_STRING_LENGTH,
+    TRUNCATION_MARKER_KEY,
     TURN_PAYLOAD_CAPABILITIES,
     TURN_PAYLOAD_MODEL_RATIONALE,
     TURN_PAYLOAD_RATIONALE,
@@ -43,6 +47,16 @@ from platform.persistence.ports.run_trace_store import (
     ToolCallStatus,
 )
 from platform.runs.events import RunEvent
+from platform.runs.truncation import Bounds, truncate
+
+#: What a reader gets of a result, as against what the recorder stored of it.
+#: Tighter on every axis, because the two are bounding different things: the
+#: recorder bounds one row, and a replay hands over every call of a run at once.
+REPLAY_RESULT_BOUNDS: Final = Bounds(
+    payload_bytes=MAX_REPLAY_RESULT_BYTES,
+    string_length=MAX_REPLAY_RESULT_STRING_LENGTH,
+    sequence_items=MAX_REPLAY_RESULT_ITEMS,
+)
 
 #: Argument keys tried, in order, for "the resource one call touched" — tool
 #: schemas across the capability catalogue do not share one name for it, so
@@ -90,6 +104,13 @@ class ReplayedCall:
     evidence_ids: tuple[str, ...] = ()
     description: str | None = None
     available: bool = True
+    #: Whether the recorder cut anything out of this call's stored body on the
+    #: way in. Read from the marker the recorder writes beside the payload, not
+    #: from inside ``result`` — an oversized result is shed *wholesale*, so the
+    #: only surviving evidence that it was ever there is that sibling marker,
+    #: and a replay that looked for it inside the result would find an empty
+    #: mapping and report a call that returned nothing.
+    result_truncated: bool = False
 
     @property
     def degraded(self) -> bool:
@@ -210,6 +231,7 @@ def replay_trace(
             error=record.error,
             error_class=_optional_str(arguments.get("error_class")),
             evidence_ids=record.evidence_ids,
+            result_truncated=TRUNCATION_MARKER_KEY in arguments,
             **_availability(record.tool_name, catalogue),
         )
         calls_by_turn.setdefault(record.turn_id, []).append(call)
@@ -239,6 +261,30 @@ def replay_trace(
         events=tuple(RunEvent.of(record) for record in trace.events),
         evidence_ids=tuple(item.evidence_id for item in trace.evidence),
     )
+
+
+def bounded_result(call: ReplayedCall) -> tuple[dict[str, Any], bool]:
+    """Return what a reader is served of ``call``'s result, and whether it is short.
+
+    A projection rather than the recorded body. The recorder's ceiling is per
+    stored row, and a replay hands over every call of a run in one response, so
+    serving each result at the storage bound turns a forty-call run into a
+    multi-megabyte page. A reader wants enough to say what the call found — the
+    statement, the fields, the handful of rows — and the raw vendor body it
+    found them in stays in the trace, reachable per call, rather than riding
+    along on the summary.
+
+    The reduction is the recorder's own under tighter bounds, so a result cut
+    on the way out carries exactly the marker a result cut on the way in
+    carries, and a reader has one thing to look for rather than two.
+
+    The flag is true when *either* side cut something. A body the recorder had
+    already shortened is still a short body, and reporting "not truncated"
+    because this projection happened to remove nothing would launder that into
+    a result which looks complete.
+    """
+    served, removal = truncate(call.result, bounds=REPLAY_RESULT_BOUNDS)
+    return served, removal.happened or call.result_truncated
 
 
 def _availability(name: str, catalogue: CapabilityDescriptions | None) -> dict[str, Any]:
@@ -305,10 +351,12 @@ def _optional_str(value: Any) -> str | None:
 
 
 __all__ = [
+    "REPLAY_RESULT_BOUNDS",
     "CapabilityDescriptions",
     "ReplayedCall",
     "ReplayedRun",
     "ReplayedTurn",
+    "bounded_result",
     "replay_run",
     "replay_trace",
     "touched_resources_of",

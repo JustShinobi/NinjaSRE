@@ -55,7 +55,8 @@ from platform.guardian.topology import ClusterShape
 from platform.identity.permissions import Permission, Role, permissions_for
 from platform.persistence.ports.run_trace_store import ToolCallRecord
 from platform.runs.headline import synthesize_headline
-from platform.runs.replay import touched_resources_of
+from platform.runs.replay import REPLAY_RESULT_BOUNDS, touched_resources_of
+from platform.runs.truncation import truncate
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -846,6 +847,26 @@ def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> d
     }
 
 
+def _replay_call(call: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one call in the shape the replay route serves it.
+
+    The result goes through the reading bound the route applies, rather than
+    being copied out of ``_TURNS`` whole: a fixture that promised a console a
+    payload a deployment would have cut is a fixture the screen built against
+    it fails on in production. ``result`` and ``result_truncated`` are present
+    on every call for the same reason the route sets them on every call — a
+    capability that returned nothing and one whose answer was dropped are
+    different facts, and both have to be sayable.
+    """
+    served, removal = truncate(dict(call.get("result") or {}), bounds=REPLAY_RESULT_BOUNDS)
+    return {**call, "result": served, "result_truncated": removal.happened}
+
+
+def _replay_turn(turn: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one turn with its calls in the shape the replay route serves them."""
+    return {**turn, "calls": [_replay_call(call) for call in turn.get("calls", ())]}
+
+
 def _turn_usage(turn: Mapping[str, Any]) -> tuple[float, int, bool]:
     """Return ``(cost, tokens, priced)`` for one turn, from what it recorded.
 
@@ -888,7 +909,7 @@ def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[C
                 {"run_id": identifier},
                 {
                     "run_id": identifier,
-                    "turns": turns,
+                    "turns": [_replay_turn(turn) for turn in turns],
                     "total_cost": round(sum(cost for cost, _, _ in usages), 4),
                     "total_tokens": sum(tokens for _, tokens, _ in usages),
                     "is_interrupted": run["status"] == "cancelled",

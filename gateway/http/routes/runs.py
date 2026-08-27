@@ -7,19 +7,21 @@ reviews one after the fact.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config.constants.investigation import EVIDENCE_ASSESSMENT_CAPABILITY
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.routes.investigations import InvestigationSummary, linked_summary, summary_of
 from gateway.http.routes.tenancy import visible
-from gateway.http.routes.threads import ThreadTurnView, thread_turn_view
+from gateway.http.routes.threads import ThreadCallView, thread_turn_view
 from gateway.http.state import GatewayState
 from platform.persistence.ports.run_trace_store import ToolCallRecord
 from platform.runs.evidence import assessment_from_calls
-from platform.runs.replay import replay_trace
+from platform.runs.replay import ReplayedTurn, bounded_result, replay_trace
 
 router = APIRouter(prefix="/v1/runs", tags=["runs"])
 
@@ -28,9 +30,72 @@ class RunList(BaseModel):
     runs: list[InvestigationSummary]
 
 
+class ReplayCallView(ThreadCallView):
+    """One call as a replay serves it: the thread's fields, plus what came back.
+
+    The thread view deliberately stops at "which capability, how it went". A
+    replay is read to answer what the run *found*, and a reader that cannot see
+    a single result can only list the questions the agent asked — the answers
+    are in the trace and were being thrown away here.
+    """
+
+    #: What the capability returned, bounded for reading rather than for
+    #: storage. See ``platform.runs.replay.bounded_result`` for why the two
+    #: bounds differ.
+    result: dict[str, Any] = Field(default_factory=dict)
+    #: Whether anything was removed from ``result`` — by the recorder on the
+    #: way in, or by the bound above on the way out. Either way this is not the
+    #: whole body, and a reader is told so rather than left to infer it.
+    result_truncated: bool = False
+
+
+class ReplayTurnView(BaseModel):
+    """One turn as a replay serves it, its calls carrying their results.
+
+    The turn's own fields are the thread view's, restated rather than
+    inherited: a subclass cannot narrow ``list[ThreadCallView]`` to
+    ``list[ReplayCallView]``, because a list is mutable and so invariant. The
+    *values* still come from ``thread_turn_view`` below, which is the half that
+    could actually drift.
+    """
+
+    turn_id: str
+    index: int
+    model: str = ""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    #: ``None`` when the provider publishes no price for this turn — never a
+    #: fabricated ``0.0`` standing in for "unknown".
+    cost: float | None = None
+    selection_rationale: str = ""
+    model_rationale: str = ""
+    calls: list[ReplayCallView]
+
+
+def replay_turn_view(turn: ReplayedTurn) -> ReplayTurnView:
+    """Return ``turn`` in the replay's shape.
+
+    Built on top of the thread view rather than beside it: the two differ only
+    in what a call carries, and computing the turn's own fields again here is
+    how they would come to disagree about a model name or a rationale.
+    """
+    base = thread_turn_view(turn)
+    calls: list[ReplayCallView] = []
+    for shared, call in zip(base.calls, turn.calls, strict=True):
+        served, truncated = bounded_result(call)
+        calls.append(
+            ReplayCallView(
+                **shared.model_dump(),
+                result=served,
+                result_truncated=truncated,
+            )
+        )
+    return ReplayTurnView(**base.model_dump(exclude={"calls"}), calls=calls)
+
+
 class RunReplayView(BaseModel):
     run_id: str
-    turns: list[ThreadTurnView]
+    turns: list[ReplayTurnView]
     #: The sum of the turns that carried a recorded cost. Read this with
     #: ``unpriced_turns`` — on its own it is a floor, not a total.
     total_cost: float
@@ -101,7 +166,13 @@ async def replay(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> RunReplayView:
-    """Return ``run_id`` reconstructed from its recorded events alone."""
+    """Return ``run_id`` reconstructed from its recorded events alone.
+
+    Each call carries what it returned, bounded for reading. The trace has held
+    the result since it was recorded; until it was served here, a reader could
+    see which capabilities a run asked and not one thing any of them answered,
+    which is a transcript of the questions and none of the findings.
+    """
     async with state.gateway.begin(auth.scope) as uow:
         run = await uow.run_traces.get_run(run_id)
         if run is None or not visible(run, auth):
@@ -110,7 +181,7 @@ async def replay(
     replayed = replay_trace(trace)
     return RunReplayView(
         run_id=run_id,
-        turns=[thread_turn_view(turn) for turn in replayed.turns],
+        turns=[replay_turn_view(turn) for turn in replayed.turns],
         total_cost=replayed.total_cost,
         unpriced_turns=replayed.unpriced_turn_count,
         total_tokens=replayed.total_tokens,

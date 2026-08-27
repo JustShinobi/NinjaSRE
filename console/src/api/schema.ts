@@ -2476,6 +2476,11 @@ export interface paths {
         /**
          * Replay
          * @description Return ``run_id`` reconstructed from its recorded events alone.
+         *
+         *     Each call carries what it returned, bounded for reading. The trace has held
+         *     the result since it was recorded; until it was served here, a reader could
+         *     see which capabilities a run asked and not one thing any of them answered,
+         *     which is a transcript of the questions and none of the findings.
          */
         get: operations["replay_v1_runs__run_id__replay_get"];
         put?: never;
@@ -6008,6 +6013,84 @@ export interface components {
             reason: string;
         };
         /**
+         * ReplayCallView
+         * @description One call as a replay serves it: the thread's fields, plus what came back.
+         *
+         *     The thread view deliberately stops at "which capability, how it went". A
+         *     replay is read to answer what the run *found*, and a reader that cannot see
+         *     a single result can only list the questions the agent asked — the answers
+         *     are in the trace and were being thrown away here.
+         */
+        ReplayCallView: {
+            /** Call Id */
+            call_id: string;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /** Error */
+            error?: string | null;
+            /** Name */
+            name: string;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Result Truncated
+             * @default false
+             */
+            result_truncated: boolean;
+            /** Status */
+            status: string;
+        };
+        /**
+         * ReplayTurnView
+         * @description One turn as a replay serves it, its calls carrying their results.
+         *
+         *     The turn's own fields are the thread view's, restated rather than
+         *     inherited: a subclass cannot narrow ``list[ThreadCallView]`` to
+         *     ``list[ReplayCallView]``, because a list is mutable and so invariant. The
+         *     *values* still come from ``thread_turn_view`` below, which is the half that
+         *     could actually drift.
+         */
+        ReplayTurnView: {
+            /** Calls */
+            calls: components["schemas"]["ReplayCallView"][];
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /** Cost */
+            cost?: number | null;
+            /** Index */
+            index: number;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /**
+             * Model Rationale
+             * @default
+             */
+            model_rationale: string;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Selection Rationale
+             * @default
+             */
+            selection_rationale: string;
+            /** Turn Id */
+            turn_id: string;
+        };
+        /**
          * RequiredPermissionView
          * @description One permission the credential has to be allowed, exactly as declared.
          *
@@ -6317,7 +6400,7 @@ export interface components {
             /** Total Tokens */
             total_tokens: number;
             /** Turns */
-            turns: components["schemas"]["ThreadTurnView"][];
+            turns: components["schemas"]["ReplayTurnView"][];
             /** Unpriced Turns */
             unpriced_turns: number;
         };
