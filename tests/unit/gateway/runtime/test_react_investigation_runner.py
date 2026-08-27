@@ -446,3 +446,5 @@ class TestTheRunnerNeverWritesAnIncidentReceiptItself:
 
         assert summary == "no evidence gathered"
         assert not hasattr(runner, "incidents")
+        assert await runner.queue_message("run-1", "late message") is False
+        assert "run-1" not in runner._live

@@ -464,10 +464,12 @@ class ReActInvestigationRunner:
             )
             live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
             self._live[request.run_id] = live
-
-            run = await self._pipeline_for(
-                request, runtime=loop, selection=selection, recorder=recorder
-            ).run(_state_of(request, selection))
+            try:
+                run = await self._pipeline_for(
+                    request, runtime=loop, selection=selection, recorder=recorder
+                ).run(_state_of(request, selection))
+            finally:
+                self._live.pop(request.run_id, None)
 
         return _summary_of(run)
 

@@ -73,6 +73,7 @@ async def compose_control_plane(state: Any, *, org_id: str, proxy_url: str) -> A
         # it, so a deployment without one binds nothing rather than a client
         # that would have to hold a credential itself.
         logger.info("remediation.control_plane_skipped", reason="no credential proxy is configured")
+        control_plane.clear()
         return None
 
     try:
@@ -81,6 +82,7 @@ async def compose_control_plane(state: Any, *, org_id: str, proxy_url: str) -> A
         # Unreadable is not permission. The process still comes up, because the
         # console somebody would fix it from is served by it.
         logger.warning("remediation.control_plane_unreadable", error=str(unreadable))
+        control_plane.clear()
         return None
 
     transport = HttpProxyTransport(base_url=proxy_url)
@@ -127,6 +129,7 @@ async def compose_control_plane(state: Any, *, org_id: str, proxy_url: str) -> A
         )
         return bound
 
+    control_plane.clear()
     logger.info(
         "remediation.control_plane_skipped",
         reason="no configured integration is one this deployment knows how to change",

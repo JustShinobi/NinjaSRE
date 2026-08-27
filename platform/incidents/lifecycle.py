@@ -179,6 +179,7 @@ class IncidentLifecycle:
         run_id: str,
         *,
         objective: str = "",
+        advance_state: bool = True,
         now: datetime,
     ) -> Incident:
         """Link an investigation to ``incident_id`` and move it to investigating.
@@ -191,10 +192,15 @@ class IncidentLifecycle:
         if run_id in incident.run_ids:
             return incident
 
+        new_state = (
+            IncidentState.INVESTIGATING
+            if (advance_state and incident.state.is_live)
+            else incident.state
+        )
         linked = replace(
             incident,
             run_ids=(*incident.run_ids, run_id),
-            state=IncidentState.INVESTIGATING if incident.state.is_live else incident.state,
+            state=new_state,
         )
         stored = await self.store.upsert(linked)
         await self._record(

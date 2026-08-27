@@ -86,22 +86,32 @@ class RunReaper:
         way, and refusing to boot over them makes that worse.
         """
         now = self.clock()
+        cutoff = now - timedelta(seconds=RUN_WALL_CLOCK_SECONDS + self.margin_seconds)
         closed: list[str] = []
         for status in UNFINISHED:
-            try:
-                found = await self.store.list_runs(status=status, limit=limit)
-            except Exception as unreadable:  # noqa: BLE001 — tidying must not stop a boot
-                logger.warning("runs.reap_read_failed", status=status.value, error=str(unreadable))
-                continue
-            for run in self.abandoned(found, now=now):
+            while True:
                 try:
-                    await self.recorder.mark_interrupted(run.run_id, reason=REAP_REASON)
-                except Exception as unwritable:  # noqa: BLE001 — one row must not stop the rest
+                    found = await self.store.list_runs(status=status, until=cutoff, limit=limit)
+                except Exception as unreadable:  # noqa: BLE001 — tidying must not stop a boot
                     logger.warning(
-                        "runs.reap_write_failed", run_id=run.run_id, error=str(unwritable)
+                        "runs.reap_read_failed", status=status.value, error=str(unreadable)
                     )
-                    continue
-                closed.append(run.run_id)
+                    break
+                if not found:
+                    break
+                reaped_this_batch = 0
+                for run in self.abandoned(found, now=now):
+                    try:
+                        await self.recorder.mark_interrupted(run.run_id, reason=REAP_REASON)
+                    except Exception as unwritable:  # noqa: BLE001 — one row must not stop the rest
+                        logger.warning(
+                            "runs.reap_write_failed", run_id=run.run_id, error=str(unwritable)
+                        )
+                        continue
+                    closed.append(run.run_id)
+                    reaped_this_batch += 1
+                if len(found) < limit or reaped_this_batch == 0:
+                    break
         if closed:
             logger.warning("runs.reaped", count=len(closed), run_ids=closed)
         return tuple(closed)

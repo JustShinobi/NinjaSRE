@@ -106,8 +106,6 @@ services:
       # Local first. A homelab runs the model on its own hardware, so the
       # endpoints come before any vendor key and one of them is usually the
       # whole model configuration.
-      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-ollama}
-      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -152,8 +150,6 @@ services:
       NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
       NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
       NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
-      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-ollama}
-      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

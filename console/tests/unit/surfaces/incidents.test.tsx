@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
-import { surfaceContext } from '@/surfaces/context';
+import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { IncidentsScreen } from '@/surfaces/screens/incidents';
 
 /**
@@ -137,8 +137,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function incidents(): Promise<void> {
-  render(await IncidentsScreen(await surfaceContext({})));
+async function incidents(search: SearchParams = {}): Promise<void> {
+  render(await IncidentsScreen(await surfaceContext(search)));
 }
 
 function emptyPanel(): HTMLElement {
@@ -298,5 +298,18 @@ describe('the empty state’s call to action', () => {
       .getAllByText(label)
       .filter((node) => !node.className.includes('sr-only'));
     expect(visible).toHaveLength(1);
+  });
+});
+
+describe('view selector in address', () => {
+  it('does not filter out incidents when flat view is selected', async () => {
+    serve({
+      detectors: [enabledDetector('quorum-margin-zero')],
+      incidents: [OPEN_INCIDENT],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents({ view: 'flat' });
+
+    expect(screen.getByText('Backup job disabled')).toBeInTheDocument();
   });
 });

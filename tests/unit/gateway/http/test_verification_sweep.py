@@ -280,6 +280,31 @@ async def test_composing_a_desk_also_schedules_the_sweep_that_settles_its_obliga
     assert job.next_run_at is not None
 
 
+async def test_schedule_verification_sweep_preserves_custom_schedule_and_enabled_state(
+    plane: _Plane, deployment: Deployment
+) -> None:
+    from gateway.http.verification_sweep import schedule_verification_sweep
+
+    await compose_remediation(deployment.state, org_id=ORG, proxy_url=PROXY)
+    custom_schedule = "*/5 * * * *"
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        job = await uow.schedules.get_job(SWEEP_JOB_ID)
+        assert job is not None
+        from dataclasses import replace
+
+        await uow.schedules.upsert_job(replace(job, schedule=custom_schedule, enabled=False))
+
+    # Re-running schedule_verification_sweep on next boot/recompose should preserve schedule and enabled=False
+    ok = await schedule_verification_sweep(deployment.state, org_id=ORG)
+    assert ok is True
+
+    stored = await _sweep_job(deployment)
+    assert stored is not None
+    assert stored.schedule == custom_schedule
+    assert stored.enabled is False
+
+
 async def test_an_obligation_reaches_a_verdict_once_its_settle_period_has_passed(
     plane: _Plane, deployment: Deployment, client: AsyncClient
 ) -> None:

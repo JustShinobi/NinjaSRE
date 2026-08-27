@@ -64,4 +64,27 @@ describe('the frame’s freshness chip', () => {
     const state = screen.getByTestId('freshness').getAttribute('data-state');
     expect(FRESHNESS_STATES as readonly string[]).toContain(state);
   });
+
+  it('reschedules another timer after a successful refresh', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
+
+    render(<AutoRefresh locale="en" />);
+
+    // First timer fires and settles
+    await vi.runOnlyPendingTimersAsync();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // Let fetch promise and finally block settle so React schedules next timer
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Second timer must be scheduled and fire
+    await vi.runOnlyPendingTimersAsync();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    fetchSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });

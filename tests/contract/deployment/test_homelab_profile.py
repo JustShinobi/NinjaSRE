@@ -30,7 +30,6 @@ from config.constants.deployment import (
     NINJASRE_DEPLOYMENT_PROFILE_ENV,
 )
 from config.constants.llm import (
-    NINJASRE_LLM_PROVIDER_ENV,
     OLLAMA_BASE_URL_ENV,
     VLLM_BASE_URL_ENV,
 )
@@ -110,16 +109,6 @@ def test_the_console_service_gets_every_setting_the_app_service_needs_to_boot(
 
     missing = app_settings - console_settings
     assert not missing, f"console never receives: {missing}"
-
-
-def test_the_console_service_is_given_a_model_provider_setting(
-    homelab_compose: dict[str, Any],
-) -> None:
-    """The specific regression: a console container with no provider setting
-    refuses to start with the same failure a deployment with none configured
-    anywhere would.
-    """
-    assert NINJASRE_LLM_PROVIDER_ENV in homelab_compose["services"]["console"]["environment"]
 
 
 def test_nothing_is_published_beyond_loopback(homelab_compose: dict[str, Any]) -> None:

@@ -170,9 +170,10 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   );
 
   const filtered = records.filter((record) =>
-    Object.entries(state.filters).every(
-      ([name, value]) => text(record, name) === value,
-    ),
+    INCIDENT_FILTERS.every((name) => {
+      const value = state.filters[name];
+      return !value || text(record, name) === value;
+    }),
   );
 
   const sorted = [...filtered].sort((left, right) => {

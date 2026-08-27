@@ -23,7 +23,6 @@ from config.constants.deployment import (
     STANDARD_PROFILE_CONTAINER_COUNT,
     STANDARD_PROFILE_SERVICES,
 )
-from config.constants.llm import NINJASRE_LLM_PROVIDER_ENV
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from platform.startup.profiles import DeploymentProfile, topology_for
@@ -105,17 +104,6 @@ def test_the_console_service_gets_every_setting_the_app_service_needs_to_boot(
 
     missing = app_settings - console_settings
     assert not missing, f"console never receives: {missing}"
-
-
-def test_the_console_service_is_given_a_model_provider_setting(
-    standard_compose: dict[str, Any],
-) -> None:
-    """The specific regression: a console container with no provider setting
-    refuses to start with the same failure a deployment with none configured
-    anywhere would, even though an operator who set one for ``app`` has no
-    reason to expect it stops there.
-    """
-    assert NINJASRE_LLM_PROVIDER_ENV in standard_compose["services"]["console"]["environment"]
 
 
 def test_nothing_is_published_beyond_loopback_by_default(

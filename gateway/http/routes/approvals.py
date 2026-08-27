@@ -431,14 +431,22 @@ async def _carry_out(state: GatewayState, decided: ApprovalRequest, *, principal
         )
         return
 
-    outcome = await desk.gate_for(
-        RunContext(
-            requester=principal,
-            team_node_id=action.team_node_id,
-            run_id=action.run_id,
-            environment=action.target.environment,
+    try:
+        outcome = await desk.gate_for(
+            RunContext(
+                requester=principal,
+                team_node_id=action.team_node_id,
+                run_id=action.run_id,
+                environment=action.target.environment,
+            )
+        ).execute_approved(action, approval_id=decided.approval_id)
+    except Exception as unexecuted:  # noqa: BLE001 — the approval was already stored
+        logger.warning(
+            "remediation.approval_execution_failed",
+            approval_id=decided.approval_id,
+            error=str(unexecuted),
         )
-    ).execute_approved(action, approval_id=decided.approval_id)
+        return
 
     logger.info(
         "remediation.approval_carried_out",

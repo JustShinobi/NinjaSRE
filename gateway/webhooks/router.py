@@ -905,6 +905,7 @@ async def _join_live_investigation(
                     f"started for incident {target.incident_id}"
                 )
             ),
+            advance_state=not target.answered,
             now=_utc_now(),
         )
     logger.info(

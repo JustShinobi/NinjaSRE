@@ -136,6 +136,12 @@ class ProxmoxControlPlane:
     #: wants the evidence structured rather than as the sentence in the record.
     evidence: dict[str, TaskEvidence] = field(default_factory=dict)
 
+    def _client_for(self, action: RemediationAction | None = None) -> ProxmoxWriteClient:
+        """Return the write client scoped to ``action``'s team, or the shared client."""
+        if action is None or not action.team_node_id:
+            return self.client
+        return self.client.for_team(action.team_node_id)
+
     # -- reading --------------------------------------------------------------
 
     async def read(self, action: RemediationAction) -> ControlPlaneState | None:
@@ -168,19 +174,22 @@ class ProxmoxControlPlane:
     async def _read_guest(self, action: RemediationAction) -> ControlPlaneState:
         """Return one guest's node, state, lock, uptime and whether its agent answers."""
         node, vmid, kind = _guest_of(action)
-        guest = await self.client.guest_status(node, vmid, kind=kind)
+        client = self._client_for(action)
+        guest = await client.guest_status(node, vmid, kind=kind)
         return ControlPlaneState(
             values={
                 "node": guest.node,
                 "status": guest.status,
                 "lock": guest.lock,
                 "uptime": guest.uptime_seconds,
-                "agent_responds": await self._agent_answers(guest),
+                "agent_responds": await self._agent_answers(guest, action=action),
             },
             sub_targets=(f"{kind}/{vmid}",),
         )
 
-    async def _agent_answers(self, guest: GuestStatus) -> bool | None:
+    async def _agent_answers(
+        self, guest: GuestStatus, *, action: RemediationAction | None = None
+    ) -> bool | None:
         """Return whether the guest's own agent replied, or ``None`` when it has none.
 
         ``None`` rather than ``False`` for a guest that declares no agent, and a
@@ -190,13 +199,13 @@ class ProxmoxControlPlane:
         """
         if guest.is_container or not guest.agent_declared or guest.status != "running":
             return None
-        reading = await self.client.guest_agent_filesystems(guest.node, guest.vmid)
+        reading = await self._client_for(action).guest_agent_filesystems(guest.node, guest.vmid)
         return reading.available
 
     async def _read_ha(self, action: RemediationAction) -> ControlPlaneState:
         """Return what the high-availability manager holds about one resource."""
         sid = str(action.arguments.get("sid", ""))
-        state = await self.client.high_availability()
+        state = await self._client_for(action).high_availability()
         service = next((row for row in state.services if str(row.get("sid", "")) == sid), {})
         definition = next((row for row in state.resources if str(row.get("sid", "")) == sid), {})
         return ControlPlaneState(
@@ -215,11 +224,11 @@ class ProxmoxControlPlane:
         node = str(action.arguments.get("node", ""))
         datastore = str(action.arguments.get("datastore", ""))
         named = _named_volumes(action)
-        present = await self._present(node, datastore, named)
-        owners = await self._owners(node, datastore, tuple(present))
+        present = await self._present(node, datastore, named, action=action)
+        owners = await self._owners(node, datastore, tuple(present), action=action)
 
         if declaration.capability == "proxmox_reclaim_storage":
-            reading = await self.client.datastore_status(node, datastore)
+            reading = await self._client_for(action).datastore_status(node, datastore)
             store = reading.value
             return ControlPlaneState(
                 values={
@@ -236,7 +245,7 @@ class ProxmoxControlPlane:
     async def _read_backup(self, action: RemediationAction) -> ControlPlaneState:
         """Return whether the guest's most recent backup worked, and when it ran."""
         node, vmid, _ = _guest_of(action)
-        latest = await self.client.last_successful_backup(node)
+        latest = await self._client_for(action).last_successful_backup(node)
         found = latest.get(vmid)
         return ControlPlaneState(
             values={
@@ -250,7 +259,7 @@ class ProxmoxControlPlane:
         """Return one replication job's health, its last sync and where it goes."""
         node = str(action.arguments.get("node", ""))
         job_id = str(action.arguments.get("job_id", ""))
-        jobs = await self.client.replication_jobs(node)
+        jobs = await self._client_for(action).replication_jobs(node)
         job = next((row for row in jobs if row.job_id == job_id), None)
         return ControlPlaneState(
             values={
@@ -261,13 +270,27 @@ class ProxmoxControlPlane:
             sub_targets=(job_id,) if job_id else (),
         )
 
-    async def _present(self, node: str, datastore: str, named: tuple[str, ...]) -> tuple[str, ...]:
+    async def _present(
+        self,
+        node: str,
+        datastore: str,
+        named: tuple[str, ...],
+        *,
+        action: RemediationAction | None = None,
+    ) -> tuple[str, ...]:
         """Return which of ``named`` the datastore still holds."""
-        contents = await self.client.datastore_contents(node, datastore)
+        contents = await self._client_for(action).datastore_contents(node, datastore)
         held = {str(row.get("volid", "")) for row in contents}
         return tuple(volume for volume in named if volume in held)
 
-    async def _owners(self, node: str, datastore: str, volumes: tuple[str, ...]) -> dict[str, int]:
+    async def _owners(
+        self,
+        node: str,
+        datastore: str,
+        volumes: tuple[str, ...],
+        *,
+        action: RemediationAction | None = None,
+    ) -> dict[str, int]:
         """Return which of ``volumes`` a guest that still exists references.
 
         Read at execution rather than at proposal. A guest created between the
@@ -276,8 +299,9 @@ class ProxmoxControlPlane:
         """
         if not volumes:
             return {}
-        contents = await self.client.datastore_contents(node, datastore)
-        resources = await self.client.cluster_resources()
+        client = self._client_for(action)
+        contents = await client.datastore_contents(node, datastore)
+        resources = await client.cluster_resources()
         alive = {
             int(row.get("vmid", 0) or 0)
             for row in resources
@@ -333,7 +357,7 @@ class ProxmoxControlPlane:
             )
 
         if wanted & {Precondition.CLUSTER_QUORATE, Precondition.NODE_NOT_AMBIGUOUSLY_DEAD}:
-            facts.update(await self._cluster_facts())
+            facts.update(await self._cluster_facts(action))
 
         if wanted & {Precondition.GUEST_UNLOCKED, Precondition.HOLDING_TASK_DEAD}:
             facts.update(await self._guest_facts(action))
@@ -356,9 +380,9 @@ class ProxmoxControlPlane:
 
         return Facts(**facts)
 
-    async def _cluster_facts(self) -> dict[str, Any]:
+    async def _cluster_facts(self, action: RemediationAction | None = None) -> dict[str, Any]:
         """Return membership and quorum as they stand right now."""
-        status = await self.client.cluster_status()
+        status = await self._client_for(action).cluster_status()
         return {
             "quorate": status.quorate,
             "is_clustered": status.is_clustered,
@@ -371,8 +395,9 @@ class ProxmoxControlPlane:
     async def _guest_facts(self, action: RemediationAction) -> dict[str, Any]:
         """Return the guest's own state and, when it is locked, what holds the lock."""
         node, vmid, kind = _guest_of(action)
-        guest = await self.client.guest_status(node, vmid, kind=kind)
-        holder = await self._lock_holder(guest) if guest.lock else None
+        client = self._client_for(action)
+        guest = await client.guest_status(node, vmid, kind=kind)
+        holder = await self._lock_holder(guest, action=action) if guest.lock else None
         return {
             "guest_node": guest.node,
             "guest_status": guest.status,
@@ -380,7 +405,9 @@ class ProxmoxControlPlane:
             "holding_task": holder,
         }
 
-    async def _lock_holder(self, guest: GuestStatus) -> TaskRecord | None:
+    async def _lock_holder(
+        self, guest: GuestStatus, *, action: RemediationAction | None = None
+    ) -> TaskRecord | None:
         """Return the most recent task of the kind the lock names, or ``None``.
 
         Proxmox writes the *operation* into the lock — ``backup``, ``migrate``,
@@ -393,7 +420,9 @@ class ProxmoxControlPlane:
         A lock whose word matches nothing recent is a lock with no identifiable
         holder, and that is reported as unknown rather than assumed dead.
         """
-        history = await self.client.guest_tasks(guest.node, guest.vmid, kind=guest.kind)
+        history = await self._client_for(action).guest_tasks(
+            guest.node, guest.vmid, kind=guest.kind
+        )
         word = guest.lock.strip().lower()
         if not word:
             return None
@@ -408,8 +437,9 @@ class ProxmoxControlPlane:
         """Return which datastores the guest is on and which the target node can see."""
         node, vmid, kind = _guest_of(action)
         target = str(action.arguments.get("target", ""))
-        configuration = await self.client.guest_configuration(node, vmid, kind=kind)
-        stores = await self.client.node_storage(target) if target else ()
+        client = self._client_for(action)
+        configuration = await client.guest_configuration(node, vmid, kind=kind)
+        stores = await client.node_storage(target) if target else ()
         return {
             "target_node": target,
             "guest_datastores": _datastores_of(configuration),
@@ -425,13 +455,14 @@ class ProxmoxControlPlane:
         approved is exactly the substitution this refuses.
         """
         node, vmid, kind = _guest_of(action)
-        guest = await self.client.guest_status(node, vmid, kind=kind)
+        client = self._client_for(action)
+        guest = await client.guest_status(node, vmid, kind=kind)
         if guest.status != "running":
             return (
                 f"the guest is {guest.status or 'not running'}, so the move Proxmox would "
                 f"perform is an offline one"
             )
-        configuration = await self.client.guest_configuration(node, vmid, kind=kind)
+        configuration = await client.guest_configuration(node, vmid, kind=kind)
         passthrough = sorted(
             str(key) for key in configuration if str(key).startswith(("hostpci", "usb"))
         )
@@ -450,7 +481,8 @@ class ProxmoxControlPlane:
         job has and the reason ``enabled`` is read rather than assumed.
         """
         node, vmid, _ = _guest_of(action)
-        jobs = await self.client.backup_jobs()
+        client = self._client_for(action)
+        jobs = await client.backup_jobs()
         covering = [
             job
             for job in jobs
@@ -458,7 +490,7 @@ class ProxmoxControlPlane:
         ]
         if not covering:
             return None
-        clock = await self.client.node_time(node)
+        clock = await client.node_time(node)
         now = int(clock.get("time", 0) or 0)
         due = [_seconds_until(job.schedule, now) for job in covering]
         soonest = [value for value in due if value is not None]
@@ -469,7 +501,8 @@ class ProxmoxControlPlane:
         node = str(action.arguments.get("node", ""))
         datastore = str(action.arguments.get("datastore", ""))
         named = _named_volumes(action)
-        contents = await self.client.datastore_contents(node, datastore)
+        client = self._client_for(action)
+        contents = await client.datastore_contents(node, datastore)
         rows = {str(row.get("volid", "")): row for row in contents}
         items = tuple(
             ReclaimableItem(
@@ -480,9 +513,9 @@ class ProxmoxControlPlane:
             for volume in named
             if volume in rows
         )
-        owners = await self._owners(node, datastore, named)
-        running = await self._running_backup(node, datastore)
-        reading = await self.client.datastore_status(node, datastore)
+        owners = await self._owners(node, datastore, named, action=action)
+        running = await self._running_backup(node, datastore, action=action)
+        reading = await client.datastore_status(node, datastore)
         store = reading.value
         free = (store.total_bytes - store.used_bytes) if store is not None else 0
         return {
@@ -493,7 +526,9 @@ class ProxmoxControlPlane:
             "making_room_for_a_backup": running > 0,
         }
 
-    async def _running_backup(self, node: str, datastore: str) -> int:
+    async def _running_backup(
+        self, node: str, datastore: str, *, action: RemediationAction | None = None
+    ) -> int:
         """Return how much a backup running against ``datastore`` may still need.
 
         Estimated from the guest's own configured disk, which is the largest a
@@ -503,13 +538,14 @@ class ProxmoxControlPlane:
         is the failure direction to be on.
         """
         del datastore
-        tasks = await self.client.node_tasks(node)
+        client = self._client_for(action)
+        tasks = await client.node_tasks(node)
         running = [
             task for task in tasks if task.task_type == BACKUP_TASK_TYPE and not task.finished
         ]
         if not running:
             return 0
-        resources = await self.client.cluster_resources()
+        resources = await client.cluster_resources()
         sizes = {
             int(row.get("vmid", 0) or 0): int(row.get("maxdisk", 0) or 0)
             for row in resources
@@ -540,8 +576,9 @@ class ProxmoxControlPlane:
         node = str(action.arguments.get("node", ""))
         datastore = str(action.arguments.get("datastore", ""))
         results: list[SubTargetResult] = []
+        client = self._client_for(action)
         for volume in _named_volumes(action):
-            upid = await self.client.delete_volume(node, datastore=datastore, volume=volume)
+            upid = await client.delete_volume(node, datastore=datastore, volume=volume)
             results.append(
                 await self._settled(declaration, action, node=node, upid=upid, piece=volume)
             )
@@ -569,8 +606,9 @@ class ProxmoxControlPlane:
             self.evidence[piece] = evidence
             return SubTargetResult(identifier=piece, changed=True, detail=evidence.describe())
 
-        task = await self.client.await_task(node, upid)
-        log = await self.client.task_log(node, upid)
+        client = self._client_for(action)
+        task = await client.await_task(node, upid)
+        log = await client.task_log(node, upid)
         tail = tuple(log[-EVIDENCE_LOG_LINES:])
         evidence = TaskEvidence(
             upid=upid,
@@ -590,13 +628,13 @@ class ProxmoxControlPlane:
 async def _start(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Start the guest the action names."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.start_guest(node, vmid, kind=kind)
+    return await plane._client_for(action).start_guest(node, vmid, kind=kind)
 
 
 async def _shutdown(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Ask the guest's own operating system to shut down, never forcing it."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.shutdown_guest(
+    return await plane._client_for(action).shutdown_guest(
         node,
         vmid,
         kind=kind,
@@ -612,7 +650,7 @@ async def _shutdown(plane: ProxmoxControlPlane, action: RemediationAction) -> st
 async def _reboot(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Reboot the guest through its own operating system."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.reboot_guest(
+    return await plane._client_for(action).reboot_guest(
         node,
         vmid,
         kind=kind,
@@ -625,19 +663,19 @@ async def _reboot(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
 async def _stop(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Stop the guest immediately."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.stop_guest(node, vmid, kind=kind)
+    return await plane._client_for(action).stop_guest(node, vmid, kind=kind)
 
 
 async def _suspend(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Suspend the guest, writing its memory image out."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.suspend_guest(node, vmid, kind=kind)
+    return await plane._client_for(action).suspend_guest(node, vmid, kind=kind)
 
 
 async def _resume(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Resume the guest from its memory image."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.resume_guest(node, vmid, kind=kind)
+    return await plane._client_for(action).resume_guest(node, vmid, kind=kind)
 
 
 async def _unlock(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
@@ -650,15 +688,16 @@ async def _unlock(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """
     node, vmid, kind = _guest_of(action)
     restored = str(action.arguments.get("lock", ""))
+    client = plane._client_for(action)
     if restored:
-        return await plane.client.set_guest_lock(node, vmid, kind=kind, lock=restored)
-    return await plane.client.clear_guest_lock(node, vmid, kind=kind)
+        return await client.set_guest_lock(node, vmid, kind=kind, lock=restored)
+    return await client.clear_guest_lock(node, vmid, kind=kind)
 
 
 async def _migrate(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Move the guest to the target node, online and only online."""
     node, vmid, kind = _guest_of(action)
-    return await plane.client.migrate_guest(
+    return await plane._client_for(action).migrate_guest(
         node,
         vmid,
         kind=kind,
@@ -671,7 +710,7 @@ async def _migrate(plane: ProxmoxControlPlane, action: RemediationAction) -> str
 
 async def _relocate(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Change what the high-availability manager holds about one resource."""
-    return await plane.client.set_ha_state(
+    return await plane._client_for(action).set_ha_state(
         str(action.arguments.get("sid", "")),
         group=str(action.arguments.get("group", "")),
         state=str(action.arguments.get("state", "")),
@@ -681,7 +720,7 @@ async def _relocate(plane: ProxmoxControlPlane, action: RemediationAction) -> st
 async def _backup(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Run one guest's backup now."""
     node, vmid, _ = _guest_of(action)
-    return await plane.client.run_backup(
+    return await plane._client_for(action).run_backup(
         node,
         vmid=vmid,
         storage=str(action.arguments.get("storage", "")),
@@ -691,7 +730,7 @@ async def _backup(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
 async def _replicate(plane: ProxmoxControlPlane, action: RemediationAction) -> str:
     """Run one replication job now, under the rate limit the action carries."""
     node = str(action.arguments.get("node", ""))
-    return await plane.client.run_replication(
+    return await plane._client_for(action).run_replication(
         node,
         job_id=str(action.arguments.get("job_id", "")),
         rate_limit_mbps=int(action.arguments.get("rate_limit_mbps", plane.rate_limit_mbps)),

@@ -246,6 +246,21 @@ async def test_an_unreadable_configuration_binds_nothing_rather_than_failing_the
     assert await compose_control_plane(_state(), org_id=ORG, proxy_url=PROXY) is None
 
 
+async def test_a_disabled_cluster_clears_a_previously_bound_plane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configured(monkeypatch, PROXMOX)
+    bound = await compose_control_plane(_state(), org_id=ORG, proxy_url=PROXY)
+    assert bound is not None
+    assert control_plane.current() is bound
+
+    # Now switch off the integration and recompose
+    _configured(monkeypatch, dict(PROXMOX, enabled=False))
+    recomposed = await compose_control_plane(_state(), org_id=ORG, proxy_url=PROXY)
+    assert recomposed is None
+    assert control_plane.current() is None
+
+
 # -- the wire is in the composition root, and it is there before the desk --------
 
 

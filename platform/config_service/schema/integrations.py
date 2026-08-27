@@ -105,6 +105,18 @@ class CertificateTrustSettings(ConfigSection):
                 f"required, because an acceptance that cannot say why or by whom is not "
                 f"a decision anybody took."
             )
+        modes: list[str] = []
+        if reason and accepted_by:
+            modes.append("unverified")
+        if self.fingerprints:
+            modes.append("fingerprints")
+        if self.certificate_pem:
+            modes.append("certificate_pem")
+        if len(modes) > 1:
+            raise ValueError(
+                f"certificate trust can declare only one trust mode, but specified {', '.join(modes)}. "
+                f"Choose either pinned fingerprints, a custom CA certificate, or unverified trust."
+            )
         self.declaration()
         return self
 

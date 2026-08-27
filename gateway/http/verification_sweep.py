@@ -177,6 +177,13 @@ async def schedule_verification_sweep(state: GatewayState, *, org_id: str) -> bo
     job = verification_sweep_job(next_run_at=datetime.now(UTC))
     try:
         async with state.gateway.begin(TenantScope(org_id=org_id)) as uow:
+            existing = await uow.schedules.get_job(job.job_id)
+            if existing is not None:
+                job = replace(
+                    job,
+                    schedule=existing.schedule,
+                    enabled=existing.enabled,
+                )
             await uow.schedules.upsert_job(job)
     except Exception as unreachable:  # noqa: BLE001 — recorded, and never fatal at boot
         logger.warning(

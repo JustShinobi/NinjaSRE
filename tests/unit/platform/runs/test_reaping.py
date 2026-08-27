@@ -79,3 +79,39 @@ def test_a_finished_run_is_never_touched() -> None:
     done = _run("done", age_seconds=5 * 24 * 3600, status=RunStatus.COMPLETED)
 
     assert reaper.abandoned([done], now=NOW) == ()
+
+
+async def test_reap_pages_through_all_abandoned_runs() -> None:
+    """When more abandoned runs exist than one page limit, all pages are reaped."""
+    runs_db = [
+        _run(f"run-{i}", age_seconds=5 * 24 * 3600, status=RunStatus.RUNNING) for i in range(5)
+    ]
+    interrupted: list[str] = []
+
+    class FakeStore:
+        async def list_runs(
+            self, *, status: RunStatus | None = None, until: datetime | None = None, limit: int = 50
+        ) -> tuple[AgentRun, ...]:
+            remaining = [
+                r
+                for r in runs_db
+                if r.status == status and (until is None or (r.started_at and r.started_at < until))
+            ]
+            return tuple(remaining[:limit])
+
+    class FakeRecorder:
+        async def mark_interrupted(self, run_id: str, *, reason: str) -> None:
+            interrupted.append(run_id)
+            for i, r in enumerate(runs_db):
+                if r.run_id == run_id:
+                    runs_db[i] = _run(
+                        run_id, age_seconds=5 * 24 * 3600, status=RunStatus.INTERRUPTED
+                    )
+
+    reaper = RunReaper(
+        recorder=cast(Any, FakeRecorder()), store=cast(Any, FakeStore()), clock=lambda: NOW
+    )
+    closed = await reaper.reap(limit=2)
+
+    assert closed == ("run-0", "run-1", "run-2", "run-3", "run-4")
+    assert interrupted == ["run-0", "run-1", "run-2", "run-3", "run-4"]

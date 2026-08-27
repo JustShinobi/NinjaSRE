@@ -136,7 +136,7 @@ It is not a firewall — the firewall is yours — but it catches the deployment
 that *believes* it is air-gapped and is not, which is the failure mode that
 matters, because nobody checks a belief.
 
-With a local model behind `NINJASRE_LLM_PROVIDER=ollama`, that is a deployment
+With a local model configured via an endpoint like `OLLAMA_BASE_URL`, that is a deployment
 where nothing leaves the host at all.
 
 Pull the images somewhere with a network and carry them in:

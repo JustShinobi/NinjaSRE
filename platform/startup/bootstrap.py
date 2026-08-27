@@ -381,12 +381,14 @@ async def establish_durable_credential(
     # Revoked after the replacement exists, never before. The other order leaves
     # a window where the operator holds nothing at all, and the window is exactly
     # as long as whatever goes wrong next.
-    await tokens.revoke(
-        scope,
-        AuditContext(actor_kind=ActorKind.USER, actor_id=user_id),
-        bootstrap.token_id,
-    )
-    forget_credential(environ)
+    try:
+        await tokens.revoke(
+            scope,
+            AuditContext(actor_kind=ActorKind.USER, actor_id=user_id),
+            bootstrap.token_id,
+        )
+    finally:
+        forget_credential(environ)
 
     await _record(
         gateway,

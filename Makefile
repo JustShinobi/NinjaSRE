@@ -488,6 +488,9 @@ console-static: ## Run the console checks without browser or visual-baseline sui
 console-check: ## Every console check, cheapest failure first
 	$(RUN) python -m tools.console_gate all
 
+console-gate-contract: ## Contract test proving console gate checks fail on seeded faults
+	$(RUN) pytest tests/contract/console/test_console_gate.py
+
 check-console-boundary: ## Reject a Python import of the console, or the reverse
 	$(RUN) python tools/check_console_boundary.py
 
@@ -692,7 +695,7 @@ ci: ## Everything CI used to run, locally, cleaning up after itself
 # passed or failed — a failed run leaves the most behind, and is exactly when
 # somebody is least likely to remember to sweep.
 ci-run: verify test-postgres test-synthetic docs-build console-build console-visual \
-	console-e2e-run images-scan chart-check backup-cycle ## The gate, without the sweep
+	console-e2e-run console-gate-contract images-scan chart-check backup-cycle ## The gate, without the sweep
 
 images-scan: ## Build every deployment image and scan it for fixable HIGH/CRITICAL
 	@for component in app console proxy; do \

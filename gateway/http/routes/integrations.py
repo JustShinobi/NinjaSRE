@@ -820,6 +820,12 @@ async def store_credential(
         # refresh above exists to prevent.
         await compose_provider_credentials(state, org_id=auth.scope.org_id)
 
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
+
     health = CredentialHealth(vault=vault)
     report = await health.report(
         auth.scope, integrations=(name,), team_id=await _team_of(state, auth, name)
@@ -1056,6 +1062,12 @@ async def delete_credential(
         # Same reason as the write: a key removed from the vault and left in the
         # factory's lease is a credential the operator believes they revoked.
         await compose_provider_credentials(state, org_id=auth.scope.org_id)
+
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
 
     return CredentialDeleteView(integration=name, versions_removed=removed)
 

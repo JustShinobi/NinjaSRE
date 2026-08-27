@@ -114,6 +114,7 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
   const [failures, setFailures] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [tick, setTick] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const state = freshnessOf({ visible, refreshing, failures });
@@ -136,6 +137,7 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
       })
       .finally(() => {
         setRefreshing(false);
+        setTick((current) => current + 1);
       });
   }, [router]);
 
@@ -159,7 +161,7 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
     return () => {
       if (timer.current !== null) clearTimeout(timer.current);
     };
-  }, [visible, failures, refresh]);
+  }, [visible, failures, tick, refresh]);
 
   return (
     <span

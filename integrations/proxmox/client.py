@@ -36,7 +36,7 @@ called by something that thought it was reading.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Final
+from typing import Any, Final, Self
 
 from integrations._base.client import ClientResponse, IntegrationClient
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
@@ -181,6 +181,23 @@ class ProxmoxClient(IntegrationClient):
     def trust(self) -> CertificateTrust:
         """Return what this deployment accepts from the endpoint's certificate."""
         return self._trust
+
+    def for_team(self, team_id: str) -> Self:
+        """Return a copy of this client configured with ``team_id`` in its request context."""
+        if not team_id or team_id == self._context.team_id:
+            return self
+        return type(self)(
+            transport=self._transport,
+            context=RequestContext(
+                org_id=self._context.org_id,
+                team_id=team_id,
+                capability=self._context.capability,
+            ),
+            endpoints=self._endpoints.hosts,
+            trust=self._trust,
+            base_url=self._base_url,
+            retry=self._retry,
+        )
 
     # -- the one read path ----------------------------------------------------
 

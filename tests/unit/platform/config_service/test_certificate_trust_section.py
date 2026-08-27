@@ -101,6 +101,29 @@ def test_a_fingerprint_that_is_not_one_is_refused() -> None:
         entry(fingerprints=["probably-a-password"])
 
 
+def test_declaring_multiple_trust_modes_is_refused() -> None:
+    """An entry may declare at most one trust mode, not a combination."""
+    with pytest.raises(ValidationError, match="only one trust mode"):
+        entry(
+            fingerprints=[COLONS],
+            certificate_pem=PEM,
+        )
+
+    with pytest.raises(ValidationError, match="only one trust mode"):
+        entry(
+            fingerprints=[COLONS],
+            unverified_reason="testing",
+            unverified_accepted_by="operator@example.com",
+        )
+
+    with pytest.raises(ValidationError, match="only one trust mode"):
+        entry(
+            certificate_pem=PEM,
+            unverified_reason="testing",
+            unverified_accepted_by="operator@example.com",
+        )
+
+
 @pytest.mark.parametrize(
     "field",
     ["verify", "insecure", "skip_tls_verify", "verify_ssl", "unverified", "tls_insecure"],
