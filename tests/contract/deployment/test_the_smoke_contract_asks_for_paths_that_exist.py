@@ -33,8 +33,8 @@ SMOKE = Path(__file__).resolve().parents[3] / "scripts" / "ci" / "smoke-stg"
 #: the one surface an operator never browses to.
 _HEALTH_PATHS = {
     "APP": "/health/live",
-    "CONSOLE": "/health/live",
     "PROXY": PROXY_HEALTH_PATH,
+    "WEB": "/",
 }
 
 
