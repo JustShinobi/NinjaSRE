@@ -1,13 +1,18 @@
-"""Driving the canonical loop from the eight-method contract the routes hold.
+"""Running the six stages from the eight-method contract the routes hold.
 
 ``ReActInvestigationRunner`` is the first implementation of
 ``gateway.http.services.InvestigationRunner`` this repository ships — every
 deployment before this feature ran ``UnconfiguredInvestigator``, whichever
-factory it named. It composes exactly one runtime per investigation:
-``core.agent.react_loop.ReActLoop``, the canonical loop. Built fresh for each
-call, because the model's tool-schema ceiling is smaller than the declared
-capability catalogue and which tools are worth offering depends on what the
-alert is about and on what this deployment can carry out — narrowing has to
+factory it named. What it drives is ``core.pipeline.build.build_pipeline``: the
+six stages `/agent` has always told an operator an investigation runs, built
+fresh per investigation and run in order.
+
+The canonical loop is still here and still the thing that investigates. It is
+what the gathering stage is constructed with — one stage of six rather than a
+second orchestration beside them — and it is composed here rather than inside
+the stage because the model's tool-schema ceiling is smaller than the declared
+capability catalogue, and which tools are worth offering depends on what the
+alert is about and on what this deployment can carry out. Narrowing has to
 happen before the loop is constructed, not after, since the loop's own
 constructor refuses to be built beyond that ceiling.
 
@@ -57,7 +62,7 @@ from typing import Any
 
 from capabilities.registry.catalogue import Registry, ResolvedCatalogue
 from capabilities.registry.disclosure import DiscoveredSkill
-from capabilities.registry.planning import TeamCatalogueResolver
+from capabilities.registry.planning import CatalogueRanker, TeamCatalogueResolver
 from capabilities.registry.scoring import Incident
 from capabilities.registry.selection import select
 from capabilities.tools.system.memory_search import binding as recall_binding
@@ -83,17 +88,26 @@ from core.agent.interaction.models import Interaction
 from core.agent.interaction.registry import InteractionRegistry
 from core.agent.message_queue import MessageQueue
 from core.agent.react_loop import ReActLoop
-from core.agent.runtime_port import RunRequest, RunStatus
+from core.agent.runtime_port import RunStatus
 from core.agent.session import Session
 from core.capability.metadata import CapabilityKind, ExcludedCapability
 from core.capability.ports import ConfiguredIntegrations, IntegrationAvailability
 from core.capability.registered import RegisteredTool
+from core.domain.alerts.normalisation import RawAlert
 from core.llm.types import LLMClient
-from core.pipeline.build import investigation_hooks
-from core.pipeline.ports import RankedCapability
+from core.pipeline.build import build_pipeline, investigation_hooks
+from core.pipeline.lifecycle import Pipeline, PipelineRun
+from core.pipeline.ports import (
+    NO_CATALOGUE,
+    FixedCatalogueResolver,
+    RankedCapability,
+    StaticCatalogue,
+)
 from core.pipeline.stages.resolve_integrations import zero_integration_outcome
+from core.pipeline.state_factory import initial_state
+from core.state.agent_state import AgentState
 from core.state.catalogue import ResolvedCapabilities
-from core.state.types import InvestigationOutcome
+from core.state.types import InvestigationOutcome, TeamContext
 from gateway.http.services import InvestigationStart
 from platform.config_service.service import ConfigService
 from platform.guardrails.engine import GuardrailEngine
@@ -373,10 +387,24 @@ class ReActInvestigationRunner:
         return self._sources
 
     async def investigate(self, request: InvestigationStart) -> str:
-        """Run the investigation to completion and return its summary.
+        """Run the six stages to completion and return the investigation's summary.
 
-        Raises :class:`InvestigationDidNotComplete` when the loop's own
-        outcome is ``FAILED`` — the loop ran and produced nothing usable — so
+        The stages are what runs, not a loop standing in for them. `/agent` has
+        always told an operator that an investigation resolves integrations,
+        takes the alert in, plans its evidence, gathers it, diagnoses, and
+        delivers — and until this composed the pipeline, a served run did the
+        fourth of those and nothing else. The loop is still the thing that
+        investigates; it is what the gathering stage is built with, which is
+        one stage of six rather than the whole of the run.
+
+        Everything that is per-run is still built here and handed in, because
+        all of it carries this run's identity: the loop, its hooks (the
+        recorder, the remediation gate, the memory episode), the question desk,
+        the message queue, and the catalogue narrowed for this team. The
+        pipeline is built around them rather than reaching for any of them.
+
+        Raises :class:`InvestigationDidNotComplete` when the gathering stage's
+        runtime reported ``FAILED`` — it ran and produced nothing usable — so
         the caller records the run as failed rather than completed. A
         ``PARTIAL`` outcome is not this: it is a real completion on less
         evidence than the loop asked for, and is reported here with the
@@ -384,9 +412,11 @@ class ReActInvestigationRunner:
         than as a summary a reader would have to infer the state from.
 
         A run whose team can execute nothing at all ends before the model is
-        called, with the answer that names what to connect. Spending the run's
-        only model call on its cheapest sentence would be spending it on
-        nothing.
+        called, with the answer that names what to connect. Kept here rather
+        than left to the resolving stage, which reaches the same answer a
+        second way: reaching it there would cost intake's classification call
+        first, and spending the run's only model call on its cheapest sentence
+        is spending it on nothing.
 
         This run's read sources are bound before the catalogue is narrowed and
         stay bound until it ends, because the narrowing asks whether each one is
@@ -410,15 +440,69 @@ class ReActInvestigationRunner:
             live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
             self._live[request.run_id] = live
 
-            result = await loop.run(self._request_of(request, skills=selection.skills))
-
-        if result.status is RunStatus.FAILED:
-            raise InvestigationDidNotComplete(
-                result.failure or "the investigation produced no answer"
+            run = await self._pipeline_for(request, runtime=loop, selection=selection).run(
+                _state_of(request, selection)
             )
-        if result.degraded:
-            return _degraded_summary(result.answer)
-        return result.answer or f"investigation ended {result.status.value}"
+
+        return _summary_of(run)
+
+    def _pipeline_for(
+        self,
+        request: InvestigationStart,
+        *,
+        runtime: ReActLoop,
+        selection: _Selection,
+    ) -> Pipeline:
+        """Return the six stages, over what this run has already been given.
+
+        The resolver is fixed to the catalogue ``_select_tools`` produced. It is
+        not a shortcut: that narrowing asked what the team has connected, what
+        this deployment could carry out, and what has a source to read, and the
+        runtime handed in here is holding its answer. Resolving a second time
+        inside the stage would be a second answer to the same question, and the
+        day the two disagree the model is offered a tool the loop cannot call.
+
+        The ranker is the capability package's own deterministic scorer — the
+        same one the selection above ranked with, so the plan the stage writes
+        and the tools on offer come from one formula rather than two.
+
+        Recent incidents are the neutral index and delivery destinations are
+        empty, and both are honest rather than unfinished. Deduplication
+        already happened before this runner was reached: a webhook joins a
+        burst onto an open incident and ``start_investigation`` attaches the
+        run to it, in the transaction that reserves the run's identity. A
+        second index here would be a second answer to a question with one
+        writer. Nothing in this repository implements a delivery destination
+        yet, so the stage records that the report was produced and not shipped
+        — which is true, and is where it is: in the run's own record.
+        """
+        return build_pipeline(
+            llm=self.llm,
+            runtime=runtime,
+            resolver=FixedCatalogueResolver(selection.catalogue),
+            ranker=CatalogueRanker(),
+            system_prompt=self._system_prompt_for(selection),
+            context=dict(request.context),
+        )
+
+    def _system_prompt_for(self, selection: _Selection) -> str:
+        """Return what the investigating half of this run runs under.
+
+        Named rather than left empty. Empty means the loop's own fallback,
+        which is written for a sub-agent or a one-off question and frames the
+        job as investigating and nothing else — with no mention that a
+        remediation capability in the toolset becomes a proposal rather than an
+        effect. An incident investigation is the one caller whose toolset can
+        hold such a capability, so it is the one caller that has to say so.
+
+        The methodologies selection chose are appended to it, bodies and all.
+        This is the payout of progressive disclosure and the reason the skill
+        index is worth its per-turn cost: a body is read from disk and put in
+        front of the model only on the investigation that selected it. A
+        deployment that selected a skill and never showed it would be paying
+        the index every turn and collecting nothing.
+        """
+        return _prompt_with(INVESTIGATION_SYSTEM_PROMPT, selection.skills)
 
     @asynccontextmanager
     async def _sources_bound_for(
@@ -673,9 +757,9 @@ class ReActInvestigationRunner:
         Cutting earlier would spend the budget on capabilities that were about
         to be removed.
         """
-        catalogue = TeamCatalogueResolver(self.registry).for_availability(
-            await self._availability(request)
-        )
+        availability = await self._availability(request)
+        catalogue = TeamCatalogueResolver(self.registry).for_availability(availability)
+        connected = tuple(getattr(availability, "integrations", ()) or ())
         carriable = tuple(
             found for found in catalogue.tools if self._can_carry(found) and self._can_answer(found)
         )
@@ -744,6 +828,18 @@ class ReActInvestigationRunner:
         return _Selection(
             tools=chosen,
             outcome=None,
+            catalogue=StaticCatalogue(
+                tools=chosen,
+                excluded=tuple(excluded),
+                # The offered tools' own declarations plus the skills that were
+                # discovered, which is what the resolving stage means by "every
+                # available declaration" and what the plan is then scored over.
+                declarations=(
+                    *(found.metadata for found in chosen),
+                    *(skill.metadata for skill in catalogue.skills),
+                ),
+            ),
+            integrations=connected,
             skills=tuple(turn.skills),
             rationale=_selection_rationale(
                 tuple(
@@ -840,41 +936,6 @@ class ReActInvestigationRunner:
         """
         return has_a_source(found.name)
 
-    def _request_of(
-        self, request: InvestigationStart, *, skills: Sequence[DiscoveredSkill] = ()
-    ) -> RunRequest:
-        """Return the loop's own view of this investigation.
-
-        ``session_id`` is the incident's run id, unchanged, so a later
-        ``cancel``/``take_over``/``queue_message`` naming the same run id
-        reaches the session this loop is actually driving. Every bound —
-        iteration ceiling, wall clock, context budget — is left at
-        ``RunRequest``'s own default: this composition lowers nothing and
-        raises nothing.
-
-        The system prompt is named rather than left empty. Empty means the
-        loop's own fallback, which is written for a sub-agent or a one-off
-        question and frames the job as investigating and nothing else — with no
-        mention that a remediation capability in the toolset becomes a proposal
-        rather than an effect. An incident investigation is the one caller
-        whose toolset can hold such a capability, so it is the one caller that
-        has to say so.
-
-        The methodologies selection chose are appended to it, bodies and all.
-        This is the payout of progressive disclosure and the reason the skill
-        index is worth its per-turn cost: a body is read from disk and put in
-        front of the model only on the investigation that selected it. A
-        deployment that selected a skill and never showed it would be paying
-        the index every turn and collecting nothing.
-        """
-        return RunRequest(
-            objective=request.objective,
-            alert_source=request.alert_source,
-            session_id=request.run_id,
-            system_prompt=_prompt_with(INVESTIGATION_SYSTEM_PROMPT, skills),
-            context=dict(request.context),
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class _NothingNarrows:
@@ -911,6 +972,16 @@ class _Selection:
 
     tools: tuple[RegisteredTool, ...]
     outcome: InvestigationOutcome | None
+    #: The same narrowing, in the shape the resolving stage reads. Carried
+    #: rather than rebuilt, so the catalogue the first stage writes into the
+    #: run's state and the tools the runtime is holding are one answer: the
+    #: excluded records travel with it, which is what lets a screen say why a
+    #: capability was not on offer rather than leaving it silently absent.
+    catalogue: StaticCatalogue = NO_CATALOGUE
+    #: Which integrations this run's team has connected, as the configuration
+    #: tree answered. Recorded on the run's own state, so a trace says what the
+    #: team had rather than what the process happens to have registered.
+    integrations: tuple[str, ...] = ()
     #: The methodologies selection chose for this incident. Their bodies are
     #: loaded into the turn that selected them and nowhere else, which is the
     #: whole of progressive disclosure: the index costs every turn, the body
@@ -921,6 +992,65 @@ class _Selection:
     #: capability was missing from a run is asking about that run, and a line
     #: in a process log has already scrolled past by the time they ask.
     rationale: str = ""
+
+
+def _state_of(request: InvestigationStart, selection: _Selection) -> AgentState:
+    """Return the state the six stages start this investigation from.
+
+    Built through ``initial_state`` rather than by constructing an
+    ``AgentState`` here, because that is the one function every surface starts
+    from and a second construction path is how the webhook route and the corpus
+    harness end up investigating subtly different things.
+
+    Nothing is interpreted on the way in. The objective is carried as the raw
+    text it is and the alert source as the hint the transport already knows,
+    which is a fact, and intake is left to do the parsing — a state that
+    arrived pre-normalised would have an alert before the stage that produces
+    one, and the noise verdict would be about a value somebody else computed.
+    """
+    return initial_state(
+        RawAlert(text=request.objective, source_hint=request.alert_source),
+        TeamContext(
+            team_id=request.team_node_id,
+            integrations=selection.integrations,
+            actor_id=request.principal_id,
+        ),
+        run_id=request.run_id,
+    )
+
+
+def _summary_of(run: PipelineRun) -> str:
+    """Return the finished investigation's summary, or raise when it failed.
+
+    The status is read from the accounting slice rather than from the run's
+    outcome, because that is where the runtime's own verdict is written and
+    nothing after gathering touches it. The outcome is read for the reason, and
+    the delivery stage keeps a failed one rather than replacing it, which is
+    what makes the reason still there to read.
+
+    What comes back on a completed run is the agent's own answer, unchanged.
+    ``gateway.http.orchestration._drive`` pulls the run's headline out of this
+    string and stores the rest as the report body; returning the diagnosis
+    stage's structured account instead would rewrite the shape of every report
+    a deployment has, which is a separate decision from running the stages.
+    """
+    state = run.state
+    outcome = state.investigation.outcome
+    status = state.accounting.status
+
+    if status == RunStatus.FAILED.value:
+        detail = outcome.detail if outcome is not None else ""
+        raise InvestigationDidNotComplete(detail or "the investigation produced no answer")
+    if status == RunStatus.PARTIAL.value:
+        return _degraded_summary(state.investigation.conclusion)
+    if state.investigation.conclusion.strip():
+        return state.investigation.conclusion
+    if outcome is not None:
+        # The run ended before the loop was ever driven — noise, a duplicate,
+        # or a team with nothing to run. There is no agent answer to return and
+        # the outcome is the whole of what happened.
+        return _outcome_summary(outcome)
+    return f"investigation ended {status or 'without a conclusion'}"
 
 
 def _prompt_with(base: str, skills: Sequence[DiscoveredSkill]) -> str:

@@ -151,6 +151,22 @@ class _Agent:
     def model_id(self) -> str:
         return "scenario-1"
 
+    async def invoke_structured(
+        self, request: InvokeRequest, schema: Mapping[str, Any]
+    ) -> InvokeResult:
+        """Answer intake and diagnosis without spending a turn of the script.
+
+        A served investigation runs the six stages, so two of its model calls
+        are structured ones this scenario was never scripted for. Answering
+        with no structured output puts both stages on the path they document
+        for a provider that did not answer — intake reads the input as an
+        incident, diagnosis falls back to the conclusion text — and, because it
+        neither records the request nor advances the script, the scripted turns
+        stay the loop's, which is where this scenario's proposal is made.
+        """
+        del request, schema
+        return InvokeResult(provider_id=self.provider_id, model_id=self.model_id)
+
     async def invoke(self, request: InvokeRequest) -> InvokeResult:
         self.requests.append(request)
         self.turns += 1

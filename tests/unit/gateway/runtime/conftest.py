@@ -59,17 +59,35 @@ def failed_turn(message: str = "provider unavailable") -> InvokeResult:
 
 
 class ScriptedLLM:
-    """An ``LLMClient`` that returns the turns a test wrote down, in order."""
+    """An ``LLMClient`` that returns the turns a test wrote down, in order.
+
+    Two scripts rather than one, because a served investigation makes two kinds
+    of call and they are not interchangeable. ``turns`` answers ``invoke`` —
+    the loop's conversation, where a test writes a tool call and then a prose
+    conclusion. ``structured`` answers ``invoke_structured`` — intake's
+    classification and diagnosis's structuring, which a real provider answers
+    with a parsed object rather than with prose.
+
+    One script for both is what this double used to be, and it made the two
+    kinds of call consume each other's turns: a test that scripted a tool call
+    and a conclusion had its tool call eaten by intake. The default for
+    ``structured`` is a result carrying no structured output, which is the
+    provider-failed-us path both stages document and degrade through, so a test
+    that has no opinion about classification does not have to state one.
+    """
 
     def __init__(
         self,
         turns: Sequence[InvokeResult] | Callable[[InvokeRequest], InvokeResult],
         *,
         repeat_last: bool = True,
+        structured: Sequence[InvokeResult] | None = None,
     ) -> None:
         self._turns = turns
         self._repeat_last = repeat_last
+        self.structured: Sequence[InvokeResult] = structured if structured is not None else ()
         self.requests: list[InvokeRequest] = []
+        self.structured_requests: list[InvokeRequest] = []
 
     @property
     def provider_id(self) -> str:
@@ -100,8 +118,13 @@ class ScriptedLLM:
     async def invoke_structured(
         self, request: InvokeRequest, schema: Mapping[str, Any]
     ) -> InvokeResult:
-        """Return a structured result for one turn."""
-        return await self.invoke(request)
+        """Return the next scripted structured answer, from its own script."""
+        del schema
+        self.structured_requests.append(request)
+        index = len(self.structured_requests) - 1
+        if index < len(self.structured):
+            return self.structured[index]
+        return InvokeResult(provider_id=PROVIDER_ID, model_id=MODEL_ID)
 
     def count_tokens(self, request: InvokeRequest) -> TokenEstimate:
         """Return a character-count estimate of ``request``."""

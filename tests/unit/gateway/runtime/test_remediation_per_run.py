@@ -94,6 +94,22 @@ class _ScriptedLLM:
     def model_id(self) -> str:
         return "scripted-1"
 
+    async def invoke_structured(
+        self, request: InvokeRequest, schema: Mapping[str, Any]
+    ) -> InvokeResult:
+        """Answer intake and diagnosis without spending a turn of the script.
+
+        A served investigation runs the six stages, so two of its model calls
+        are structured ones this double was never scripted for. Answering with
+        no structured output puts both stages on the path they document for a
+        provider that did not answer — intake reads the input as an incident,
+        diagnosis falls back to the conclusion text — and, because it neither
+        records the request nor advances the script, it leaves the turns below
+        to the loop, which is where this file's assertions are.
+        """
+        del request, schema
+        return InvokeResult(provider_id=self.provider_id, model_id=self.model_id)
+
     async def invoke(self, request: InvokeRequest) -> InvokeResult:
         self.requests.append(request)
         text, calls = self.turns.pop(0) if self.turns else ("Nothing further.", ())

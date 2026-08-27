@@ -216,6 +216,40 @@ async def test_a_failed_run_still_records_what_it_gathered() -> None:
     assert not updates.investigation.outcome.halts, "a failed run still gets diagnosed"
 
 
+async def test_what_the_deployment_established_travels_beside_what_the_stage_derived() -> None:
+    """The stage builds the run request, so it is the only place this can be lost.
+
+    A composition root knows things about the subject that no alert payload
+    carries — which estate resource the alert resolved onto, and therefore
+    which vendor holds it. That was measured mattering: a Redis alert resolved
+    to Proxmox container 122 on pve01 was diagnosed as container 152 on pve02
+    when the loop was handed the objective in prose and left to infer the rest.
+    """
+    runtime = ScriptedRuntime()
+    state = await _prepared()
+
+    await GatherEvidenceStage(runtime=runtime, context={"resource_name": "pve01"})(state)
+
+    context = runtime.requests[0].context
+    assert context["resource_name"] == "pve01"
+    assert CONTEXT_WINDOW_START in context, "the stage's own context was displaced instead"
+
+
+async def test_the_stage_keeps_its_own_reading_of_a_key_the_caller_also_named() -> None:
+    """Derived from this run's state beats supplied by whoever composed it.
+
+    Not a preference: the stage's values are computed from the state the five
+    stages before it wrote, and a caller's copy of one of them is a snapshot
+    taken before they ran.
+    """
+    runtime = ScriptedRuntime()
+    state = await _prepared()
+
+    await GatherEvidenceStage(runtime=runtime, context={CONTEXT_PLAN: "supplied"})(state)
+
+    assert runtime.requests[0].context.get(CONTEXT_PLAN) != "supplied"
+
+
 # -- the event bridge ---------------------------------------------------------
 
 
