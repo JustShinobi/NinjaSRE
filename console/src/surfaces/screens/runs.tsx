@@ -18,12 +18,14 @@ import {
   read,
   stateOf,
   text,
+  valueOf,
 } from '../read';
 import {
   RunCard,
   namedEvidence,
   turnsFrom,
   type RunCardBody,
+  type RunCardEpisode,
   type RunCardHead,
 } from '../run-card';
 import { evidenceOf } from '../run-evidence';
@@ -44,8 +46,9 @@ import { hrefFor, readViewState, withSelection, type FilterName } from '../url-s
  *
  * The open row is in the address, so it survives a reload, can be sent, and is
  * rendered on the server. Only the open run is read in full: the list read is
- * one request whatever the page holds, and the detail, the replay and the open
- * questions are three more for the one run somebody actually asked for.
+ * one request whatever the page holds, and the detail, the replay, the open
+ * questions and the episode it left in the corpus are four more for the one
+ * run somebody actually asked for.
  */
 
 /** The filters this screen declares, in the order the address writes them. */
@@ -201,19 +204,31 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
 /**
  * Everything the open card draws, read for that one run.
  *
- * Three reads rather than one, and each fails on its own: a replay the
+ * Four reads rather than one, and each fails on its own: a replay the
  * deployment could not rebuild leaves the report and the questions on the
  * screen, which is a better card than an error where a card was.
+ *
+ * The corpus is asked by run rather than searched and filtered here. The
+ * endpoint is addressed that way precisely so a screen holding a run id does
+ * not have to page a corpus to find the one episode it wants — filtering in
+ * the caller is the same read at the wrong layer, fine at fifty episodes and
+ * wrong at the size that makes a corpus worth keeping.
  */
 async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> {
   const bound = { ...init, params: { run_id: runId } };
-  const [detail, replay, interactions] = await Promise.all([
+  const [detail, replay, interactions, remembered] = await Promise.all([
     panelRead('/v1/runs/{run_id}', () => read('/v1/runs/{run_id}', bound)),
     panelRead('/v1/runs/{run_id}/replay', () =>
       read('/v1/runs/{run_id}/replay', bound),
     ),
     panelRead('/v1/investigations/{run_id}/interactions', () =>
       read('/v1/investigations/{run_id}/interactions', bound),
+    ),
+    panelRead('/v1/memory/episode', () =>
+      read('/v1/memory/episode', {
+        ...init,
+        query: `?run_id=${encodeURIComponent(runId)}`,
+      }),
     ),
   ]);
 
@@ -259,5 +274,26 @@ async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> 
     decisions,
     supporting: assessment.supporting,
     missing: assessment.missing,
+    episode: valueOf(remembered, episodeOf(dataOf(remembered))),
+  };
+}
+
+/**
+ * The episode in a `/v1/memory/episode` body, or nothing when it carries none.
+ *
+ * `null` is the deployment's own answer for a run that wrote no episode — a
+ * conclusion too short to learn from, or a run that failed before reaching
+ * one — and it is answered as a body rather than as a 404 so that this reads
+ * as an ordinary sentence rather than as a refusal. Wrapped in `valueOf` by
+ * the caller, so a read that never came back stays distinguishable from this.
+ */
+function episodeOf(body: unknown): RunCardEpisode | null {
+  const found = field(body, 'episode');
+  if (found === null || found === undefined) return null;
+  return {
+    title: text(found, 'title'),
+    summary: text(found, 'summary'),
+    outcome: text(found, 'outcome'),
+    components: list(found, 'components').map(String),
   };
 }

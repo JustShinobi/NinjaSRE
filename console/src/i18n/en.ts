@@ -90,7 +90,7 @@ export const EN = {
   'page.incidents.context': 'What a detector opened, and what happened to it since.',
   'page.runs.title': 'Investigations',
   'page.runs.context':
-    'Every investigation this deployment has recorded, newest first.',
+    'Every investigation this deployment has recorded, newest first. Open one where it sits.',
   'page.decisions.title': 'Decisions',
   'page.decisions.context':
     'What the agent wants to do now, and what it wants the deployment to become.',
@@ -811,7 +811,13 @@ export const EN = {
   'run.section.why': 'Why',
   'run.section.todo': 'What to do',
   'run.section.did': 'What it did',
-  'run.reaches.none': 'This investigation recorded nothing it touched.',
+  'run.section.remembered': 'Worth remembering',
+  'run.happened.none': 'This investigation wrote no report beyond the line above.',
+  'run.reaches.none': 'This investigation is not filed under an incident.',
+  'run.remembered.written': 'written to the corpus',
+  'run.remembered.none': 'This investigation wrote nothing to the corpus.',
+  'run.remembered.unknown':
+    'This console could not read {dependency}, so whether this investigation wrote anything to the corpus is not known.',
   'run.why.supporting': 'What backs it',
   'run.why.missing': 'What nobody could read',
   'run.why.none': 'This investigation never assessed its own evidence.',

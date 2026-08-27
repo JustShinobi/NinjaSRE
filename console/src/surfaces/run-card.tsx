@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
-import { Badge } from '@/components/status';
+import { Badge, ResolvedChip } from '@/components/status';
 import { ListIcon } from '@/design/icons';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -10,7 +10,7 @@ import { DecisionControls } from './decision';
 import { EvidenceChip, type RunEvidence } from './run-evidence';
 import { Report } from './report';
 import { RunCardToggle } from './run-card-toggle';
-import { field, list, number, text } from './read';
+import { field, list, number, text, type Read } from './read';
 import { triggerLabel } from './run-trigger';
 
 /**
@@ -28,11 +28,13 @@ import { triggerLabel } from './run-trigger';
  * reader who wants only this run and a link that says so.
  *
  * What the expansion shows is what the run recorded, in the order a person
- * reads it: what happened, what it reaches, in order, why, what to do, and
+ * reads it: the run's own headline and the resources it names, then what
+ * happened, what it reaches, why, what to do, what is worth remembering, and
  * then — last, because it is the working-out rather than the answer — what it
  * actually did. Nothing here is synthesised for the layout's benefit; a
  * section with no data behind it says so in a sentence rather than being
- * filled.
+ * filled, and a fact the deployment does not record is absent rather than
+ * derived from the report's prose.
  */
 
 /** Everything the header row of a card needs, whether open or closed. */
@@ -64,6 +66,28 @@ export interface RunCardBody {
   readonly decisions: readonly RunCardDecision[];
   readonly supporting: readonly string[];
   readonly missing: readonly string[];
+  /**
+   * What this run left in the episodic corpus, or nothing, or the fact that
+   * the corpus could not be read.
+   *
+   * Three answers rather than two, and the third is the one worth the type.
+   * A run that wrote no episode is ordinary — extraction skips a conclusion
+   * too short to learn from, and a run that failed reached none at all — so
+   * the deployment answers `null` and the card prints a calm sentence. A read
+   * that never came back is a different thing entirely, and a card that
+   * collapsed the two would tell a reader "this taught nobody anything" on
+   * the strength of a gateway it could not reach.
+   */
+  readonly episode: Read<RunCardEpisode | null>;
+}
+
+/** One episode the corpus holds, as the card draws it. */
+export interface RunCardEpisode {
+  readonly title: string;
+  readonly summary: string;
+  /** The corpus's own word for how it went, drawn as the badge finds it. */
+  readonly outcome: string;
+  readonly components: readonly string[];
 }
 
 /**
@@ -182,6 +206,63 @@ function Measure({
       <span className="text-meta text-muted">{label}</span>
       <span className="text-section tabular-nums">{value}</span>
       {note === undefined ? null : <span className="text-meta text-muted">{note}</span>}
+    </div>
+  );
+}
+
+/**
+ * What this run left behind for the next one to find.
+ *
+ * Three renderings for three answers, and they are kept apart on purpose.
+ * `null` is a run that wrote no episode, which is ordinary and gets a
+ * sentence. An unread corpus names the endpoint that would have answered,
+ * because a reader who is told "nothing was written" has been told something
+ * about the *run*, and only a read that came back can say that.
+ */
+function Remembered({
+  locale,
+  episode,
+}: {
+  readonly locale: Locale;
+  readonly episode: Read<RunCardEpisode | null>;
+}): ReactNode {
+  if (episode.kind === 'unknown') {
+    return (
+      <p data-testid="run-episode-unknown" className="text-small text-muted">
+        {message(locale, 'run.remembered.unknown', {
+          dependency: episode.dependency,
+        })}
+      </p>
+    );
+  }
+  if (episode.value === null) {
+    return (
+      <p className="text-small text-muted">{message(locale, 'run.remembered.none')}</p>
+    );
+  }
+  const written = episode.value;
+  return (
+    <div data-testid="run-episode" className="flex flex-col gap-2">
+      <div className="flex items-start gap-2">
+        <Badge status={written.outcome} className="shrink-0" />
+        <span className="text-small grow">{written.title}</span>
+      </div>
+      {written.summary === '' ? null : (
+        <p className="text-small text-muted">{written.summary}</p>
+      )}
+      {written.components.length === 0 ? null : (
+        <div className="flex flex-wrap items-center gap-2">
+          {written.components.map((component) => (
+            <span
+              key={component}
+              data-testid="run-episode-component"
+              className="edge border-border rounded-1 bg-sunken px-2 text-meta font-mono text-muted"
+            >
+              {component}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -305,6 +386,47 @@ export function RunCard({
           </div>
 
           <div className="mx-4 mb-4 edge border-border rounded-2 bg-surface overflow-hidden">
+            {/* The run's own sentence, whole, before the document.
+
+                The header row above shows the *subject*, which is that
+                sentence clipped to one line and to a hundred and twenty
+                characters, and "What happened" below shows the report — a
+                markdown document that opens on a heading. So the one line
+                the run wrote to say what it found had nowhere on this card
+                to be read in full, which is the line somebody opened the
+                card for.
+
+                The resources sit with it rather than in a section of their
+                own: `lxc/122` and `pve01` are what the sentence is *about*,
+                and a reader who has just read it is holding exactly the
+                question they answer. Nothing else joins them — a severity
+                and a resolution belong here too, and the run record carries
+                neither, so neither is drawn rather than derived from the
+                report's prose. */}
+            {body.headline === '' ? null : (
+              <div
+                data-testid="run-headline-block"
+                className="flex flex-col gap-2 p-4 edge border-border border-x-0 border-t-0"
+              >
+                <h4 data-testid="run-headline" className="text-section">
+                  {body.headline}
+                </h4>
+                {body.touchedResources.length === 0 ? null : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {body.touchedResources.map((resource) => (
+                      <span
+                        key={resource}
+                        data-testid="run-touched"
+                        className="edge border-border rounded-1 bg-sunken px-2 text-meta font-mono text-muted"
+                      >
+                        {resource}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <Section
               label={message(locale, 'run.section.happened')}
               action={
@@ -321,34 +443,28 @@ export function RunCard({
               }
             >
               {body.report === '' ? (
-                <p className="text-small">{body.headline}</p>
+                <p className="text-small text-muted">
+                  {message(locale, 'run.happened.none')}
+                </p>
               ) : (
                 <Report text={body.report} />
               )}
             </Section>
 
+            {/* What holds this run beyond itself. The resources it touched
+                moved up to the headline they belong to, so what is left here
+                is the incident it was filed under — which is the only place
+                this card can send a reader who wants the other runs that
+                answered the same firing. */}
             <Section label={message(locale, 'run.section.reaches')}>
-              {body.touchedResources.length === 0 && body.incidentId === '' ? (
+              {body.incidentId === '' ? (
                 <p className="text-small text-muted">
                   {message(locale, 'run.reaches.none')}
                 </p>
               ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  {body.incidentId === '' ? null : (
-                    <Link href={`/incidents/${body.incidentId}`}>
-                      {message(locale, 'run.links.incident')}
-                    </Link>
-                  )}
-                  {body.touchedResources.map((resource) => (
-                    <span
-                      key={resource}
-                      data-testid="run-touched"
-                      className="edge border-border rounded-1 bg-sunken px-2 text-meta font-mono text-muted"
-                    >
-                      {resource}
-                    </span>
-                  ))}
-                </div>
+                <Link href={`/incidents/${body.incidentId}`}>
+                  {message(locale, 'run.links.incident')}
+                </Link>
               )}
             </Section>
 
@@ -438,6 +554,22 @@ export function RunCard({
                   ))}
                 </ul>
               )}
+            </Section>
+
+            <Section
+              label={message(locale, 'run.section.remembered')}
+              action={
+                body.episode.kind === 'known' && body.episode.value !== null ? (
+                  <ResolvedChip
+                    role="info"
+                    shape="filled-circle"
+                    label={message(locale, 'run.remembered.written')}
+                    testId="run-episode-written"
+                  />
+                ) : undefined
+              }
+            >
+              <Remembered locale={locale} episode={body.episode} />
             </Section>
 
             <Section

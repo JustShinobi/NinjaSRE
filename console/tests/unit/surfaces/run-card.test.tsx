@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { EN } from '@/i18n/en';
@@ -69,6 +69,15 @@ const BODY: RunCardBody = {
   waiting: ['May I start the container?'],
   supporting: ['the guest task log names a person'],
   missing: ['the container logs'],
+  episode: {
+    kind: 'known',
+    value: {
+      title: 'A guest task log with a user on it ends this shape in one call',
+      summary: 'The shutdown was deliberate, and the task log said so.',
+      outcome: 'resolved',
+      components: ['redis', 'lxc/122'],
+    },
+  },
 };
 
 function card(
@@ -200,10 +209,14 @@ describe('an open card', () => {
     expect(screen.queryByText(EN['run.measure.unpriced'])).toBeNull();
   });
 
-  it('falls back to the headline when the run wrote no document', () => {
+  it('still names the run when it wrote no document, and offers no copy of one', () => {
     card({}, { report: '' });
 
+    // The headline block above carries it. There is nothing to copy, and
+    // nothing to render under "What happened" — which says so rather than
+    // repeating the sentence the card has already given a line of its own.
     expect(screen.getByText('the container was stopped by hand')).toBeInTheDocument();
+    expect(screen.getByText(EN['run.happened.none'])).toBeInTheDocument();
     expect(screen.queryByTestId('copy-report')).toBeNull();
   });
 
@@ -268,6 +281,106 @@ describe('an open card', () => {
     expect(screen.getAllByTestId('run-call')).toHaveLength(2);
     expect(screen.getByText(EN['run.did.noRationale'])).toBeInTheDocument();
     expect(screen.getByText('no log source configured')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The answer, before the working-out.
+ *
+ * A run's `headline` is the one sentence it wrote to name what it found, and
+ * until now the open card had nowhere to put it: the header row shows the
+ * *subject*, clipped to a line and to a hundred and twenty characters, and
+ * "What happened" shows the whole markdown document. So the one line somebody
+ * opened the card to read was the one line the card never showed whole.
+ *
+ * The chips beside it are only the ones the deployment records. The design
+ * asks for a severity and a resolution too — `was critical`, `resolved` — and
+ * `InvestigationSummary` carries neither, so neither is drawn. Deriving them
+ * from the report's prose would be this console holding a second opinion
+ * about the investigation.
+ */
+describe('the headline block at the top of an open card', () => {
+  it('gives the run’s own sentence a line, above the document', () => {
+    card();
+
+    expect(screen.getByTestId('run-headline')).toHaveTextContent(
+      'the container was stopped by hand',
+    );
+  });
+
+  it('carries the resources the run touched beside it, and only those', () => {
+    card();
+
+    const block = screen.getByTestId('run-headline-block');
+    expect(within(block).getByTestId('run-touched')).toHaveTextContent('res-7a73b8aa');
+  });
+
+  it('draws no resource at all for a run whose calls touched none', () => {
+    card({}, { touchedResources: [] });
+
+    expect(screen.queryByTestId('run-touched')).toBeNull();
+  });
+
+  it('prints the headline exactly once, whether or not a document exists', () => {
+    card({}, { report: '' });
+
+    expect(screen.getAllByText('the container was stopped by hand')).toHaveLength(1);
+  });
+
+  it('draws nothing at all when the record carries no headline', () => {
+    card({}, { headline: '', touchedResources: [] });
+
+    expect(screen.queryByTestId('run-headline-block')).toBeNull();
+  });
+});
+
+/**
+ * What the investigation left behind for the next one.
+ *
+ * Three answers, and the third is the one a console gets wrong. A run that
+ * wrote an episode shows it; a run that wrote none says so calmly, because
+ * extraction skips a conclusion too short to learn from and that is an
+ * ordinary run rather than a fault; and a corpus this console could not read
+ * says *that*, because "nothing was written" and "nobody could tell me" are
+ * different sentences and only one of them is a claim about the run.
+ */
+describe('what the run was worth remembering for', () => {
+  it('draws the episode, and says it reached the corpus', () => {
+    card();
+
+    expect(screen.getByText(EN['run.section.remembered'])).toBeInTheDocument();
+    expect(screen.getByTestId('run-episode')).toHaveTextContent(
+      'A guest task log with a user on it ends this shape in one call',
+    );
+    expect(screen.getByTestId('run-episode')).toHaveTextContent(
+      'The shutdown was deliberate, and the task log said so.',
+    );
+    expect(screen.getByText(EN['run.remembered.written'])).toBeInTheDocument();
+  });
+
+  it('names what the episode was filed under', () => {
+    card();
+
+    const episode = screen.getByTestId('run-episode');
+    expect(within(episode).getAllByTestId('run-episode-component')).toHaveLength(2);
+    expect(episode).toHaveTextContent('redis');
+  });
+
+  it('says a run that wrote none wrote none, without an error anywhere', () => {
+    card({}, { episode: { kind: 'known', value: null } });
+
+    expect(screen.getByText(EN['run.remembered.none'])).toBeInTheDocument();
+    expect(screen.queryByTestId('run-episode')).toBeNull();
+    expect(screen.queryByText(EN['run.remembered.written'])).toBeNull();
+  });
+
+  it('never reads a corpus it could not reach as a run that wrote nothing', () => {
+    card({}, { episode: { kind: 'unknown', dependency: '/v1/memory/episode' } });
+
+    expect(screen.queryByText(EN['run.remembered.none'])).toBeNull();
+    expect(screen.getByTestId('run-episode-unknown')).toHaveTextContent(
+      '/v1/memory/episode',
+    );
   });
 });
 

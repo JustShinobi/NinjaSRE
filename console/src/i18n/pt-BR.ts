@@ -256,7 +256,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.incidents.context': 'O que um detector abriu e o que aconteceu desde então.',
   'page.runs.title': 'Investigações',
   'page.runs.context':
-    'Todas as investigações que esta instalação registou, da mais recente para a mais antiga.',
+    'Todas as investigações que esta instalação registrou, da mais recente para a mais antiga. Abra uma onde ela está.',
   'page.decisions.title': 'Decisões',
   'page.decisions.context':
     'O que o agente quer fazer agora, e o que ele quer que o deployment se torne.',
@@ -626,7 +626,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.section.why': 'Por quê',
   'run.section.todo': 'O que fazer',
   'run.section.did': 'O que ela fez',
-  'run.reaches.none': 'Esta investigação não registrou nada que tenha tocado.',
+  'run.section.remembered': 'Vale lembrar',
+  'run.happened.none': 'Esta investigação não escreveu relatório além da linha acima.',
+  'run.reaches.none': 'Esta investigação não está arquivada sob nenhum incidente.',
+  'run.remembered.written': 'escrito no corpus',
+  'run.remembered.none': 'Esta investigação não escreveu nada no corpus.',
+  'run.remembered.unknown':
+    'Este console não conseguiu ler {dependency}, então não se sabe se esta investigação escreveu algo no corpus.',
   'run.why.supporting': 'O que sustenta',
   'run.why.missing': 'O que ninguém conseguiu ler',
   'run.why.none': 'Esta investigação nunca avaliou a própria evidência.',
