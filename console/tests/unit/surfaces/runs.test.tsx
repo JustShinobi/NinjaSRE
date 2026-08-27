@@ -76,6 +76,86 @@ function serveOneRealisticRun(): void {
   });
 }
 
+/** The one run the stubbed server below serves, listed and in detail. */
+const RUN_RECORD = {
+  run_id: REALISTIC_RUN_ID,
+  trigger: 'alert',
+  status: 'succeeded',
+  headline: 'a guest reached the ceiling of its own volume',
+  summary: '',
+  report: '',
+  started_at: '2026-08-05T11:19:00+00:00',
+  finished_at: '2026-08-05T11:33:00+00:00',
+  incident_id: '',
+  touched_resources: ['lxc/122', 'pve01'],
+  evidence_assessed: true,
+  evidence_backed: 4,
+  evidence_missing: 0,
+  evidence_supporting_names: [],
+  evidence_missing_names: [],
+};
+
+/** The episode `/v1/memory/episode` answers with, for the run under test. */
+const EPISODE = {
+  episode_id: 'ep-0001',
+  title: 'A guest task log with a user on it ends this shape in one call',
+  summary: 'The shutdown was deliberate, and the task log said so.',
+  outcome: 'resolved',
+  components: ['redis'],
+  occurred_at: '2026-08-05T11:33:00+00:00',
+};
+
+/** Every address the open card reads, answered — and each one recorded. */
+function serveOpenCard(episode: unknown): string[] {
+  const asked: string[] = [];
+  const bodies: Readonly<Record<string, unknown>> = {
+    '/auth/me': {
+      principal_id: 'user-under-test',
+      display_name: 'Avery Lockhart',
+      email: null,
+      kind: 'user',
+      roles: [],
+      permissions: [],
+      team_node_id: 'org-northwind',
+      impersonating: false,
+      impersonated_by: null,
+    },
+    '/v1/runs': { runs: [RUN_RECORD] },
+    [`/v1/runs/${REALISTIC_RUN_ID}`]: RUN_RECORD,
+    [`/v1/runs/${REALISTIC_RUN_ID}/replay`]: {
+      run_id: REALISTIC_RUN_ID,
+      turns: [],
+      total_cost: 0,
+      unpriced_turns: 0,
+      total_tokens: 4096,
+      is_interrupted: false,
+    },
+    [`/v1/investigations/${REALISTIC_RUN_ID}/interactions`]: { interactions: [] },
+    '/v1/memory/episode': { episode },
+  };
+
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const address = new URL(String(input), FIXTURE_ORIGIN);
+    asked.push(`${address.pathname}${address.search}`);
+    const body = bodies[address.pathname];
+    if (body === undefined) {
+      return Promise.resolve(
+        new Response('{}', {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+  return asked;
+}
+
 vi.mock('next/headers', () => ({
   cookies: () =>
     Promise.resolve({
@@ -136,6 +216,54 @@ describe('the runs list language', () => {
     // was longer than the subject reader will truncate.
     expect(tooltip.getAttribute('title')).toContain(
       tooltip.textContent.trim().slice(0, 20),
+    );
+  });
+});
+
+describe('what the list tells a reader about itself', () => {
+  it('says a row opens where it sits, rather than leaving that to be discovered', async () => {
+    render(await RunsScreen(contextFor(datasetViewer())));
+
+    // The whole arrangement of this screen — the card that grows instead of a
+    // row that navigates — is invisible until somebody presses one. The
+    // subtitle is where it gets said.
+    expect(screen.getByText(EN['page.runs.context'])).toBeInTheDocument();
+    expect(EN['page.runs.context']).toContain('Open one where it sits.');
+  });
+});
+
+describe('the episode an open card asks the corpus for', () => {
+  it('asks for the open run’s own episode, by run', async () => {
+    const asked = serveOpenCard(EPISODE);
+
+    render(
+      await RunsScreen(contextFor(datasetViewer(), `selected=${REALISTIC_RUN_ID}`)),
+    );
+
+    expect(asked).toContain(`/v1/memory/episode?run_id=${REALISTIC_RUN_ID}`);
+    expect(screen.getByTestId('run-episode')).toHaveTextContent(
+      'A guest task log with a user on it ends this shape in one call',
+    );
+  });
+
+  it('prints the calm sentence for a run that wrote none', async () => {
+    serveOpenCard(null);
+
+    render(
+      await RunsScreen(contextFor(datasetViewer(), `selected=${REALISTIC_RUN_ID}`)),
+    );
+
+    expect(screen.getByText(EN['run.remembered.none'])).toBeInTheDocument();
+    expect(screen.queryByTestId('run-episode')).toBeNull();
+  });
+
+  it('asks the corpus nothing at all while every card is shut', async () => {
+    const asked = serveOpenCard(EPISODE);
+
+    render(await RunsScreen(contextFor(datasetViewer())));
+
+    expect(asked.some((address) => address.startsWith('/v1/memory/episode'))).toBe(
+      false,
     );
   });
 });
