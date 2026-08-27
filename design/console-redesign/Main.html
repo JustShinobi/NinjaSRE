@@ -1,0 +1,618 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --surface: #ffffff; --sunken: #f2f5f4; --raised: #ffffff; --hover: #e9eeec;
+      --text: #1a2420; --muted: #4c5a55;
+      --accent: #0a7452; --on-accent: #ffffff; --accent-bg: #e2f2ec;
+      --border: #d8e0dd; --border-strong: #6d7c76;
+      --success: #0a7452; --success-bg: #e2f2ec;
+      --warning: #8a5a12; --warning-bg: #f7efdd;
+      --danger: #a51f1f; --on-danger: #ffffff; --danger-bg: #f9e9e9;
+      --info: #0a5f8f; --info-bg: #e4eff5;
+      --neutral: #4c5a55; --neutral-bg: #f2f5f4;
+      --shadow-1: 0 1px 2px rgba(17, 22, 28, 0.06);
+      --shadow-2: 0 2px 8px rgba(17, 22, 28, 0.08);
+      --row: 12px; --gap: 16px; --control: 34px;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    .dk {
+      --surface: #141b18; --sunken: #0d1311; --raised: #1a2320; --hover: #222d29;
+      --text: #e4ebe8; --muted: #a3b2ac;
+      --accent: #3ad195; --on-accent: #062018; --accent-bg: #12271f;
+      --border: #24302b; --border-strong: #8b9a94;
+      --success: #3ad195; --success-bg: #12271f;
+      --warning: #e0a84e; --warning-bg: #2a2214;
+      --danger: #ef7070; --on-danger: #2a0d0d; --danger-bg: #2a1616;
+      --info: #6cb8e0; --info-bg: #12242c;
+      --neutral: #a3b2ac; --neutral-bg: #0d1311;
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+    .cmp { --row: 8px; --gap: 12px; --control: 28px; }
+
+    body { margin: 0; font-family: var(--sans); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent); }
+    * { box-sizing: border-box; }
+
+    .app { display: flex; width: 1440px; height: 1360px; background: var(--sunken); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+    /* ---- shell ---- */
+    .side { width: 236px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .lockup { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+    .word { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+    .word b { color: var(--accent); font-weight: 700; }
+    .navgroup { padding: 16px 12px 0; }
+    .navhead { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 8px 8px; }
+    .navitem { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; color: var(--text); font-size: 14px; transition: background-color 120ms ease-out; }
+    .navitem:hover { background: var(--hover); }
+    .navitem[aria-current] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+    .navitem .n { margin-left: auto; font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .navitem[aria-current] .n { color: var(--accent); }
+    .sidefoot { margin-top: auto; padding: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .top { height: 52px; flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+    .search { flex: 1; max-width: 540px; height: var(--control); display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 13px; background: var(--surface); }
+    .kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+    .iconbtn { width: var(--control); height: var(--control); display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--muted); transition: background-color 120ms ease-out; }
+    .iconbtn:hover { background: var(--hover); }
+    .btn { height: var(--control); display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid transparent; transition: opacity 120ms ease-out; }
+    .btn:hover { opacity: 0.9; }
+    .btn-accent { background: var(--accent); color: var(--on-accent); }
+    .btn-danger { background: var(--danger); color: #ffffff; }
+    .btn-quiet { border-color: var(--border); color: var(--text); background: var(--surface); }
+    .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 650; }
+
+    .page { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+    .page > * { flex-shrink: 0; }
+    .pagehead { display: flex; align-items: flex-start; gap: 12px; }
+    .headwell { width: 30px; height: 30px; border-radius: 6px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 4px; }
+    h1 { margin: 0; font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; }
+    .sub { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
+
+    /* ---- live chip ---- */
+    .live { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .livechip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent); font-size: 12px; font-weight: 550; }
+    .pulse { width: 7px; height: 7px; border-radius: 999px; background: currentColor; position: relative; }
+    .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 999px; background: currentColor; animation: ring 1.8s ease-out infinite; }
+    @keyframes ring { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(3.2); opacity: 0; } }
+    .paused .pulse::after { animation: none; }
+    .lc-stale { border-color: var(--border-strong); background: var(--neutral-bg); color: var(--neutral); }
+    .lc-stale .dash { width: 9px; height: 0; border: 1.5px solid currentColor; border-radius: 999px; }
+    .since { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* ---- surfaces ---- */
+    .needs a, .fig { color: var(--text); }
+    .card { background: var(--raised); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; min-width: 0; }
+    .cardhead { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .cardtitle { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .count { font-size: 12px; font-weight: 550; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .cardnote { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .cardbody { padding: 16px; min-width: 0; }
+    .flush { padding: 0; }
+
+    /* ---- guardian band ---- */
+    .band { background: var(--raised); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-1); overflow: hidden; }
+    .bandtop { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+    .bandstate { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .banddot { width: 9px; height: 9px; border-radius: 999px; background: var(--accent); position: relative; }
+    .banddot::after { content: ''; position: absolute; inset: 0; border-radius: 999px; background: var(--accent); animation: ring 2.4s ease-out infinite; }
+    .paused .banddot::after { animation: none; }
+    .bandmeta { font-size: 13px; color: var(--muted); }
+    .bandtally { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+    .tally { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+    .tallyv { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .tallyl { font-size: 12px; font-weight: 550; color: var(--muted); }
+    .inflight { border-top: 1px solid var(--border); }
+    .flightrow { display: grid; grid-template-columns: 1fr 220px 96px; align-items: center; gap: 16px; padding: var(--row) 16px; border-top: 1px solid var(--border); transition: background-color 120ms ease-out; }
+    .flightrow:first-child { border-top: 0; }
+    .flightrow:hover { background: var(--hover); }
+    .flighthead { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .flighttitle { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track { height: 6px; border-radius: 999px; background: var(--hover); overflow: hidden; }
+    .fill { display: block; height: 100%; background: var(--info); transition: width 900ms linear; }
+    .phase { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+
+    /* ---- needs you ---- */
+    .needs { border: 1px solid var(--warning); border-radius: 10px; background: var(--raised); overflow: hidden; }
+    .needshead { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--warning-bg); color: var(--warning); }
+    .needshead h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .needrow { display: flex; align-items: center; gap: 12px; padding: var(--row) 16px; border-top: 1px solid var(--border); transition: background-color 120ms ease-out; }
+    .needrow:hover { background: var(--hover); }
+
+    /* ---- badges ---- */
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; font-weight: 400; white-space: nowrap; text-transform: capitalize; }
+    .b-danger { background: var(--danger-bg); color: var(--danger); }
+    .b-warning { background: var(--warning-bg); color: var(--warning); }
+    .b-info { background: var(--info-bg); color: var(--info); }
+    .b-success { background: var(--success-bg); color: var(--success); }
+    .b-neutral { background: var(--neutral-bg); color: var(--neutral); border: 1px solid var(--border); padding: 1px 7px; }
+    /* dark's neutral-bg is the page ground, so the pill would punch a hole in the card */
+    .dk .b-neutral { background: var(--hover); }
+    .shape { width: 8px; height: 8px; flex-shrink: 0; border: 1px solid currentColor; background: currentColor; }
+    .s-square { border-radius: 0; }
+    .s-rot { transform: rotate(45deg); }
+    .s-tri { background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%); border: 0; }
+    .s-dot { border-radius: 999px; }
+    .s-hollow { border-radius: 999px; background: transparent; border-width: 1.5px; }
+    .s-dim { border-radius: 999px; opacity: 0.5; }
+
+    /* ---- figures ---- */
+    .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+    .fig { position: relative; background: var(--raised); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-1); padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: box-shadow 120ms ease-out; }
+    .fig:hover { box-shadow: var(--shadow-2); }
+    .figlabel { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .figvalue { font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+    .figctx { font-size: 12px; }
+    .fig:has(.spark) .figctx { padding-right: 84px; }
+    .t-up { color: var(--success); } .t-down { color: var(--danger); } .t-flat { color: var(--muted); }
+    .spark { position: absolute; right: 14px; bottom: 15px; opacity: 0.55; }
+    .figarrow { position: absolute; right: 12px; top: 12px; color: var(--muted); }
+
+    /* ---- grouped recurrence rows ---- */
+    .grid2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    .grouprow { border-top: 1px solid var(--border); }
+    .grouprow:first-child { border-top: 0; }
+    .grouptop { display: grid; grid-template-columns: 20px minmax(0, 1fr) 124px 84px 132px 72px; align-items: center; gap: 12px; padding: var(--row) 16px; cursor: pointer; transition: background-color 120ms ease-out; }
+    .grouptop:hover { background: var(--hover); }
+    .grouptop { border: 0; width: 100%; text-align: left; font-family: inherit; color: inherit; background: transparent; }
+    .gname { min-width: 0; }
+    .gtitle { display: block; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsub { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gcount { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+    .gcount b { color: var(--text); font-weight: 650; font-size: 15px; }
+    .gwhen { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .chev { color: var(--muted); transition: transform 120ms ease-out; }
+    .chev.open { transform: rotate(90deg); }
+    .occ { padding: 4px 16px 12px 52px; display: flex; flex-direction: column; gap: 0; }
+    .occrow { display: grid; grid-template-columns: 144px 1fr 144px 112px; gap: 12px; align-items: center; padding: 6px 0; font-size: 13px; border-top: 1px dashed var(--border); }
+    .occrow:first-child { border-top: 0; }
+    .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+    /* ---- activity ---- */
+    .actrow { display: flex; align-items: flex-start; gap: 12px; padding: var(--row) 0; border-bottom: 1px solid var(--border); }
+    .actrow:last-child { border-bottom: 0; }
+    .well { width: 20px; height: 20px; border-radius: 6px; border: 1px solid; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .w-success { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+    .w-danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+    .w-info { background: var(--info-bg); color: var(--info); border-color: var(--info); }
+    .actmeta { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+    .arrive { animation: arrive 400ms ease-out; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(-6px); background: var(--accent-bg); } to { opacity: 1; transform: none; } }
+
+    .dl { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+    .dl > div { display: flex; align-items: center; gap: 12px; }
+    .dl dt { color: var(--muted); margin: 0; }
+    .dl dd { margin: 0 0 0 auto; font-variant-numeric: tabular-nums; }
+    .bar { height: 8px; border-radius: 999px; background: var(--hover); overflow: hidden; display: flex; }
+    .seg-success { background: var(--success); } .seg-warning { background: var(--warning); } .seg-danger { background: var(--danger); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    svg { display: block; }
+  </style>
+</helmet>
+
+<div class="app {{themeClass}} {{densityClass}} {{motionClass}}">
+  <!-- ── sidebar ─────────────────────────────────────────────── -->
+  <nav class="side">
+    <div class="lockup">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"></path></svg>
+      <span class="word">Ninja<b>SRE</b></span>
+    </div>
+    <div class="navgroup">
+      <div class="navhead">Now</div>
+      <a class="navitem" href="#" aria-current="page">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        Dashboard
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
+        Incidents <span class="n">5</span>
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+        Investigations <span class="n">{{live.running}}</span>
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+        Decisions <span class="n">2</span>
+      </a>
+    </div>
+    <div class="navgroup">
+      <div class="navhead">The environment</div>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1"></rect><rect x="3" y="13" width="18" height="7" rx="1"></rect></svg>
+        Resources
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2Z"></path><path d="M8 3v18"></path></svg>
+        Knowledge
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"></path></svg>
+        The agent
+      </a>
+    </div>
+    <div class="navgroup">
+      <div class="navhead">Settings</div>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"></path><path d="m3 13 9 5 9-5"></path></svg>
+        Integrations
+      </a>
+      <a class="navitem" href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+        Settings
+      </a>
+    </div>
+    <div class="sidefoot">
+      <span class="banddot" style="width: 8px; height: 8px"></span>
+      Guardian active · propose-only
+    </div>
+  </nav>
+
+  <!-- ── main ────────────────────────────────────────────────── -->
+  <div class="main">
+    <header class="top">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        Search resources, investigations, incidents
+        <span class="kbd">Ctrl K</span>
+      </div>
+      <span style="margin-left: auto; font-size: 13px; color: var(--muted)">NinjaSRE</span>
+      <span class="iconbtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
+      </span>
+      <span class="iconbtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </span>
+      <span class="iconbtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6Z"></path><path d="M10.3 20a2 2 0 0 0 3.4 0"></path></svg>
+      </span>
+      <button class="btn btn-danger" type="button">Stop automation</button>
+      <button class="btn btn-accent" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+        Investigate
+      </button>
+      <span class="avatar">LA</span>
+    </header>
+
+    <div class="page">
+      <!-- page head, with the live indicator that used to be nowhere -->
+      <div class="pagehead">
+        <span class="headwell">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        </span>
+        <div>
+          <h1>Overview</h1>
+          <p class="sub">What the agent is handling, what is blocked on you, and how the estate is.</p>
+        </div>
+        <div class="live">
+          <span class="livechip {{live.chipClass}}"><span class="{{live.markClass}}"></span>{{live.chip}}</span>
+          <span class="since">{{live.since}}</span>
+        </div>
+      </div>
+
+      <!-- ── 1. Is the agent working? The question the old page never answered. ── -->
+      <section class="band" aria-label="Guardian">
+        <div class="bandtop">
+          <span class="bandstate"><span class="banddot"></span>Guardian active</span>
+          <span class="bandmeta">propose-only · 24 of 26 detectors live · 132 resources watched</span>
+          <div class="bandtally">
+            <div class="tally"><span class="tallyv" style="color: var(--info)">{{live.running}}</span><span class="tallyl">Runs in flight</span></div>
+            <div class="tally"><span class="tallyv" style="color: var(--warning)">2</span><span class="tallyl">Blocked on you</span></div>
+            <div class="tally"><span class="tallyv">{{live.doneToday}}</span><span class="tallyl">Closed today</span></div>
+          </div>
+        </div>
+        <div class="inflight">
+          <sc-for list="{{flights}}" as="f" hint-placeholder-count="3">
+            <div class="flightrow">
+              <span class="flighthead">
+                <span class="badge b-info"><span class="shape s-rot"></span>running</span>
+                <span class="flighttitle">{{f.title}}</span>
+              </span>
+              <span class="track"><span class="fill" style="width: {{f.pct}}"></span></span>
+              <span class="phase">{{f.phase}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <!-- ── 2. What is genuinely blocked on a person. Two rows, not fifty. ── -->
+      <section class="needs" aria-label="Waiting on you">
+        <header class="needshead">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+          <h2>2 waiting on you</h2>
+          <span class="cardnote" style="color: inherit">oldest 18 minutes</span>
+        </header>
+        <a class="needrow" href="#">
+          <span class="badge b-warning"><span class="shape s-tri"></span>approval</span>
+          <span style="min-width: 0">
+            <span style="display: block; font-weight: 600; letter-spacing: -0.01em">Restart the Redis container on lxc/122</span>
+            <span style="display: block; font-size: 12px; color: var(--muted)">reversible · rollback stored · asked 18 minutes ago</span>
+          </span>
+          <span class="badge b-success" style="margin-left: auto"><span class="shape s-dot"></span>reversible</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted)"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+        <a class="needrow" href="#">
+          <span class="badge b-info"><span class="shape s-hollow"></span>question</span>
+          <span style="min-width: 0">
+            <span style="display: block; font-weight: 600; letter-spacing: -0.01em">Which node should take pve02's guests while it drains?</span>
+            <span style="display: block; font-size: 12px; color: var(--muted)">the agent is paused on this answer · asked 6 minutes ago</span>
+          </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted); margin-left: auto"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+      </section>
+
+      <!-- ── 3. Four figures, not five. Each one a question an operator asks. ── -->
+      <div class="figures">
+        <a class="fig" href="#">
+          <span class="figlabel">Resources watched</span>
+          <span class="figvalue">132</span>
+          <span class="figctx t-flat">61 guests · 48 services · 23 nodes</span>
+          <span class="figarrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+        <a class="fig" href="#">
+          <span class="figlabel">In a problem state</span>
+          <span class="figvalue" style="color: var(--danger)">{{estate.problems}}</span>
+          <span class="figctx t-down">{{estate.problemsCtx}}</span>
+          <span class="spark"><svg width="72" height="22" viewBox="0 0 72 22" fill="none" stroke="var(--danger)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 16 9 14l8 3 8-9 8 4 8-2 8 6 8-5 6 2"></path></svg></span>
+          <span class="figarrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+        <a class="fig" href="#">
+          <span class="figlabel">Handled without a person</span>
+          <span class="figvalue" style="color: var(--accent)">94%</span>
+          <span class="figctx t-up">47 of 50, last 7 days</span>
+          <span class="spark"><svg width="72" height="22" viewBox="0 0 72 22" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 13 9 12l8 3 8-4 8-1 8 2 8-4 8-1 6-2"></path></svg></span>
+          <span class="figarrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+        <a class="fig" href="#">
+          <span class="figlabel">Median time to root cause</span>
+          <span class="figvalue">41<span style="font-size: 20px; font-weight: 650">s</span></span>
+          <span class="figctx t-up">down from 58s last week</span>
+          <span class="spark"><svg width="72" height="22" viewBox="0 0 72 22" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6 9 8l8-1 8 5 8-3 8 6 8-2 8 5 6 1"></path></svg></span>
+          <span class="figarrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+      </div>
+
+      <!-- ── 4. Where the fifty rows went: seven problems, grouped by subject. ── -->
+      <div class="grid2">
+        <section class="card">
+          <header class="cardhead">
+            <span class="cardtitle">Recurring problems</span>
+            <span class="count">7 subjects · 50 firings · 12h</span>
+            <span class="cardnote">grouped by subject</span>
+          </header>
+          <div class="cardbody flush">
+            <sc-for list="{{groups}}" as="g" hint-placeholder-count="6">
+              <div class="grouprow">
+                <button type="button" class="grouptop" aria-expanded="{{g.open}}" onClick="{{g.toggle}}">
+                  <span class="chev {{g.openClass}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg></span>
+                  <span class="gname">
+                    <span class="gtitle">{{g.title}}</span>
+                    <span class="gsub">{{g.subject}}</span>
+                  </span>
+                  <span class="badge {{g.stateClass}}"><span class="shape {{g.stateShape}}"></span>{{g.state}}</span>
+                  <span class="gcount"><b>{{g.count}}</b>&nbsp;firings</span>
+                  <span class="gwhen">{{g.when}}</span>
+                  <span class="gwhen">{{g.spark}}</span>
+                </button>
+                <sc-if value="{{g.open}}" hint-placeholder-val="{{false}}">
+                  <div class="occ">
+                    <sc-for list="{{g.occurrences}}" as="o" hint-placeholder-count="3">
+                      <div class="occrow">
+                        <span class="mono">{{o.id}}</span>
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{o.summary}}</span>
+                        <span class="badge {{o.class}}"><span class="shape {{o.shape}}"></span>{{o.status}}</span>
+                        <span class="gwhen">{{o.when}}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <div style="display: flex; flex-direction: column; gap: 24px; min-width: 0">
+          <section class="card">
+            <header class="cardhead">
+              <span class="cardtitle">Estate</span>
+              <span class="cardnote">132 resources</span>
+            </header>
+            <div class="cardbody">
+              <div class="bar" style="margin-bottom: 12px">
+                <span class="seg-success" style="width: 81.8%"></span>
+                <span class="seg-warning" style="width: 12.1%"></span>
+                <span class="seg-danger" style="width: 6.1%"></span>
+              </div>
+              <dl class="dl">
+                <div><dt><span class="badge b-success"><span class="shape s-dot"></span>healthy</span></dt><dd>108</dd></div>
+                <div><dt><span class="badge b-warning"><span class="shape s-tri"></span>degraded</span></dt><dd>16</dd></div>
+                <div><dt><span class="badge b-danger"><span class="shape s-square"></span>unhealthy</span></dt><dd>8</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="card">
+            <header class="cardhead">
+              <span class="cardtitle">Recent activity</span>
+              <span class="cardnote">newest first</span>
+            </header>
+            <div class="cardbody" style="padding-top: 4px; padding-bottom: 4px">
+              <sc-for list="{{feed}}" as="e" hint-placeholder-count="5">
+                <div class="actrow {{e.arriveClass}}">
+                  <span class="well {{e.well}}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"></path></svg>
+                  </span>
+                  <span style="min-width: 0">
+                    <span style="display: block; font-size: 13px">{{e.title}}</span>
+                    <span class="actmeta"><span>{{e.kind}}</span><span>· {{e.detail}}</span><span>{{e.when}}</span></span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "dark": {"editor": "boolean", "default": false, "section": "Theme"},
+  "density": {"editor": "enum", "options": ["comfortable", "compact"], "default": "comfortable", "section": "Theme"},
+  "live": {"editor": "boolean", "default": true, "section": "Behaviour"},
+  "$preview": {"width": 1440, "height": 1360}
+}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tick: 0, open: 'ProxmoxGuestStopped', closedToday: 47, arrivals: 0 };
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.props.live === false) return;
+      this.setState((s) => {
+        const tick = s.tick + 1;
+        // A figure only moves when an event moves it. A counter that climbs on
+        // a timer with nothing behind it is the thing the pattern sheet forbids,
+        // and it would be worse than the reload it replaces.
+        const arrived = Math.floor(tick / 9);
+        return arrived > s.arrivals
+          ? { tick, arrivals: arrived, closedToday: s.closedToday + 1 }
+          : { tick };
+      });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  renderVals() {
+    const t = this.state.tick;
+    const on = this.props.live !== false;
+    const open = this.state.open;
+
+    // Three runs in flight, each on its own clock. Progress only ever rises:
+    // a bar that snapped back to the start while the turn counter kept climbing
+    // read as the run restarting.
+    const seeds = [
+      { title: 'Redis container lxc/122 stopped on pve02', start: 41, rate: 26 },
+      { title: 'Proxmox guest 159 stopped by root@pam', start: 12, rate: 34 },
+      { title: 'DNS resolver at 10.20.20.53 failing probes', start: 4, rate: 48 },
+    ];
+    const flights = seeds.map((s) => {
+      const elapsed = s.start + (on ? t : 0);
+      const pct = 96 - 88 * Math.exp(-elapsed / s.rate);
+      return {
+        title: s.title,
+        pct: String(Math.round(pct)) + '%',
+        phase: String(elapsed) + 's · turn ' + String(1 + Math.floor(elapsed / 14)),
+      };
+    });
+
+    // The fifty rows the old page listed one at a time, as the seven subjects
+    // they are. `resolved` is the word the deployment writes; `closed` is not
+    // a member of the incident state enum at all.
+    const raw = [
+      { title: 'ProxmoxGuestStopped', subject: 'lxc/122, lxc/152, lxc/159 on pve02', count: 9, when: '11 minutes ago', state: 'investigating', spark: '▁▂▁▁▃▁▁▂▅' },
+      { title: 'RedisExporterDown', subject: 'redis-exporter on lxc/122', count: 9, when: '11 minutes ago', state: 'investigating', spark: '▁▁▂▁▁▃▁▂▅' },
+      { title: 'InstanceDown', subject: '4 blackbox targets', count: 8, when: '11 minutes ago', state: 'investigating', spark: '▂▁▁▂▁▁▃▁▄' },
+      { title: 'GatusEndpointHealthcheckFailed', subject: 'Redis TCP endpoint', count: 8, when: '12 minutes ago', state: 'investigating', spark: '▁▂▁▁▁▃▂▁▄' },
+      { title: 'DatabaseTcpProbeFailed', subject: 'postgres on 10.20.20.52', count: 8, when: '12 minutes ago', state: 'investigating', spark: '▁▁▃▁▂▁▁▂▄' },
+      { title: 'CronJobStale', subject: 'backup-mydrive-sync on pve01', count: 5, when: '2 hours ago', state: 'resolved', spark: '▂▁▁▃▁▁▁▁▁' },
+      { title: 'RestoreDrillStale', subject: 'restore drill on pve01', count: 3, when: '7 hours ago', state: 'resolved', spark: '▁▃▁▁▁▁▁▁▁' },
+    ];
+    const skin = {
+      investigating: { cls: 'b-info', shape: 's-rot' },
+      resolved: { cls: 'b-success', shape: 's-dot' },
+    };
+    // Each subject expands to its own firings. Borrowing one subject's findings
+    // for all seven would undercut the only thing expansion is for.
+    const occurrences = {
+      ProxmoxGuestStopped: [
+        { id: '#8a461a4e', summary: 'lxc/122 deliberately shut down by root@pam; no host fault', status: 'completed', class: 'b-success', shape: 's-dot', when: '11 minutes ago' },
+        { id: '#b1fcc34f', summary: 'lxc/159 stopped via vzstop on pve02; operator action', status: 'completed', class: 'b-success', shape: 's-dot', when: '1 hour ago' },
+        { id: '#e29ba701', summary: 'lxc/152 unable to start: insufficient free host memory', status: 'completed', class: 'b-success', shape: 's-dot', when: '6 hours ago' },
+      ],
+      RedisExporterDown: [
+        { id: '#a7fa969b', summary: 'Exporter went with the container it runs beside', status: 'completed', class: 'b-success', shape: 's-dot', when: '11 minutes ago' },
+        { id: '#bd1b489d', summary: 'Scrape target unreachable while lxc/122 was down', status: 'completed', class: 'b-success', shape: 's-dot', when: '1 hour ago' },
+      ],
+      CronJobStale: [
+        { id: '#cb24f344', summary: 'backup-mydrive-sync exited 2 and exceeded its window', status: 'completed', class: 'b-success', shape: 's-dot', when: '2 hours ago' },
+        { id: '#0d033577', summary: 'pve01 baseline backup job is disabled', status: 'completed', class: 'b-success', shape: 's-dot', when: '3 hours ago' },
+      ],
+    };
+    const groups = raw.map((g) => ({
+      ...g,
+      stateClass: skin[g.state].cls,
+      stateShape: skin[g.state].shape,
+      open: open === g.title,
+      openClass: open === g.title ? 'open' : '',
+      toggle: () => {
+        this.setState((s) => ({ open: s.open === g.title ? '' : g.title }));
+      },
+      occurrences: occurrences[g.title] ?? [
+        { id: '—', summary: String(g.count) + ' firings, every one investigated and closed', status: g.state, class: skin[g.state].cls, shape: skin[g.state].shape, when: g.when },
+      ],
+    }));
+
+    // The narrative, at a fixed length: an arrival drops the oldest rather than
+    // pushing every row below it down the page.
+    const arrivals = [
+      { title: 'DNS resolver at 10.20.20.53 failing blackbox probes', kind: 'Investigation', detail: 'started', well: 'w-info' },
+      { title: 'PVE exporter on pve01 stopped answering scrapes', kind: 'Incident', detail: 'opened', well: 'w-danger' },
+    ];
+    const base = [
+      { title: 'Redis container lxc/122 was stopped by root@pam', kind: 'Investigation', detail: 'completed', when: '11 minutes ago', well: 'w-success' },
+      { title: 'Restart of redis on lxc/122 proposed for approval', kind: 'Decision', detail: 'waiting', when: '18 minutes ago', well: 'w-info' },
+      { title: 'Proxmox guest 159 stopped on pve02', kind: 'Incident', detail: 'investigating', when: '1 hour ago', well: 'w-danger' },
+      { title: 'Backup sync cron on pve01 failed with exit code 2', kind: 'Investigation', detail: 'completed', when: '2 hours ago', well: 'w-success' },
+      { title: 'Detector CronJobStale re-armed after the fix', kind: 'Guardian', detail: 'applied', when: '3 hours ago', well: 'w-success' },
+      { title: 'Restore drill on pve01 has not run this month', kind: 'Incident', detail: 'resolved', when: '7 hours ago', well: 'w-success' },
+    ];
+    const shown = on ? Math.min(this.state.arrivals, arrivals.length) : 0;
+    const feed = [];
+    for (let i = 0; i < shown; i += 1) {
+      feed.push({ ...arrivals[i], when: 'just now', arriveClass: 'arrive' });
+    }
+    for (const entry of base) feed.push({ ...entry, arriveClass: '' });
+
+    return {
+      themeClass: this.props.dark === true ? 'dk' : '',
+      densityClass: this.props.density === 'compact' ? 'cmp' : '',
+      motionClass: on ? '' : 'paused',
+      live: {
+        chip: on ? 'Live' : 'Paused',
+        chipClass: on ? '' : 'lc-stale',
+        markClass: on ? 'pulse' : 'dash',
+        since: on ? 'streaming · 3 open channels' : 'tab in the background · resumes on return',
+        running: '3',
+        doneToday: String(this.state.closedToday),
+      },
+      estate: { problems: '24', problemsCtx: '16 degraded · 8 unhealthy' },
+      flights,
+      groups,
+      feed: feed.slice(0, 6),
+    };
+  }
+}
+</script>
+</body>
+</html>

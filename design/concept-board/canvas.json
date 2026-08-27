@@ -1,0 +1,151 @@
+{
+  "artboards": [
+    {
+      "file": "Investigacoes.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1100,
+      "h": 2400,
+      "title": "Investigations, aberta no lugar"
+    },
+    {
+      "file": "Ciclo.dc.html",
+      "x": 1220,
+      "y": 0,
+      "w": 1100,
+      "h": 860,
+      "title": "Os dois menus como um ciclo"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 2700,
+      "w": 1048,
+      "h": 1200,
+      "title": "Overview enriquecido"
+    },
+    {
+      "file": "AoVivo.dc.html",
+      "x": 1168,
+      "y": 2700,
+      "w": 1048,
+      "h": 900,
+      "title": "Investigação ao vivo"
+    },
+    {
+      "file": "Confianca.dc.html",
+      "x": 2336,
+      "y": 2700,
+      "w": 1048,
+      "h": 1000,
+      "title": "Confiança sem número inventado"
+    },
+    {
+      "file": "LinhaDoTempo.dc.html",
+      "x": 0,
+      "y": 4100,
+      "w": 1048,
+      "h": 1140,
+      "title": "Linha do tempo do incidente"
+    },
+    {
+      "file": "RaioDeAlcance.dc.html",
+      "x": 1168,
+      "y": 4100,
+      "w": 1048,
+      "h": 900,
+      "title": "Raio de alcance"
+    },
+    {
+      "file": "Memoria.dc.html",
+      "x": 2336,
+      "y": 4100,
+      "w": 1100,
+      "h": 1100,
+      "title": "Memória que vira estratégia"
+    },
+    {
+      "file": "Catalogo.dc.html",
+      "x": 0,
+      "y": 5520,
+      "w": 1100,
+      "h": 950,
+      "title": "Catálogo por uso real"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "leitura",
+      "x": -520,
+      "y": 0,
+      "w": 440,
+      "text": "Como ler este quadro\n\nNove conceitos do OpenSRE, cada um traduzido para o vocabulário que o console do NinjaSRE já usa: tokens do tema escuro, painéis raised sobre sunken, as quatro formas de status, a voz declarativa das telas.\n\nOs dados são reais do staging — lxc/122 no pve01, os 96 recursos, os 13 unhealthy, gemini-flash-latest, 71.141 tokens.\n\nA numeração segue a ordem de leitura do quadro, e mudou quando Investigations entrou na frente.\n\nDo OpenSRE foi copiada a pergunta que cada tela deles responde — e, em 1 e 2, também a mecânica."
+    },
+    {
+      "id": "nota-investigacoes",
+      "x": 0,
+      "y": -280,
+      "w": 440,
+      "text": "1 · Investigations, aberta no lugar\n\nAqui a cópia é deliberada e vai fundo: card por run em vez de tabela, a linha expande no lugar em vez de navegar, e o relatório vem na ordem do OpenSRE — o que aconteceu, o que alcança, em ordem, por quê, o que fazer, o que lembrar. Depois o rastro, agrupado pelos 6 estágios que a topologia já declara, com uma linha de achado por grupo.\n\nDuas diferenças de propósito. Onde o OpenSRE estampa «92% confidence» vai «4 de 4 afirmações sustentadas»: mesmo lugar, mesma função, sem número inventado. E «Technical detail», que hoje repete o relatório inteiro em Markdown logo abaixo dele, vira um botão «Copy as Markdown».\n\nO custo sai do lugar de honra: fica um tile de tokens que diz que este modelo não publica preço, em vez da tabela por turno cheia de «unpriced»."
+    },
+    {
+      "id": "nota-ciclo",
+      "x": 1220,
+      "y": -280,
+      "w": 440,
+      "text": "2 · Os dois menus como um ciclo\n\nOverview e Investigations são a mesma história em dois zooms, e hoje ela quebra três vezes entre as duas: a Overview nunca mostra uma run em andamento, abrir uma run joga a lista fora, e uma run terminada não deixa nada para trás.\n\nA perna de volta — a oitava vez de um assunto que o corpus já tem estratégia não deveria custar o mesmo que a primeira — é a que ninguém construiu.\n\nO quarto item é o relatório impresso duas vezes."
+    },
+    {
+      "id": "nota-main",
+      "x": 0,
+      "y": 2520,
+      "w": 440,
+      "text": "3 · Overview enriquecido\n\nTrês acréscimos: a faixa do que está rodando agora (hoje a tela só diz «nothing is being investigated»), o tile de tempo até a causa, e «Seen before» — o que 8 firings do mesmo assunto realmente significam.\n\nOs chips de «Recent activity» agora falam a mesma língua da lista de Investigations, que é o que fecha o ciclo do quadro 2."
+    },
+    {
+      "id": "nota-aovivo",
+      "x": 1168,
+      "y": 2520,
+      "w": 440,
+      "text": "4 · Investigação ao vivo\n\nO conceito mais forte do OpenSRE: a investigação como espetáculo enquanto acontece.\n\nAqui sem playback falso — a topologia já declara os 6 estágios e o teto de 4 especialistas paralelos. Só falta transmitir. A linha âmbar é a única que é problema de uma pessoa."
+    },
+    {
+      "id": "nota-confianca",
+      "x": 2336,
+      "y": 2520,
+      "w": 440,
+      "text": "5 · Confiança sem número inventado\n\nO OpenSRE estampa «92% confidence». Um percentual que o modelo escolhe sobre si mesmo não é medida — e este console já recusa esse tipo de afirmação.\n\nMesma ideia, honesta: cada afirmação com a observação que a sustenta, mais o que ninguém conseguiu ler. É daqui que sai o chip «4 de 4» da lista do quadro 1."
+    },
+    {
+      "id": "nota-tempo",
+      "x": 0,
+      "y": 3920,
+      "w": 440,
+      "text": "6 · Linha do tempo do incidente\n\nNão é a transcrição do agente — é o que o mundo fez. Pessoa age, detector dispara, agente trabalha, proposta espera.\n\nproxmox_guest_tasks e alertmanager_incident_timeline já são chamados em toda run. Os dados existem e são jogados fora. A versão curta desta linha do tempo é a seção «Em ordem» do quadro 1."
+    },
+    {
+      "id": "nota-raio",
+      "x": 1168,
+      "y": 3920,
+      "w": 440,
+      "text": "7 · Raio de alcance\n\nO relatório termina em «Proposed Action» e nunca diz quanto aquilo vale.\n\nquery_service_topology já responde o grafo durante a run. Desenhá-lo transforma uma proposta em uma decisão: o que cai junto, quem ainda não reclamou, e há quantos minutos alguém deveria ter olhado."
+    },
+    {
+      "id": "nota-memoria",
+      "x": 2336,
+      "y": 3920,
+      "w": 440,
+      "text": "8 · Memória que vira estratégia\n\nO melhor conceito do OpenSRE: episódios que se condensam em uma estratégia numerada, «from 2 episodes».\n\nO NinjaSRE já tem a aba Learned, memória episódica e síntese de estratégia. No staging ela diz «No episodes yet» ao lado de 50 investigações terminadas — vale descobrir se é bug ou gate desligado. É o único conceito aqui que não precisa de dado novo."
+    },
+    {
+      "id": "nota-catalogo",
+      "x": 0,
+      "y": 5340,
+      "w": 440,
+      "text": "9 · Catálogo por uso real\n\nO OpenSRE agrupa skills por domínio e mostra MCPs como «Connected». Conectado é barra baixa — uma capability pode estar alcançável, configurada e inútil.\n\nCinquenta runs já sabem quais respondem, quais falham sempre e quais ninguém precisou. logs_for_resource falhou em 50 de 50 e cada run descobriu isso sozinha."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

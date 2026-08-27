@@ -1,0 +1,1072 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Dezenove Telas</title>
+<style>
+  /* The console's own tokens, verbatim from console/src/design/tokens.ts.
+     A report about a design system, set in that design system. */
+  :root {
+    --ground: #f5f7f8;
+    --surface: #ffffff;
+    --raised: #ffffff;
+    --text: #11161c;
+    --muted: #59626d;
+    --accent: #0f6f5c;
+    --accent-bg: #e7f3f0;
+    --border: #d5dade;
+    --border-strong: #78828d;
+    --danger: #a11b21;
+    --danger-bg: #fdecec;
+    --warning: #8a5a00;
+    --warning-bg: #fdf4e3;
+    --success: #136c46;
+    --success-bg: #e8f5ee;
+    --info: #0a5ea8;
+    --info-bg: #eaf2fb;
+
+    /* The two grounds the headline finding is about. */
+    --demo-surface: #ffffff;
+    --demo-sunken: #f5f7f8;
+    --demo-proposed: #eef1f3;
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+      "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: 0.815rem;
+    --step-0: 1rem;
+    --step-1: 1.2rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.75rem;
+  }
+
+  :root:not([data-theme="light"]) {
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0a0e13;
+      --surface: #0d1117;
+      --raised: #161c24;
+      --text: #e9eef4;
+      --muted: #9aa5b1;
+      --accent: #4fd6b0;
+      --accent-bg: #0e2b25;
+      --border: #242c36;
+      --border-strong: #8b96a3;
+      --danger: #f28b8b;
+      --danger-bg: #2e1416;
+      --warning: #e8b463;
+      --warning-bg: #2c2110;
+      --success: #5fd996;
+      --success-bg: #0f2a1e;
+      --info: #77b6f5;
+      --info-bg: #0f2237;
+      --demo-surface: #0d1117;
+      --demo-sunken: #0a0e13;
+      --demo-proposed: #1b232e;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0a0e13;
+    --surface: #0d1117;
+    --raised: #161c24;
+    --text: #e9eef4;
+    --muted: #9aa5b1;
+    --accent: #4fd6b0;
+    --accent-bg: #0e2b25;
+    --border: #242c36;
+    --border-strong: #8b96a3;
+    --danger: #f28b8b;
+    --danger-bg: #2e1416;
+    --warning: #e8b463;
+    --warning-bg: #2c2110;
+    --success: #5fd996;
+    --success-bg: #0f2a1e;
+    --info: #77b6f5;
+    --info-bg: #0f2237;
+    --demo-surface: #0d1117;
+    --demo-sunken: #0a0e13;
+    --demo-proposed: #1b232e;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 4rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+  }
+
+  .prose { max-width: var(--measure); }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  h1 {
+    font-size: clamp(var(--step-3), 6vw, var(--step-4));
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 680;
+  }
+
+  h2 {
+    font-size: var(--step-2);
+    letter-spacing: -0.018em;
+    font-weight: 640;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    letter-spacing: -0.012em;
+    font-weight: 620;
+    line-height: 1.3;
+  }
+
+  p { margin: 0; }
+
+  code, .mono {
+    font-family: var(--mono);
+    font-size: 0.885em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  code {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 0.1em 0.36em;
+    border-radius: 3px;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* --- masthead --------------------------------------------------------- */
+
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lede {
+    max-width: var(--measure);
+    font-size: var(--step-1);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .runstrip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .runstrip b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* --- sections --------------------------------------------------------- */
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+
+  .sectionhead {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* --- the verified-clean grid ------------------------------------------ */
+
+  .clean {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .clean div {
+    background: var(--surface);
+    padding: 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .clean dt {
+    font-weight: 600;
+    font-size: var(--step--1);
+  }
+  .clean dd {
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--step--1);
+    line-height: 1.45;
+  }
+  .clean .tick {
+    color: var(--success);
+    font-family: var(--mono);
+    font-size: var(--step--1);
+  }
+
+  /* --- findings --------------------------------------------------------- */
+
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: clamp(1.2rem, 3vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .findinghead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem 1rem;
+  }
+  .findinghead h3 { flex: 1 1 20rem; }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip.alto { background: var(--danger-bg); color: var(--danger); }
+  .chip.medio { background: var(--warning-bg); color: var(--warning); }
+  .chip.baixo { background: var(--info-bg); color: var(--info); }
+  .chip.escopo {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+
+  .finding p { max-width: var(--measure); }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .field > .eyebrow { font-size: 0.7rem; }
+
+  .siteslist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+  .siteslist b { color: var(--text); font-weight: 500; }
+
+  /* --- measurement ------------------------------------------------------ */
+
+  .measure {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .measure div {
+    background: var(--raised);
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .measure .value {
+    font-family: var(--mono);
+    font-size: var(--step-2);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .measure .value.bad { color: var(--danger); }
+  .measure .value.ok { color: var(--success); }
+  .measure .label {
+    font-size: var(--step--1);
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* --- the live hover demonstration ------------------------------------- */
+
+  .demo {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .demo-note {
+    padding: 0.7rem 1.1rem;
+    background: var(--raised);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+  .demo-panes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+  .pane {
+    background: var(--demo-surface);
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .pane-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .fake-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    font-size: var(--step--1);
+    color: var(--text);
+    background: transparent;
+    transition: background-color 120ms ease;
+    cursor: default;
+  }
+  .fake-entry .glyph {
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 2px;
+    border: 1.5px solid var(--border-strong);
+    flex: none;
+  }
+  .pane.actual .fake-entry:hover { background: var(--demo-sunken); }
+  .pane.proposed .fake-entry:hover { background: var(--demo-proposed); }
+  @media (prefers-reduced-motion: reduce) {
+    .fake-entry { transition: none; }
+  }
+
+  /* --- the ordered plan -------------------------------------------------- */
+
+  ol.plan {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  ol.plan > li {
+    counter-increment: step;
+    background: var(--surface);
+    padding: 1.15rem clamp(1rem, 3vw, 1.6rem);
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    gap: 0 1rem;
+    align-items: start;
+  }
+  ol.plan > li::before {
+    content: counter(step);
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border-radius: 3px;
+    text-align: center;
+    padding: 0.15rem 0;
+    font-weight: 600;
+  }
+  ol.plan .what {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  ol.plan .what strong { font-weight: 620; }
+  ol.plan .what p {
+    color: var(--muted);
+    font-size: var(--step--1);
+    line-height: 1.5;
+    max-width: var(--measure);
+  }
+  ol.plan .why {
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+  ol.plan .why em {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  .gate {
+    border-left: 2px solid var(--accent);
+    padding: 0.15rem 0 0.15rem 1rem;
+    max-width: var(--measure);
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+  }
+  .scroller {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th {
+    background: var(--raised);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.wrap { white-space: normal; min-width: 18rem; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+    color: var(--muted);
+    font-size: var(--step--1);
+    max-width: var(--measure);
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Console · auditoria de UI/UX</p>
+    <h1>Dezenove Telas</h1>
+    <p class="lede">
+      Uma passagem exaustiva de Playwright pelo console, nos dois temas e em três
+      larguras, confrontada com <span class="mono">specs_v3/design</span>. Três
+      documentos do desenho estão quase inteiros no produto. O quarto não chegou
+      nele de forma nenhuma.
+    </p>
+    <div class="runstrip">
+      <span><b>19</b> rotas</span>
+      <span><b>2</b> temas</span>
+      <span><b>3</b> larguras</span>
+      <span><b>22</b> verificações</span>
+      <span><b>5</b> frames do mockup</span>
+      <span>em <b class="mono">fcf6b64</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">Primeiro</p>
+      <h2>Três documentos entraram, um não</h2>
+    </div>
+    <p class="prose">
+      A suspeita era que <span class="mono">specs_v3/design</span> não tinha sido
+      implementado. A bateria divide isso em dois: <b>D1, D2 e D3 estão quase
+      inteiros no produto</b> — vale registrar, porque um plano que os
+      reconstruísse gastaria esforço no que já existe. <b>D4, a marca, não tem
+      uma linha no console.</b> Não é uma tela divergente; é um documento inteiro
+      que parou na pasta de planejamento.
+    </p>
+    <dl class="clean">
+      <div>
+        <span class="tick">D2 · navegação</span>
+        <dt>Reagrupada por frequência</dt>
+        <dd>Now / The environment / Settings — exatamente as três zonas de D2, com contadores nos dois lugares que esperam decisão.</dd>
+      </div>
+      <div>
+        <span class="tick">D3.1 · painel</span>
+        <dt>As três faixas</dt>
+        <dd>“What needs a person, what is running, and how the estate is”, com 15 itens e o tipo de cada um.</dd>
+      </div>
+      <div>
+        <span class="tick">D3.4 · agente</span>
+        <dt>Três abas e o corte de risco</dt>
+        <dd>“Tools that read” / “Tools that write”, e a ferramenta indisponível traz o motivo: <span class="mono">metrics-store is not configured</span>.</dd>
+      </div>
+      <div>
+        <span class="tick">D3.5 · dados</span>
+        <dt>Trânsito, não formulário</dt>
+        <dd>“What arrives”, e a origem silenciosa é a coisa mais visível: <span class="mono">Nothing has ever arrived here</span>.</dd>
+      </div>
+      <div>
+        <span class="tick">D1 · estado</span>
+        <dt><span class="mono">success</span> deixou de ser o acento</dt>
+        <dd>Claro <span class="mono">#0f6f5c</span> / <span class="mono">#136c46</span>. Escuro <span class="mono">#4fd6b0</span> / <span class="mono">#5fd996</span>.</dd>
+      </div>
+      <div>
+        <span class="tick">D1 · contraste</span>
+        <dt>Zero falhas de texto</dt>
+        <dd>Nas 19 rotas, nos dois temas, contra o fundo efetivo de cada elemento.</dd>
+      </div>
+      <div>
+        <span class="tick">D1 · deployment</span>
+        <dt>Nada é buscado de fora</dt>
+        <dd>Nenhuma requisição saiu para outro host. Nenhuma fonte, nenhum ícone.</dd>
+      </div>
+      <div>
+        <span class="tick">Acessibilidade</span>
+        <dt>Foco, nomes e teclado</dt>
+        <dd>Anéis de foco visíveis, todo controle nomeado, paleta responde a <span class="mono">Ctrl/Cmd+K</span>, <span class="mono">prefers-reduced-motion</span> respeitado.</dd>
+      </div>
+    </dl>
+    <p class="gate">
+      Zero erro de console, zero exceção de página e zero requisição falhada nas
+      38 aberturas de rota. Quatro achados iniciais da bateria eram defeito das
+      minhas próprias verificações, não do console — estão descontados aqui.
+    </p>
+  </section>
+
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">O que precisa de correção</p>
+      <h2>Seis defeitos</h2>
+    </div>
+    <p class="prose">
+      Dois você viu a olho. Um você apontou. Os outros três saíram da comparação
+      com <span class="mono">mockups.html</span> e do código — e dois deles são
+      sistemas prontos que ninguém ligou.
+    </p>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>O hover não existe no tema escuro</h3>
+        <span class="chip alto">Alto</span>
+        <span class="chip escopo">sistêmico · 7 pontos</span>
+      </div>
+      <p>
+        Este é o defeito que você viu, e ele é maior do que parecia. Um item de
+        navegação sob o ponteiro troca <span class="mono">#0d1117</span> por
+        <span class="mono">#0a0e13</span> — uma razão de contraste de
+        <span class="mono">1,023</span>. No claro a mesma troca dá
+        <span class="mono">1,075</span>. Abaixo de aproximadamente
+        <span class="mono">1,06</span> a mudança não é perceptível numa tela comum.
+      </p>
+      <div class="measure">
+        <div>
+          <span class="value bad">1,023</span>
+          <span class="label">escuro · <span class="mono">surface → sunken</span></span>
+        </div>
+        <div>
+          <span class="value ok">1,075</span>
+          <span class="label">claro · <span class="mono">surface → sunken</span></span>
+        </div>
+        <div>
+          <span class="value">1,053</span>
+          <span class="label">escuro, se usasse <span class="mono">raised</span> — melhor, ainda fraco</span>
+        </div>
+      </div>
+
+      <div class="demo">
+        <p class="demo-note">
+          Passe o ponteiro nas duas colunas. À esquerda, o que o console faz hoje;
+          à direita, um degrau que se vê. No tema claro as duas são parecidas — é
+          no escuro que a esquerda desaparece.
+        </p>
+        <div class="demo-panes">
+          <div class="pane actual">
+            <span class="pane-label">hoje · bg-sunken</span>
+            <span class="fake-entry"><span class="glyph"></span>Investigações</span>
+            <span class="fake-entry"><span class="glyph"></span>Recursos</span>
+            <span class="fake-entry"><span class="glyph"></span>Topologia</span>
+          </div>
+          <div class="pane proposed">
+            <span class="pane-label">proposto · bg-hover</span>
+            <span class="fake-entry"><span class="glyph"></span>Investigações</span>
+            <span class="fake-entry"><span class="glyph"></span>Recursos</span>
+            <span class="fake-entry"><span class="glyph"></span>Topologia</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <p class="eyebrow">Causa</p>
+        <p>
+          No escuro <span class="mono">sunken</span> é <em>mais escuro</em> que
+          <span class="mono">surface</span>. O token foi escolhido para
+          profundidade, não para retorno de ponteiro, e num fundo escuro o hover
+          precisa clarear. <span class="mono">raised</span> clareia, mas só chega
+          a <span class="mono">1,053</span> — a resposta certa é um papel próprio,
+          não outro empréstimo.
+        </p>
+      </div>
+
+      <div class="field">
+        <p class="eyebrow">Alcance — <span class="mono">hover:bg-sunken</span> é o único fundo de hover do console</p>
+        <ul class="siteslist">
+          <li><b>src/shell/sidebar.tsx:109</b> — itens de navegação</li>
+          <li><b>src/surfaces/rows.tsx:212</b> — linhas de tabela</li>
+          <li><b>src/components/action.tsx:51</b> — botão secundário</li>
+          <li><b>src/components/action.tsx:52</b> — botão quiet</li>
+          <li><b>src/surfaces/attention.tsx:71</b> — linhas do que precisa de você</li>
+          <li><b>src/shell/notifications.tsx:71</b> — central de notificações</li>
+          <li><b>src/surfaces/tree.tsx:142</b> — nós da árvore</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>A marca não chegou ao produto</h3>
+        <span class="chip alto">Alto</span>
+        <span class="chip escopo">D4 inteiro</span>
+      </div>
+      <p>
+        O shuriken de oito pontas está desenhado — quatro arquivos, os dois
+        cortes, o selo e o lockup, todos em <span class="mono">currentColor</span>
+        para herdar o acento nos dois temas. Nada disso está no console. O trilho
+        desenha um quadrado com a primeira letra do nome, e a bateria leu o bloco
+        de identidade como o texto <span class="mono">"NNinjaSRE"</span>: nenhum
+        <span class="mono">&lt;svg&gt;</span>, nenhum
+        <span class="mono">&lt;img&gt;</span>.
+      </p>
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr><th>O que D4 declara</th><th>Onde deveria estar</th><th>Resposta</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">mark.svg</td><td class="mono">/brand/mark.svg</td><td class="mono">404</td></tr>
+            <tr><td class="mono">mark-small.svg</td><td class="mono">/brand/mark-small.svg</td><td class="mono">404</td></tr>
+            <tr><td class="mono">emblem.svg</td><td class="mono">/brand/emblem.svg</td><td class="mono">404</td></tr>
+            <tr><td class="mono">lockup.svg</td><td class="mono">/brand/lockup.svg</td><td class="mono">404</td></tr>
+            <tr><td class="wrap">favicon, do corte pequeno</td><td class="mono">/favicon.ico · /icon.svg</td><td class="mono">404</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="field">
+        <p class="eyebrow">Causa</p>
+        <p>
+          <span class="mono">console/public/</span> não existe. É o destino que o
+          próprio D4 nomeia, e o build já está pronto para ele —
+          <span class="mono">scripts/prepare-standalone.mjs:37</span> copia
+          <span class="mono">public/</span> se houver. Não há o que copiar. Também
+          não há nenhuma referência a <span class="mono">mark</span>,
+          <span class="mono">emblem</span>, <span class="mono">lockup</span> ou
+          <span class="mono">brand</span> em <span class="mono">console/src/</span>.
+        </p>
+      </div>
+      <div class="field">
+        <p class="eyebrow">O corte a usar, e é a fronteira exata</p>
+        <p>
+          O slot do trilho é <span class="mono">size-5</span>, que na escala do
+          projeto é <span class="mono">SPACING[5]</span> = <b>24px</b>. D4 dá o
+          corte pequeno para “24px e abaixo”, então o trilho leva
+          <span class="mono">mark-small.svg</span> — não o corte principal. É o
+          caso de fronteira, e D4 diz que usar o corte errado é o erro mais
+          provável e o primeiro que a revisão procura.
+        </p>
+      </div>
+      <div class="field">
+        <p class="eyebrow">E o lockup não está dividido</p>
+        <p>
+          <span class="mono">sidebar.tsx:191</span> renderiza o nome inteiro num
+          único <span class="mono">span</span>, peso 600, uma cor. D4 põe
+          <span class="mono">Ninja</span> no peso do texto e
+          <span class="mono">SRE</span> no acento — a cor ali não decora, separa o
+          nome próprio do que a coisa é.
+        </p>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>A seleção da sidebar congela no primeiro carregamento</h3>
+        <span class="chip alto">Alto</span>
+        <span class="chip escopo">frame</span>
+      </div>
+      <p>
+        O segundo defeito que você viu. Clicando de <span class="mono">/</span>
+        para <span class="mono">/incidents</span>, o item marcado com
+        <span class="mono">aria-current="page"</span> continua sendo
+        <span class="mono">dashboard</span> — e o realce visual continua junto,
+        porque é a mesma condição que pinta os dois.
+      </p>
+      <div class="field">
+        <p class="eyebrow">Causa</p>
+        <p>
+          <span class="mono">app/(shell)/layout.tsx:37</span> lê o caminho de um
+          cabeçalho de requisição: <span class="mono">(await headers()).get('x-current-path')</span>.
+          Um layout do App Router não é re-renderizado por navegação de segmento,
+          e <span class="mono">&lt;NextLink prefetch&gt;</span> faz exatamente
+          isso. O valor é capturado no primeiro documento e nunca mais muda.
+        </p>
+      </div>
+      <div class="field">
+        <p class="eyebrow">O mesmo <span class="mono">current</span> alimenta mais duas coisas</p>
+        <ul class="siteslist">
+          <li><b>shell.tsx:192</b> — para onde o sign-out devolve a pessoa</li>
+          <li><b>shell.tsx:218</b> — o botão “continuar conectado” da sessão expirando</li>
+        </ul>
+      </div>
+      <p>
+        Ambos os componentes já são <span class="mono">'use client'</span>, então
+        a correção é trocar a prop por <span class="mono">usePathname()</span> — que
+        atualiza na navegação — e conserta os três sintomas de uma vez.
+      </p>
+    </article>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>Recursos filtra por espécie, e D3 pede zona e criticidade</h3>
+        <span class="chip medio">Médio</span>
+        <span class="chip escopo">uma tela</span>
+      </div>
+      <p>
+        A única divergência real entre uma tela e o documento que a descreve. D3
+        pede a lista <em>agrupada por zona, ordenada por criticidade</em>, com
+        filtro para as duas em um clique. Nenhuma das duas dimensões aparece na
+        tela.
+      </p>
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr><th>Dimensão</th><th>O mockup desenha</th><th>A tela entrega</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Agrupamento</td><td class="wrap">linhas de seção: <span class="mono">ZONA INFRA · 25 RECURSOS</span></td><td class="wrap">nenhum — lista plana de 86</td></tr>
+            <tr><td>Criticidade</td><td class="wrap">coluna, glifo + cor: <span class="mono">▲ alta</span>, <span class="mono">■ média</span></td><td class="wrap">ausente — no lugar, <span class="mono">Kind</span></td></tr>
+            <tr><td>Sinais</td><td class="wrap">coluna: quais existem por recurso</td><td class="wrap">ausente — no lugar, <span class="mono">Utilisation</span></td></tr>
+            <tr><td>Divergência</td><td class="wrap">linha marcada em contexto</td><td class="wrap">painel separado, sobre alvos que o estate não tem</td></tr>
+            <tr><td>Filtros</td><td>zona, criticidade</td><td class="wrap">Kind, State</td></tr>
+            <tr><td>Densidade</td><td class="wrap">o frame se chama “densidade compacta”</td><td class="wrap">confortável, sem alternativa</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        As duas dimensões existem no backend — o roteador de webhooks casa regras
+        justamente sobre <span class="mono">zone</span> e
+        <span class="mono">criticality</span>. É superfície faltando, não dado
+        faltando, e por isso é médio e não alto.
+      </p>
+      <p>
+        Vale registrar o que a tela faz <em>melhor</em> que o mockup: o painel
+        “Alerts for things not here” explica um alerta cujo alvo o estate não
+        conhece, com o <span class="mono">vmid</span> e as duas leituras
+        possíveis. O mockup não tem esse painel. E a coluna
+        <span class="mono">Utilisation</span> lê “Not recorded” em quase toda
+        linha — uma coluna que não responde nada ocupa a largura que
+        <span class="mono">criticidade</span> precisaria.
+      </p>
+    </article>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>A densidade está construída e não tem interruptor</h3>
+        <span class="chip medio">Médio</span>
+        <span class="chip escopo">D1 · item 3</span>
+      </div>
+      <p>
+        <span class="mono">console/src/design/density.ts</span> está completo:
+        os dois degraus declarados, as métricas que cada um decide,
+        <span class="mono">applyDensity()</span>, o atributo
+        <span class="mono">data-density</span>, e as três variáveis CSS ligadas em
+        <span class="mono">globals.css:59–61</span>. <b>Nada chama
+        <span class="mono">applyDensity</span></b> — zero referências fora do
+        próprio módulo, e nenhum controle em
+        <span class="mono">components/</span>, <span class="mono">shell/</span> ou
+        <span class="mono">surfaces/</span>.
+      </p>
+      <p>
+        É exatamente o item 3 de D1 — “os tokens de densidade existem; falta
+        usá-los” — e a captura de Recursos mostra o custo: 86 recursos numa tabela
+        confortável, que é a “rolagem sem fim” que o documento nomeia. O trabalho
+        que falta é um controle e uma preferência guardada, não um sistema.
+      </p>
+    </article>
+
+    <article class="finding">
+      <div class="findinghead">
+        <h3>Os controles de ordenação têm 15px no celular</h3>
+        <span class="chip baixo">Baixo</span>
+        <span class="chip escopo">2 telas</span>
+      </div>
+      <p>
+        A 375px e a 768px, os links de ordenar coluna medem 15px de altura — 13
+        deles em <span class="mono">/incidents</span>, 11 em
+        <span class="mono">/runs</span>. No painel são links de estado vazio, com
+        20px.
+      </p>
+      <p>
+        Fica em baixo de propósito: D2 nomeia duas coisas que precisam funcionar
+        no celular — <em>ler uma investigação</em> e <em>aprovar ou recusar</em> —
+        e ordenar uma tabela não é nenhuma das duas. Vale corrigir quando a tabela
+        for mexida, não antes.
+      </p>
+    </article>
+  </section>
+
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">Aderência ao mockup</p>
+      <h2>Onde o desenho e o produto discordam de cor</h2>
+    </div>
+    <p class="prose">
+      <span class="mono">mockups.html</span> afirma no fecho: “nenhum token novo
+      foi inventado; as telas usam os valores que o console já declara”. Isso é
+      verdade para a metade que carrega a identidade, e não é para a outra metade.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>Papel</th><th>Mockup claro</th><th>Console claro</th><th>Mockup escuro</th><th>Console escuro</th><th>—</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">surface</td><td class="mono">#ffffff</td><td class="mono">#ffffff</td><td class="mono">#0d1117</td><td class="mono">#0d1117</td><td>igual</td></tr>
+          <tr><td class="mono">sunken</td><td class="mono">#f5f7f8</td><td class="mono">#f5f7f8</td><td class="mono">#0a0e13</td><td class="mono">#0a0e13</td><td>igual</td></tr>
+          <tr><td class="mono">text</td><td class="mono">#11161c</td><td class="mono">#11161c</td><td class="mono">#e9eef4</td><td class="mono">#e9eef4</td><td>igual</td></tr>
+          <tr><td class="mono">accent</td><td class="mono">#0f6f5c</td><td class="mono">#0f6f5c</td><td class="mono">#4fd6b0</td><td class="mono">#4fd6b0</td><td>igual</td></tr>
+          <tr><td class="mono">border</td><td class="mono">#d5dade</td><td class="mono">#d5dade</td><td class="mono">#242c36</td><td class="mono">#242c36</td><td>igual</td></tr>
+          <tr><td class="mono">raised</td><td class="mono">#ffffff</td><td class="mono">#ffffff</td><td class="mono">#131a22</td><td class="mono">#161c24</td><td>difere</td></tr>
+          <tr><td class="mono">success</td><td class="mono">#1f7a3d</td><td class="mono">#136c46</td><td class="mono">#56c96f</td><td class="mono">#5fd996</td><td>difere</td></tr>
+          <tr><td class="mono">warning</td><td class="mono">#8a5a00</td><td class="mono">#8a5a00</td><td class="mono">#e0a72b</td><td class="mono">#e8b463</td><td>difere</td></tr>
+          <tr><td class="mono">danger</td><td class="mono">#b3261e</td><td class="mono">#a11b21</td><td class="mono">#ff6b5e</td><td class="mono">#f28b8b</td><td>difere</td></tr>
+          <tr><td class="mono">info</td><td class="mono">#1b5fa8</td><td class="mono">#0a5ea8</td><td class="mono">#6cb6ff</td><td class="mono">#77b6f5</td><td>difere</td></tr>
+          <tr><td class="mono">page</td><td class="mono">#eef1f3</td><td class="wrap">não existe</td><td class="mono">#06090d</td><td class="wrap">não existe</td><td>inventado</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose">
+      <b>Onde o console ganha:</b> os fundos, o texto, o acento e as bordas batem
+      dígito por dígito — e são exatamente os que a tabela de D1 fixa. Os
+      semânticos, que D1 <em>não</em> fixa, o console derivou depois e passou pelo
+      teste de contraste nos dois temas. O mockup foi desenhado à mão antes disso.
+      <b>Não trocar os valores do console pelos do mockup</b> seria reverter uma
+      verificação por um palpite.
+    </p>
+    <p class="gate">
+      Sobra uma coisa de verdade: <span class="mono">--page</span>, um terceiro
+      fundo <em>abaixo</em> de <span class="mono">sunken</span>, para a área fora
+      dos painéis. O console usa <span class="mono">sunken</span> tanto como
+      fundo de página quanto como estado de hover — o mesmo token para duas
+      funções, o que é parte de por que o hover ficou sem folga para se
+      diferenciar.
+    </p>
+  </section>
+
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">Plano de correção</p>
+      <h2>Na ordem em que a ordem importa</h2>
+    </div>
+    <p class="prose">
+      Duas trilhas que não se cruzam. <b>A do sistema</b> — passos 1 a 4 — tem
+      ordem obrigatória: o token precisa existir antes que os sete pontos apontem
+      para ele, e o teste bidirecional de token↔utilitário reprova qualquer um dos
+      dois sozinho. <b>A da marca</b> — passos 5 e 6 — não depende de nenhum
+      deles e pode correr em paralelo, por outra pessoa.
+    </p>
+    <ol class="plan">
+      <li>
+        <div class="what">
+          <strong>Acrescentar o papel <code>hover</code> ao conjunto de tokens</strong>
+          <p>
+            Valor por tema em <span class="mono">console/src/design/tokens.ts</span>,
+            utilitário <span class="mono">bg-hover</span> em
+            <span class="mono">globals.css</span>, e o par declarado no teste de
+            contraste. No escuro, um degrau que clareia o bastante para passar de
+            <span class="mono">1,06</span>; no claro, o valor que
+            <span class="mono">sunken</span> já entrega.
+          </p>
+          <p class="why"><em>Por quê antes:</em> o teste que compara nomes nas duas direções reprova um token que nenhum utilitário alcança, e um utilitário que aponta para token inexistente. Os dois nascem juntos ou nenhum passa.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Trocar os sete <code>hover:bg-sunken</code> por <code>hover:bg-hover</code></strong>
+          <p>
+            Sidebar, linhas de tabela, botões secundário e quiet, linhas de
+            atenção, notificações e nós da árvore. É substituição direta, sem
+            decisão por ponto.
+          </p>
+          <p class="why"><em>Verificação:</em> reexecutar a medição de hover nos dois temas e exigir razão acima de <span class="mono">1,06</span> em ambos.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Ler o caminho no cliente, em <code>sidebar.tsx</code> e <code>shell.tsx</code></strong>
+          <p>
+            <span class="mono">usePathname()</span> no lugar da prop
+            <span class="mono">current</span> vinda do layout. Manter a prop como
+            entrada opcional preserva os testes unitários que injetam um caminho,
+            e o layout deixa de ser a fonte.
+          </p>
+          <p class="why"><em>Corrige três sintomas:</em> o realce da navegação, o retorno do sign-out e o botão da sessão expirando.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Um teste de navegação que clica, em vez de carregar</strong>
+          <p>
+            O defeito passou porque nada exercia a navegação de segmento: um teste
+            que abre <span class="mono">/incidents</span> direto vê o realce
+            correto. O teste precisa clicar a partir de outra rota e então exigir
+            <span class="mono">aria-current</span> no destino.
+          </p>
+          <p class="why"><em>Por quê aqui e não antes:</em> test-first para o passo 3 — ele nasce vermelho contra o código de hoje.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Levar os quatro SVGs para <code>console/public/brand/</code></strong>
+          <p>
+            Criar o diretório e mover <span class="mono">mark.svg</span>,
+            <span class="mono">mark-small.svg</span>,
+            <span class="mono">emblem.svg</span> e
+            <span class="mono">lockup.svg</span>. O build já os leva a partir dali
+            — <span class="mono">prepare-standalone.mjs:37</span> copia
+            <span class="mono">public/</span> se existir. Derivar o favicon do
+            corte pequeno como <span class="mono">app/icon.svg</span> e declarar
+            <span class="mono">icons</span> no metadata, que hoje só tem
+            <span class="mono">title</span>.
+          </p>
+          <p class="why"><em>Sem trabalho de desenho:</em> os arquivos estão prontos e em <span class="mono">currentColor</span>, então herdam o acento nos dois temas sem nenhuma regra a mais.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Trocar o monograma pelo corte pequeno, e dividir o lockup</strong>
+          <p>
+            <span class="mono">sidebar.tsx:187</span> — o slot é
+            <span class="mono">size-5</span> = <b>24px</b>, então leva
+            <span class="mono">mark-small.svg</span>, não o corte principal.
+            <span class="mono">sidebar.tsx:191</span> — <span class="mono">Ninja</span>
+            no peso do texto, <span class="mono">SRE</span> no acento.
+          </p>
+          <p class="why"><em>Um teste vale a pena:</em> que a marca não carregue literal de cor nem gradiente — a mesma disciplina que o console já aplica aos componentes, e o erro que D4 diz que a revisão procura primeiro.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Ligar a densidade a um controle</strong>
+          <p>
+            <span class="mono">applyDensity()</span> e o atributo já existem e
+            ninguém os chama. Falta o controle e a preferência guardada por
+            deployment. A tabela de 86 recursos é o caso que paga o passo.
+          </p>
+          <p class="why"><em>Antes de Recursos:</em> a tela compacta é o que o mockup desenha, e refazer a tabela primeiro em altura confortável seria refazê-la duas vezes.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Dar zona, criticidade e sinais à tela de Recursos</strong>
+          <p>
+            Agrupar por zona com contagem na linha de seção, criticidade como
+            coluna com glifo e cor, sinais no lugar de
+            <span class="mono">Utilisation</span>, e os filtros trocados. O
+            trabalho maior, e o único que precisa de decisão de produto: se a
+            espécie continua sendo filtro, são três e não dois.
+          </p>
+          <p class="why"><em>Depende de:</em> confirmar que a listagem do estate serve zona e criticidade por recurso; as regras de trânsito já casam sobre as duas.</p>
+        </div>
+      </li>
+      <li>
+        <div class="what">
+          <strong>Levar os controles de ordenação à altura mínima</strong>
+          <p>
+            Quando a tabela for mexida por outro motivo — o que o passo anterior
+            já faz. Área clicável de 24px sem mudar o degrau tipográfico.
+          </p>
+          <p class="why"><em>Sem pressa própria:</em> não está no conjunto que D2 exige do celular.</p>
+        </div>
+      </li>
+    </ol>
+    <p class="gate">
+      Passos 1 a 4 e 5 a 6 são um commit de teste e um de correção cada, e cabem
+      numa passagem do gate. Os passos 7 e 8 são features de tela e merecem as
+      suas. O passo 9 pega carona no 8.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      A bateria está em <span class="mono">console/tests/audit/</span> com
+      <span class="mono">console/playwright.audit.config.ts</span>, não versionada
+      — 22 verificações sobre a mesma base de <span class="mono">tools.console_e2e</span>
+      que o gate usa, mais um passe que renderiza os cinco frames de
+      <span class="mono">mockups.html</span> nos dois temas para comparação lado a
+      lado. Ela reporta em vez de reprovar, porque uma auditoria que para no
+      primeiro problema reporta um problema.
+    </p>
+  </footer>
+
+</div>
+
+</body></html>

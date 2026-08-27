@@ -1,0 +1,429 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #3ad195; }
+    a:hover { color: #6fe0b6; }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+  </style>
+</helmet>
+
+<div style="padding: 32px 32px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1360px; margin: 0 auto; box-sizing: border-box;">
+
+  <!-- Header -->
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+      <div style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; color: #e4ebe8;">What the dashboard pass left behind</div>
+      <div style="font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #a3b2ac;">stg-ninjasre · dark · 2498&times;1208</div>
+    </div>
+    <div style="font-size: 16px; line-height: 1.45; font-weight: 400; letter-spacing: -0.01em; color: #a3b2ac; max-width: 78ch; text-wrap: pretty;">
+      Twenty-eight defects read off the running console, grouped by the screen they sit on. The first two are one fix, and that one fix
+      is upstream of four of the others — F06, F11, F12 and F17. Everything after it is scoped.
+    </div>
+  </div>
+
+  <!-- Summary strip -->
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Structural — every screen</div>
+      <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; color: #ef7070;">2</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">A token declared and never applied</div>
+    </div>
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">The agent</div>
+      <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; color: #ef7070;">12</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Four tabs, four different rulebooks</div>
+    </div>
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Resources &amp; Knowledge</div>
+      <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; color: #e0a84e;">6</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Constant columns and a sum that is wrong</div>
+    </div>
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Missed on the dashboard pass</div>
+      <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; color: #e0a84e;">8</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Identity, arithmetic, alignment</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid #24302b; border-radius: 10px; background: #141b18;">
+    <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">Reading the chips</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Red ground</span>
+      <span style="font-size: 13px; color: #a3b2ac;">wrong, unreadable, or blocking something else — fix before shipping</span>
+    </span>
+    <span style="display: inline-flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Amber ground</span>
+      <span style="font-size: 13px; color: #a3b2ac;">drift, waste or noise — costs a reader time, not correctness</span>
+    </span>
+  </div>
+
+  <!-- SECTION: structural -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: center; gap: 12px; background: #1a2320;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: #ef7070;"></span>
+      <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em;">Structural — fix these first</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Both live in <code style="color: #3ad195;">design/tokens.ts</code>. Neither reaches a screen.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+      <!-- F01 -->
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 20px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F01</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Every screen</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+          <div style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em;">The measure cap is declared and no screen applies it</div>
+          <div style="font-size: 14px; line-height: 1.5; color: #a3b2ac; max-width: 74ch; text-wrap: pretty;">
+            <code style="color: #3ad195;">--width-page: 1360px</code> is served on <code style="color: #3ad195;">:root</code>. On <code style="color: #3ad195;">/agent</code>
+            at a 2498px viewport, <code style="color: #3ad195;">&lt;main&gt;</code> measures <strong style="color: #e4ebe8;">2247px</strong> — 887px past the cap the system wrote for itself.
+          </div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 74ch; text-wrap: pretty;">
+            Four findings below are downstream of it: <strong style="color: #e4ebe8;">F06</strong>, a name broken mid-word in a narrow column with 900px spare beside it;
+            <strong style="color: #e4ebe8;">F11</strong>, prose set at 950px per line; <strong style="color: #e4ebe8;">F12</strong>, columns that drift because nothing bounds them;
+            <strong style="color: #e4ebe8;">F17</strong>, dead columns nobody notices because there is width to waste. Cap the page and all four get smaller before anyone touches them.
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600; line-height: 1.4;">Upstream of 4</span>
+          <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Every screen</span>
+        </div>
+      </div>
+
+      <!-- F02 -->
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 20px 24px; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F02</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Every table</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+          <div style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em;">Five column-width tokens exist; the wide tables use none of them</div>
+          <div style="font-size: 14px; line-height: 1.5; color: #a3b2ac; max-width: 74ch; text-wrap: pretty;">
+            <code style="color: #3ad195;">--column-word 112</code>, <code style="color: #3ad195;">--column-badge 144</code>, <code style="color: #3ad195;">--column-identifier 144</code>,
+            <code style="color: #3ad195;">--column-instant 160</code>, <code style="color: #3ad195;">--column-measure 112</code>. Resources, Incidents and the Tools table each
+            invent their own widths instead, which is why the same “3 hours ago” sits at a different x on every screen.
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600; line-height: 1.4;">System drift</span>
+          <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Every table</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: the agent -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: center; gap: 12px; background: #1a2320;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: #ef7070;"></span>
+      <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em;">The environment &rarr; The agent</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">The worst screen in the console. Four tabs that agree on nothing.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F03</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Topology</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">A pipeline drawn as a star</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Six stages run in order — resolve, intake, plan, gather, diagnose, deliver — and the diagram fans them out from one box with no arrowheads and no left-to-right reading. Nothing on screen says which runs first.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Misleads</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F04</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Topology</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">300px of void under the graph, then every stage name printed again 300px below it</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">The panel is fixed-height with the content top-anchored. Each stage's description then repeats its label in a second typeface, far enough away that you read the name twice and connect it once.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Wastes the fold</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F05</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Topology</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Internal identifiers set at 22px as if they were headings</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;"><code style="color:#6fe0b6;">resolve_integrations</code>, <code style="color:#6fe0b6;">plan_evidence</code>, <code style="color:#6fe0b6;">gather_evidence</code> — the dashboard humanises its labels, this screen ships the enum. Same product, two vocabularies.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Raw enum</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F06</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Tools</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Capability names break mid-word</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;"><code style="color:#ef7070;">alertmanager_acknowle / dge_incident</code> and <code style="color:#ef7070;">argocd_pipeline_stati / stics</code>, on a screen with 900px of unused width to its right. A narrow column plus an aggressive break rule, on the one string a reader has to match exactly.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Unreadable</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F07</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Tools</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Two columns carry one value each</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Rows are grouped under “incident (3)”, then every row repeats <em>incident</em> in a Domain column. “Enabled here” reads Enabled on all 63 enabled rows. Two columns of noise where the 17 disabled ones should have been made findable.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Redundant</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F08</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Tools</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Seventeen filters rendered as underlined body links</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Sixteen domains plus Skills, wrapped into two prose-looking rows, carrying no selected state, above a search box whose visible label repeats the panel title word for word. Nothing marks Skills as the one that is counted apart from the 80.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">No affordance</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F09</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Tools</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Three glyph shapes for one status vocabulary</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">A warning triangle, a filled dot and a hollow ring in one column — beside <code style="color:#ef7070;">Write_reversible</code> and <code style="color:#ef7070;">Read_sensitive</code>, which are enums with the first letter capitalised: neither identifier nor sentence.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Inconsistent</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F10</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Autonomy</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">A ladder that does not look like a ladder</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">trivial, low, moderate and high render at identical size, identical weight and the same amber Propose chip, in lowercase monospace. The one thing the screen exists to communicate — escalation — is the one thing it does not draw.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Loses the point</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F11</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Autonomy</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The same sentence, four times, in grey below itself</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“…is proposed rather than run. No rule covers… so it resolves to <code style="color:#ef7070;">propose_only</code>: Diagnose and propose. Nothing runs without a person deciding it should.” Once per class, at 950px per line, restating the black paragraph directly above it and leaking the enum on the way.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Repetition</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F12</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Topology</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Two tables written as prose runs</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“What each role runs on” and “What one investigation may spend” put label, value and note inline, so the model name starts at a different x on all eight rows, and “deployment default — nobody bound this role” is printed seven times where a column heading would have said it once.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Unscannable</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F13</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Team context</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">A form with no selected state and no hierarchy</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“Sent to” offers Investigator and Subagent as two identical hollow-ring chips — nothing says which is on. The token budget is a sentence where a meter belongs. Three buttons carry three different weights, and the filled one previews rather than commits.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">State invisible</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F14</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Topology</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">An empty object shipped as a panel</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“The same topology, as the document” renders <code style="color:#ef7070;">{ "agents": {} }</code> — three lines that tell a reader nothing and cost a full panel. Directly below it sits a bare <code style="color:#6fe0b6;">&lt;details&gt;</code> with the browser's own triangle, the same unstyled disclosure that also appears on Knowledge (four of them) and on Settings.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Unfinished</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: resources + knowledge -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: center; gap: 12px; background: #1a2320;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: #e0a84e;"></span>
+      <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em;">Resources and Knowledge</span>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F15</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Resources</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The header's own arithmetic does not close</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“97 watched · 76 healthy · 0 degraded · 13 unhealthy” — the three parts total 89. Eight resources are in a state the summary has no word for, and the table shows it: <em>Unknown</em>. A reader who adds up is told the page is lying.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Wrong on screen</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F16</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Resources</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">A scrollbar inside a scrolling page</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">The 97-row table has its own fixed-height scroll region while the page scrolls behind it. The wheel does one thing over the table and another beside it, the header never sticks, and the panel below is unreachable without leaving the table first.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Traps the wheel</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F17</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Resources</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Three columns that say one word 97 times</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Zone reads <em>Unplaced</em> on every row; Criticality reads <em>Ungraded</em> on every row; Last seen reads <em>3 minutes ago</em> on every row. Three columns and roughly 600px carrying no information, on the screen that most needs to differentiate one row from another.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Dead columns</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F18</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Resources</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The sort control looks like a caption</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“Worst first” sits top-right of the panel in muted 12px with no chevron, no border and no hover — indistinguishable from “Grouped by subject, not by firing” on the dashboard, which really is a caption.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Hidden control</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F19</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Knowledge</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Four disclosures whose first word is always “Advanced:”</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">change source, knowledge access, episodic memory, strategy — the distinguishing word arrives second, after a prefix repeated four times down the left edge where the eye scans. Stack them under one heading and let the labels be the labels.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Scan cost</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F20</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Knowledge</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">An empty state that argues with its own button</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Three centred lines explain that “this console has no upload or connect-a-source control to offer”, and a filled primary button sits underneath. The paragraph is also centred over three lines, which is the hardest shape to read at any width.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Contradiction</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: double-check -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: center; gap: 12px; background: #1a2320;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: #6cb8e0;"></span>
+      <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em;">The double check</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Still standing after the dashboard pass, and cross-cutting.</span>
+    </div>
+    <div style="display: flex; flex-direction: column;">
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F21</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Dashboard · Incidents</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">A 32-character hash where the subject's identity belongs</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Four rows of “What keeps happening” carry the same subtitle, <code style="color:#ef7070;">res-7a73b8aa1194c1ed14dd87f7e0e80b81</code>. One row on Incidents proves the humane version exists — <em>adguard-primary · blackbox-dns-adguard · HAL9000</em> — so the hash is a fallback that has become the default.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Identity lost</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F22</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Dashboard · Incidents</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The loudest chip on the page marks things that are over</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Every visible row reads Critical + Resolved. The red block is what the eye lands on; the fact that matters — resolved — is a soft green dot beside it. Fifteen rows of alarm about an estate in which nothing is currently wrong.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Weight inverted</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F23</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Dashboard</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The stat row has no shared baseline</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">“Degraded and unhealthy” carries four lines of caption and grows 60px taller than the three cards beside it, so the row's bottom edge steps. Equal-height cells with the caption clamped would hold the line.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Ragged row</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F24</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Dashboard</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">“0 of 0 detectors live”, said twice</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">The guardian strip says it, and the red stat's caption says “0 of 0 detectors are switched on to raise one of them into an incident”. Zero of zero is not a ratio; it is a deployment that has not been configured, and it deserves one sentence and a link, not a fraction repeated in two registers.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Says nothing</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F25</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Settings · The agent</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Both spellings of organisation in one viewport</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">The Settings subnav and breadcrumb say <em>Organization</em>; the Grants rows 300px below say <em>Whole organisation</em>, and so does the Organisation card on Team context. The console has not decided which English it writes.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Copy drift</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F26</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Settings</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The destructive actions are the smallest targets on the page</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Remove and Revoke are underlined red text roughly 50&times;16px, hard against the right edge, with no confirmation implied by their shape. Meanwhile “Grant this role” — the reversible one — is a filled button.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a1616; color: #ef7070; font-size: 12px; font-weight: 600;">Target &amp; risk</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; border-bottom: 1px solid #24302b; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F27</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Integrations</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">One object, two renderings, one screen</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">Connected integrations are single-line rows ending in a text link; available ones are cards with wrapped descriptions and no action at all; suggested ones are rows inside an accent box with a filled button. Three treatments of an integration, stacked.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">Three of a kind</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 56px 116px minmax(0, 1fr) 176px; gap: 20px; padding: 14px 24px; align-items: start;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac; padding-top: 2px;">F28</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 3px;">Cross-cutting</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">The page header has no fixed anatomy</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 76ch; text-wrap: pretty;">The agent has a breadcrumb ending in the raw node id <em>default</em>; Resources has a right-aligned summary; Knowledge has neither; Integrations has an h1 and then a section heading with the same word 60px below it. Four screens, four headers.</div>
+        </div>
+        <div><span style="display: inline-flex; padding: 3px 10px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;">No anatomy</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; padding-top: 4px;">
+    Read on stg-ninjasre in the dark theme at 2498&times;1208 and 1280&times;773. Where a finding bundles more than one defect — F08, F09, F13, F14 — the count treats it as one; the total is a way to navigate the list, not a measurement.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

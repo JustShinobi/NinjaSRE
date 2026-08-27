@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #3ad195; text-decoration: none; }
+    a:hover { color: #e4ebe8; }
+    .panel {
+      background: #1a2320;
+      border: 1px solid #24302b;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .panel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #24302b; }
+    .h-strong { font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .meta { font-size: 12px; line-height: 1.45; color: #a3b2ac; }
+    .micro { font-size: 12px; line-height: 1.4; font-weight: 600; color: #a3b2ac; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .mark { width: 13px; height: 13px; border-radius: 999px; flex: none; }
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; }
+    .station {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 16px; border-radius: 10px;
+      background: #1a2320; border: 1px solid #24302b;
+    }
+    .hop { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; padding-top: 32px; }
+  </style>
+</helmet>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px">
+
+  <div>
+    <h1 style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; margin: 0">
+      Two menus, one loop
+    </h1>
+    <p style="margin: 8px 0 0; color: #a3b2ac; font-size: 14px; max-width: 860px">
+      Overview and Investigations are the same story at two zoom levels, and today the story breaks three times between them.
+      Every hand-off below already has the data behind it &mdash; what is missing is that each screen ends where the next one begins.
+    </p>
+  </div>
+
+  <!-- The loop, as four stations. -->
+  <div style="display: flex; align-items: stretch; gap: 0">
+
+    <div class="station" style="flex-grow: 1; border-color: #3ad195">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span class="mark" style="background: #3ad195"></span>
+        <span class="h-strong">Overview</span>
+      </div>
+      <span class="meta">What needs a person, what is running, and how the estate is.</span>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px">
+        <span style="font-size: 13px">&middot; one line per run in flight</span>
+        <span style="font-size: 13px">&middot; what keeps repeating</span>
+        <span style="font-size: 13px">&middot; what is waiting on you</span>
+      </div>
+    </div>
+
+    <div class="hop">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ad195" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      <span class="meta" style="text-align: center">a subject,<br>already filtered</span>
+    </div>
+
+    <div class="station" style="flex-grow: 1; border-color: #3ad195">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span class="mark" style="background: #3ad195"></span>
+        <span class="h-strong">Investigations</span>
+      </div>
+      <span class="meta">Every run, newest first &mdash; and the one you came for, open where it sits.</span>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px">
+        <span style="font-size: 13px">&middot; the report, in place</span>
+        <span style="font-size: 13px">&middot; what it did, by stage</span>
+        <span style="font-size: 13px">&middot; what to do about it</span>
+      </div>
+    </div>
+
+    <div class="hop">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ad195" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      <span class="meta" style="text-align: center">a proposal,<br>an episode</span>
+    </div>
+
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px">
+      <div class="station" style="flex-grow: 1">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span class="mark" style="border: 1.5px solid #e0a84e; background: transparent"></span>
+          <span class="h-strong">Decisions</span>
+        </div>
+        <span class="meta">The action it wanted and could not take, with its blast radius and its rollback.</span>
+      </div>
+      <div class="station" style="flex-grow: 1">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span class="mark" style="background: #6cb8e0"></span>
+          <span class="h-strong">Knowledge</span>
+        </div>
+        <span class="meta">The episode, and the strategy once enough episodes agree.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- The return leg, drawn as its own band because it is the one nobody built. -->
+  <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #12271f; border: 1px solid #3ad195; border-radius: 10px">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ad195" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>
+    <span style="flex-grow: 1; font-size: 14px">
+      Back to Overview: the eighth firing of a subject the corpus already has a strategy for should not read like the first.
+      That return leg is what turns two screens into a loop.
+    </span>
+  </div>
+
+  <!-- Where it breaks today, stated plainly. -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3 class="h-strong">Where the loop breaks today</h3>
+      <span class="meta" style="margin-left: auto">All three seen on staging this morning</span>
+    </div>
+    <div>
+
+      <div style="display: flex; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #ef7070; margin-top: 4px"></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 14px; font-weight: 600">Overview never shows a run in flight</span>
+          <span class="meta">
+            It says <em>&ldquo;Nothing is being investigated right now&rdquo;</em> whether or not that is true, because the only
+            thing it counts is <span class="mono">Runs in flight: 0</span>. Fifty runs happened and none of them was ever visible while it ran.
+          </span>
+        </div>
+        <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b; flex: none; align-self: flex-start">Overview &rarr; Investigations</span>
+      </div>
+
+      <div style="display: flex; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #ef7070; margin-top: 4px"></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 14px; font-weight: 600">Opening a run throws the list away</span>
+          <span class="meta">
+            Every row navigates to its own page, so comparing two runs of the same subject means going back and forth and losing
+            your place each time. Expanding in place keeps the eight firings on screen while you read one of them.
+          </span>
+        </div>
+        <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b; flex: none; align-self: flex-start">inside Investigations</span>
+      </div>
+
+      <div style="display: flex; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #ef7070; margin-top: 4px"></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 14px; font-weight: 600">A finished run leaves nothing behind</span>
+          <span class="meta">
+            Knowledge reads <em>&ldquo;No episodes yet&rdquo;</em> beside fifty finished investigations, so nothing feeds back and the
+            ninth identical alert costs exactly what the first did.
+          </span>
+        </div>
+        <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b; flex: none; align-self: flex-start">Investigations &rarr; Overview</span>
+      </div>
+
+      <div style="display: flex; gap: 16px; padding: 12px 16px">
+        <span class="mark" style="border: 1.5px solid #e0a84e; background: transparent; margin-top: 4px"></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 14px; font-weight: 600">The report is printed twice</span>
+          <span class="meta">
+            &ldquo;Technical detail&rdquo; holds the Markdown source of the report rendered directly above it &mdash; the same words, once
+            as prose and once as <span class="mono">### headings</span>. One <strong style="color: #e4ebe8">Copy as Markdown</strong> button
+            does that job and gives the panel its height back.
+          </span>
+        </div>
+        <span class="chip" style="background: #2a2214; color: #e0a84e; flex: none; align-self: flex-start">inside a run</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

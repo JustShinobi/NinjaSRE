@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --surface: #ffffff; --sunken: #f2f5f4; --raised: #ffffff; --hover: #e9eeec;
+      --text: #1a2420; --muted: #4c5a55;
+      --accent: #0a7452; --on-accent: #ffffff; --accent-bg: #e2f2ec;
+      --border: #d8e0dd; --border-strong: #6d7c76;
+      --success: #0a7452; --success-bg: #e2f2ec;
+      --warning: #8a5a12; --warning-bg: #f7efdd;
+      --danger: #a51f1f; --on-danger: #ffffff; --danger-bg: #f9e9e9;
+      --info: #0a5f8f; --info-bg: #e4eff5;
+      --neutral: #4c5a55; --neutral-bg: #f2f5f4;
+      --shadow-1: 0 1px 2px rgba(17, 22, 28, 0.06);
+      --row: 12px;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    .dk {
+      --surface: #141b18; --sunken: #0d1311; --raised: #1a2320; --hover: #222d29;
+      --text: #e4ebe8; --muted: #a3b2ac;
+      --accent: #3ad195; --on-accent: #062018; --accent-bg: #12271f;
+      --border: #24302b; --border-strong: #8b9a94;
+      --success: #3ad195; --success-bg: #12271f;
+      --warning: #e0a84e; --warning-bg: #2a2214;
+      --danger: #ef7070; --on-danger: #2a0d0d; --danger-bg: #2a1616;
+      --info: #6cb8e0; --info-bg: #12242c;
+      --neutral: #a3b2ac; --neutral-bg: #0d1311;
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .cmp { --row: 8px; }
+    body { margin: 0; font-family: var(--sans); }
+    a { color: var(--accent); text-decoration: none; } a:hover { color: var(--accent); }
+    * { box-sizing: border-box; }
+
+    .app { width: 1440px; height: 900px; background: var(--sunken); color: var(--text); font-size: 14px; line-height: 1.5; padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+
+    .pagehead { display: flex; align-items: flex-start; gap: 12px; }
+    .headwell { width: 30px; height: 30px; border-radius: 6px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 4px; }
+    h1 { margin: 0; font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; }
+    .sub { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
+    .live { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .livechip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent); font-size: 12px; font-weight: 550; }
+    .pulse { width: 7px; height: 7px; border-radius: 999px; background: currentColor; position: relative; }
+    .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 999px; background: currentColor; animation: ring 1.8s ease-out infinite; }
+    @keyframes ring { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(3.2); opacity: 0; } }
+    .since { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* filters as chips carrying the address, not selects */
+    .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit; transition: background-color 120ms ease-out, border-color 120ms ease-out; }
+    .chip { position: relative; }
+    .chip::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
+    .chip:hover { background: var(--hover); }
+    .chip.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+    .chip .n { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+    .chip.on .n { color: var(--accent); }
+    .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .grouptoggle { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .grouptoggle button { height: 28px; padding: 0 12px; font-size: 12px; font-weight: 600; border: 0; background: var(--surface); color: var(--muted); cursor: pointer; font-family: inherit; transition: background-color 120ms ease-out; }
+    .grouptoggle button.on { background: var(--accent-bg); color: var(--accent); }
+    .grouptoggle button { position: relative; }
+    .grouptoggle button::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
+
+    .card { background: var(--raised); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; min-height: 0; flex: 1; }
+    .cardhead { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .cardtitle { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .count { font-size: 12px; font-weight: 550; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .cardnote { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+    .cols { display: grid; grid-template-columns: 20px minmax(0, 1fr) 144px 112px 160px 148px; align-items: center; gap: 16px; padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 550; color: var(--muted); }
+    .colnum { text-align: right; }
+    .grouprow { border-bottom: 1px solid var(--border); }
+    .grouptop { display: grid; grid-template-columns: 20px minmax(0, 1fr) 144px 112px 160px 148px; align-items: center; gap: 16px; padding: var(--row) 16px; cursor: pointer; transition: background-color 120ms ease-out; }
+    .grouptop:hover { background: var(--hover); }
+    .grouptop { border: 0; width: 100%; text-align: left; font-family: inherit; color: inherit; background: transparent; }
+    .chev { color: var(--muted); transition: transform 120ms ease-out; }
+    .chev.open { transform: rotate(90deg); }
+    .gtitle { display: block; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsub { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .num { font-variant-numeric: tabular-nums; text-align: right; font-size: 13px; }
+    .num b { font-size: 15px; font-weight: 650; }
+    .when { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+    .spark { text-align: right; color: var(--muted); font-size: 13px; letter-spacing: 1px; }
+
+    .occ { padding: 2px 16px 12px 52px; background: var(--sunken); }
+    .occrow { display: grid; grid-template-columns: 144px minmax(0, 1fr) 144px 160px 112px; gap: 16px; align-items: center; padding: 7px 0; font-size: 13px; border-top: 1px solid var(--border); }
+    .occrow:first-child { border-top: 0; }
+    .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; font-weight: 400; white-space: nowrap; text-transform: capitalize; }
+    .b-danger { background: var(--danger-bg); color: var(--danger); }
+    .b-warning { background: var(--warning-bg); color: var(--warning); }
+    .b-info { background: var(--info-bg); color: var(--info); }
+    .b-success { background: var(--success-bg); color: var(--success); }
+    .b-neutral { background: var(--neutral-bg); color: var(--neutral); border: 1px solid var(--border); padding: 1px 7px; }
+    /* dark's neutral-bg is the page ground, so the pill would punch a hole in the card */
+    .dk .b-neutral { background: var(--hover); }
+    .shape { width: 8px; height: 8px; flex-shrink: 0; border: 1px solid currentColor; background: currentColor; }
+    .s-square { border-radius: 0; } .s-rot { transform: rotate(45deg); } .s-dot { border-radius: 999px; }
+    .s-tri { clip-path: polygon(50% 0, 100% 100%, 0 100%); border: 0; }
+    .s-hollow { border-radius: 999px; background: transparent; border-width: 1.5px; }
+
+    .foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    svg { display: block; }
+  </style>
+</helmet>
+
+<div class="app {{themeClass}} {{densityClass}}">
+  <div class="pagehead">
+    <span class="headwell">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
+    </span>
+    <div>
+      <h1>Incidents</h1>
+      <p class="sub">What a detector opened, and what happened to it since.</p>
+    </div>
+    <div class="live">
+      <span class="livechip"><span class="pulse"></span>Live</span>
+      <span class="since">5 open · streaming</span>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="chip on" type="button">Open <span class="n">5</span></button>
+    <button class="chip" type="button">Resolved <span class="n">45</span></button>
+    <button class="chip" type="button">All <span class="n">50</span></button>
+    <span class="divider"></span>
+    <button class="chip" type="button"><span class="shape s-square" style="color: var(--danger)"></span>Critical <span class="n">50</span></button>
+    <span class="divider"></span>
+    <button class="chip" type="button">Detector: alertmanager <span class="n">50</span></button>
+    <div class="grouptoggle">
+      <button class="on" type="button">Grouped</button>
+      <button type="button">Flat</button>
+    </div>
+  </div>
+
+  <section class="card">
+    <header class="cardhead">
+      <span class="cardtitle">Incidents</span>
+      <span class="count">7 subjects · 50 firings · 12 hours</span>
+      <span class="cardnote">newest firing first · a subject with anything open sorts above one without</span>
+    </header>
+
+    <div class="cols">
+      <span></span>
+      <span>Subject</span>
+      <span>State</span>
+      <span class="colnum">Firings</span>
+      <span class="colnum">Last</span>
+      <span class="colnum">Over 12 hours</span>
+    </div>
+
+    <div style="overflow: hidden">
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="7">
+        <div class="grouprow">
+          <button type="button" class="grouptop" aria-expanded="{{g.open}}" onClick="{{g.toggle}}">
+            <span class="chev {{g.openClass}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg></span>
+            <span style="min-width: 0">
+              <span class="gtitle">{{g.title}}</span>
+              <span class="gsub">{{g.severity}} · {{g.subject}}</span>
+            </span>
+            <span><span class="badge {{g.stateClass}}"><span class="shape {{g.stateShape}}"></span>{{g.state}}</span></span>
+            <span class="num"><b>{{g.count}}</b></span>
+            <span class="when">{{g.when}}</span>
+            <span class="spark">{{g.spark}}</span>
+          </button>
+          <sc-if value="{{g.open}}" hint-placeholder-val="{{false}}">
+            <div class="occ">
+              <sc-for list="{{g.occurrences}}" as="o" hint-placeholder-count="3">
+                <div class="occrow">
+                  <span class="mono">{{o.id}}</span>
+                  <span class="trunc">{{o.summary}}</span>
+                  <span><span class="badge {{o.class}}"><span class="shape {{o.shape}}"></span>{{o.status}}</span></span>
+                  <span class="when">{{o.when}}</span>
+                  <span class="when">{{o.took}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="foot">
+      Seven subjects account for all fifty firings. Every one of them was investigated; five are still open.
+      <span style="margin-left: auto">Switch to <b>Flat</b> to see the fifty rows this replaces.</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "dark": {"editor": "boolean", "default": false},
+  "density": {"editor": "enum", "options": ["comfortable", "compact"], "default": "comfortable"},
+  "$preview": {"width": 1440, "height": 900}
+}'>
+const SEVERITY = 'Critical';
+
+const GROUPS = [
+  { title: 'ProxmoxGuestStopped', subject: 'lxc/122, lxc/152, lxc/159 on pve02', count: 9, when: '11 minutes ago', state: 'investigating', spark: '▁▂▁▁▃▁▁▂▅' },
+  { title: 'RedisExporterDown', subject: 'redis-exporter on lxc/122', count: 9, when: '11 minutes ago', state: 'investigating', spark: '▁▁▂▁▁▃▁▂▅' },
+  { title: 'InstanceDown', subject: '4 blackbox targets on 10.20.20.0/24', count: 8, when: '11 minutes ago', state: 'investigating', spark: '▂▁▁▂▁▁▃▁▄' },
+  { title: 'GatusEndpointHealthcheckFailed', subject: 'Redis TCP endpoint', count: 8, when: '12 minutes ago', state: 'investigating', spark: '▁▂▁▁▁▃▂▁▄' },
+  { title: 'DatabaseTcpProbeFailed', subject: 'postgres on 10.20.20.52', count: 8, when: '12 minutes ago', state: 'investigating', spark: '▁▁▃▁▂▁▁▂▄' },
+  { title: 'CronJobStale', subject: 'backup-mydrive-sync on pve01', count: 5, when: '2 hours ago', state: 'resolved', spark: '▂▁▁▃▁▁▁▁▁' },
+  { title: 'RestoreDrillStale', subject: 'restore drill on pve01', count: 3, when: '7 hours ago', state: 'resolved', spark: '▁▃▁▁▁▁▁▁▁' },
+];
+
+const OCCURRENCES = {
+  RedisExporterDown: [
+    { id: '#a7fa969b', summary: 'The exporter went with the container it runs beside; not a fault of its own', status: 'completed', class: 'b-success', shape: 's-dot', when: '11 minutes ago', took: '40s' },
+    { id: '#bd1b489d', summary: 'Scrape target unreachable for as long as lxc/122 was stopped', status: 'completed', class: 'b-success', shape: 's-dot', when: '1 hour ago', took: '46s' },
+  ],
+  CronJobStale: [
+    { id: '#cb24f344', summary: 'backup-mydrive-sync exited 2 and exceeded its execution window', status: 'completed', class: 'b-success', shape: 's-dot', when: '2 hours ago', took: '18s' },
+    { id: '#0d033577', summary: 'pve01 baseline backup job is disabled, preventing scheduled vzdump', status: 'completed', class: 'b-success', shape: 's-dot', when: '3 hours ago', took: '24s' },
+  ],
+  ProxmoxGuestStopped: [
+    { id: '#8a461a4e', summary: 'Guest lxc/122 was deliberately shut down by root@pam; no host fault', status: 'completed', class: 'b-success', shape: 's-dot', when: '11 minutes ago', took: '33s' },
+    { id: '#b1fcc34f', summary: 'Guest lxc/159 stopped via vzstop on pve02; operator action', status: 'completed', class: 'b-success', shape: 's-dot', when: '1 hour ago', took: '1m 4s' },
+    { id: '#e29ba701', summary: 'Guest lxc/152 stopped and unable to start: insufficient free host memory', status: 'completed', class: 'b-success', shape: 's-dot', when: '6 hours ago', took: '1m 3s' },
+  ],
+};
+
+const SKIN = {
+  investigating: { cls: 'b-info', shape: 's-rot' },
+  resolved: { cls: 'b-success', shape: 's-dot' },
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 'ProxmoxGuestStopped' };
+  }
+
+  renderVals() {
+    const open = this.state.open;
+    return {
+      themeClass: this.props.dark === true ? 'dk' : '',
+      densityClass: this.props.density === 'compact' ? 'cmp' : '',
+      groups: GROUPS.map((g) => ({
+        ...g,
+        stateClass: SKIN[g.state].cls,
+        stateShape: SKIN[g.state].shape,
+        open: open === g.title,
+        openClass: open === g.title ? 'open' : '',
+        severity: SEVERITY,
+        occurrences: OCCURRENCES[g.title] ?? [
+          { id: '—', summary: String(g.count) + ' firings on this subject, every one investigated', status: g.state, class: SKIN[g.state].cls, shape: SKIN[g.state].shape, when: g.when, took: '' },
+        ],
+        toggle: () => {
+          this.setState((s) => ({ open: s.open === g.title ? '' : g.title }));
+        },
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

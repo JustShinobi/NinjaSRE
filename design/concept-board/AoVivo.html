@@ -1,0 +1,239 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #3ad195; text-decoration: none; }
+    a:hover { color: #e4ebe8; }
+    .panel {
+      background: #1a2320;
+      border: 1px solid #24302b;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #24302b;
+    }
+    .h-strong { font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .meta { font-size: 12px; line-height: 1.45; color: #a3b2ac; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .mark { width: 13px; height: 13px; border-radius: 999px; flex: none; }
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #24302b;
+      background: #141b18;
+      color: #e4ebe8;
+    }
+  </style>
+</helmet>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px">
+
+  <div style="display: flex; align-items: flex-start; gap: 16px">
+    <div style="flex-grow: 1">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span class="mark" style="background: #3ad195"></span>
+        <span class="meta" style="color: #3ad195; font-weight: 600">Running</span>
+        <span class="meta">&middot; iteration 4 of 20 &middot; 41s elapsed</span>
+      </div>
+      <h1 style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; margin: 8px 0 0">
+        DatabaseTcpProbeFailed on <span class="mono" style="font-size: 22px">10.20.20.52:6379</span>
+      </h1>
+      <p style="margin: 4px 0 0; color: #a3b2ac; font-size: 14px">
+        Alert &middot; alertmanager &middot; investigation <span class="mono" style="color: #e4ebe8">#4f9c11a3</span>
+      </p>
+    </div>
+    <div style="display: flex; gap: 8px; flex: none">
+      <button class="btn">Follow along</button>
+      <button class="btn" style="background: #2a1616; border-color: #ef7070; color: #ef7070">Stop this run</button>
+    </div>
+  </div>
+
+  <!-- The stage rail, vertical, with what each stage consulted. -->
+  <div style="display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px">
+
+    <div class="panel" style="align-self: start">
+      <div class="panel-head"><h3 class="h-strong">Where it is</h3></div>
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+
+        <div style="display: flex; gap: 12px; align-items: flex-start">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600">Resolve integrations</div>
+            <div class="meta">15 capabilities available &middot; 0.2s</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600">Intake</div>
+            <div class="meta">new incident, not a duplicate &middot; 1.4s</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600">Plan evidence</div>
+            <div class="meta">shortlisted 6 of 15 capabilities &middot; 0.1s</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start; padding: 12px; margin: 0 -12px; background: #12271f; border-radius: 6px">
+          <span class="mark" style="border: 1.5px solid #3ad195; background: transparent; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600; color: #3ad195">Gather evidence</div>
+            <div class="meta">6 calls made, 1 denied &middot; 38s so far</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start; opacity: 0.5">
+          <span class="mark" style="background: #a3b2ac; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600">Diagnose</div>
+            <div class="meta">waiting for the loop to settle</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start; opacity: 0.5">
+          <span class="mark" style="background: #a3b2ac; margin-top: 4px"></span>
+          <div style="flex-grow: 1">
+            <div style="font-size: 14px; font-weight: 600">Deliver</div>
+            <div class="meta">2 destinations configured</div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #24302b; padding-top: 12px; display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; justify-content: space-between"><span class="meta">Tokens</span><span class="meta mono" style="color: #e4ebe8">8,204</span></div>
+          <div style="display: flex; justify-content: space-between"><span class="meta">Tool budget</span><span class="meta mono" style="color: #e4ebe8">6 of 8</span></div>
+          <div style="display: flex; justify-content: space-between"><span class="meta">Model</span><span class="meta mono" style="color: #e4ebe8">gemini-flash-latest</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 24px">
+
+      <!-- Specialists dispatched in parallel: the topology already declares the fan-out. -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3 class="h-strong">Working in parallel</h3>
+          <span class="meta" style="margin-left: auto">4 specialists is this team's ceiling</span>
+        </div>
+        <div style="padding: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+
+          <div style="padding: 12px; background: #0d1311; border: 1px solid #3ad195; border-radius: 6px; display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span class="mark" style="border: 1.5px solid #3ad195; background: transparent"></span>
+              <span style="font-size: 14px; font-weight: 600">Proxmox</span>
+            </div>
+            <div class="meta">Reading guest tasks on pve01. Found a <span class="mono" style="color: #e4ebe8">vzshutdown</span> initiated by a person.</div>
+            <div class="meta mono" style="color: #6cb8e0">3 calls &middot; 24s</div>
+          </div>
+
+          <div style="padding: 12px; background: #0d1311; border: 1px solid #3ad195; border-radius: 6px; display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span class="mark" style="border: 1.5px solid #3ad195; background: transparent"></span>
+              <span style="font-size: 14px; font-weight: 600">Topology</span>
+            </div>
+            <div class="meta">Mapping what sits behind <span class="mono" style="color: #e4ebe8">10.20.20.52</span>. Two alerts share the target.</div>
+            <div class="meta mono" style="color: #6cb8e0">2 calls &middot; 18s</div>
+          </div>
+
+          <div style="padding: 12px; background: #0d1311; border: 1px solid #2a1616; border-radius: 6px; display: flex; flex-direction: column; gap: 8px; opacity: 0.85">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span class="mark" style="background: #ef7070"></span>
+              <span style="font-size: 14px; font-weight: 600">Logs</span>
+            </div>
+            <div class="meta" style="color: #ef7070">No log source configured, so nothing was read. An absence from a system nobody pointed at is not evidence.</div>
+            <div class="meta mono" style="color: #a3b2ac">stopped &middot; 0.4s</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- The trace as it arrives, collapsed to one line each. -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3 class="h-strong">What it is asking</h3>
+          <span class="meta" style="margin-left: auto">Newest last &middot; the full transcript is kept either way</span>
+        </div>
+        <div style="padding: 0">
+
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+            <span class="mark" style="background: #3ad195"></span>
+            <span class="mono" style="font-size: 13px; flex-grow: 1">proxmox_quorum_status</span>
+            <span class="meta">cluster HAL9000 is quorate</span>
+            <span class="meta mono" style="flex: none; width: 64px; text-align: right">1.2s</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+            <span class="mark" style="background: #3ad195"></span>
+            <span class="mono" style="font-size: 13px; flex-grow: 1">query_service_topology</span>
+            <span class="meta">10.20.20.52 maps to lxc/122 on pve01</span>
+            <span class="meta mono" style="flex: none; width: 64px; text-align: right">2.9s</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #24302b; background: #2a1616">
+            <span class="mark" style="background: #ef7070"></span>
+            <span class="mono" style="font-size: 13px; flex-grow: 1">logs_for_resource</span>
+            <span class="meta" style="color: #ef7070">Failed &mdash; no log source configured</span>
+            <span class="meta mono" style="flex: none; width: 64px; text-align: right">0.4s</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+            <span class="mark" style="background: #3ad195"></span>
+            <span class="mono" style="font-size: 13px; flex-grow: 1">proxmox_guest_tasks</span>
+            <span class="meta">vzshutdown by root@pam, 06:02</span>
+            <span class="meta mono" style="flex: none; width: 64px; text-align: right">3.4s</span>
+          </div>
+
+          <!-- The one row that is a person's problem, not the agent's. -->
+          <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: #2a2214">
+            <span class="mark" style="border: 1.5px solid #e0a84e; background: transparent; margin-top: 4px"></span>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+              <span class="mono" style="font-size: 13px">proxmox_start_guest</span>
+              <span class="meta" style="color: #e0a84e">
+                Waiting on a person. The rule covers this at <span class="mono">write_reversible</span>, so it resolves to propose and proposes.
+                The run carries on without it.
+              </span>
+            </div>
+            <a href="#" style="flex: none; font-size: 13px">Decide &rarr;</a>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

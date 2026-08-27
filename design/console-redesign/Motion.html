@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --surface: #ffffff; --sunken: #f2f5f4; --raised: #ffffff; --hover: #e9eeec;
+      --text: #1a2420; --muted: #4c5a55;
+      --accent: #0a7452; --on-accent: #ffffff; --accent-bg: #e2f2ec;
+      --border: #d8e0dd; --border-strong: #6d7c76;
+      --success: #0a7452; --success-bg: #e2f2ec;
+      --warning: #8a5a12; --warning-bg: #f7efdd;
+      --danger: #a51f1f; --on-danger: #ffffff; --danger-bg: #f9e9e9;
+      --info: #0a5f8f; --info-bg: #e4eff5;
+      --neutral: #4c5a55; --neutral-bg: #f2f5f4;
+      --shadow-1: 0 1px 2px rgba(17, 22, 28, 0.06);
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    .dk {
+      --surface: #141b18; --sunken: #0d1311; --raised: #1a2320; --hover: #222d29;
+      --text: #e4ebe8; --muted: #a3b2ac;
+      --accent: #3ad195; --on-accent: #062018; --accent-bg: #12271f;
+      --border: #24302b; --border-strong: #8b9a94;
+      --success: #3ad195; --success-bg: #12271f;
+      --warning: #e0a84e; --warning-bg: #2a2214;
+      --danger: #ef7070; --on-danger: #2a0d0d; --danger-bg: #2a1616;
+      --info: #6cb8e0; --info-bg: #12242c;
+      --neutral: #a3b2ac; --neutral-bg: #0d1311;
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    body { margin: 0; font-family: var(--sans); }
+    a { color: var(--accent); text-decoration: none; } a:hover { color: var(--accent); }
+    * { box-sizing: border-box; }
+
+    .wrap { width: 1060px; background: var(--sunken); color: var(--text); font-size: 14px; line-height: 1.5; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+    .head h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; }
+    .head p { margin: 4px 0 0; font-size: 14px; color: var(--muted); max-width: 700px; }
+
+    .frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-1); display: flex; height: 430px; }
+    .nav { width: 176px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
+    .navhead { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 8px 8px; }
+    .navitem { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; border: 0; background: transparent; width: 100%; text-align: left; font-family: inherit; transition: background-color 120ms ease-out, color 120ms ease-out; }
+    .navitem:hover { background: var(--hover); }
+    .navitem.on { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+    .navspin { margin-left: auto; width: 10px; height: 10px; border-radius: 999px; border: 1.5px solid currentColor; border-top-color: transparent; animation: spin 700ms linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .bar { height: 44px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 0 14px; flex-shrink: 0; }
+    .crumb { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+    .livechip { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent); font-size: 12px; font-weight: 550; }
+    .pulse { width: 6px; height: 6px; border-radius: 999px; background: currentColor; position: relative; }
+    .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 999px; background: currentColor; animation: ring 1.8s ease-out infinite; }
+    @keyframes ring { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(3.2); opacity: 0; } }
+
+    .region { flex: 1; min-height: 0; padding: 14px; overflow: hidden; }
+    .fadein { animation: fadein 200ms ease-out; }
+    @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    .row { display: grid; grid-template-columns: 1fr 132px 96px; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .row:last-child { border-bottom: 0; }
+    .rowtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .when { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+    .arrive { animation: arrive 400ms ease-out; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(-8px); background: var(--accent-bg); } to { opacity: 1; transform: none; background: transparent; } }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; font-weight: 400; white-space: nowrap; text-transform: capitalize; }
+    .b-danger { background: var(--danger-bg); color: var(--danger); }
+    .b-warning { background: var(--warning-bg); color: var(--warning); }
+    .b-info { background: var(--info-bg); color: var(--info); }
+    .b-success { background: var(--success-bg); color: var(--success); }
+    .b-neutral { background: var(--neutral-bg); color: var(--neutral); border: 1px solid var(--border); padding: 1px 7px; }
+    /* dark's neutral-bg is the page ground, so the pill would punch a hole in the card */
+    .dk .b-neutral { background: var(--hover); }
+    .shape { width: 8px; height: 8px; flex-shrink: 0; border: 1px solid currentColor; background: currentColor; }
+    .s-square { border-radius: 0; } .s-rot { transform: rotate(45deg); } .s-dot { border-radius: 999px; }
+    .s-tri { clip-path: polygon(50% 0, 100% 100%, 0 100%); border: 0; }
+    .s-hollow { border-radius: 999px; background: transparent; border-width: 1.5px; }
+
+    .sk { height: 13px; border-radius: 4px; background: var(--neutral-bg); border: 1px solid var(--border); }
+    .skrow { display: grid; grid-template-columns: 1fr 132px 96px; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .shimmer { position: relative; overflow: hidden; }
+    .shimmer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--hover), transparent); animation: sweep 1.1s ease-in-out infinite; }
+    @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+    .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .btn { height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-family: inherit; transition: background-color 120ms ease-out; }
+    .btn { position: relative; }
+    .btn::before { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
+    .btn:hover { background: var(--hover); }
+    .btn-accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .btn-accent:hover { background: var(--accent); opacity: 0.9; }
+    .hint { font-size: 12px; color: var(--muted); }
+
+    .legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .lg { background: var(--raised); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .lgt { font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
+    .lgb { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .old { border-color: var(--danger); }
+    .old .lgt { color: var(--danger); }
+    .whiteout { animation: whiteout 700ms ease-out; }
+    @keyframes whiteout { 0% { opacity: 1; } 12% { opacity: 0; } 30% { opacity: 0; } 100% { opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    svg { display: block; }
+  </style>
+</helmet>
+
+<div class="wrap {{themeClass}}">
+  <div class="head">
+    <h1>Navigation and live updates</h1>
+    <p>Click through the areas on the left. The shell never repaints, the pressed item takes its state before the server answers, and rows arrive on their own — press <b>Push an event</b> or wait. <b>Reload the old way</b> is what the console does today, for comparison.</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-accent" type="button" onClick="{{pushEvent}}">Push an event</button>
+    <button class="btn" type="button" onClick="{{oldWay}}">Reload the old way</button>
+    <span class="hint">{{hint}}</span>
+  </div>
+
+  <div class="frame {{whiteoutClass}}">
+    <nav class="nav">
+      <div class="navhead">Now</div>
+      <sc-for list="{{areas}}" as="a" hint-placeholder-count="4">
+        <button class="navitem {{a.onClass}}" type="button" onClick="{{a.go}}">
+          {{a.label}}
+          <sc-if value="{{a.pending}}" hint-placeholder-val="{{false}}">
+            <span class="navspin"></span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div class="body">
+      <div class="bar">
+        <span class="crumb">{{view.title}}</span>
+        <span class="livechip"><span class="pulse"></span>Live</span>
+      </div>
+      <div class="region">
+        <sc-if value="{{view.loading}}" hint-placeholder-val="{{false}}">
+          <div>
+            <sc-for list="{{view.skeleton}}" as="k" hint-placeholder-count="5">
+              <div class="skrow"><span class="sk shimmer" style="width: {{k.w}}"></span><span class="sk shimmer" style="width: 88px"></span><span class="sk shimmer" style="width: 56px; margin-left: auto"></span></div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{view.ready}}" hint-placeholder-val="{{true}}">
+          <div class="fadein">
+            <sc-for list="{{view.rows}}" as="r" hint-placeholder-count="5">
+              <div class="row {{r.arriveClass}}">
+                <span class="rowtitle">{{r.title}}</span>
+                <span class="badge {{r.class}}"><span class="shape {{r.shape}}"></span>{{r.status}}</span>
+                <span class="when">{{r.when}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="lg">
+      <div class="lgt">The pressed item answers first</div>
+      <div class="lgb">Selected state, heading and breadcrumb change on the click. A small spinner on the item itself says the data is still coming. Nothing else on the page waits for the server to agree about which page you are on.</div>
+    </div>
+    <div class="lg">
+      <div class="lgt">The region transitions, the shell does not</div>
+      <div class="lgb">Only the area below the heading cross-fades, over 200 ms, into a skeleton the same height as the content. The sidebar, the top bar and the live chip keep their identity — they are the same elements, not repainted ones.</div>
+    </div>
+    <div class="lg old">
+      <div class="lgt">What it does today</div>
+      <div class="lgb">Every filter, sort and update is a full document navigation: the whole frame goes white, the sidebar repaints, scroll position is lost, and an operator watching an incident unfold has to press reload to find out whether it moved.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "dark": {"editor": "boolean", "default": false},
+  "latencyMs": {"editor": "range", "min": 0, "max": 1200, "step": 100, "default": 400, "unit": "ms"},
+  "$preview": {"width": 1060, "height": 800}
+}'>
+const AREAS = [
+  { id: 'dashboard', label: 'Dashboard', title: 'Overview' },
+  { id: 'incidents', label: 'Incidents', title: 'Incidents' },
+  { id: 'runs', label: 'Investigations', title: 'Investigations' },
+  { id: 'decisions', label: 'Decisions', title: 'Decisions' },
+];
+
+const CONTENT = {
+  dashboard: [
+    { title: 'Redis container lxc/122 stopped on pve02', status: 'running', class: 'b-info', shape: 's-rot', when: '41s' },
+    { title: 'Proxmox guest 159 stopped by root@pam', status: 'running', class: 'b-info', shape: 's-rot', when: '12s' },
+    { title: 'Restart redis on lxc/122', status: 'approval', class: 'b-warning', shape: 's-tri', when: '18m' },
+    { title: 'ProxmoxGuestStopped × 9 firings', status: 'investigating', class: 'b-info', shape: 's-rot', when: '11m' },
+    { title: 'CronJobStale × 5 firings', status: 'resolved', class: 'b-success', shape: 's-dot', when: '2h' },
+  ],
+  incidents: [
+    { title: 'ProxmoxGuestStopped', status: 'investigating', class: 'b-info', shape: 's-rot', when: '11m' },
+    { title: 'RedisExporterDown', status: 'investigating', class: 'b-info', shape: 's-rot', when: '11m' },
+    { title: 'InstanceDown', status: 'investigating', class: 'b-info', shape: 's-rot', when: '11m' },
+    { title: 'DatabaseTcpProbeFailed', status: 'resolved', class: 'b-success', shape: 's-dot', when: '1h' },
+    { title: 'CronJobStale', status: 'resolved', class: 'b-success', shape: 's-dot', when: '2h' },
+  ],
+  runs: [
+    { title: 'Proxmox guest stopped on node pve02 causing downstream…', status: 'completed', class: 'b-success', shape: 's-dot', when: '33s' },
+    { title: 'Container redis lxc/122 was deliberately shut down by…', status: 'completed', class: 'b-success', shape: 's-dot', when: '40s' },
+    { title: 'LXC container 122 hosting Redis was stopped via vzshutdown', status: 'completed', class: 'b-success', shape: 's-dot', when: '44s' },
+    { title: 'Redis container lxc/152 is stopped and unable to start', status: 'running', class: 'b-info', shape: 's-rot', when: '1m 7s' },
+    { title: 'Backup sync cron on pve01 failed with exit code 2', status: 'completed', class: 'b-success', shape: 's-dot', when: '18s' },
+  ],
+  decisions: [
+    { title: 'Restart the Redis container on lxc/122', status: 'pending', class: 'b-warning', shape: 's-hollow', when: '18m' },
+    { title: 'Which node should take pve02 guests while it drains?', status: 'pending', class: 'b-warning', shape: 's-hollow', when: '6m' },
+    { title: 'Raise the memory reservation on lxc/152 to 2 GiB', status: 'approved', class: 'b-success', shape: 's-dot', when: '3h' },
+  ],
+};
+
+const PUSHED = [
+  { title: 'DNS resolver at 10.20.20.53 failing blackbox probes', status: 'running', class: 'b-info', shape: 's-rot', when: 'just now' },
+  { title: 'PVE exporter on pve01 stopped answering', status: 'running', class: 'b-info', shape: 's-rot', when: 'just now' },
+  { title: 'Gatus endpoint check recovered on Redis TCP', status: 'completed', class: 'b-success', shape: 's-dot', when: 'just now' },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { route: 'dashboard', pending: '', pushed: 0, whiteout: false, hint: 'Nothing has been pushed yet.' };
+    this.timers = [];
+  }
+
+  componentWillUnmount() {
+    for (const id of this.timers) clearTimeout(id);
+  }
+
+  later(ms, run) {
+    this.timers.push(setTimeout(run, ms));
+  }
+
+  renderVals() {
+    const { route, pending, pushed, whiteout } = this.state;
+    const latency = typeof this.props.latencyMs === 'number' ? this.props.latencyMs : 400;
+
+    const areas = AREAS.map((a) => ({
+      label: a.label,
+      onClass: route === a.id ? 'on' : '',
+      pending: pending === a.id,
+      go: () => {
+        if (route === a.id) return;
+        // The selected state and the heading change on the click. Only the
+        // region below waits, and it waits in a skeleton of its own height.
+        // Pushed events belong to the stream the dashboard was watching; they
+        // must not follow the reader into Decisions.
+        this.setState({ route: a.id, pending: a.id, pushed: 0 });
+        this.later(latency, () => {
+          this.setState((s) => (s.pending === a.id ? { pending: '' } : {}));
+        });
+      },
+    }));
+
+    const rows = [];
+    for (let i = 0; i < Math.min(pushed, PUSHED.length); i += 1) {
+      rows.push({ ...PUSHED[i], arriveClass: 'arrive' });
+    }
+    for (const r of CONTENT[route]) rows.push({ ...r, arriveClass: '' });
+    // The skeleton reserves exactly the box the content lands in.
+    const widths = ['72%', '61%', '80%', '55%', '69%', '66%'];
+    const skeleton = CONTENT[route].map((row, i) => ({ w: widths[i % widths.length] }));
+
+    const area = AREAS.find((a) => a.id === route);
+    const loading = pending !== '';
+
+    return {
+      themeClass: this.props.dark === true ? 'dk' : '',
+      whiteoutClass: whiteout ? 'whiteout' : '',
+      hint: this.state.hint,
+      areas,
+      view: {
+        title: area.title,
+        loading,
+        ready: !loading,
+        rows: rows.slice(0, 6),
+        skeleton,
+      },
+      pushEvent: () => {
+        this.setState((s) => {
+          if (s.pushed >= PUSHED.length) {
+            return { hint: 'Nothing further to push — the demo carries three events.' };
+          }
+          return {
+            pushed: s.pushed + 1,
+            hint: 'One event arrived on the open stream. Nothing else on the page moved.',
+          };
+        });
+      },
+      oldWay: () => {
+        this.setState({ whiteout: true, hint: 'A full document navigation: the shell repaints and scroll position is gone.' });
+        this.later(700, () => {
+          this.setState({ whiteout: false });
+        });
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

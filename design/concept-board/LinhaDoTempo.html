@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #3ad195; text-decoration: none; }
+    a:hover { color: #e4ebe8; }
+    .panel {
+      background: #1a2320;
+      border: 1px solid #24302b;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .panel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #24302b; }
+    .h-strong { font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .meta { font-size: 12px; line-height: 1.45; color: #a3b2ac; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .mark { width: 13px; height: 13px; border-radius: 999px; flex: none; }
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; }
+    .row { display: flex; gap: 16px; align-items: flex-start; }
+    .stamp { flex: none; width: 88px; text-align: right; }
+    .spine { flex: none; width: 13px; display: flex; flex-direction: column; align-items: center; align-self: stretch; }
+    .line { width: 1px; flex-grow: 1; background: #24302b; min-height: 16px; }
+    .body { flex-grow: 1; display: flex; flex-direction: column; gap: 4px; }
+    .spool { display: flex; flex-direction: column; gap: 24px; }
+  </style>
+</helmet>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px">
+
+  <div>
+    <h1 style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; margin: 0">
+      What happened, before what the agent did about it
+    </h1>
+    <p style="margin: 8px 0 0; color: #a3b2ac; font-size: 14px; max-width: 780px">
+      The transcript already says what the agent asked. Nothing says what the estate <em>did</em>. One spine, three kinds of
+      event on it: a person acting, a detector firing, the agent working. The console already reads
+      <span class="mono" style="color: #e4ebe8">proxmox_guest_tasks</span> and
+      <span class="mono" style="color: #e4ebe8">alertmanager_incident_timeline</span> &mdash; both go into this and neither is drawn today.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h3 class="h-strong">Timeline</h3>
+      <span class="meta" style="margin-left: auto">26 March &middot; 1m 17s from the first act to a cause, and 22 minutes waiting since</span>
+    </div>
+
+    <div class="spool" style="padding: 16px">
+
+      <div class="row">
+        <span class="meta stamp mono">06:02:14</span>
+        <span class="spine"><span class="mark" style="background: #6cb8e0"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">A person shut the container down</span>
+            <span class="chip" style="background: #12242c; color: #6cb8e0">by hand</span>
+          </div>
+          <span class="meta mono">vzshutdown &middot; lxc/122 &middot; root@pam &middot; UPID:pve01:0029C512:09F2E145:6A8E9BB8</span>
+          <span class="meta">Nothing about this was a fault. It is the first cause and the only one.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:02:51</span>
+        <span class="spine"><span class="mark" style="background: #ef7070"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">DatabaseTcpProbeFailed</span>
+            <span class="chip" style="background: #2a1616; color: #ef7070"><span class="mark" style="background: #ef7070"></span>critical</span>
+          </div>
+          <span class="meta mono">tcp://10.20.20.52:6379 &middot; alertmanager</span>
+          <span class="meta">37 seconds after the shutdown. The probe is the first thing that noticed.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:03:04</span>
+        <span class="spine"><span class="mark" style="background: #ef7070"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">GatusEndpointHealthcheckFailed</span>
+            <span class="chip" style="background: #2a1616; color: #ef7070"><span class="mark" style="background: #ef7070"></span>critical</span>
+            <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b">attached to the same incident</span>
+          </div>
+          <span class="meta mono">10.20.20.52:6379 &middot; gatus</span>
+          <span class="meta">Same endpoint, different watcher. Two so far, one thing wrong.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:03:07</span>
+        <span class="spine"><span class="mark" style="background: #ef7070"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">RedisExporterDown</span>
+            <span class="chip" style="background: #2a1616; color: #ef7070"><span class="mark" style="background: #ef7070"></span>critical</span>
+            <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b">attached to the same incident</span>
+          </div>
+          <span class="meta mono">res-7a73b8aa &middot; prometheus</span>
+          <span class="meta">The third and last. Three subjects, one container &mdash; which is what the incident list still shows as three rows.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:03:09</span>
+        <span class="spine"><span class="mark" style="border: 1.5px solid #3ad195; background: transparent"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">The agent picked it up</span>
+            <span class="chip" style="background: #12271f; color: #3ad195">36s of work</span>
+          </div>
+          <span class="meta">Six stages, 14 capability calls, 71,141 tokens. Nobody was asked to look at anything yet.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:03:31</span>
+        <span class="spine"><span class="mark" style="background: #e0a84e"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">It wanted to start the container and was not allowed</span>
+            <span class="chip" style="background: #2a2214; color: #e0a84e"><span class="mark" style="border: 1.5px solid #e0a84e; background: transparent"></span>proposed</span>
+          </div>
+          <span class="meta mono">proxmox_start_guest(kind='lxc', node='pve01', vmid=122)</span>
+          <span class="meta">The rule covers this at write_reversible, so it resolves to propose. Nothing runs without a person deciding it should.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">06:03:45</span>
+        <span class="spine"><span class="mark" style="background: #3ad195"></span><span class="line"></span></span>
+        <div class="body">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600">A cause, and a proposal waiting on somebody</span>
+          </div>
+          <span class="meta">Still waiting. 22 minutes and counting &mdash; which is the number this console cannot currently show anyone.</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="meta stamp mono">now</span>
+        <span class="spine"><span class="mark" style="border: 1.5px solid #a3b2ac; background: transparent"></span></span>
+        <div class="body">
+          <span style="font-size: 14px; color: #a3b2ac">Both alerts are still firing, because nothing has started the container.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

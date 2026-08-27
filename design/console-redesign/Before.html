@@ -1,0 +1,217 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --surface: #ffffff; --sunken: #f2f5f4; --raised: #ffffff; --hover: #e9eeec;
+      --text: #1a2420; --muted: #4c5a55;
+      --accent: #0a7452; --on-accent: #ffffff; --accent-bg: #e2f2ec;
+      --border: #d8e0dd; --border-strong: #6d7c76;
+      --danger: #a51f1f; --danger-bg: #f9e9e9;
+      --warning: #8a5a12; --warning-bg: #f7efdd;
+      --info: #0a5f8f; --info-bg: #e4eff5;
+      --success: #0a7452; --success-bg: #e2f2ec;
+      --neutral: #4c5a55; --neutral-bg: #f2f5f4;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    .dk {
+      --surface: #141b18; --sunken: #0d1311; --raised: #1a2320; --hover: #222d29;
+      --text: #e4ebe8; --muted: #a3b2ac;
+      --accent: #3ad195; --on-accent: #062018; --accent-bg: #12271f;
+      --border: #24302b; --border-strong: #8b9a94;
+      --danger: #ef7070; --danger-bg: #2a1616;
+      --warning: #e0a84e; --warning-bg: #2a2214;
+      --info: #6cb8e0; --info-bg: #12242c;
+      --success: #3ad195; --success-bg: #12271f;
+      --neutral: #a3b2ac; --neutral-bg: #0d1311;
+    }
+    body { margin: 0; font-family: var(--sans); }
+    a { color: var(--accent); text-decoration: none; } a:hover { color: var(--accent); }
+    * { box-sizing: border-box; }
+
+    .app { display: flex; width: 1440px; height: 1060px; background: var(--sunken); color: var(--text); font-size: 14px; line-height: 1.5; position: relative; overflow: hidden; }
+    .side { width: 236px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); }
+    .lockup { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+    .word { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+    .word b { color: var(--accent); }
+    .navgroup { padding: 16px 12px 0; }
+    .navhead { font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 8px 8px; }
+    .navitem { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; color: var(--text); }
+    .navitem[aria-current] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+    .main { flex: 1; min-width: 0; }
+    .top { height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+    .search { flex: 1; max-width: 540px; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 13px; }
+    .kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+    .btn { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .btn-accent { background: var(--accent); color: var(--on-accent); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 650; }
+    .page { padding: 24px; }
+    .pagehead { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+    .headwell { width: 30px; height: 30px; border-radius: 6px; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; margin-top: 4px; }
+    h1 { margin: 0; font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; }
+    .sub { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
+
+    /* the block as it ships today */
+    .attention { border: 1px solid var(--danger); border-radius: 10px; background: var(--danger-bg); }
+    .ahead { display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: var(--danger); }
+    .ahead h2 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+    .oldest { margin-left: auto; font-size: 11px; font-weight: 650; letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 4px; padding: 1px 8px; }
+    .arow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--raised); border-top: 1px solid var(--border); }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 4px; border: 1px solid; font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+    .b-danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+    .shape { width: 8px; height: 8px; border: 1px solid currentColor; background: currentColor; flex-shrink: 0; }
+    .atitle { font-weight: 600; letter-spacing: -0.01em; font-size: 16px; }
+    .adetail { font-size: 12px; color: var(--muted); }
+    .fade { position: absolute; left: 236px; right: 0; bottom: 196px; height: 150px; background: linear-gradient(to bottom, transparent, var(--sunken)); pointer-events: none; }
+
+    /* diagnosis pins */
+    .pin { position: absolute; width: 22px; height: 22px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px rgba(165,31,31,0.18); }
+    .legend { position: absolute; left: 236px; right: 0; bottom: 0; height: 196px; background: var(--raised); border-top: 1px solid var(--border-strong); padding: 14px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .lg { display: flex; gap: 10px; }
+    .lgn { width: 20px; height: 20px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .lgt { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+    .lgb { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+    svg { display: block; }
+  </style>
+</helmet>
+
+<div class="app {{themeClass}}">
+  <nav class="side">
+    <div class="lockup">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"></path></svg>
+      <span class="word">Ninja<b>SRE</b></span>
+    </div>
+    <div class="navgroup">
+      <div class="navhead">Now</div>
+      <a class="navitem" href="#" aria-current="page">Dashboard</a>
+      <a class="navitem" href="#">Incidents</a>
+      <a class="navitem" href="#">Investigations</a>
+      <a class="navitem" href="#">Decisions</a>
+    </div>
+    <div class="navgroup">
+      <div class="navhead">The environment</div>
+      <a class="navitem" href="#">Resources</a>
+      <a class="navitem" href="#">Knowledge</a>
+      <a class="navitem" href="#">The agent</a>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="top">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        Search resources, investigations, incidents
+        <span class="kbd">Ctrl K</span>
+      </div>
+      <span style="margin-left: auto; font-size: 13px; color: var(--muted)">NinjaSRE</span>
+      <span class="btn btn-danger">Stop automation</span>
+      <span class="btn btn-accent">+ Investigate</span>
+      <span class="avatar">LA</span>
+    </header>
+
+    <div class="page">
+      <div class="pagehead">
+        <span class="headwell">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        </span>
+        <div>
+          <h1>Overview</h1>
+          <p class="sub">What needs a person, what is running, and how the estate is.</p>
+        </div>
+      </div>
+
+      <section class="attention">
+        <header class="ahead">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+          <h2>50 items need you</h2>
+          <span class="oldest">Waiting longest: 11 hours ago</span>
+        </header>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+          <div class="arow">
+            <span class="badge b-danger"><span class="shape"></span>critical</span>
+            <span style="min-width: 0">
+              <span style="display: block" class="atitle">{{r.title}}</span>
+              <span style="display: block" class="adetail">{{r.detail}} · {{r.when}}</span>
+            </span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted); margin-left: auto"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </div>
+
+  <div class="fade"></div>
+
+  <span class="pin" style="left: 512px; top: 214px">1</span>
+  <span class="pin" style="left: 274px; top: 384px">2</span>
+  <span class="pin" style="left: 1392px; top: 288px">3</span>
+  <span class="pin" style="left: 760px; top: 836px">4</span>
+
+  <div class="legend">
+    <div class="lg">
+      <span class="lgn">1</span>
+      <span>
+        <span class="lgt">The count is not the real count</span>
+        <span class="lgb">The screen drops an incident only when its state equals <code>closed</code> — a word the incident state enum does not contain. So the skip never fires, and every incident the agent already finished is counted as one waiting on a person. Forty-five of these fifty are terminal. The honest number is two.</span>
+      </span>
+    </div>
+    <div class="lg">
+      <span class="lgn">2</span>
+      <span>
+        <span class="lgt">Fifty rows are seven problems</span>
+        <span class="lgb">ProxmoxGuestStopped appears nine times, RedisExporterDown nine, InstanceDown eight. The list has no notion of a subject firing repeatedly, so a reader scrolls the same seven names across half a day of history.</span>
+      </span>
+    </div>
+    <div class="lg">
+      <span class="lgn">3</span>
+      <span>
+        <span class="lgt">Every row weighs the same</span>
+        <span class="lgb">Identical badge, identical 16px bold title, identical muted line, 65px of height for three words. Nothing is scannable because nothing is subordinate — and a danger border drawn around three thousand pixels of rows stops reading as danger somewhere in the first screenful.</span>
+      </span>
+    </div>
+    <div class="lg">
+      <span class="lgn">4</span>
+      <span>
+        <span class="lgt">Nothing says the agent is working</span>
+        <span class="lgb">The figures, the estate, the activity feed and the guardian panel are all below this block. The one thing an SRE agent must show on arrival — that it is running and handling these — is off the bottom of the screen.</span>
+      </span>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "dark": {"editor": "boolean", "default": false},
+  "$preview": {"width": 1440, "height": 1060}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    // The rows exactly as staging serves them, in the order it serves them.
+    return {
+      themeClass: this.props.dark === true ? 'dk' : '',
+      rows: [
+        { title: 'ProxmoxGuestStopped', detail: 'A Proxmox guest that was running has stopped', when: '11 minutes ago' },
+        { title: 'RedisExporterDown', detail: 'Redis Exporter indisponível', when: '11 minutes ago' },
+        { title: 'InstanceDown', detail: 'Target down', when: '11 minutes ago' },
+        { title: 'GatusEndpointHealthcheckFailed', detail: 'Gatus detectou falha no endpoint Redis TCP', when: '12 minutes ago' },
+        { title: 'DatabaseTcpProbeFailed', detail: 'Banco indisponível na rede', when: '12 minutes ago' },
+        { title: 'RedisExporterDown', detail: 'Redis Exporter indisponível', when: '1 hour ago' },
+        { title: 'ProxmoxGuestStopped', detail: 'A Proxmox guest that was running has stopped', when: '1 hour ago' },
+        { title: 'InstanceDown', detail: 'Target down', when: '1 hour ago' },
+        { title: 'GatusEndpointHealthcheckFailed', detail: 'Gatus detectou falha no endpoint Redis TCP', when: '1 hour ago' },
+        { title: 'DatabaseTcpProbeFailed', detail: 'Banco indisponível na rede', when: '1 hour ago' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

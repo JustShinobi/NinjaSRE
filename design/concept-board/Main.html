@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #3ad195; text-decoration: none; }
+    a:hover { color: #e4ebe8; }
+    .panel {
+      background: #1a2320;
+      border: 1px solid #24302b;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #24302b;
+    }
+    .h-strong {
+      font-size: 16px;
+      line-height: 1.45;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    .meta { font-size: 12px; line-height: 1.45; color: #a3b2ac; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .mark { width: 13px; height: 13px; border-radius: 999px; flex: none; }
+    .new {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #12271f;
+      color: #3ad195;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+  </style>
+</helmet>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px">
+
+  <div style="display: flex; align-items: flex-start; gap: 12px">
+    <div>
+      <h1 style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; margin: 0">Overview</h1>
+      <p style="margin: 4px 0 0; color: #a3b2ac; font-size: 14px">What needs a person, what is running, and how the estate is.</p>
+    </div>
+  </div>
+
+  <!-- Running now: the strip that replaces "Nothing is being investigated right now." -->
+  <div class="panel" style="border-color: #3ad195">
+    <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span class="mark" style="background: #3ad195"></span>
+        <span class="h-strong">Investigating now</span>
+        <span class="new">new</span>
+        <span style="margin-left: auto" class="meta">started 41s ago &middot; 8,204 tokens so far</span>
+      </div>
+
+      <div style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em">
+        DatabaseTcpProbeFailed on <span class="mono" style="font-size: 14px">10.20.20.52:6379</span>
+      </div>
+
+      <!-- The stage rail: the six stages the topology page already names. -->
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: #12271f; color: #3ad195; font-size: 12px">
+          <span class="mark" style="width: 8px; height: 8px; background: #3ad195"></span>Resolve integrations
+        </div>
+        <div style="width: 12px; height: 1px; background: #24302b"></div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: #12271f; color: #3ad195; font-size: 12px">
+          <span class="mark" style="width: 8px; height: 8px; background: #3ad195"></span>Intake
+        </div>
+        <div style="width: 12px; height: 1px; background: #24302b"></div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: #12271f; color: #3ad195; font-size: 12px">
+          <span class="mark" style="width: 8px; height: 8px; background: #3ad195"></span>Plan evidence
+        </div>
+        <div style="width: 12px; height: 1px; background: #24302b"></div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: #1a2320; border: 1.5px solid #3ad195; color: #e4ebe8; font-size: 12px; font-weight: 600">
+          <span class="mark" style="width: 8px; height: 8px; border: 1.5px solid #3ad195; background: transparent"></span>Gather evidence
+        </div>
+        <div style="width: 12px; height: 1px; background: #24302b"></div>
+        <div style="padding: 4px 10px; border-radius: 999px; background: #0d1311; color: #a3b2ac; font-size: 12px">Diagnose</div>
+        <div style="width: 12px; height: 1px; background: #24302b"></div>
+        <div style="padding: 4px 10px; border-radius: 999px; background: #0d1311; color: #a3b2ac; font-size: 12px">Deliver</div>
+      </div>
+
+      <!-- What the loop is doing right now, one line, no transcript. -->
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #0d1311; border: 1px solid #24302b; border-radius: 6px">
+        <span class="mono" style="font-size: 13px; color: #6cb8e0">proxmox_guest_start_diagnosis</span>
+        <span class="meta">iteration 4 of 20 &middot; 6 capabilities called &middot; 1 denied, waiting on nobody</span>
+        <a href="#" style="margin-left: auto; font-size: 13px">Open it in Investigations &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Four tiles. Three are the ones already there; the fourth is new. -->
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px">
+    <div class="panel" style="padding: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span class="meta">Resources watched</span>
+      <span style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">96</span>
+      <span class="meta">65 container &middot; 21 datastore &middot; 5 backup_job &middot; 2 node &middot; 2 virtual_machine &middot; 1 cluster</span>
+    </div>
+    <div class="panel" style="padding: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span class="meta">Degraded and unhealthy</span>
+      <span style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">13</span>
+      <span class="meta" style="color: #ef7070">no detector is switched on to raise one into an incident</span>
+    </div>
+    <div class="panel" style="padding: 16px; display: flex; flex-direction: column; gap: 4px">
+      <span class="meta">Handled without a person</span>
+      <span style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">100%</span>
+      <span class="meta" style="color: #3ad195">50 of 50 incidents closed themselves</span>
+    </div>
+    <!-- New tile: the console counts runs but never says how fast a cause arrives. -->
+    <div class="panel" style="padding: 16px; display: flex; flex-direction: column; gap: 4px; border-color: #3ad195">
+      <span class="meta" style="display: flex; align-items: center; gap: 8px">Time to a cause <span class="new">new</span></span>
+      <span style="font-size: 34px; line-height: 1.15; font-weight: 680; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">47s</span>
+      <span class="meta">median of 50 &middot; slowest 1m 26s</span>
+    </div>
+  </div>
+
+  <!-- Seen before: what "8 firings" is actually worth knowing. -->
+  <div class="panel" style="border-color: #3ad195">
+    <div class="panel-head">
+      <h3 class="h-strong">Seen before</h3>
+      <span class="new">new</span>
+      <span class="meta" style="margin-left: auto">What the estate keeps repeating, and what closed it last time</span>
+    </div>
+    <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+
+      <div style="display: flex; gap: 16px; padding: 12px; background: #0d1311; border: 1px solid #24302b; border-radius: 6px">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">ProxmoxGuestStopped</span>
+            <span class="chip" style="background: #2a2214; color: #e0a84e">
+              <span class="mark" style="background: #e0a84e"></span>8 firings in 3 days
+            </span>
+          </div>
+          <p style="margin: 0; color: #a3b2ac; font-size: 13px">
+            Seven of the eight ended at the same cause: a guest on <span class="mono" style="color: #e4ebe8">pve01</span> shut down
+            by <span class="mono" style="color: #e4ebe8">root@pam</span>, never by a fault. The eighth, on pve02, found no task record at all.
+            Together they spent 6m 12s and 402,000 tokens.
+          </p>
+        </div>
+        <div style="flex: none; width: 220px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start">
+          <span class="chip" style="background: #12242c; color: #6cb8e0">
+            <span class="mark" style="border: 1.5px solid #6cb8e0; background: transparent"></span>strategy proposed
+          </span>
+          <a href="#" style="font-size: 13px">Stop investigating this &rarr;</a>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 16px; padding: 12px; background: #0d1311; border: 1px solid #24302b; border-radius: 6px">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">RedisExporterDown</span>
+            <span class="chip" style="background: #2a1616; color: #ef7070">
+              <span class="mark" style="background: #ef7070"></span>never fires alone
+            </span>
+          </div>
+          <p style="margin: 0; color: #a3b2ac; font-size: 13px">
+            Fires together with <span style="color: #e4ebe8">DatabaseTcpProbeFailed</span> and
+            <span style="color: #e4ebe8">GatusEndpointHealthcheckFailed</span> within 40 seconds, every time.
+            Three subjects, one container: <span class="mono" style="color: #e4ebe8">lxc/122</span>.
+          </p>
+        </div>
+        <div style="flex: none; width: 220px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start">
+          <span class="chip" style="background: #12271f; color: #3ad195">
+            <span class="mark" style="background: #3ad195"></span>3 subjects, 23 of their 24 firings
+          </span>
+          <a href="#" style="font-size: 13px">Group them as one &rarr;</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Recent activity, now saying how sure each answer was. -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3 class="h-strong">Recent activity</h3>
+      <span class="meta" style="margin-left: auto">Every row opens in place on Investigations &mdash; the same chip, the same words</span>
+    </div>
+    <div style="padding: 0">
+
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #3ad195"></span>
+        <span style="flex-grow: 1; font-size: 14px">The Redis TCP probe and Gatus health check failures were caused by the Redis LXC container 122 on pve01 being shut down</span>
+        <span class="chip" style="background: #12271f; color: #3ad195; flex: none">
+          <span class="mark" style="background: #3ad195"></span>4 of 4 claims backed
+        </span>
+        <span class="meta" style="flex: none; width: 112px; text-align: right">3 hours ago</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #3ad195"></span>
+        <span style="flex-grow: 1; font-size: 14px">Redis TCP probes failed because container 122 on pve01 was deliberately shut down by root@pam</span>
+        <span class="chip" style="background: #12271f; color: #3ad195; flex: none">
+          <span class="mark" style="background: #3ad195"></span>4 of 4 claims backed
+        </span>
+        <span class="meta" style="flex: none; width: 112px; text-align: right">5 hours ago</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #24302b">
+        <span class="mark" style="background: #e0a84e"></span>
+        <span style="flex-grow: 1; font-size: 14px">Proxmox guest stopped on node pve02 &mdash; no task record found for the shutdown</span>
+        <span class="chip" style="background: #2a2214; color: #e0a84e; flex: none">
+          <span class="mark" style="border: 1.5px solid #e0a84e; background: transparent"></span>2 of 3 claims backed
+        </span>
+        <span class="meta" style="flex: none; width: 112px; text-align: right">7 hours ago</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px">
+        <span class="mark" style="background: #a3b2ac; opacity: 0.5"></span>
+        <span style="flex-grow: 1; font-size: 14px">RestoreDrillStale on the pve01 baseline backup job</span>
+        <span class="chip" style="background: #0d1311; color: #a3b2ac; border: 1px solid #24302b; flex: none">
+          <span class="mark" style="width: 13px; height: 0; border: 1.5px solid #a3b2ac; border-radius: 999px"></span>no claim to back
+        </span>
+        <span class="meta" style="flex: none; width: 112px; text-align: right">14 hours ago</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #3ad195; text-decoration: none; }
+    a:hover { color: #e4ebe8; }
+    .panel {
+      background: #1a2320;
+      border: 1px solid #24302b;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .panel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #24302b; }
+    .h-strong { font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .meta { font-size: 12px; line-height: 1.45; color: #a3b2ac; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .mark { width: 13px; height: 13px; border-radius: 999px; flex: none; }
+    .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 999px; font-size: 12px; line-height: 1.45; }
+  </style>
+</helmet>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px">
+
+  <div>
+    <h1 style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em; margin: 0">
+      How sure it is, without inventing a number
+    </h1>
+    <p style="margin: 8px 0 0; color: #a3b2ac; font-size: 14px; max-width: 760px">
+      OpenSRE prints &ldquo;92% confidence&rdquo;. A percentage a model chose about itself is not a measurement, and this console
+      already refuses that kind of claim elsewhere. The same idea, kept honest: say which observation backs each claim, and
+      say plainly which source was never read.
+    </p>
+  </div>
+
+  <!-- The verdict block that would sit above the report. -->
+  <div class="panel" style="border-color: #3ad195">
+    <div style="padding: 16px; display: flex; gap: 24px; align-items: flex-start">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <span class="chip" style="background: #12271f; color: #3ad195; align-self: flex-start">
+          <span class="mark" style="background: #3ad195"></span>Every claim is backed
+        </span>
+        <div style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em">
+          Container <span class="mono" style="font-size: 17px">lxc/122</span> on <span class="mono" style="font-size: 17px">pve01</span>
+          was shut down by a person, and all three alerts follow from that.
+        </div>
+        <p style="margin: 0; color: #a3b2ac; font-size: 13px">
+          Four claims, four observations. One source was asked and had nothing to give, and that is stated below rather than
+          folded into a score.
+        </p>
+      </div>
+      <div style="flex: none; width: 240px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #0d1311; border: 1px solid #24302b; border-radius: 6px">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span class="meta">Claims made</span><span class="mono" style="font-size: 14px">4</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span class="meta">Backed by an observation</span><span class="mono" style="font-size: 14px; color: #3ad195">4</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span class="meta">Sources that stayed silent</span><span class="mono" style="font-size: 14px; color: #e0a84e">1</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span class="meta">Alternatives ruled out</span><span class="mono" style="font-size: 14px">3</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start">
+
+    <!-- Claim by claim. -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3 class="h-strong">What backs each claim</h3>
+      </div>
+      <div style="padding: 0">
+
+        <div style="padding: 12px 16px; border-bottom: 1px solid #24302b; display: flex; gap: 12px">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 14px">The cluster is healthy, so this is not an infrastructure fault.</span>
+            <span class="meta mono" style="color: #6cb8e0">proxmox_quorum_status &rarr; online_nodes: ["pve01", "pve02"]</span>
+          </div>
+        </div>
+
+        <div style="padding: 12px 16px; border-bottom: 1px solid #24302b; display: flex; gap: 12px">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 14px">The alert target is that container and not another host.</span>
+            <span class="meta mono" style="color: #6cb8e0">query_service_topology &rarr; 10.20.20.52 &rarr; lxc/122 @ pve01</span>
+          </div>
+        </div>
+
+        <div style="padding: 12px 16px; border-bottom: 1px solid #24302b; display: flex; gap: 12px">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 14px">It is stopped, and nothing is holding it back from starting.</span>
+            <span class="meta mono" style="color: #6cb8e0">proxmox_guest_start_diagnosis &rarr; stopped, no lock, storage reachable</span>
+          </div>
+        </div>
+
+        <div style="padding: 12px 16px; display: flex; gap: 12px">
+          <span class="mark" style="background: #3ad195; margin-top: 4px"></span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 14px">A person stopped it, deliberately, at 06:02.</span>
+            <span class="meta mono" style="color: #6cb8e0">proxmox_guest_tasks &rarr; vzshutdown &middot; root@pam &middot; UPID:pve01:0029C512</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 24px">
+
+      <!-- The silent source, stated rather than hidden. -->
+      <div class="panel" style="border-color: #e0a84e">
+        <div class="panel-head" style="border-color: #24302b">
+          <h3 class="h-strong" style="color: #e0a84e">What nobody could read</h3>
+        </div>
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; gap: 12px">
+            <span class="mark" style="border: 1.5px solid #e0a84e; background: transparent; margin-top: 4px"></span>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+              <span class="mono" style="font-size: 13px">logs_for_resource</span>
+              <span class="meta">
+                This deployment has no log source configured, so nothing was read. An absence from a system nobody pointed at
+                is not evidence that the resource was quiet.
+              </span>
+              <a href="#" style="font-size: 13px; margin-top: 4px">Point it at a log source &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- What it considered and dropped: the reasoning nobody currently sees. -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3 class="h-strong">Considered and dropped</h3>
+        </div>
+        <div style="padding: 0">
+
+          <div style="padding: 12px 16px; border-bottom: 1px solid #24302b; display: flex; gap: 12px">
+            <span class="mark" style="width: 13px; height: 0; border: 1.5px solid #a3b2ac; border-radius: 999px; margin-top: 4px"></span>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 14px; color: #a3b2ac">The node ran out of memory and the guest was killed.</span>
+              <span class="meta">Dropped: pve01 reports sufficient available memory and a healthy local-lvm.</span>
+            </div>
+          </div>
+
+          <div style="padding: 12px 16px; border-bottom: 1px solid #24302b; display: flex; gap: 12px">
+            <span class="mark" style="width: 13px; height: 0; border: 1.5px solid #a3b2ac; border-radius: 999px; margin-top: 4px"></span>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 14px; color: #a3b2ac">Redis itself crashed and the container stayed up.</span>
+              <span class="meta">Dropped: the container is stopped, so the process could not be the first thing to fail.</span>
+            </div>
+          </div>
+
+          <div style="padding: 12px 16px; display: flex; gap: 12px">
+            <span class="mark" style="width: 13px; height: 0; border: 1.5px solid #a3b2ac; border-radius: 999px; margin-top: 4px"></span>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 14px; color: #a3b2ac">The three alerts are unrelated and happened to coincide.</span>
+              <span class="meta">Dropped: all three name the same endpoint, 10.20.20.52:6379.</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

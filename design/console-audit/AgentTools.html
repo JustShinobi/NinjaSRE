@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #3ad195; }
+    a:hover { color: #6fe0b6; }
+  </style>
+</helmet>
+
+<div style="padding: 28px 32px 36px; display: flex; flex-direction: column; gap: 20px; max-width: 1360px; margin: 0 auto; box-sizing: border-box;">
+
+  <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;">
+    <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em;">The agent &rarr; Tools, rebuilt</div>
+    <div style="display: flex; gap: 6px;">
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F06</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F07</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F08</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F09</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F02</span>
+    </div>
+  </div>
+
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+
+    <!-- Search + summary, one row -->
+    <div style="padding: 16px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: center; gap: 16px; background: #1a2320; flex-wrap: wrap;">
+      <div style="flex: 0 1 420px; min-width: 260px; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid #8b9a94; border-radius: 6px; background: #0d1311;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a3b2ac" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path></svg>
+        <span style="font-size: 14px; color: #a3b2ac;">Name, domain or capability</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em; color: #e4ebe8;">63</span>
+        <span style="font-size: 13px; color: #a3b2ac;">enabled</span>
+        <span style="color: #24302b;">|</span>
+        <span style="font-size: 20px; line-height: 1.3; font-weight: 650; letter-spacing: -0.01em; color: #a3b2ac;">17</span>
+        <span style="font-size: 13px; color: #a3b2ac;">off here</span>
+      </div>
+      <div style="flex: 1 1 auto;"></div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 6px; background: #12271f; border: 1px solid #3ad195; color: #3ad195; font-size: 13px; font-weight: 600;">All</span>
+        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 6px; background: #0d1311; border: 1px solid #8b9a94; color: #a3b2ac; font-size: 13px;">Enabled</span>
+        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 6px; background: #0d1311; border: 1px solid #8b9a94; color: #a3b2ac; font-size: 13px;">Off here</span>
+        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 6px; background: #0d1311; border: 1px solid #8b9a94; color: #a3b2ac; font-size: 13px;">Writes</span>
+      </div>
+    </div>
+
+    <!-- Domain chips, as chips -->
+    <div style="padding: 14px 24px; border-bottom: 1px solid #24302b; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac; margin-right: 4px;">Domain</span><span style="font-size: 12px; color: #a3b2ac; margin-right: 8px;">16 domains, 80 capabilities. The 25 skills are counted apart.</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #12271f; border: 1px solid #3ad195; color: #3ad195; font-size: 13px; font-weight: 600;">incident <span style="color: #e4ebe8;">3</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">cicd <span style="color: #a3b2ac;">2</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">methodology <span style="color: #a3b2ac;">7</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">changes <span style="color: #a3b2ac;">1</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">remediation <span style="color: #a3b2ac;">20</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">vcs <span style="color: #a3b2ac;">2</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">model provider <span style="color: #a3b2ac;">1</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">cloud control plane <span style="color: #a3b2ac;">24</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">log store <span style="color: #a3b2ac;">6</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">observability <span style="color: #a3b2ac;">1</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">metrics <span style="color: #a3b2ac;">3</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">communication <span style="color: #a3b2ac;">4</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">topology <span style="color: #a3b2ac;">1</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">database <span style="color: #a3b2ac;">2</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">estate <span style="color: #a3b2ac;">1</span></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 14px; background: #1a2320; border: 1px solid #8b9a94; color: #e4ebe8; font-size: 13px;">tracing <span style="color: #a3b2ac;">2</span></span>
+      
+    </div>
+
+    <!-- table head, sticky in the real screen -->
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 10px 24px; background: #0d1311; border-bottom: 1px solid #24302b;">
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">Capability</div>
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">Effect</div>
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">What it does</div>
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac; text-align: right;">Here</div>
+    </div>
+
+    <!-- group header -->
+    <div style="padding: 10px 24px; background: #1a2320; border-bottom: 1px solid #24302b; display: flex; align-items: baseline; gap: 10px;">
+      <span style="font-size: 14px; font-weight: 600; color: #e4ebe8;">incident</span>
+      <span style="font-size: 12px; color: #a3b2ac;">3 capabilities · 3 enabled · via Alertmanager</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 12px 24px; border-bottom: 1px solid #24302b; align-items: center;">
+      <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e4ebe8; overflow-wrap: break-word; word-break: normal;">alertmanager_acknowledge_incident</div>
+      <div><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #2a2214; color: #e0a84e; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #e0a84e;"></span>Writes, reversible</span></div>
+      <div style="font-size: 13px; color: #a3b2ac; text-wrap: pretty;">Marks an alert acknowledged so it stops paging, without resolving it.</div>
+      <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #3ad195;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>On</span></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 12px 24px; border-bottom: 1px solid #24302b; align-items: center;">
+      <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e4ebe8; overflow-wrap: break-word; word-break: normal;">alertmanager_incident_statistics</div>
+      <div><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #a3b2ac;"></span>Reads</span></div>
+      <div style="font-size: 13px; color: #a3b2ac; text-wrap: pretty;">Counts and groups what is currently firing, for the window the run is scoped to.</div>
+      <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #3ad195;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>On</span></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 12px 24px; border-bottom: 1px solid #24302b; align-items: center;">
+      <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e4ebe8; overflow-wrap: break-word; word-break: normal;">alertmanager_incident_timeline</div>
+      <div><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #12242c; color: #6cb8e0; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #6cb8e0;"></span>Reads, sensitive</span></div>
+      <div style="font-size: 13px; color: #a3b2ac; text-wrap: pretty;">The full state history of one alert, including any silences a person applied.</div>
+      <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #3ad195;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>On</span></div>
+    </div>
+
+    <div style="padding: 10px 24px; background: #1a2320; border-bottom: 1px solid #24302b; display: flex; align-items: baseline; gap: 10px;">
+      <span style="font-size: 14px; font-weight: 600; color: #e4ebe8;">cicd</span>
+      <span style="font-size: 12px; color: #a3b2ac;">2 capabilities · 1 enabled · via Argo CD</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 12px 24px; border-bottom: 1px solid #24302b; align-items: center;">
+      <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e4ebe8; overflow-wrap: break-word; word-break: normal;">argocd_failed_runs</div>
+      <div><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #a3b2ac;"></span>Reads</span></div>
+      <div style="font-size: 13px; color: #a3b2ac; text-wrap: pretty;">Which syncs failed, and against which revision.</div>
+      <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #3ad195;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>On</span></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 360px 160px minmax(0, 1fr) 112px; gap: 24px; padding: 12px 24px; align-items: center; background: #0d1311;">
+      <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #a3b2ac; overflow-wrap: break-word; word-break: normal;">argocd_pipeline_statistics</div>
+      <div><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #a3b2ac;"></span>Reads</span></div>
+      <div style="font-size: 13px; color: #a3b2ac; text-wrap: pretty;">Sync duration and success rate over a window. <span style="color: #e0a84e;">Off here — no rule grants it to this team.</span></div>
+      <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #a3b2ac;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; border: 1.5px solid #a3b2ac; box-sizing: border-box;"></span>Off</span></div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 13px; font-weight: 600; color: #e4ebe8;">The Domain column is gone</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The group header already says it, and now also says how many of the group are on and which integration supplies them — the two facts the column never carried.</div>
+    </div>
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 13px; font-weight: 600; color: #e4ebe8;">One shape per status, one word per value</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">Every state is a 7px dot — filled when it is on, a ring when it is not. <em>Writes, reversible</em> and <em>Reads, sensitive</em> replace the half-cased enums.</div>
+    </div>
+    <div style="background: #141b18; border: 1px solid #24302b; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 13px; font-weight: 600; color: #e4ebe8;">The 17 that are off are the point</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">An off row is dimmed, keeps its place in the group, and carries the reason inline. The <em>Here</em> column stays because it now varies — but it is one dot wide, not a repeated word, and “Off here” is also a filter at the top.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

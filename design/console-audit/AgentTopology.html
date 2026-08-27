@@ -1,0 +1,252 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      background: #0d1311;
+      color: #e4ebe8;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #3ad195; }
+    a:hover { color: #6fe0b6; }
+  </style>
+</helmet>
+
+<div style="padding: 28px 32px 36px; display: flex; flex-direction: column; gap: 20px; max-width: 1360px; margin: 0 auto; box-sizing: border-box;">
+
+  <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;">
+    <div style="font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -0.02em;">The agent &rarr; Topology, rebuilt</div>
+    <div style="display: flex; gap: 6px;">
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F03</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F04</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F05</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F12</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #12271f; color: #3ad195; font-size: 12px; font-weight: 600;">F14</span>
+    </div>
+  </div>
+
+  <!-- The rail -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 14px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; background: #1a2320;">
+      <span style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em;">The stages an investigation runs</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">Left to right, in the order they execute · 3 of 6 call a model</span>
+    </div>
+
+    <div style="padding: 24px; display: flex; align-items: stretch; gap: 0;">
+
+      <!-- stage 1 -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #24302b; border-radius: 10px; background: #1a2320;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac;">1</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Resolve integrations</span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;">no model</span></div>
+      </div>
+
+      <div style="flex: 0 0 32px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b9a94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M13 7l5 5-5 5"></path></svg>
+      </div>
+
+      <!-- stage 2 -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #24302b; border-radius: 10px; background: #1a2320;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac;">2</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Intake</span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #12242c; color: #6cb8e0; font-size: 12px; font-weight: 600;">role: intake</span></div>
+      </div>
+
+      <div style="flex: 0 0 32px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b9a94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M13 7l5 5-5 5"></path></svg>
+      </div>
+
+      <!-- stage 3 -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #24302b; border-radius: 10px; background: #1a2320;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac;">3</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Plan evidence</span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;">no model</span></div>
+      </div>
+
+      <div style="flex: 0 0 32px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b9a94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M13 7l5 5-5 5"></path></svg>
+      </div>
+
+      <!-- stage 4 : active -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 2px solid #3ad195; border-radius: 10px; background: #12271f;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #3ad195;">4</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Gather evidence</span>
+          <span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #12242c; color: #6cb8e0; font-size: 12px; font-weight: 600;">role: investigator</span></div>
+      </div>
+
+      <div style="flex: 0 0 32px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b9a94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M13 7l5 5-5 5"></path></svg>
+      </div>
+
+      <!-- stage 5 -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #24302b; border-radius: 10px; background: #1a2320;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac;">5</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Diagnose</span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #12242c; color: #6cb8e0; font-size: 12px; font-weight: 600;">role: diagnose</span></div>
+      </div>
+
+      <div style="flex: 0 0 32px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b9a94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M13 7l5 5-5 5"></path></svg>
+      </div>
+
+      <!-- stage 6 -->
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid #24302b; border-radius: 10px; background: #1a2320;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; color: #a3b2ac;">6</span>
+          <span style="font-size: 14px; line-height: 1.5; font-weight: 600; color: #e4ebe8;">Deliver</span>
+        </div>
+        <div><span style="display: inline-flex; padding: 2px 8px; border-radius: 4px; background: #0d1311; border: 1px solid #24302b; color: #a3b2ac; font-size: 12px; font-weight: 600;">no model</span></div>
+      </div>
+    </div>
+
+    <!-- the detail table, adjacent to the rail rather than 300px below it -->
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 10px 24px; border-top: 1px solid #24302b; background: #0d1311;">
+      <div style="font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">Stage</div>
+      <div style="font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">What it decides</div>
+      <div style="font-size: 12px; line-height: 1.4; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a3b2ac;">What it reads</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac;">1</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Resolve integrations</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">resolve_integrations</span></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">What this team can actually call — and ends the run early when the answer is nothing.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The capability catalogue this node resolves to; the integrations configured for this team.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac;">2</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Intake</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">intake</span></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">Whether there is an incident at all, and whether it is one already open.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The alert as it arrived, as the adapter parsed it; recent investigations, to recognise a duplicate.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac;">3</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Plan evidence</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">plan_evidence</span></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">Which capabilities are worth starting from. Deterministic, so two runs of one scenario compare.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The capabilities resolved for this team; the alert's source, severity and components; the tool budget.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start; background: #12271f;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #3ad195;">4</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Gather evidence</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">gather_evidence</span></span><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The loop: calls capabilities, reads what comes back, decides what to ask next.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">Every capability the catalogue allows; the incident window; the specialists this team declares.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac;">5</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Diagnose</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">diagnose</span></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The conclusion — one call, then every claim checked against the observations behind it.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The evidence this run gathered; the closed category taxonomy.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 12px 24px; border-top: 1px solid #24302b; align-items: start;">
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac;">6</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 14px; font-weight: 600;">Deliver</span><span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">deliver</span></span></div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">Where the finished report goes, and which destinations accepted it.</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; text-wrap: pretty;">The destinations configured for this team.</div>
+    </div>
+  </div>
+
+  <!-- roles table -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 14px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; background: #1a2320;">
+      <span style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em;">What each role runs on</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">A stage names a role, never a model. 1 of 8 roles is bound here.</span>
+    </div>
+
+    <div style="padding: 18px 24px; display: flex; flex-direction: column; gap: 16px;">
+
+      <div style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 144px; gap: 24px; align-items: center; padding: 12px 16px; border: 1px solid #3ad195; border-radius: 6px; background: #12271f;">
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e4ebe8;">investigator</div>
+        <div style="font-size: 13px; color: #e4ebe8;">google_gemini / gemini-flash-latest</div>
+        <div style="text-align: right;"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: #12271f; border: 1px solid #3ad195; color: #3ad195; font-size: 12px; font-weight: 600;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #3ad195;"></span>Bound here</span></div>
+      </div>
+
+      <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 88ch; text-wrap: pretty;">
+        The other seven roles &mdash; <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #e4ebe8;">subagent, intake, diagnose, extraction, embedding, selection, summarisation</span>
+        &mdash; all fall back to the deployment default, <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #e4ebe8;">anthropic / claude-sonnet-5</span>.
+      </div>
+
+      <div style="font-size: 12px; line-height: 1.45; color: #a3b2ac; max-width: 88ch; text-wrap: pretty;">
+        Eight rows with two constant columns is the defect this screen files against the console. One sentence carries the same fact and gives the width back.
+        The table returns the day a second role is bound.
+      </div>
+    </div>
+  </div>
+
+  <!-- budget as meters -->
+  <div style="background: #141b18; border: 1px solid #24302b; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 14px 24px; border-bottom: 1px solid #24302b; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; background: #1a2320;">
+      <span style="font-size: 16px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em;">What one investigation may spend</span>
+      <span style="font-size: 12px; line-height: 1.45; color: #a3b2ac;">A team may lower any of these, never raise one past its ceiling.</span>
+    </div>
+    <div style="padding: 20px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px;">
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 13px; color: #a3b2ac;">Max iterations</span>
+          <span style="font-size: 16px; font-weight: 600; color: #e4ebe8;">20<span style="font-size: 12px; color: #a3b2ac; font-weight: 400;"> / 20</span></span>
+        </div>
+        <div style="height: 6px; border-radius: 4px; background: #0d1311; overflow: hidden;"><div style="height: 6px; width: 100%; background: #a3b2ac;"></div></div>
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">agents.max_iterations</div>
+        <div style="font-size: 12px; color: #a3b2ac;">At the deployment maximum</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 13px; color: #a3b2ac;">Max parallel specialists</span>
+          <span style="font-size: 16px; font-weight: 600; color: #e4ebe8;">4<span style="font-size: 12px; color: #a3b2ac; font-weight: 400;"> / 4</span></span>
+        </div>
+        <div style="height: 6px; border-radius: 4px; background: #0d1311; overflow: hidden;"><div style="height: 6px; width: 100%; background: #a3b2ac;"></div></div>
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">agents.max_parallel_subagents</div>
+        <div style="font-size: 12px; color: #a3b2ac;">At the deployment maximum</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 13px; color: #a3b2ac;">Max specialist depth</span>
+          <span style="font-size: 16px; font-weight: 600; color: #e4ebe8;">2<span style="font-size: 12px; color: #a3b2ac; font-weight: 400;"> / 2</span></span>
+        </div>
+        <div style="height: 6px; border-radius: 4px; background: #0d1311; overflow: hidden;"><div style="height: 6px; width: 100%; background: #a3b2ac;"></div></div>
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">agents.max_subagent_depth</div>
+        <div style="font-size: 12px; color: #a3b2ac;">At the deployment maximum</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 13px; color: #a3b2ac;">Tool budget</span>
+          <span style="font-size: 16px; font-weight: 600; color: #e4ebe8;">8<span style="font-size: 12px; color: #a3b2ac; font-weight: 400;"> calls</span></span>
+        </div>
+        <div style="height: 6px;"></div>
+        <div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #a3b2ac; overflow-wrap: anywhere;">agents.tool_budget</div>
+        <div style="font-size: 12px; color: #a3b2ac;">No ceiling declared — no bar to fill</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size: 13px; line-height: 1.5; color: #a3b2ac; max-width: 84ch; text-wrap: pretty;">
+    The empty <span style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #ef7070;">{ "agents": {} }</span> panel is gone: a document
+    with nothing in it is the same statement as “nothing on this screen has been overridden”, and the roles table now says that per row. Keep the raw document behind
+    one styled disclosure at the foot of the screen, not a panel of its own.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
