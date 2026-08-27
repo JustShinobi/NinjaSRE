@@ -65,6 +65,7 @@ const BODY: RunCardBody = {
   ],
   calls: 2,
   events: 5,
+  decisions: [],
   waiting: ['May I start the container?'],
   supporting: ['the guest task log names a person'],
   missing: ['the container logs'],
@@ -424,5 +425,56 @@ describe('the trace under a card', () => {
     const turns = screen.getAllByTestId('run-turn');
     expect(turns[0]?.textContent).toContain('Asked the cluster.');
     expect(turns[1]?.textContent).not.toContain('Incident Investigation Report');
+  });
+});
+
+/**
+ * An action waiting on a person is decided where it is read.
+ *
+ * The artboard puts this inside the card, under "What to do", and it is the
+ * gesture the whole screen is arranged around: an investigation that ends in
+ * "start the container" is worth nothing until somebody says yes, and the
+ * proposal in the design had been waiting twenty-two minutes. Sending the
+ * reader to another screen to say it is how a queue becomes six open tabs and
+ * the wrong one gets approved — which is why `DecisionControls` already
+ * decides in place everywhere else it appears.
+ *
+ * Approvals and questions are kept apart because they ask for different
+ * things. A question wants an answer; an approval wants a verdict, and only
+ * one of them can be given by pressing a button.
+ */
+describe('an action waiting on a person', () => {
+  it('offers the decision on the card rather than a link to it', () => {
+    card(
+      {},
+      {
+        decisions: [
+          {
+            interactionId: 'int-0001',
+            text: "Start the container: proxmox_start_guest(kind='lxc', node='pve01', vmid=122)",
+          },
+        ],
+      },
+    );
+
+    const waiting = screen.getByTestId('run-decision');
+    expect(waiting).toHaveTextContent('proxmox_start_guest');
+    expect(waiting.querySelector('[data-testid="decision"]')).not.toBeNull();
+  });
+
+  it('keeps a question a question, with nothing to press', () => {
+    card(
+      {},
+      { decisions: [], waiting: ['Which datastore should this be measured against?'] },
+    );
+
+    expect(screen.getByTestId('run-waiting')).toHaveTextContent('Which datastore');
+    expect(screen.queryByTestId('run-decision')).toBeNull();
+  });
+
+  it('says nothing is waiting only when neither kind is', () => {
+    card({}, { decisions: [], waiting: [] });
+
+    expect(screen.getByText(EN['run.todo.none'])).toBeInTheDocument();
   });
 });

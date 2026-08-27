@@ -6,6 +6,7 @@ import { ListIcon } from '@/design/icons';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { CopyReport } from './copy-report';
+import { DecisionControls } from './decision';
 import { EvidenceChip, type RunEvidence } from './run-evidence';
 import { Report } from './report';
 import { RunCardToggle } from './run-card-toggle';
@@ -59,8 +60,23 @@ export interface RunCardBody {
   readonly calls: number;
   readonly events: number;
   readonly waiting: readonly string[];
+  /** Actions this run proposed that a person has not yet decided. */
+  readonly decisions: readonly RunCardDecision[];
   readonly supporting: readonly string[];
   readonly missing: readonly string[];
+}
+
+/**
+ * One action the run proposed and stopped at, waiting on a person.
+ *
+ * Separate from `waiting`, which is questions. Both are open interactions and
+ * both hold the run up, but they ask for different things: a question wants an
+ * answer typed, an approval wants a verdict — and only the second is something
+ * a reader can settle by pressing a button.
+ */
+export interface RunCardDecision {
+  readonly interactionId: string;
+  readonly text: string;
 }
 
 /** One turn of the run, and the calls it made. */
@@ -380,12 +396,37 @@ export function RunCard({
             </Section>
 
             <Section label={message(locale, 'run.section.todo')}>
-              {body.waiting.length === 0 ? (
+              {body.decisions.length === 0 && body.waiting.length === 0 ? (
                 <p className="text-small text-muted">
                   {message(locale, 'run.todo.none')}
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
+                  {/* Decisions first. A question can wait for the reader to
+                      think; an action the run stopped at is holding the whole
+                      investigation, and in the design it had been holding it
+                      for twenty-two minutes. */}
+                  {body.decisions.map((decision) => (
+                    <li
+                      key={decision.interactionId}
+                      data-testid="run-decision"
+                      className="edge border-warning rounded-2 bg-warning-bg p-3 text-small flex flex-col gap-3"
+                    >
+                      <span className="flex items-start gap-2">
+                        <Badge status="waiting" className="shrink-0" />
+                        <span className="grow">{decision.text}</span>
+                      </span>
+                      <DecisionControls
+                        interactionId={decision.interactionId}
+                        labels={{
+                          approve: message(locale, 'proposal.approve'),
+                          reject: message(locale, 'proposal.reject'),
+                          reason: message(locale, 'proposal.reason'),
+                          reasonRequired: message(locale, 'proposal.reason.required'),
+                        }}
+                      />
+                    </li>
+                  ))}
                   {body.waiting.map((question) => (
                     <li
                       key={question}

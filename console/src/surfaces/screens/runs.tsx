@@ -222,10 +222,26 @@ async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> 
   const turns = turnsFrom(replayed);
   const assessment = namedEvidence(run);
 
-  const waiting = list(dataOf(interactions), 'interactions')
-    .filter((record) => field(record, 'is_open') !== false)
-    .map((record) => text(record, 'question'))
+  // Split by kind rather than lumped, because the two ask for different
+  // things. An approval is an action the run stopped at and a person can
+  // settle by pressing a button; a question wants prose back. The card offers
+  // a control for the first and prints the second.
+  const open = list(dataOf(interactions), 'interactions').filter(
+    (record) => field(record, 'is_open') !== false,
+  );
+
+  const waiting = open
+    .filter((record) => text(record, 'kind') !== 'approval')
+    .map((record) => text(record, 'question') || text(record, 'text'))
     .filter((question) => question !== '');
+
+  const decisions = open
+    .filter((record) => text(record, 'kind') === 'approval')
+    .map((record) => ({
+      interactionId: text(record, 'interaction_id'),
+      text: text(record, 'question') || text(record, 'text'),
+    }))
+    .filter((decision) => decision.interactionId !== '' && decision.text !== '');
 
   return {
     report: text(run, 'report').trim(),
@@ -240,6 +256,7 @@ async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> 
     calls: turns.reduce((total, turn) => total + turn.calls.length, 0),
     events: turns.reduce((total, turn) => total + turn.calls.length * 2 + 1, 0),
     waiting,
+    decisions,
     supporting: assessment.supporting,
     missing: assessment.missing,
   };
