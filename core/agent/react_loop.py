@@ -99,6 +99,15 @@ PAUSED_ANSWER = (
     "gathered so far is intact and the run is resumable."
 )
 
+#: How a composition root re-decides what one turn carries. Given the session as
+#: it stands — its evidence, its turns, what the model last said — it returns the
+#: capabilities this turn may call and the rationale to record beside them.
+#:
+#: A callable rather than an import, because choosing capabilities is the tier-2
+#: capability package's job and this is tier 3. The loop can be told the answer;
+#: it must not be able to reach for it.
+TurnToolSelector = Callable[[Session], tuple[Sequence[RegisteredTool], str]]
+
 
 class ReActLoop:
     """The first-party ReAct runtime.
@@ -125,6 +134,7 @@ class ReActLoop:
         clock: Callable[[], float] = time.monotonic,
         session_ids: Callable[[], str] | None = None,
         selection_rationale: str = "",
+        turn_tools: TurnToolSelector | None = None,
     ) -> None:
         # The cap is on what a turn carries, so the two schemas the loop adds
         # for itself count against it. Checking only the selected capabilities
@@ -145,9 +155,16 @@ class ReActLoop:
         # that scored badly from one the ceiling cut.
         self._selection_rationale = selection_rationale
         self._tools = {registered.name: registered for registered in tools}
+        # What the loop adds for itself, held apart from what selection handed
+        # it. Re-deciding a turn's payload replaces the second and must never
+        # drop the first: a run that lost the ability to ask a person because
+        # the ranking moved would have no way to escalate.
+        self._loop_owned: tuple[RegisteredTool, ...] = ()
         if handoff_channel is not None:
             asking = handoff_tool(handoff_channel)
             self._tools[asking.name] = asking
+            self._loop_owned = (asking,)
+        self._turn_tools = turn_tools
         self._handoff_channel = handoff_channel
         self._messages = messages
         self._store = store
@@ -429,6 +446,54 @@ class ReActLoop:
         )
         return held[:ceiling]
 
+    def _reselect(self, session: Session, guardrails: list[GuardrailAction]) -> None:
+        """Re-decide which capabilities this turn carries, where one was configured.
+
+        The cap Article II names is on the payload of a turn, and a loop that
+        held one selection for the whole run had turned it into a cap on what
+        the run could ever reach: a staging investigation ranked 76 capabilities,
+        was offered 40, and spent all twenty of its iterations unable to call any
+        of the other 36 whatever it went on to learn.
+
+        So the set moves and the bound does not. Every turn is re-decided from
+        the session as it stands, and every turn is re-capped — which is the
+        only reason the first half is allowed. The trim below is a backstop
+        rather than the mechanism: a selector is asked for a payload that already
+        fits, and when it overshoots anyway the turn says so rather than quietly
+        carrying more schemas than the run is allowed to send.
+
+        Nothing happens on a text-only turn. Tool access has been withdrawn by
+        then, and re-selecting capabilities for a turn that will carry none would
+        write a rationale for a payload that does not exist.
+        """
+        if self._turn_tools is None or session.tools_stripped:
+            return
+
+        chosen, rationale = self._turn_tools(session)
+        # Everything the loop adds for itself counts against the same cap, so
+        # the room left for selection is what remains after them.
+        room = MAX_AGENT_TOOL_SCHEMAS - len(self._loop_owned)
+        if self._dispatcher is not None and session.depth < self._dispatcher.max_depth:
+            room -= 1
+        kept = tuple(chosen)[: max(room, 0)]
+        if len(kept) < len(chosen):
+            guardrails.append(
+                GuardrailAction(
+                    kind=GuardrailActionKind.SCHEMAS_NARROWED,
+                    target=", ".join(found.name for found in tuple(chosen)[len(kept) :]),
+                    reason=(
+                        f"a turn may carry at most {MAX_AGENT_TOOL_SCHEMAS} tool schemas "
+                        f"including the ones the loop adds; selection returned "
+                        f"{len(chosen)} and the lowest-ranked were not offered"
+                    ),
+                )
+            )
+
+        self._tools = {found.name: found for found in (*kept, *self._loop_owned)}
+        # Replaced rather than appended to. The rationale answers "why these",
+        # and these are different from last turn's these.
+        self._selection_rationale = rationale
+
     def _schemas(
         self, session: Session, guardrails: list[GuardrailAction]
     ) -> tuple[ToolSchema, ...]:
@@ -629,6 +694,11 @@ class ReActLoop:
                 )
             )
         budget_actions: tuple[BudgetAction, ...] = apply_budget(session, policy)
+
+        # Immediately before the payload is built, so the capabilities this turn
+        # carries are chosen from everything the run knows by now — including
+        # the guidance merged and the evidence gathered above.
+        self._reselect(session, guardrails)
 
         request = self._build_request(session, guardrails)
         offered = tuple(schema.name for schema in request.tools)

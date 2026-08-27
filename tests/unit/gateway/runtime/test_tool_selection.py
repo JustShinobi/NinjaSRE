@@ -617,3 +617,69 @@ async def test_the_same_capability_is_offered_once_a_source_is_bound(
         "a capability whose source is bound was withheld anyway. The exclusion is "
         "meant to name what this deployment cannot serve, not to retire a tool."
     )
+
+
+# --- The gap in the narrowing that let one of them through --------------------
+#
+# ``_can_answer`` asks ``capabilities.tools.system.sources.has_a_source``, and
+# that module knew about two of the three capabilities that need a binding.
+# ``search_knowledge_base`` reads a store bound the same way, was never listed,
+# and so was never asked the question — offered on staging, called, and
+# answering "the knowledge base is not configured for this deployment".
+#
+# It is the worst of the three to miss. Its evidence source is
+# ``knowledge_base``, which is one of the sources the reserve is defined over,
+# so it was not merely surviving the ranking: it was holding a slot the reserve
+# guarantees it, on every turn of every run, to report its own absence.
+
+KNOWLEDGE = "search_knowledge_base"
+
+
+async def test_a_knowledge_search_with_no_store_behind_it_is_not_offered(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The third capability that needs a binding, held to the rule the first two were."""
+    from capabilities.tools.system.knowledge_search import binding as knowledge_binding
+
+    _connected(monkeypatch, "prometheus")
+    previous = knowledge_binding.bind(None)
+    try:
+        offered = await _offered(_catalogue(KNOWLEDGE, PROMETHEUS_READ), desk=True)
+    finally:
+        knowledge_binding.restore(previous)
+
+    assert KNOWLEDGE not in offered, (
+        f"{KNOWLEDGE} was offered with no store bound behind it. Every call it can "
+        f"receive comes back an unavailability, and it takes a reserved slot to do it."
+    )
+    assert PROMETHEUS_READ in offered, "narrowing that removes everything is not narrowing"
+
+
+async def test_the_knowledge_search_is_offered_once_a_store_is_bound(
+    plane: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exclusion is about the binding, not about the capability.
+
+    Written as the pair of the test above for the same reason the recall pair is
+    written that way: so the two cannot drift into "this tool is permanently
+    off", which is a different and much worse rule.
+    """
+    from capabilities.tools.system.knowledge_search import binding as knowledge_binding
+    from platform.knowledge.base.search import KnowledgeResult
+
+    class _Store:
+        async def search(self, query: object) -> KnowledgeResult:
+            del query
+            return KnowledgeResult(searched=True)
+
+    _connected(monkeypatch, "prometheus")
+    previous = knowledge_binding.bind(_Store())
+    try:
+        offered = await _offered(_catalogue(KNOWLEDGE, PROMETHEUS_READ), desk=True)
+    finally:
+        knowledge_binding.restore(previous)
+
+    assert KNOWLEDGE in offered, (
+        "a capability whose store is bound was withheld anyway. The exclusion is meant "
+        "to name what this deployment cannot serve, not to retire a tool."
+    )

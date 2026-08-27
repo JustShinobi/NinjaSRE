@@ -97,13 +97,23 @@ class ScoredCapability:
         return self.score < 0.0
 
 
-def _terms(text: str) -> frozenset[str]:
-    """Return the words in ``text`` worth matching on."""
+def terms(text: str) -> frozenset[str]:
+    """Return the words in ``text`` worth matching on.
+
+    Public because per-turn re-ranking has to ask of a run's observations the
+    same question this module asks of an incident summary — is this vendor, is
+    this tag, named in here — and two tokenisers would be two answers to it.
+    """
     return frozenset(
         word
         for word in _WORD.findall(text.lower())
         if len(word) >= SCORE_MINIMUM_TERM_LENGTH and word not in SCORE_STOP_WORDS
     )
+
+
+#: The name this module uses internally. One implementation, two spellings, so
+#: making it public did not touch a single call site below.
+_terms = terms
 
 
 def _declared_alert_sources(metadata: CapabilityMetadata) -> frozenset[str]:
@@ -273,4 +283,5 @@ __all__ = [
     "ScoredCapability",
     "rank",
     "score_capability",
+    "terms",
 ]
