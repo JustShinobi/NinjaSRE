@@ -26,6 +26,13 @@ class EpisodeView(BaseModel):
     outcome: str
     components: list[str]
     occurred_at: str | None = None
+    #: The investigation this episode was extracted from. Empty for an episode
+    #: written outside a run, which the store allows. It is here because the
+    #: Learned tab draws a link from it, and that link is the whole of what
+    #: makes the corpus evidence rather than assertion — a claim about what
+    #: happened in April is worth the transcript behind it. Without the field
+    #: every row pointed at `/runs/` with nothing after it.
+    run_id: str = ""
 
 
 class SearchResult(BaseModel):
@@ -57,6 +64,7 @@ def _view(episode: Episode) -> EpisodeView:
         outcome=episode.outcome.value,
         components=list(episode.components),
         occurred_at=episode.occurred_at.isoformat() if episode.occurred_at else None,
+        run_id=episode.run_id or "",
     )
 
 

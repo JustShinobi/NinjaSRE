@@ -2423,6 +2423,11 @@
             "title": "Outcome",
             "type": "string"
           },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          },
           "summary": {
             "title": "Summary",
             "type": "string"

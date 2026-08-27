@@ -4294,6 +4294,11 @@ export interface components {
             occurred_at?: string | null;
             /** Outcome */
             outcome: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
             /** Summary */
             summary: string;
             /** Title */

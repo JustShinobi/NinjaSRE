@@ -95,3 +95,29 @@ async def test_naming_no_run_is_refused_rather_than_answered_at_random(
     response = await client.get("/v1/memory/episode", headers=await _owner(deployment))
 
     assert response.status_code == 422
+
+
+async def test_an_episode_names_the_run_it_came_from(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """The link that makes the corpus evidence rather than assertion.
+
+    `screens/memory.tsx` says it in its own words: "each links to the run that
+    produced it, which is the property that makes the corpus evidence rather
+    than assertion — a claim about what happened in April is worth what the
+    transcript behind it is worth." The console builds that link from
+    `run_id`, and `EpisodeView` did not carry one, so every row on the Learned
+    tab pointed at `/runs/` with nothing after it. Measured on staging: three
+    episodes, three dead links.
+
+    Asserted on the search result rather than only on the single-episode read,
+    because the list is where the link is drawn.
+    """
+    await _write_episode(deployment, run_id="run-0001")
+
+    response = await client.get("/v1/memory/search", headers=await _owner(deployment))
+
+    assert response.status_code == 200
+    episodes = response.json()["episodes"]
+    assert episodes, "the corpus this test just wrote to came back empty"
+    assert episodes[0]["run_id"] == "run-0001"
