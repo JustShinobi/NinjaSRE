@@ -84,6 +84,12 @@ MIGRATION_TABLE_NAME: Final = "ninjasre_schema_migrations"
 #: replicas cannot apply the same migration twice.
 MIGRATION_ADVISORY_LOCK_KEY: Final[int] = 8_314_159
 
+#: Advisory-lock key held while a caller decides whether it is the one that
+#: opens this deployment's local sign-in — the same kind of exclusion as
+#: ``MIGRATION_ADVISORY_LOCK_KEY``, with a key of its own so the two never
+#: contend with each other.
+LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY: Final[int] = 8_314_160
+
 #: Rows rewritten per statement when a migration backfills an existing table
 #: (FR-008). Small enough that each batch is a short transaction, so a backfill
 #: on a live deployment never holds a lock long enough to stall an
@@ -206,6 +212,7 @@ __all__ = [
     "HNSW_M",
     "JOB_CLAIM_LEASE_SECONDS",
     "KNOWLEDGE_VECTOR_NAMESPACE",
+    "LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY",
     "MAX_GRAPH_DEPTH",
     "MAX_GRAPH_RESULTS",
     "MAX_INDEXABLE_EMBEDDING_DIMENSION",

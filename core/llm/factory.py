@@ -4,23 +4,28 @@ The composition root of the layer. It is the only place that reads
 configuration, constructs a transport, and hands out a client, so every other
 module can be written as a pure function of its inputs.
 
-Model selection *policy* per role is a later feature's job. What is here is the
-mechanism it will drive: an explicit binding wins, then the environment, then
-the shipped default. A role nobody has configured resolves to the default
-provider rather than failing, because an investigation that cannot start is
-worse than one that starts on the default model and says so in its trace.
+What decides a role's provider is configuration: an explicit binding wins, then
+this role's own configured choice, then the investigator's, then the shipped
+default. A role nobody has configured resolves rather than failing, because an
+investigation that cannot start is worse than one that starts on a named model
+and says so in its trace.
+
+The environment is not in that list, and its absence is deliberate — see
+``resolve_binding``. It still supplies what it is for: an endpoint, a
+credential, and the transport, none of which is a choice about what this
+deployment is.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Final
 
+from config.constants.config_service import MODEL_ROLE_INVESTIGATOR
 from config.constants.llm import (
     DEFAULT_PROVIDER,
     DEFAULT_TRANSPORT,
-    NINJASRE_LLM_MODEL_ENV,
-    NINJASRE_LLM_PROVIDER_ENV,
     NINJASRE_LLM_TRANSPORT_ENV,
     SUPPORTED_TRANSPORTS,
     TRANSPORT_LITELLM,
@@ -69,14 +74,35 @@ def reset_configured_bindings() -> None:
     _CONFIGURED_BINDINGS.clear()
 
 
+#: Where a binding's answer came from. Three values rather than a boolean,
+#: because "somebody chose this for this role", "this follows the investigator"
+#: and "nothing is configured anywhere" are three different things to put in
+#: front of an operator, and only the middle one is a deployment quietly
+#: running on a decision nobody made for that role specifically.
+BINDING_CONFIGURED: Final = "configured"
+BINDING_INVESTIGATOR: Final = "investigator"
+BINDING_DEFAULT: Final = "default"
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderBinding:
-    """Which provider, model, and transport a role resolves to."""
+    """Which provider, model, and transport a role resolves to, and on whose say-so."""
 
     role: str
     provider_id: str
     model_id: str
     transport: str = DEFAULT_TRANSPORT
+    #: One of the three constants above. Carried rather than derived because a
+    #: caller holding only a provider string cannot tell a choice from a
+    #: fallback — which is how a console came to print a model no call would
+    #: ever reach, and how a deployment came to believe it had split its
+    #: models when it had not.
+    source: str = BINDING_DEFAULT
+
+    @property
+    def configured(self) -> bool:
+        """Return whether this role's own binding was chosen by somebody."""
+        return self.source == BINDING_CONFIGURED
 
     def cache_key(self, descriptor: ModelDescriptor, base_url: str = "") -> ClientCacheKey:
         """Return the cache key this binding produces."""
@@ -106,33 +132,46 @@ def resolve_binding(
     """Return the binding for ``role``.
 
     Explicit arguments win, then this role's configured binding, then the
-    environment, then the shipped default. The resolved binding is returned
+    investigator's, then the shipped default. The resolved binding is returned
     rather than applied so a caller — or the run trace — can see what an
     investigation is about to run on before it starts.
 
-    Configuration sits above the environment because choosing a model provider
-    is something an operator does in the console, at first run, and changes
-    later without touching a deployment manifest. The environment keeps its
-    place below it rather than losing it: naming a provider in a manifest is a
-    supported shape, and it still answers for every role configuration does not
-    bind.
+    **The environment does not choose a provider.** It used to answer for any
+    role configuration did not name, and that remainder was the whole of a real
+    failure: a deployment bound its investigator to Gemini in the console, left
+    the other seven roles alone as the console invites, and every one of them
+    fell past configuration into a ``NINJASRE_LLM_PROVIDER`` a manifest had set
+    to Ollama at some earlier point, on a host that no longer answered. Episode
+    extraction therefore called a provider nobody had chosen and no screen
+    showed, and fifty investigations lost their episode to a connection
+    refused. Nothing was misconfigured — the operator chose one provider and
+    the deployment ran on two.
+
+    **An unnamed role follows the investigator**, which is the promise the
+    console already makes in words and the only fallback that cannot surprise
+    anybody: the provider somebody picked is the provider their deployment
+    uses. The shipped default answers only where nothing is configured at all,
+    which is a deployment nobody has set up yet.
+
+    The environment keeps what it is genuinely for — an endpoint, a credential,
+    a transport — and loses the one thing it should never have decided.
     """
     catalogue = registry or default_registry()
     configured_provider, configured_model = _CONFIGURED_BINDINGS.get(role, ("", ""))
+    source = BINDING_CONFIGURED if configured_provider else BINDING_DEFAULT
+    if not configured_provider and role != MODEL_ROLE_INVESTIGATOR:
+        configured_provider, configured_model = _CONFIGURED_BINDINGS.get(
+            MODEL_ROLE_INVESTIGATOR, ("", "")
+        )
+        if configured_provider:
+            source = BINDING_INVESTIGATOR
 
-    resolved_provider = (
-        provider_id
-        or configured_provider
-        or os.environ.get(NINJASRE_LLM_PROVIDER_ENV, "").strip()
-        or DEFAULT_PROVIDER
-    )
+    resolved_provider = provider_id or configured_provider or DEFAULT_PROVIDER
     # A model is only inherited from the same source that chose the provider. A
-    # model name means something to one provider, and carrying the environment's
-    # across a configured provider would ask Ollama for a Claude model.
+    # model name means something to one provider, and carrying one across a
+    # different provider would ask Ollama for a Claude model.
     resolved_model = model_id or (
-        configured_model
-        if provider_id is None and configured_provider
-        else os.environ.get(NINJASRE_LLM_MODEL_ENV, "").strip()
+        configured_model if provider_id is None and configured_provider else ""
     )
 
     if not resolved_model:
@@ -147,6 +186,7 @@ def resolve_binding(
         provider_id=resolved_provider,
         model_id=resolved_model,
         transport=transport or _configured_transport(),
+        source=source,
     )
 
 

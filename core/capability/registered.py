@@ -18,6 +18,19 @@ question nobody asked.
 ``CapabilityResult``. An exception escaping into the loop ends the turn and
 takes the trace with it, so the interesting failures are exactly the ones that
 would leave no record.
+
+The second of those has a corollary that took a real investigation to notice:
+**an exception out of the body is never the caller's bad argument.** Arguments
+are checked against the schema above, before the body runs, so anything that
+escapes it happened during the call the *tool* made. ``ValueError`` and
+``TypeError`` were mapped to ``invalid_arguments`` anyway, and a Proxmox
+capability called with three correct fields, which then failed parsing the
+reply Proxmox sent back, told the model its arguments were wrong. The model did
+the only thing that leaves it: it called again with different arguments, which
+failed identically. A tool that really was handed something it cannot use
+returns the classification rather than raising for one — ``invoke`` honours a
+``CapabilityResult`` a body produced, and that is the path with the judgement
+behind it.
 """
 
 from __future__ import annotations
@@ -29,23 +42,53 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from config.constants.capabilities import CAPABILITY_MARKER_ATTRIBUTE
+from config.constants.capabilities import (
+    CAPABILITY_MARKER_ATTRIBUTE,
+    MAX_CAPABILITY_ERROR_MESSAGE_CHARS,
+)
 from core.capability.metadata import ToolMetadata
 from core.capability.result import CapabilityErrorClass, CapabilityResult, Evidence
 from core.capability.schema import derive_input_schema, derive_output_schema
 
-#: Standard exceptions whose meaning is unambiguous, mapped to the class the
-#: loop reasons about. Anything else is ``INTERNAL`` — guessing at an unfamiliar
-#: exception is how a permanent failure gets retried until the budget is gone.
+#: Standard exceptions whose meaning is unambiguous *about the call the tool
+#: made*, mapped to the class the loop reasons about. Anything else is
+#: ``INTERNAL`` — guessing at an unfamiliar exception is how a permanent failure
+#: gets retried until the budget is gone.
+#:
+#: ``ValueError`` and ``TypeError`` are not here, and their absence is the
+#: point. Both are raised by parsers, and a parser inside a capability is
+#: reading a *vendor's* reply; mapping them to ``invalid_arguments`` blamed the
+#: model for a value it never sent and invited a retry that could not work. Both
+#: land in ``INTERNAL``, which is not retried, and a tool with a real opinion
+#: about its arguments states it by returning a classified result.
 _EXCEPTION_CLASSES: tuple[tuple[type[BaseException], CapabilityErrorClass], ...] = (
     (TimeoutError, CapabilityErrorClass.TIMEOUT),
     (PermissionError, CapabilityErrorClass.PERMISSION_DENIED),
     (FileNotFoundError, CapabilityErrorClass.NOT_FOUND),
     (ConnectionError, CapabilityErrorClass.UPSTREAM_ERROR),
     (NotImplementedError, CapabilityErrorClass.UNAVAILABLE),
-    (TypeError, CapabilityErrorClass.INVALID_ARGUMENTS),
-    (ValueError, CapabilityErrorClass.INVALID_ARGUMENTS),
 )
+
+
+def failure_message(name: str, error: BaseException) -> str:
+    """Return what a failed ``name`` says for itself, type and text, bounded.
+
+    Both audiences read this string with nothing beside it: the model gets it
+    in the turn, and a console incident card renders it without the detail. It
+    used to be the exception's class name alone, which told the first audience
+    nothing to act on and showed the second the bare word "ValueError".
+
+    The text is bounded because it is a vendor's, not ours — an error page is a
+    plausible ``str(error)``, and the whole of it survives in the result's
+    ``detail`` for the trace either way.
+    """
+    text = " ".join(str(error).split())
+    kind = type(error).__name__
+    if not text:
+        return f"{name} failed with {kind}"
+    if len(text) > MAX_CAPABILITY_ERROR_MESSAGE_CHARS:
+        text = f"{text[: MAX_CAPABILITY_ERROR_MESSAGE_CHARS - 1]}\u2026"
+    return f"{name} failed with {kind}: {text}"
 
 
 def classify_exception(error: BaseException) -> CapabilityErrorClass:
@@ -141,11 +184,11 @@ class RegisteredTool:
 
         try:
             produced = await self._call_body(arguments)
-        except Exception as error:  # noqa: BLE001 — FR-017 is exactly this catch
+        except Exception as error:  # noqa: BLE001 — a tool must never raise into the loop
             return CapabilityResult.failed(
                 self.name,
                 classify_exception(error),
-                f"{self.name} failed: {type(error).__name__}",
+                failure_message(self.name, error),
                 detail=str(error),
                 duration_seconds=time.perf_counter() - started,
             )
@@ -229,5 +272,6 @@ __all__ = [
     "build_registration",
     "capability_marker",
     "classify_exception",
+    "failure_message",
     "mark_capability",
 ]

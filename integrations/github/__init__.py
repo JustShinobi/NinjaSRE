@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="GitHub",
     category=IntegrationCategory.VERSION_CONTROL,
     summary="What landed in a repository and when: the commits on its default branch and the pull requests recently merged into it.",
+    where_to_get_it=(
+        "Generate a fine-grained personal access token from GitHub's own Developer "
+        "settings, scoped to Contents and Pull requests read access."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

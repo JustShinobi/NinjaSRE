@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -159,7 +159,14 @@ describe('an empty queue that says why', () => {
       '/v1/approvals': { approvals: [] },
       '/v1/setup/checklist': {
         complete: false,
-        steps: [{ name: 'model-provider', state: 'ready' }],
+        steps: [
+          { name: 'model-provider', state: 'ready' },
+          {
+            name: 'first-investigation',
+            state: 'blocked',
+            title: 'Run your first investigation',
+          },
+        ],
       },
       '/v1/config': EMPTY_TREE,
       '/v1/config/org-northwind': {
@@ -240,5 +247,102 @@ describe('the autonomy row of a pending proposal', () => {
     // The level comes from the deployment, not from this console. A level
     // nobody here has named must still render, as itself, never blank.
     expect(row).toHaveTextContent('time_travel');
+  });
+});
+
+describe('a proposal whose answering window has closed', () => {
+  /** Requested two hours before the fixed instant, expired one hour before it. */
+  const LAPSED = {
+    approval_id: 'apr-lapsed',
+    action: 'estate.start_guest',
+    arguments: { guest: 'ct-122' },
+    decided_at: null,
+    decided_by: null,
+    expires_at: '2026-08-07T11:00:00+00:00',
+    reason: null,
+    requested_at: '2026-08-07T10:00:00+00:00',
+    rollback_plan: null,
+    run_id: 'run-lapsed',
+    side_effect_level: 'write_irreversible',
+    state: 'pending',
+    summary: 'Start the guest that the failed backup left stopped.',
+  };
+
+  /** The same proposal, still inside its window. */
+  const OPEN = {
+    ...LAPSED,
+    approval_id: 'apr-open',
+    expires_at: '2026-08-07T13:00:00+00:00',
+    requested_at: '2026-08-07T11:39:00+00:00',
+    run_id: 'run-open',
+  };
+
+  function serve(approvals: readonly unknown[]): void {
+    stubReads({
+      '/v1/approvals': { approvals },
+      '/v1/setup/checklist': { complete: true },
+      '/v1/investigations/run-lapsed/interactions': { interactions: [] },
+      '/v1/investigations/run-open/interactions': { interactions: [] },
+    });
+  }
+
+  async function tab(): Promise<void> {
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(await ApprovalsTab(contextFor(datasetViewer('populated'))));
+  }
+
+  /** The card in the group the screen filed `id` under. */
+  function cardFor(id: string): HTMLElement {
+    const found = screen
+      .getByTestId('approval-group')
+      .querySelector(`[data-approval="${id}"]`);
+    if (found === null) throw new Error(`no card for ${id}`);
+    return found as HTMLElement;
+  }
+
+  it('offers no Approve on a card it has itself filed past its expiry', async () => {
+    serve([LAPSED]);
+    await tab();
+
+    // The screen knows: this is the group it put the card in.
+    const group = screen.getByTestId('approval-group');
+    expect(group).toHaveAttribute('data-group', 'overdue');
+
+    // And the deployment refuses a decision after the window closes, on the
+    // clock rather than on the label. A control the screen already knows can
+    // only fail is a control it must not draw.
+    // Addressed by what a reader sees rather than by a test identifier: there
+    // are two decision components behind this slot — one answering the
+    // interaction a live investigation is blocked on, one answering the
+    // approval in the store — and neither may offer the button.
+    expect(within(group).queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(within(group).queryByRole('button', { name: 'Reject' })).toBeNull();
+  });
+
+  it('says why in the place the control was, rather than leaving a gap', async () => {
+    serve([LAPSED]);
+    await tab();
+
+    // Absence alone reads as a permission the viewer does not hold — this one
+    // holds it. The reason is on the card: the window closed, and the reading
+    // the decision would have been made against is stale, so the honest next
+    // step is a fresh one rather than a decision on an old one.
+    const closed = within(cardFor('apr-lapsed')).getByTestId('window-closed');
+    expect(closed).toHaveTextContent(/window/i);
+    expect(closed).toHaveTextContent(/ask for it again/i);
+  });
+
+  it('still offers Approve on a proposal that is inside its window', async () => {
+    serve([OPEN]);
+    await tab();
+
+    // The other half, without which the fix above is indistinguishable from
+    // having dropped the controls off every card on the screen.
+    expect(screen.getByTestId('approval-group')).toHaveAttribute('data-group', 'today');
+    expect(
+      within(cardFor('apr-open')).getByRole('button', { name: 'Approve' }),
+    ).toBeInTheDocument();
+    expect(within(cardFor('apr-open')).queryByTestId('window-closed')).toBeNull();
   });
 });

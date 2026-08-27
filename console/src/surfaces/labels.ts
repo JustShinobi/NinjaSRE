@@ -134,6 +134,7 @@ export function transcriptLabels(
     empty: message(locale, 'transcript.empty'),
     arguments: message(locale, 'transcript.arguments'),
     result: message(locale, 'transcript.result'),
+    note: message(locale, 'transcript.note'),
     payload: payloadLabels(locale, { total: 0, shown: 0 }),
   };
 }

@@ -7,12 +7,20 @@ declares the hosts and the proxy enforces exactly those.
 
 ## Setup
 
-| Field | Where it comes from | Secret |
-|---|---|---|
-| `endpoint` | The API server address — https://k8s.internal:6443 | no |
-| `token` | A service account token with the read roles below | yes |
-| `cluster` | A name for the cluster this token authenticates against | no |
-| `namespace` | The default namespace for namespaced reads | no |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
+|---|---|---|---|
+| `endpoint` | The API server address — https://k8s.internal:6443 | — | [Accessing clusters](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/) |
+| `token` | A service account token with the read roles below | get/list on events, deployments.apps and replicasets.apps | [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) |
+| `cluster` | A name for the cluster this token authenticates against | — | [Accessing clusters](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/) |
+| `namespace` | The default namespace for namespaced reads | — | [Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) |
+
+Sources: all four from the upstream Kubernetes documentation, current as of
+this feature.
 
 ```bash
 ninjasre integrations setup kubernetes

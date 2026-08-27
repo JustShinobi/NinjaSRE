@@ -21,6 +21,7 @@ import {
   type IconProps,
 } from '@/design/icons';
 import { BoundedPayload, type PayloadLabels } from './payload';
+import { renderReport } from './report';
 import { KIND_ROLE, type TranscriptEvent, type TranscriptKind } from './transcript';
 
 /**
@@ -66,6 +67,24 @@ const ROLE_WELL: Readonly<Record<string, string>> = {
 };
 
 /**
+ * The kinds whose `detail` can be a whole document rather than a short aside.
+ *
+ * `reasoning` is what the model said on the turn — and on the turn where it
+ * stops calling capabilities, that is its final answer, written in the same
+ * markdown the report document is. `report` is the transcript's own
+ * (ordinarily unreached — see `eventsFromReplay`) copy of that same document.
+ * Every other kind's detail is a short, deployment-written aside — an error
+ * message, a guardrail's reason, a question's text — never a model's prose,
+ * so it keeps rendering as the plain text it is.
+ *
+ * An event's `note` is never in this set and never can be: it is the
+ * deployment's own generated prose, and running a capability name like
+ * `proxmox_backup_failures` through a markdown renderer emphasises `_backup_`
+ * and prints the name without its underscores.
+ */
+const DOCUMENT_KINDS: ReadonlySet<TranscriptKind> = new Set(['reasoning', 'report']);
+
+/**
  * One event's instant and its duration, formatted on the server.
  *
  * On the server because the absolute form is rendered in the *deployment's*
@@ -90,6 +109,8 @@ export interface TranscriptLabels {
   readonly empty: string;
   readonly arguments: string;
   readonly result: string;
+  /** What the fold over a deployment-written note is called. */
+  readonly note: string;
   readonly payload: PayloadLabels;
 }
 
@@ -152,10 +173,30 @@ function Entry({
             </time>
           )}
         </span>
-        {event.detail === '' ? null : (
+        {event.detail === '' ? null : DOCUMENT_KINDS.has(event.kind) ? (
+          renderReport(event.detail)
+        ) : (
           <p className={cx('text-small', guardrail ? 'text-danger' : '')}>
             {event.detail}
           </p>
+        )}
+        {event.note === '' ? null : (
+          <details data-testid="event-note" className="text-meta">
+            <summary className="text-muted cursor-pointer select-none">
+              {labels.note}
+            </summary>
+            {/* Plain text, in a scroller of its own. This is a ranking table
+                sixty capabilities long, it repeats between turns because the
+                scoring is deterministic, and it used to be drawn expanded on
+                every turn — six thousand pixels of arithmetic around four
+                lines of what the investigation actually did. */}
+            <pre
+              data-testid="event-note-body"
+              className="mt-1 max-h-scroll-entry overflow-auto whitespace-pre-wrap font-mono text-meta text-muted"
+            >
+              {event.note}
+            </pre>
+          </details>
         )}
         {event.payload === '' ? null : (
           <BoundedPayload

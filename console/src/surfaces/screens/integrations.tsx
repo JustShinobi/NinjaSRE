@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
+import { CountStrip } from '@/components/layout';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
@@ -118,6 +119,8 @@ interface CatalogueItem {
   readonly summary: string;
   readonly health: string;
   readonly healthDetail: string;
+  /** Set when more than one team holds a credential for this integration. */
+  readonly credentialTeamAmbiguous: boolean;
   readonly fields: readonly CredentialFieldSpec[];
   readonly capabilities: readonly string[];
   readonly permissions: readonly PermissionSpec[];
@@ -125,6 +128,8 @@ interface CatalogueItem {
   readonly direction: string;
   /** Where it posts, when it posts. Empty for an outbound-only vendor. */
   readonly intakePath: string;
+  /** Where an operator obtains this vendor's credential, in one sentence. */
+  readonly whereToGetIt: string;
   readonly suggested?: {
     readonly address: string;
     readonly fromResource: string;
@@ -157,7 +162,11 @@ function fieldsOf(record: unknown): readonly CredentialFieldSpec[] {
 /**
  * The vendor permissions this integration's capabilities need, whole — read
  * from the catalogue's own declared permission entries rather than the
- * per-field `min_scope` a schema mostly leaves blank.
+ * per-field `min_scope`. The two answer different questions: `min_scope` is
+ * the least one field's own value needs, declared on the field; this is
+ * everything the vendor's capabilities as a whole require, with where an
+ * operator grants it — and it exists even for a field whose `min_scope` is
+ * blank because the field is not secret at all.
  */
 function permissionsOf(record: unknown): readonly PermissionSpec[] {
   return list(record, 'permissions').map((declared) => ({
@@ -214,11 +223,13 @@ function itemOf(record: unknown): CatalogueItem {
     summary: text(record, 'summary'),
     health: text(record, 'health'),
     healthDetail: text(record, 'health_detail'),
+    credentialTeamAmbiguous: flag(record, 'credential_team_ambiguous'),
     fields: fieldsOf(record),
     capabilities: strings(record, 'capabilities'),
     permissions: permissionsOf(record),
     direction: text(record, 'direction'),
     intakePath: text(record, 'intake_path'),
+    whereToGetIt: text(record, 'where_to_get_it'),
     ...(suggested === undefined ? {} : { suggested }),
   };
 }
@@ -238,6 +249,7 @@ export async function IntegrationsScreen(
   const state = readViewState(search, INTEGRATIONS_FILTERS);
   const init = authorised(credential);
   const writable = may(viewer, 'integration.manage');
+  const mayTrustUnverified = may(viewer, 'integration.trust_unverified');
   const configWritable = may(viewer, CONFIG_WRITE);
 
   const integrations = await panelRead<unknown>('/v1/integrations', () =>
@@ -355,6 +367,23 @@ export async function IntegrationsScreen(
   const panelItem =
     name === undefined ? null : (installed.find((item) => item.name === name) ?? null);
 
+  // Read only when a panel is actually open — never on the plain /integrations
+  // list, which never shows this section and would otherwise pay for a read
+  // nothing on the page uses. A failed request and a body that says
+  // `readable: false` are folded into the same outcome here: either way, the
+  // panel says it could not read the document, never that the document does
+  // not exist.
+  const docs =
+    name === undefined
+      ? null
+      : await panelRead<unknown>('/v1/integrations/{name}/docs', () =>
+          read('/v1/integrations/{name}/docs', { ...init, params: { name } }),
+        );
+  const docsRecord = docs === null ? undefined : dataOf(docs);
+  const docsMarkdown = text(docsRecord, 'markdown');
+  const docsReadable =
+    docs !== null && docs.status === 'ready' && flag(docsRecord, 'readable');
+
   const connectedItems: readonly CatalogueConnectedItem[] = visibleConnected.map(
     (item) => ({
       name: item.name,
@@ -392,9 +421,33 @@ export async function IntegrationsScreen(
 
   return (
     <>
-      <AreaHeader area={areaFor('integrations')} locale={locale} />
+      <AreaHeader
+        area={areaFor('integrations')}
+        locale={locale}
+        meta={
+          <CountStrip
+            total={{
+              label: message(locale, 'catalogue.integrations.count.total'),
+              value: installed.length,
+            }}
+            parts={[
+              {
+                label: message(locale, 'catalogue.integrations.count.connected'),
+                value: connected.length,
+                role: 'success',
+              },
+              {
+                label: message(locale, 'catalogue.integrations.count.available'),
+                value: installed.length - connected.length,
+                role: 'neutral',
+              },
+            ]}
+          />
+        }
+      />
 
       <Panel
+        titleHidden
         title={message(locale, 'catalogue.integrations.title')}
         state={stateOf(integrations, installed.length === 0)}
         dependency={dependencyOf(integrations)}
@@ -410,18 +463,18 @@ export async function IntegrationsScreen(
         }}
       >
         <div className="flex flex-col gap-5">
-          <p className="text-meta text-muted" data-testid="catalogue-summary">
-            {suggested.length > 0
-              ? message(locale, 'catalogue.integrations.summary.suggested', {
-                  total: installed.length,
-                  connected: connected.length,
-                  suggested: suggested.length,
-                })
-              : message(locale, 'catalogue.integrations.summary', {
-                  total: installed.length,
-                  connected: connected.length,
-                })}
-          </p>
+          {/* The counts are in the page header, where every other screen keeps
+              them. What is left here is the one fact a count cannot carry —
+              that the estate itself found some of these running — and it is
+              absent entirely when it has found none, rather than restating the
+              header in prose. */}
+          {suggested.length === 0 ? null : (
+            <p className="text-meta text-muted" data-testid="catalogue-summary">
+              {message(locale, 'catalogue.integrations.summary.suggested', {
+                suggested: suggested.length,
+              })}
+            </p>
+          )}
 
           {choices.length === 0 ? null : (
             <FilterBar
@@ -486,6 +539,7 @@ export async function IntegrationsScreen(
                   summary: panelItem.summary,
                   health: panelItem.health,
                   healthDetail: panelItem.healthDetail,
+                  credentialTeamAmbiguous: panelItem.credentialTeamAmbiguous,
                   fields: panelItem.fields,
                   permissions: panelItem.permissions,
                   // The estate's own discovery, never a vendor's default port
@@ -496,12 +550,16 @@ export async function IntegrationsScreen(
                   discoveredAddress: panelItem.suggested?.address ?? '',
                   direction: panelItem.direction,
                   intakePath: panelItem.intakePath,
+                  whereToGetIt: panelItem.whereToGetIt,
+                  docsMarkdown,
+                  docsReadable,
                 }
           }
           closeHref={closeHref}
           notCoveredHref={notCoveredHref}
           intakeHref={ALERT_INTAKE_HREF}
           writable={writable}
+          mayTrustUnverified={mayTrustUnverified}
           labels={{
             close: message(locale, 'catalogue.integrations.panel.close'),
             credential: {
@@ -536,6 +594,10 @@ export async function IntegrationsScreen(
               locale,
               'catalogue.integrations.panel.connectedByAddress',
             ),
+            credentialTeamAmbiguous: message(
+              locale,
+              'catalogue.integrations.panel.credentialTeamAmbiguous',
+            ),
             testAgain: message(locale, 'catalogue.integrations.panel.testAgain'),
             replaceCredential: message(
               locale,
@@ -558,6 +620,52 @@ export async function IntegrationsScreen(
             intakeTitle: message(locale, 'ingress.title'),
             intakeBody: message(locale, 'ingress.body'),
             intakeAction: message(locale, 'catalogue.integrations.panel.intake.action'),
+            docsHeading: message(locale, 'catalogue.integrations.panel.docs.heading'),
+            docsToggle: message(locale, 'catalogue.integrations.panel.docs.toggle'),
+            docsUnreadable: message(
+              locale,
+              'catalogue.integrations.panel.docs.unreadable',
+            ),
+            trust: {
+              heading: message(locale, 'catalogue.integrations.panel.trust.heading'),
+              intro: message(locale, 'catalogue.integrations.panel.trust.intro'),
+              fingerprintsLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.fingerprintsLabel',
+              ),
+              fingerprintsHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.fingerprintsHelp',
+              ),
+              certificateLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.certificateLabel',
+              ),
+              certificateHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.certificateHelp',
+              ),
+              submit: message(locale, 'catalogue.integrations.panel.trust.submit'),
+              sending: message(locale, 'catalogue.integrations.panel.trust.sending'),
+              saved: message(locale, 'catalogue.integrations.panel.trust.saved'),
+              refused: message(locale, 'catalogue.integrations.panel.trust.refused'),
+              unreachable: message(
+                locale,
+                'catalogue.integrations.panel.trust.unreachable',
+              ),
+              unverifiedHeading: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedHeading',
+              ),
+              unverifiedReasonLabel: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedReasonLabel',
+              ),
+              unverifiedReasonHelp: message(
+                locale,
+                'catalogue.integrations.panel.trust.unverifiedReasonHelp',
+              ),
+            },
           }}
         />
       )}

@@ -32,16 +32,28 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+import asyncio
+import os
+import urllib.error
+import urllib.request
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urljoin
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
-from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from config.constants.security import (
+    INTEGRATION_TRUST_AUDIT_ACTION,
+    INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
+    NINJASRE_CREDENTIAL_PROXY_URL_ENV,
+    PROXY_TRUST_REFRESH_PATH,
+)
 from gateway.http.configured import configured_integrations
+from gateway.http.control_plane import compose_control_plane
+from gateway.http.credential_handles import credential_team_holders, resolve_credential_handle
 from gateway.http.credential_schemas import schema_for
 from gateway.http.credential_state import credential_detail, effective_credential_state
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
@@ -49,14 +61,17 @@ from gateway.http.errors import bad_request, not_found
 from gateway.http.integration_access import refresh_integration_endpoints
 from gateway.http.integration_endpoints import (
     configured_endpoints,
+    record_certificate_trust,
     record_endpoint,
     split_by_destination,
+    stamped_trust,
+    trust_audit_detail,
 )
 from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.state import GatewayState
 from gateway.http.verifications import forget_check, integration_health, record_check
 from gateway.webhooks.router import PROFILES as WEBHOOK_PROFILES
-from integrations._catalogue.discovery import catalogue
+from integrations._catalogue.discovery import catalogue, entry
 from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
@@ -237,6 +252,17 @@ class IntegrationView(BaseModel):
     #: Set when the estate holds something this vendor plainly runs on. Absent
     #: otherwise, and absent is the ordinary case.
     suggested: SuggestionView | None = None
+    #: One sentence naming where an operator obtains this vendor's credential,
+    #: read from the vendor's own profile. The same declaration the guided
+    #: first run reads for the same vendor, so the two screens that ask for a
+    #: credential never disagree about where it comes from. Empty where a
+    #: vendor has not declared one.
+    where_to_get_it: str = ""
+    #: Set when more than one team holds a credential for this integration.
+    #: The process resolves the ambiguity to the organisation-wide handle
+    #: rather than choosing a team in silence — this is what tells an
+    #: operator that decision was made, and for which vendor.
+    credential_team_ambiguous: bool = False
 
 
 class IntegrationList(BaseModel):
@@ -247,6 +273,27 @@ class IntegrationList(BaseModel):
     #: read to answer, and an operator who has to know to ask a second time
     #: discovers the absence by not finding it.
     known_gaps: list[KnownGapView] = Field(default_factory=list)
+
+
+class IntegrationDocsView(BaseModel):
+    """One vendor package's own documentation, as its ``docs.md`` reads.
+
+    ``markdown`` is the file's text, unmodified — the console renders it with
+    the markdown reader it already has rather than this route parsing
+    anything. ``readable`` is false in exactly one situation: the vendor is
+    installed and its parity report resolved a ``docs.md`` path, but the file
+    at that path could not actually be read. That is never "no such vendor" —
+    a name outside the catalogue is a 404, not a row here — and it is never
+    "this vendor has no documentation", because every embedded vendor is
+    required to ship one. It is this deployment's own build failing to carry
+    a file its source tree has, which is exactly the failure the console has
+    to say plainly rather than reporting as if the document never existed.
+    """
+
+    name: str
+    display_name: str
+    markdown: str
+    readable: bool = True
 
 
 class IntegrationVerification(BaseModel):
@@ -376,6 +423,11 @@ async def list_integrations(
     )
     suggested = await _suggestions(state, auth, entries)
     ordered = sorted(entries, key=lambda entry: (entry.name not in suggested, entry.name))
+    # One listing for the whole organisation, not one per row: which teams
+    # hold a credential for which integration is exactly what deciding this
+    # ambiguity needs, and reading it once here is what keeps a catalogue of
+    # dozens of vendors from taking a vault round trip per row.
+    team_holders = await credential_team_holders(state.gateway, auth.scope)
     return IntegrationList(
         known_gaps=[
             KnownGapView(
@@ -388,11 +440,66 @@ async def list_integrations(
             )
             for record in (gap.to_record() for gap in gaps())
         ],
-        integrations=[_integration_view(entry, suggested.get(entry.name)) for entry in ordered],
+        integrations=[
+            _integration_view(
+                entry,
+                suggested.get(entry.name),
+                credential_team_ambiguous=len(team_holders.get(entry.name, ())) > 1,
+            )
+            for entry in ordered
+        ],
     )
 
 
-def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationView:
+@router.get("/{name}/docs", response_model=IntegrationDocsView)
+async def integration_docs(
+    name: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> IntegrationDocsView:
+    """Return one embedded vendor's own package documentation.
+
+    Takes the same authorisation every other route on this router does, even
+    though it reads nothing tenant-scoped: the permission check is what
+    ``authorized`` performs against the route table, and a route mounted
+    without it would be reachable by anyone who could reach this deployment
+    at all.
+
+    ``name`` is resolved against the installed catalogue and never used to
+    build a filesystem path directly: the path this reads comes from the same
+    parity report that already walked the package tree to confirm ``docs.md``
+    is there, so a name that is not an installed vendor never reaches a disk
+    access at all — it is a 404 before that.
+    """
+    del state, auth  # required for the permission check; this route reads no tenant data
+    try:
+        found = entry(name)
+    except LookupError as unknown:
+        raise not_found(str(unknown)) from unknown
+
+    docs_path = found.parity.docs_path
+    if docs_path is None:
+        # Installed, but this deployment's own build did not carry the file
+        # the source tree declares. A read failure, not an absence — see
+        # IntegrationDocsView's own docstring for why the two must not be
+        # collapsed into one signal.
+        return IntegrationDocsView(
+            name=found.name, display_name=found.display_name, markdown="", readable=False
+        )
+
+    try:
+        markdown = docs_path.read_text(encoding="utf-8")
+    except OSError:
+        return IntegrationDocsView(
+            name=found.name, display_name=found.display_name, markdown="", readable=False
+        )
+
+    return IntegrationDocsView(name=found.name, display_name=found.display_name, markdown=markdown)
+
+
+def _integration_view(
+    entry: Any, suggested: Suggestion | None, *, credential_team_ambiguous: bool = False
+) -> IntegrationView:
     """Return one catalogue entry as the view a console renders."""
     direction, intake_path = _direction(entry.name)
     return IntegrationView(
@@ -411,6 +518,8 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
         missing_artefacts=[artefact.value for artefact in entry.parity.missing],
         direction=direction,
         intake_path=intake_path,
+        where_to_get_it=entry.profile.where_to_get_it,
+        credential_team_ambiguous=credential_team_ambiguous,
         suggested=(
             None
             if suggested is None
@@ -425,15 +534,22 @@ def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationVi
     )
 
 
-def _team_of(auth: AuthenticatedRequest) -> str:
+async def _team_of(state: GatewayState, auth: AuthenticatedRequest, name: str) -> str:
     """Return the credential-handle team this request writes and reads under.
 
-    An organisation-scoped token has no team, and a handle needs one: the vault
-    spells the organisation-wide owner as a literal rather than as an empty
-    string, because ``datadog/`` and ``datadog`` would otherwise be two
-    spellings of one handle.
+    The caller's own team, resolved through the one path verification and
+    tool binding now share (``resolve_credential_handle``) instead of the
+    expression repeated at every route that needed it. An organisation-scoped
+    token has no team, and a handle needs one: the vault spells the
+    organisation-wide owner as a literal rather than as an empty string,
+    because ``datadog/`` and ``datadog`` would otherwise be two spellings of
+    one handle — the fast path this call takes, with the caller's team named,
+    reproduces exactly that, without a vault read.
     """
-    return auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
+    resolved = await resolve_credential_handle(
+        state.gateway, auth.scope, integration=name, preferred_team=auth.team_node_id
+    )
+    return resolved.team_id
 
 
 def _affected_kinds(name: str) -> tuple[VerificationSubject, ...]:
@@ -484,7 +600,9 @@ async def verify_integration(
     schemas = CredentialSchemaRegistry.from_schemas(schema)
     vault = Vault(gateway=state.gateway, schemas=schemas)
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
+    report = await health.report(
+        auth.scope, integrations=(name,), team_id=await _team_of(state, auth, name)
+    )
     entry = report.entries[0]
     # A vendor that ships no authentication is configured by its address, and
     # the vault's "nothing is stored" is a true answer to a question nobody
@@ -506,7 +624,7 @@ async def verify_integration(
         passed=resolved.usable,
         detail=credential_detail(resolved, address_only=resolved is not entry.state),
         checked_by=auth.principal_id,
-        team_node_id=_team_of(auth),
+        team_node_id=await _team_of(state, auth, name),
     )
     return IntegrationVerification(integration=name, state=resolved.value, usable=resolved.usable)
 
@@ -566,7 +684,7 @@ async def verify_integration_deeply(
             f"which are wired at composition rather than guessed here. The credential "
             f"state itself is answered by POST /v1/integrations/{name}/verify."
         )
-    report = await state.deep_verifier(name, _team_of(auth))
+    report = await state.deep_verifier(name, await _team_of(state, auth, name))
     if report is None:
         raise not_found(
             f"{name!r} has no verifier that produces a report. Its credential state is "
@@ -585,7 +703,7 @@ async def verify_integration_deeply(
         passed=bool(report.get("ok")),
         detail=_report_detail(report),
         checked_by=auth.principal_id,
-        team_node_id=_team_of(auth),
+        team_node_id=await _team_of(state, auth, name),
     )
     return IntegrationVerificationReport(integration=name, report=dict(report))
 
@@ -642,7 +760,7 @@ async def store_credential(
         gateway=state.gateway,
         schemas=CredentialSchemaRegistry.from_schemas(stored_schema),
     )
-    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    handle = CredentialHandle(integration=name, team_id=await _team_of(state, auth, name))
     version = ADDRESS_ONLY_VERSION
     if secrets:
         try:
@@ -702,8 +820,16 @@ async def store_credential(
         # refresh above exists to prevent.
         await compose_provider_credentials(state, org_id=auth.scope.org_id)
 
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
+
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
+    report = await health.report(
+        auth.scope, integrations=(name,), team_id=await _team_of(state, auth, name)
+    )
     entry = report.entries[0]
     # Named for what it is rather than `state`, which on this route is the
     # deployment's own. The same rule the verify route applies, from the same
@@ -725,6 +851,165 @@ async def store_credential(
         usable=credential_state.usable,
         version=version,
         fields=names,
+    )
+
+
+class TrustWriteRequest(BaseModel):
+    """What an operator declares about this vendor's certificate.
+
+    There is no field here that turns verification off, and there is not going
+    to be one. The insecure form is reached by writing down why, in
+    ``unverified_reason`` — which is also what makes it need a permission the
+    role that merely operates integrations does not hold. Who accepted it and
+    when are stamped by the server; a value sent here for either is discarded
+    before anything is validated.
+    """
+
+    fingerprints: list[str] = Field(default_factory=list)
+    certificate_pem: str | None = None
+    unverified_reason: str | None = None
+
+
+class TrustWriteView(BaseModel):
+    """What was written down, and which addresses it now covers."""
+
+    integration: str
+    anchor: str
+    addresses: list[str] = Field(default_factory=list)
+    #: The one line a report shows: what this endpoint is now checked against.
+    describes: str = ""
+
+
+#: How long this route waits on the credential proxy's own answer before
+#: giving up and falling back to its periodic cycle. Short and deliberately
+#: so: a declaration is already written and audited by the time this runs, so
+#: nothing here is worth making an operator wait on — it is a nudge for the
+#: common case, not a promise the write depends on.
+_TRUST_REFRESH_TIMEOUT_SECONDS = 5.0
+
+
+def _refresh_credential_proxy_trust(proxy_url: str) -> None:
+    """Ask the credential proxy, over its own internal path, to re-read what it trusts.
+
+    Runs in a worker thread at the call site via ``asyncio.to_thread`` — the
+    same technique ``HttpProxyTransport`` uses to reach this same proxy for
+    the same reason: this deployment's short, audited dependency list has no
+    async HTTP client in it. Every failure is swallowed here rather than
+    raised: an unreachable proxy, a timeout, or an older proxy that does not
+    yet serve this path all leave the declaration exactly as written, and the
+    proxy's own periodic cycle still applies it on its own next tick either
+    way — this call only tries to make that sooner.
+    """
+    request = urllib.request.Request(  # noqa: S310 — the URL is the operator's own proxy
+        urljoin(proxy_url, PROXY_TRUST_REFRESH_PATH), method="POST"
+    )
+    try:
+        with urllib.request.urlopen(  # noqa: S310 — same
+            request, timeout=_TRUST_REFRESH_TIMEOUT_SECONDS
+        ):
+            pass
+    except (urllib.error.URLError, OSError, TimeoutError, ValueError) as unconfirmed:
+        logger.info(
+            "integration.trust_refresh_not_confirmed",
+            error=str(unconfirmed),
+            detail="the credential proxy's own periodic cycle still applies this declaration",
+        )
+
+
+@router.put("/{name}/trust", response_model=TrustWriteView)
+async def store_certificate_trust(
+    name: str,
+    body: TrustWriteRequest,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> TrustWriteView:
+    """Declare what this deployment accepts from ``name``'s endpoint certificate.
+
+    Written into the organisation's own configuration, beside the address, where
+    the credential proxy already reads from. The write itself asks the proxy to
+    re-read it immediately rather than waiting for the periodic cycle that
+    rebuilds the egress allow-list — best-effort, and never a reason this write
+    fails: an unreachable proxy still applies the declaration on that cycle's
+    own next tick, without a restart, exactly as it always has.
+
+    Accepting an unverified certificate needs a permission of its own and a
+    reason in writing, and the identity recorded is the authenticated one rather
+    than anything the body carried. Nothing is written when either check fails:
+    the declaration is validated and authorised before the document is touched,
+    so a refusal leaves it exactly as it was.
+
+    Raises:
+        ApiProblem: the declaration is not one the vocabulary will hold (400) —
+            a blank reason, a private key where the certificate goes, a
+            fingerprint that is not one. The refusal names the field and never
+            quotes a value.
+    """
+    try:
+        declared = stamped_trust(
+            body.model_dump(exclude_none=True),
+            actor_id=auth.principal_id,
+            at=datetime.now(UTC),
+        )
+    except ValueError as refused:
+        raise bad_request(str(refused)) from refused
+
+    # Before anything is written, and it raises rather than returning: a partial
+    # write behind a refusal is the failure this ordering exists to prevent.
+    declared.refuse_unless_permitted(auth.context.permissions, node_id=auth.context.scope_node_id)
+
+    covered = await record_certificate_trust(
+        state.gateway,
+        # The organisation's node, not the caller's team, for the reason the
+        # address is written there: the binding that makes the call is
+        # organisation-wide, and a declaration written at a team node would be
+        # read by nothing.
+        scope=auth.scope,
+        node_id=auth.scope.org_id,
+        integration=name,
+        trust=declared,
+        actor_id=auth.principal_id,
+    )
+
+    # Who, when, which integration, which addresses, which form, the
+    # fingerprints when there are any and the reason when there is one — and no
+    # certificate material. Accepting an unverified certificate is a decision
+    # somebody needs to find six months later, and this is the row they find.
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        AuditContext(actor_kind=ActorKind.USER, actor_id=auth.principal_id),
+        action=INTEGRATION_TRUST_AUDIT_ACTION,
+        resource_kind=INTEGRATION_TRUST_AUDIT_RESOURCE_KIND,
+        resource_id=name,
+        detail=trust_audit_detail(name, declared, addresses=covered),
+    )
+
+    # A verdict belongs to the trust it was reached under. Keeping the last one
+    # across a change would leave a green tick on an anchor nothing has tested.
+    for kind in _affected_kinds(name):
+        await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    # The declaration is written and audited above this line; everything below
+    # it is best-effort and never turns a stored declaration into a refused
+    # write. Two things composed at a moment in the past now describe a moment
+    # that just changed, and both are asked to catch up rather than left to
+    # find out on their own timer: the credential proxy's own registry, which
+    # otherwise governs the very next call on nothing sooner than its sixty
+    # second cycle, and this deployment's control-plane binding, which
+    # otherwise reports the trust anchor it was composed with at boot for as
+    # long as the process runs.
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    if proxy_url:
+        await asyncio.to_thread(_refresh_credential_proxy_trust, proxy_url)
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
+
+    return TrustWriteView(
+        integration=name,
+        anchor=declared.anchor.value,
+        addresses=list(covered),
+        describes=declared.declaration(*covered).describe(),
     )
 
 
@@ -752,7 +1037,7 @@ async def delete_credential(
         gateway=state.gateway,
         schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
     )
-    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    handle = CredentialHandle(integration=name, team_id=await _team_of(state, auth, name))
     removed = await vault.delete(auth.scope, handle)
 
     await AuditRecorder(gateway=state.gateway).record(
@@ -777,6 +1062,12 @@ async def delete_credential(
         # Same reason as the write: a key removed from the vault and left in the
         # factory's lease is a credential the operator believes they revoked.
         await compose_provider_credentials(state, org_id=auth.scope.org_id)
+
+    proxy_url = os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, "")
+    try:
+        await compose_control_plane(state, org_id=auth.scope.org_id, proxy_url=proxy_url)
+    except Exception as unrecomposed:  # noqa: BLE001 — the write already succeeded
+        logger.warning("integration.control_plane_not_recomposed", error=str(unrecomposed))
 
     return CredentialDeleteView(integration=name, versions_removed=removed)
 

@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
 import { Input } from '@/components/form';
-import { timestamp } from '@/i18n/format';
+import { CountStrip } from '@/components/layout';
+import { roleFor } from '@/design/status';
+import { humaniseIdentifier, timestamp } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -15,7 +17,7 @@ import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
-  countOf,
+  counts,
   dataOf,
   dependencyOf,
   field,
@@ -97,6 +99,18 @@ export const RESOURCE_FILTERS: readonly FilterName[] = [
 
 /** The two states represented by the dashboard's combined problem figure. */
 const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
+
+/**
+ * The one health the estate counts and then leaves out of its own total.
+ *
+ * `summarise` in the estate repository counts an absent resource into
+ * `by_health` and then `continue`s before adding it to `total`, deliberately:
+ * "watched" means what this estate currently has rather than what it once had.
+ * So the breakdown legitimately sums to more than the whole it belongs to, and
+ * a header that added them together read as wrong about itself by exactly the
+ * number of absent resources.
+ */
+const ABSENT = 'absent';
 
 /**
  * Worst first. The order is the triage order, not the alphabet.
@@ -278,6 +292,24 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
     return byState !== 0 ? byState : criticalityRank(left) - criticalityRank(right);
   });
 
+  // The health breakdown as the endpoint reports it, in the triage order the
+  // table below uses — reversed, so the header reads healthy-first the way a
+  // summary is read while the rows stay worst-first the way a queue is worked.
+  // `absent` is deliberately outside `total`: the estate repository counts it
+  // and then does not add it, because "watched" means what this estate
+  // currently has rather than what it once had. Folded in with the rest it made
+  // the parts overshoot the whole by exactly its own number — the page reading
+  // as wrong about itself, which is the fault this strip exists to prevent.
+  const healthCounts = [...counts(dataOf(summary), 'by_health')]
+    .filter(([health, value]) => value > 0 && health !== ABSENT)
+    .sort((left, right) => {
+      const rank = (health: string): number => {
+        const found = STATE_ORDER.indexOf(health);
+        return found === -1 ? STATE_ORDER.length : found;
+      };
+      return rank(right[0]) - rank(left[0]);
+    });
+
   const none = message(locale, 'surface.none');
 
   // A column that is never once populated teaches a reader to stop looking at
@@ -286,6 +318,16 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // decided over what is actually on screen, so filtering to a quiet zone can
   // make either column disappear even when the whole estate has readings.
   const hasUtilisation = sorted.some((record) => utilisation(record) > 0);
+  // The same discipline, applied to the two columns that had been exempt from
+  // it. Zone read "Unplaced" and Criticality read "Ungraded" on all ninety-seven
+  // rows: two columns and roughly six hundred pixels saying one word each, on
+  // the screen that most needs to tell one row from another. When nothing is
+  // placed or graded, that is a fact about the deployment rather than about
+  // ninety-seven resources, and it belongs in one sentence above the table with
+  // the way to fix it attached — which is what the per-cell hint was already
+  // trying to say, ninety-seven times.
+  const hasZone = sorted.some((record) => zoneOf(record) !== UNPLACED);
+  const hasCriticality = sorted.some((record) => criticalityOf(record) !== '');
   const hasDivergence = sorted.some((record) =>
     undeclared.has(text(record, 'correlation_key')),
   );
@@ -316,35 +358,50 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               },
             ]
           : []),
-        { kind: 'muted', text: text(record, 'kind') },
-        {
-          kind: 'muted',
-          text:
-            zoneOf(record) === UNPLACED
-              ? message(locale, 'resources.zone.unplaced')
-              : zoneOf(record),
-          hint:
-            zoneOf(record) === UNPLACED
-              ? message(locale, 'resources.zone.unplaced.hint')
-              : undefined,
-          // Unplaced is not blank, but it is not an answer either — the link
-          // goes to where a zone actually gets declared, not to the resource
-          // that is missing one.
-          href: zoneOf(record) === UNPLACED ? '/configuration' : undefined,
-        },
-        {
-          // The word the operator wrote, never one this console chose for them.
-          kind: criticalityOf(record) === '' ? 'muted' : 'status',
-          text:
-            criticalityOf(record) === ''
-              ? message(locale, 'resources.criticality.ungraded')
-              : criticalityOf(record),
-          hint:
-            criticalityOf(record) === ''
-              ? message(locale, 'resources.criticality.ungraded.hint')
-              : undefined,
-          href: criticalityOf(record) === '' ? '/configuration' : undefined,
-        },
+        // The kind a person reads. `virtual_machine` is the provider's own
+        // spelling and the right thing to sort and filter by — which the
+        // column still does, against the raw value — and the wrong thing to
+        // print ninety-six times in a table read by people.
+        { kind: 'muted', text: humaniseIdentifier(text(record, 'kind')) },
+        ...(hasZone
+          ? [
+              {
+                kind: 'muted' as const,
+                text:
+                  zoneOf(record) === UNPLACED
+                    ? message(locale, 'resources.zone.unplaced')
+                    : zoneOf(record),
+                hint:
+                  zoneOf(record) === UNPLACED
+                    ? message(locale, 'resources.zone.unplaced.hint')
+                    : undefined,
+                // Unplaced is not blank, but it is not an answer either — the
+                // link goes to where a zone actually gets declared, not to the
+                // resource that is missing one.
+                href: zoneOf(record) === UNPLACED ? '/configuration' : undefined,
+              },
+            ]
+          : []),
+        ...(hasCriticality
+          ? [
+              {
+                // The word the operator wrote, never one this console chose.
+                kind:
+                  criticalityOf(record) === ''
+                    ? ('muted' as const)
+                    : ('status' as const),
+                text:
+                  criticalityOf(record) === ''
+                    ? message(locale, 'resources.criticality.ungraded')
+                    : criticalityOf(record),
+                hint:
+                  criticalityOf(record) === ''
+                    ? message(locale, 'resources.criticality.ungraded.hint')
+                    : undefined,
+                href: criticalityOf(record) === '' ? '/configuration' : undefined,
+              },
+            ]
+          : []),
         { kind: 'status', text: text(record, 'health') },
         ...(hasUtilisation
           ? [
@@ -370,23 +427,30 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       <AreaHeader
         area={areaFor('resources')}
         locale={locale}
-        actions={
-          <span className="text-meta text-muted">
-            {message(locale, 'resources.summary', {
-              watched: String(number(dataOf(summary), 'total')),
-              healthy: String(countOf(dataOf(summary), 'by_health', 'healthy')),
-              // The word in the sentence is "degraded", so the number beside it
-              // is the count of resources actually in that state — not
-              // `problems`, which is degraded *and* unhealthy folded together.
-              // That folding is exactly what left this header unable to add up
-              // against the badges below it or the dashboard's own count.
-              degraded: String(countOf(dataOf(summary), 'by_health', 'degraded')),
-              // Its own number rather than folded into degraded. Broken and
-              // degrading are different states with different next actions, and
-              // one of them had no count anywhere on this screen.
-              unhealthy: String(countOf(dataOf(summary), 'by_health', 'unhealthy')),
-            })}
-          </span>
+        meta={
+          <CountStrip
+            total={{
+              label: message(locale, 'resources.summary.watched'),
+              value: number(dataOf(summary), 'total'),
+            }}
+            // Generated from the breakdown the endpoint actually returned
+            // rather than from a sentence with four holes in it. The four-hole
+            // version read "97 watched · 76 healthy · 0 degraded · 13
+            // unhealthy" and those three parts total 89 — eight resources sat
+            // in a state the sentence had no slot for, and the table below
+            // showed every one of them. A state added to the enumeration
+            // tomorrow gets a cell here for free; the sentence would have
+            // silently dropped it.
+            parts={healthCounts.map(([health, value]) => ({
+              label: health,
+              value,
+              role: roleFor(health),
+            }))}
+            aside={counts(dataOf(summary), 'by_health')
+              .filter(([health, value]) => health === ABSENT && value > 0)
+              .map(([health, value]) => ({ label: health, value }))}
+            shortfallLabel={message(locale, 'resources.summary.unaccounted')}
+          />
         }
       />
 
@@ -652,18 +716,39 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           href: '/configuration',
         }}
         action={
-          // Named as what it is — the default order — rather than left to
-          // sit in the corner unexplained. The hint says how to leave it: the
-          // columns beside it are already sortable links, and this is the one
-          // sentence connecting the label to them.
-          <span
-            className="text-meta text-muted"
-            title={
-              state.sort === '' ? message(locale, 'resources.sorted.hint') : undefined
-            }
-          >
-            {state.sort === '' ? message(locale, 'resources.sorted') : ''}
-          </span>
+          <div className="flex items-baseline gap-3">
+            {/* What the two dropped columns were saying, said once. Nothing
+                placed and nothing graded is a fact about the deployment, not
+                about ninety-seven resources, and the link is where it gets
+                fixed — the same address the per-cell hint pointed at. */}
+            {hasZone && hasCriticality ? null : (
+              <span className="text-meta text-muted" data-testid="estate-ungraded">
+                {message(
+                  locale,
+                  hasZone
+                    ? 'resources.none.graded'
+                    : hasCriticality
+                      ? 'resources.none.placed'
+                      : 'resources.none.placedOrGraded',
+                )}{' '}
+                <Link href="/configuration">
+                  {message(locale, 'resources.none.action')}
+                </Link>
+              </span>
+            )}
+            {/* Named as what it is — the default order — rather than left to
+                sit in the corner unexplained. The hint says how to leave it:
+                the columns beside it are already sortable links, and this is
+                the one sentence connecting the label to them. */}
+            <span
+              className="text-meta text-muted"
+              title={
+                state.sort === '' ? message(locale, 'resources.sorted.hint') : undefined
+              }
+            >
+              {state.sort === '' ? message(locale, 'resources.sorted') : ''}
+            </span>
+          </div>
         }
       >
         <RowList
@@ -693,16 +778,24 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.kind'),
               sortable: true,
             },
-            {
-              key: 'zone',
-              header: message(locale, 'resources.column.zone'),
-              sortable: true,
-            },
-            {
-              key: 'criticality',
-              header: message(locale, 'resources.column.criticality'),
-              sortable: true,
-            },
+            ...(hasZone
+              ? [
+                  {
+                    key: 'zone',
+                    header: message(locale, 'resources.column.zone'),
+                    sortable: true,
+                  },
+                ]
+              : []),
+            ...(hasCriticality
+              ? [
+                  {
+                    key: 'criticality',
+                    header: message(locale, 'resources.column.criticality'),
+                    sortable: true,
+                  },
+                ]
+              : []),
             {
               key: 'health',
               header: message(locale, 'resources.column.state'),

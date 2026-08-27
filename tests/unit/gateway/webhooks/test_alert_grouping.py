@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
@@ -25,6 +25,7 @@ from httpx import ASGITransport, AsyncClient
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
 from core.domain.alerts.sources import AlertSource
 from gateway.http.app import create_app
+from gateway.http.services import InvestigationStart
 from gateway.http.state import GatewayState
 from gateway.webhooks.router import WebhookSourceConfig
 from gateway.webhooks.verification.shared_secret import SharedSecretVerifier
@@ -270,3 +271,178 @@ async def test_the_resolution_closes_the_incident_the_firing_opened(
     assert len(incidents) == 1
     assert incidents[0].state is IncidentState.RESOLVED
     assert incidents[0].self_resolved is True
+
+
+# --- One failure, several rules, one investigation ---------------------------
+#
+# The grouping above is Alertmanager's: it groups notifications of *one rule*.
+# What it cannot group is several rules firing about one thing, because each
+# rule is its own group with its own fingerprint. So one container being shut
+# down produced five incidents here and five investigations, none of which knew
+# the other four existed, and four of which reached the same wrong answer
+# independently.
+#
+# The relation is the subject, which alert resolution recorded before any of
+# this ran — and the fifth alert in that measured burst arrived inside the same
+# minute and was about a different container, so arrival is exactly the signal
+# that would have got it wrong.
+
+
+@dataclass(slots=True)
+class _BlockingRunner(FakeInvestigationRunner):
+    """A runner whose investigation is still going when the next alert lands.
+
+    The shared fake finishes the moment it is awaited, which makes every run
+    complete before the second delivery — the one state in which there is
+    correctly nothing to join. A real investigation takes the best part of a
+    minute and the second symptom arrives inside it.
+    """
+
+    release: asyncio.Event = field(default_factory=asyncio.Event)
+
+    async def investigate(self, request: InvestigationStart) -> str:
+        self.started.append(request)
+        await self.release.wait()
+        return "done"
+
+
+async def _deliver_without_waiting(ingress: Ingress, payload: dict[str, Any]) -> dict[str, Any]:
+    """Post an alert and leave whatever it started still running."""
+    response = await ingress.client.post(
+        "/webhooks/alertmanager",
+        content=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {SECRET}", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 202, response.text
+    # One pass of the loop, so the task the route created reaches its first
+    # await and the run is recorded as running before the next alert arrives.
+    await asyncio.sleep(0)
+    return dict(response.json())
+
+
+@pytest.fixture
+async def busy(ingress: Ingress) -> AsyncIterator[Ingress]:
+    """The same ingress, with a runner that does not finish on its own."""
+    runner = _BlockingRunner()
+    ingress.state.investigator = runner
+    ingress.runner = runner
+    yield ingress
+    runner.release.set()
+    if ingress.state.background_runs:
+        await asyncio.gather(*tuple(ingress.state.background_runs), return_exceptions=True)
+
+
+async def test_a_second_rule_on_one_guest_joins_the_investigation_already_running(
+    busy: Ingress,
+) -> None:
+    """Two rules, one container, one investigation — and five incidents stay five."""
+    await _deliver_without_waiting(busy, adguard_oom("first"))
+    answer = await _deliver_without_waiting(
+        busy, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+    )
+
+    assert answer.get("joined") is True, (
+        f"a second rule firing on the container already under investigation started "
+        f"an investigation of its own: {answer}"
+    )
+    assert len(busy.runner.started) == 1, (
+        f"{len(busy.runner.started)} investigations for one failure. The second is "
+        f"the same reasoning, at the same cost, by a run that cannot see the first."
+    )
+    async with busy.gateway.begin(busy.scope) as uow:
+        raised = await uow.incidents.query(IncidentQuery(states=(IncidentState.INVESTIGATING,)))
+    assert len(raised) == 2, (
+        "joining an investigation must not merge the incidents. Two rules fired and "
+        "two conditions are true; one investigation covers both."
+    )
+
+
+async def test_the_joined_alert_is_handed_to_the_running_investigation(
+    busy: Ingress,
+) -> None:
+    """The run is told, or joining is just suppression with a nicer name."""
+    await _deliver_without_waiting(busy, adguard_oom("first"))
+    await _deliver_without_waiting(
+        busy, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+    )
+
+    assert busy.runner.queued, "nothing was handed to the investigation that was joined"
+    _, text = busy.runner.queued[0]
+    assert "ContainerUnreachable" in text, (
+        f"the running investigation was told something arrived and not what: {text!r}"
+    )
+
+
+async def test_a_rule_firing_on_a_different_guest_investigates_for_itself(
+    busy: Ingress,
+) -> None:
+    """Arriving together is not a relation.
+
+    Two containers under one rule is the case resolution was built for, and it
+    is the same shape as the unrelated fifth alert in the measured burst: same
+    minute, different subject, its own problem.
+    """
+    await _deliver_without_waiting(busy, adguard_oom("first"))
+    answer = await _deliver_without_waiting(busy, clickhouse_storm("second"))
+
+    assert answer.get("joined") is not True, (
+        f"an alert about a different container joined the first one's investigation, "
+        f"leaving nobody looking at it: {answer}"
+    )
+    assert len(busy.runner.started) == 2
+
+
+async def test_two_alerts_arriving_at_once_still_produce_one_investigation(
+    busy: Ingress,
+) -> None:
+    """Alertmanager posts concurrently, and the burst measured here proves it.
+
+    Three of the five deliveries landed inside eighty-two milliseconds of each
+    other. An incident becomes joinable only once its run is attached to it, so
+    everything between starting the run and attaching it is a window in which a
+    second alert sees nothing running and starts its own — and the window used
+    to contain an estate write.
+
+    Delivered through ``gather`` rather than in sequence because sequential
+    delivery cannot reproduce it: the first request is fully handled before the
+    second begins, which is exactly the case that was never in doubt.
+    """
+    await asyncio.gather(
+        _deliver_without_waiting(busy, adguard_oom("first")),
+        _deliver_without_waiting(
+            busy, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+        ),
+    )
+
+    assert len(busy.runner.started) == 1, (
+        f"{len(busy.runner.started)} investigations for two alerts that arrived together "
+        f"on one container. An incident whose run exists but is not yet attached to it "
+        f"is an incident nothing can join."
+    )
+
+
+async def test_an_alert_arriving_after_the_answer_points_at_it_rather_than_redoing_it(
+    ingress: Ingress,
+) -> None:
+    """The three that arrived fifteen seconds late.
+
+    ``ingress`` rather than ``busy``: the shared runner finishes the moment it
+    is awaited, which is exactly the state this is about — the first
+    investigation has reported before the second alert lands.
+    """
+    await deliver(ingress, adguard_oom("first"))
+    answer = await deliver(
+        ingress, group(vmid=ADGUARD_VMID, alert_name="ContainerUnreachable", delivery="second")
+    )
+
+    assert answer.get("joined") is True, (
+        f"an alert arriving after the answer started its own investigation: {answer}"
+    )
+    assert answer.get("answered") is True, (
+        "an incident pointed at a finished report must not read as one somebody is looking at now"
+    )
+    assert len(ingress.runner.started) == 1, (
+        f"{len(ingress.runner.started)} investigations. The second re-derived an "
+        f"answer that already existed."
+    )
+    assert ingress.runner.queued == [], "a finished run was handed a message it can never read"

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
-from conftest import PRIMARY_ORG, at
+from conftest import POSTGRES, PRIMARY_ORG, at
 
 from platform.persistence.errors import DuplicateRecord
 from platform.persistence.ports import (
@@ -324,3 +326,133 @@ async def test_a_token_hash_is_locatable_for_the_audit_trail(
         assert located.token.token_id == "t-1"
 
         assert await system.tokens.find_token_by_hash("sha256:unknown") is None
+
+
+async def test_a_deployment_can_hold_more_than_one_addressless_principal(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # The bootstrap service account already has no address. A second one —
+    # any other service account nobody gave an address — used to collide with
+    # it on the email uniqueness rule; this is that defect, closed.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(
+            User(user_id="svc-1", email="", display_name="First service account")
+        )
+        await uow.identity.upsert_user(
+            User(user_id="svc-2", email="", display_name="Second service account")
+        )
+        first = await uow.identity.get_user("svc-1")
+        second = await uow.identity.get_user("svc-2")
+
+    assert first is not None
+    assert second is not None
+    assert first.email == ""
+    assert second.email == ""
+
+
+async def test_an_empty_address_search_finds_nobody(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(
+            User(user_id="svc-1", email="", display_name="First service account")
+        )
+        await uow.identity.upsert_user(
+            User(user_id="svc-2", email="", display_name="Second service account")
+        )
+        found = await uow.identity.find_user_by_email("")
+
+    assert found is None
+
+
+async def test_a_real_address_collision_names_the_address_not_a_constraint(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        with pytest.raises(DuplicateRecord) as raised:
+            await uow.identity.upsert_user(
+                User(user_id="u-ada-2", email="ADA@EXAMPLE.COM", display_name="Impostor")
+            )
+
+    message = str(raised.value)
+    assert "ada@example.com" in message.lower() or "ADA@EXAMPLE.COM" in message
+    assert "ix_users_email" not in message
+    assert "constraint" not in message.lower()
+    assert "sqlstate" not in message.lower()
+    assert "asyncpg" not in message.lower()
+
+
+LOCAL_SIGN_IN_RACE_ATTEMPTS = 8
+
+
+@pytest.fixture
+def postgres_only(backend_name: str) -> None:
+    """Skip a test that has no meaning without a real database.
+
+    A single Python process holding the fake's own lock is its own exclusion —
+    there is no window between its check and its write for a second caller to
+    land in — so racing the fake would prove nothing about the advisory lock
+    this test exists to hold accountable.
+    """
+    if backend_name != POSTGRES:
+        pytest.skip("The race this test proves only exists against a real database.")
+
+
+@pytest.mark.usefixtures("postgres_only")
+async def test_concurrent_first_administrators_leave_exactly_one_opening(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Several callers racing to open the local sign-in door produce one winner.
+
+    Every replica of a rolling deployment, or every terminal an operator has
+    open at once, can reach for this door at the same instant. Whichever
+    caller wins varies with scheduling; the count of doors opened must not,
+    and every loser reads back a sentence naming what happened rather than a
+    constraint name, an index name, or the driver's own words.
+    """
+    # Warm the gateway's one-time graph readiness check before timing the
+    # race: it runs on first use of a fresh gateway, is not itself guarded by
+    # any lock, and racing it here would measure that unrelated startup path
+    # instead of the advisory lock this test exists to hold accountable.
+    async with gateway.begin(scope):
+        pass
+
+    markers = [f"race-attempt-{index}" for index in range(LOCAL_SIGN_IN_RACE_ATTEMPTS)]
+
+    async def attempt(marker: str) -> tuple[str, str]:
+        try:
+            async with gateway.begin(scope) as uow:
+                opened = await uow.identity.open_local_sign_in(opened_at=at(), opened_via=marker)
+        except Exception as error:  # noqa: BLE001 - classified and asserted on below
+            return (type(error).__name__, str(error))
+        return ("opened", opened.opened_via)
+
+    results = await asyncio.gather(*(attempt(marker) for marker in markers))
+
+    winners = [result for result in results if result[0] == "opened"]
+    losers = [result for result in results if result[0] != "opened"]
+
+    assert len(winners) == 1, f"expected exactly one opening, found {len(winners)}: {results}"
+    assert len(losers) == LOCAL_SIGN_IN_RACE_ATTEMPTS - 1
+
+    for kind, message in losers:
+        assert kind == "DuplicateRecord", (
+            f"a refusal must be the domain error, not {kind}: {message}"
+        )
+        lowered = message.lower()
+        assert "asyncpg" not in lowered
+        assert "sqlstate" not in lowered
+        assert "constraint" not in lowered
+        assert "duplicate key value" not in lowered
+        assert "ix_" not in lowered
+        assert "pk_" not in lowered
+
+    [(_, winning_marker)] = winners
+    async with gateway.begin(scope) as uow:
+        stored = await uow.identity.local_sign_in_opening()
+
+    assert stored is not None
+    # The row a fresh read finds is the one the winner wrote, not a phantom
+    # the race window left behind.
+    assert stored.opened_via == winning_marker

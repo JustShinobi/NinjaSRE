@@ -267,7 +267,6 @@ docker load --input ninjasre-images.tar.gz
 Then configure a local model and turn the check on:
 
 ```
-NINJASRE_LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://ollama:11434/v1
 NINJASRE_AIR_GAPPED=true
 ```

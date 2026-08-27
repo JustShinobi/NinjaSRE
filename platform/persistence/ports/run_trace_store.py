@@ -20,7 +20,7 @@ a trace table outgrows the database it was meant to fit inside.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -72,6 +72,11 @@ class AgentRun:
     runtime: str | None = None
     model_id: str | None = None
     summary: str | None = None
+    #: One sentence naming the run, apart from the document ``summary``
+    #: holds. Empty for a run that has not concluded yet, or one recorded
+    #: before this field existed — a reader synthesises a headline for
+    #: either case rather than treating the empty string as the run's name.
+    headline: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -174,8 +179,13 @@ class RunTraceStore(Protocol):
         status: RunStatus,
         finished_at: datetime,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
         """Close ``run_id`` with a terminal status and return the stored run.
+
+        ``headline`` is left unchanged when ``None`` — the same convention
+        ``summary`` already uses — so a caller that only has one of the two
+        to report does not overwrite the other with emptiness.
 
         Raises ``RecordNotFound`` when the run does not exist in this tenant.
         """
@@ -219,6 +229,17 @@ class RunTraceStore(Protocol):
 
     async def tool_calls_for_run(self, run_id: str) -> tuple[ToolCallRecord, ...]:
         """Return the run's tool calls in the order they were recorded."""
+
+    async def named_tool_calls_for_runs(
+        self, run_ids: Sequence[str], tool_name: str
+    ) -> tuple[ToolCallRecord, ...]:
+        """Return every call of ``tool_name`` across ``run_ids``, recording order.
+
+        One read for a whole list. A surface that says something per run about
+        a capability every run offers — how sure it was, how long it took —
+        cannot afford one query per row, and the loop that does it is the
+        version that reaches production and is found later.
+        """
 
     async def evidence_for_run(self, run_id: str) -> tuple[EvidenceRecord, ...]:
         """Return the run's evidence in the order it was observed."""

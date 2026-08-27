@@ -917,7 +917,6 @@ def recorded(state: ClusterState) -> RecordedCluster:
     responses[f"/nodes/{SECONDARY}/lxc/100/pending"] = [
         {"key": "memory", "value": "4096", "pending": "8192"},
     ]
-    responses[f"/nodes/{SECONDARY}/lxc/100/status/tasks"] = []
     responses[f"/nodes/{PRIMARY}/qemu/9000/status/current"] = {
         "status": "stopped",
         "name": "windows-lab",
@@ -970,18 +969,6 @@ def recorded(state: ClusterState) -> RecordedCluster:
         "rootfs": "local-lvm:vm-137-disk-0,size=32G",
     }
     responses[f"/nodes/{PRIMARY}/lxc/137/snapshot"] = []
-    responses[f"/nodes/{PRIMARY}/lxc/137/status/tasks"] = []
-    responses[f"/nodes/{PRIMARY}/qemu/9000/status/tasks"] = [
-        {
-            "upid": "UPID:pve01:0000C201:05120000:68943B00:qmstart:9000:root@pam:",
-            "type": "qmstart",
-            "status": "storage 'externo-nfs-pve01' is not online",
-            "starttime": 1_754_802_500,
-            "endtime": 1_754_802_501,
-            "node": PRIMARY,
-            "user": "root@pam",
-        },
-    ]
 
     # The two containers whose own volumes are near full, and which carry the
     # cluster's prior stall postmortems. Read per guest rather than from the
@@ -1010,7 +997,6 @@ def recorded(state: ClusterState) -> RecordedCluster:
             "rootfs": f"local-lvm:vm-{vmid}-disk-0,size=8G",
         }
         responses[f"/nodes/{SECONDARY}/lxc/{vmid}/snapshot"] = []
-        responses[f"/nodes/{SECONDARY}/lxc/{vmid}/status/tasks"] = []
 
     # SMART, per device. Proxmox takes the disk as a query parameter, so these are
     # keyed with it: a corpus keyed by path alone would answer every disk with one

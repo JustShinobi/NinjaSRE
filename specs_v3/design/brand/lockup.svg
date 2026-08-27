@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 48" role="img" aria-label="NinjaSRE">
+  <!--
+    Lockup horizontal. A marca à esquerda, o nome à direita, separados por meia
+    altura da marca — a mesma distância que separa a marca de qualquer outra
+    coisa (ver D4: área de respiro).
+
+    `Ninja` no peso do texto, `SRE` no acento. A cor não decora: ela diz onde
+    termina o nome próprio e começa o que a coisa é.
+
+    O nome usa a família do sistema, como todo o resto do produto. Nenhuma fonte
+    é buscada — um deployment fechado não pode depender de um servidor de fontes
+    para renderizar a própria marca.
+  -->
+  <g transform="translate(6 6) scale(0.5625)">
+    <path fill="currentColor" fill-rule="evenodd"
+          d="M32 2 L37.55 18.6 L53.21 10.79 L45.4 26.45 L62 32 L45.4 37.55
+             L53.21 53.21 L37.55 45.4 L32 62 L26.45 45.4 L10.79 53.21 L18.6 37.55
+             L2 32 L18.6 26.45 L10.79 10.79 L26.45 18.6 Z
+             M32 26.5 A5.5 5.5 0 1 0 32 37.5 A5.5 5.5 0 1 0 32 26.5 Z"/>
+  </g>
+  <text x="66" y="33"
+        font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="26" font-weight="600" letter-spacing="-0.5"
+        fill="currentColor">Ninja<tspan fill="var(--accent, #4fd6b0)">SRE</tspan></text>
+</svg>

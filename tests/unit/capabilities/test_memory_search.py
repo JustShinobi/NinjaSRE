@@ -23,8 +23,10 @@ from config.constants.memory import DEFAULT_MEMORY_RECALL_RESULTS
 from core.capability.metadata import EvidenceSource, EvidenceType, SideEffectLevel
 from core.capability.registered import capability_marker
 from core.capability.result import CapabilityErrorClass
+from platform.memory.extraction import EPISODE_EXTRACTION_SCHEMA
 from platform.memory.models import (
     Component,
+    IssueType,
     MemoryEpisode,
     RecallQuery,
     ScoredEpisode,
@@ -115,6 +117,37 @@ def test_the_declaration_takes_a_query_and_the_two_optional_filters() -> None:
     assert registered.input_schema["required"] == ["query"]
 
 
+def test_the_agent_is_offered_the_same_closed_vocabulary_the_extractor_uses() -> None:
+    """The reading half of the controlled vocabulary, in the schema the model sees.
+
+    One list, declared once and read by both ends. Two lists that agreed on the
+    day they were written is how the corpus arrived at ``manual_shutdown`` on one
+    side and ``ProxmoxGuestStopped`` on the other, and a tool schema that merely
+    *described* the vocabulary in prose would be the second list.
+    """
+    registered = capability_marker(recall_similar_incidents)
+    assert registered is not None
+
+    issue_type = registered.input_schema["properties"]["issue_type"]
+    assert issue_type["enum"] == [member.value for member in IssueType]
+    assert issue_type["enum"] == EPISODE_EXTRACTION_SCHEMA["properties"]["issue_type"]["enum"]
+
+
+def test_the_issue_type_is_described_as_a_preference_rather_than_a_filter() -> None:
+    """The model must not be told it is narrowing the search, because it is not.
+
+    An agent that believes naming a class of failure excludes everything else
+    will name one it is only half sure of, and then read an empty result as
+    "this has never happened". It is ranking, and the schema says so.
+    """
+    registered = capability_marker(recall_similar_incidents)
+    assert registered is not None
+
+    described = registered.input_schema["properties"]["issue_type"]["description"].lower()
+    assert "rank" in described
+    assert "nothing is excluded" in described
+
+
 def test_the_description_tells_the_agent_when_to_search() -> None:
     """FR-010's other half: the anti-example is where the design decision lives."""
     registered = capability_marker(recall_similar_incidents)
@@ -165,6 +198,44 @@ async def test_an_empty_search_is_a_successful_finding() -> None:
     assert result.value["count"] == 0
     assert "normal result" in result.value["text"]
     assert result.evidence == ()
+
+
+async def test_a_real_retriever_over_an_empty_corpus_still_searched() -> None:
+    """The two "nothings", told apart over the store rather than over a stub.
+
+    This is what a freshly composed deployment actually hits: a team that has
+    never written an episode has no vector namespace at all. The stub above
+    proves the tool renders an empty result; this proves that the retriever a
+    composition root binds *produces* one, rather than reporting that there was
+    nowhere to look — which is the answer every deployment's first weeks would
+    otherwise give, and is indistinguishable from memory never having been
+    configured.
+    """
+    from platform.memory.embeddings.local import LocalEmbedder
+    from platform.memory.retrieval import MemoryRetriever
+    from platform.persistence.fakes import FakePersistence
+    from platform.persistence.ports.transaction import TenantScope
+
+    store = FakePersistence()
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation("acme", "Acme")
+
+    binding.bind(
+        MemoryRetriever(
+            gateway=store,
+            scope=TenantScope(org_id="acme", team_node_id="team-payments"),
+            embedder=LocalEmbedder(),
+        )
+    )
+
+    searched = await recall_similar_incidents(query="exit code 137")
+    binding.clear()
+    unconfigured = await recall_similar_incidents(query="exit code 137")
+
+    assert searched.succeeded and searched.value["count"] == 0
+    assert not unconfigured.succeeded
+    assert unconfigured.error is not None
+    assert unconfigured.error.classification is CapabilityErrorClass.UNAVAILABLE
 
 
 async def test_a_match_comes_back_with_its_trajectory_and_its_evidence() -> None:
@@ -228,6 +299,7 @@ def test_the_shaped_result_carries_both_the_text_and_the_structure() -> None:
         "similarity",
         "resolved",
         "component_overlap",
+        "issue_type_match",
         "effectiveness",
         "recency",
     }

@@ -56,6 +56,7 @@ SCHEMA: Final = CredentialSchema(
             kind=FieldKind.ENDPOINT,
             required=False,
             label="API server address",
+            guide_url="https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/",
         ),
         CredentialField(
             name="token",
@@ -71,6 +72,7 @@ SCHEMA: Final = CredentialSchema(
             kind=FieldKind.PUBLIC,
             required=False,
             label="Cluster name",
+            guide_url="https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/",
         ),
         CredentialField(
             name="namespace",
@@ -78,6 +80,7 @@ SCHEMA: Final = CredentialSchema(
             kind=FieldKind.PUBLIC,
             required=False,
             label="Default namespace",
+            guide_url="https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/",
         ),
     ),
 )

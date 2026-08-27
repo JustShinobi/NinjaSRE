@@ -90,7 +90,7 @@ export const EN = {
   'page.incidents.context': 'What a detector opened, and what happened to it since.',
   'page.runs.title': 'Investigations',
   'page.runs.context':
-    'Every investigation this deployment has recorded, newest first.',
+    'Every investigation this deployment has recorded, newest first. Open one where it sits.',
   'page.decisions.title': 'Decisions',
   'page.decisions.context':
     'What the agent wants to do now, and what it wants the deployment to become.',
@@ -228,12 +228,12 @@ export const EN = {
   'data.simulate.malformed': 'That is not valid JSON.',
   'data.delivery.title': 'Where the result goes',
   'settings.schedulesDestinations.advanced.transit.title':
-    'Advanced: routing rules and delivery destinations',
+    'Routing rules and delivery destinations',
   // No noun in this title may repeat one from `advanced.transit.title` above
   // — the chain on Alert intake promises "destination" and has to land on
   // the one section that owns it, unambiguously.
   'settings.schedulesDestinations.advanced.surfaces.title':
-    'Advanced: chat channels, report recipients and notification sinks',
+    'Chat channels, report recipients and notification sinks',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Routing rules',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Delivery destinations',
@@ -373,6 +373,8 @@ export const EN = {
   'palette.close': 'Close the palette',
 
   // --- The session -------------------------------------------------------------
+  'noAdministrator.title': 'This deployment has no administrator yet',
+  'noAdministrator.body': 'Run the command below on the host to create one.',
   'signIn.title': 'Sign in',
   'signIn.context': 'This console reaches your deployment and nothing else.',
   'signIn.username': 'Username',
@@ -459,6 +461,7 @@ export const EN = {
   'transcript.empty': 'This investigation recorded no events.',
   'transcript.arguments': 'Arguments',
   'transcript.result': 'Result',
+  'transcript.note': 'Why these capabilities were offered',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
   'transcript.events.one': '{count} event',
@@ -489,6 +492,9 @@ export const EN = {
   'dashboard.stat.successRate.context':
     '{succeeded} of {settled} finished investigations succeeded',
   'dashboard.stat.successRate.context.none': 'No investigation has finished yet',
+  'dashboard.stat.timeToCause': 'Time to a cause',
+  'dashboard.stat.timeToCause.context': 'median of {settled} · slowest {slowest}',
+  'dashboard.stat.timeToCause.context.none': 'No investigation has finished yet.',
   'dashboard.stat.drill': 'See the list behind this figure',
   'dashboard.activity.title': 'Recent activity',
   'dashboard.activity.empty.heading': 'Nothing has happened yet',
@@ -759,6 +765,8 @@ export const EN = {
   'run.usage.calls': 'Calls',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Cost',
+  'run.usage.unpriced': 'No published price for this model',
+  'run.usage.unpriced.short': 'unpriced',
   'run.usage.apportioned':
     'The investigation reports one total; the split below is that total apportioned across its turns.',
   'run.usage.empty.heading': 'No cost recorded',
@@ -778,6 +786,71 @@ export const EN = {
     'Resources and incidents are linked as the investigation names them. This one has named none.',
   'run.links.empty.action': 'See the estate',
 
+  // --- One investigation, opened where it sits -------------------------------------
+  //
+  // The list opens a run in place rather than navigating to it, so these
+  // strings are read on the list screen and on the run's own page alike.
+  'runs.row.open': 'Open this investigation',
+  'runs.row.opening': 'Opening this investigation…',
+  'runs.row.close': 'Close this investigation',
+  'runs.row.openPage': 'Open on its own page',
+  'run.evidence.backed': '{backed} of {claims} claims backed',
+  'run.evidence.unassessed': 'no claim to back',
+  'run.evidence.unassessed.explain':
+    'This investigation never assessed its own evidence, which is not the same as having found nothing.',
+  'run.evidence.missing.explain':
+    'The investigation named {missing} thing(s) it still could not read.',
+  'run.measure.duration': 'Time to a cause',
+  'run.measure.calls': 'Capabilities called',
+  'run.measure.trigger': 'Triggered by',
+  'run.measure.tokens': 'Tokens',
+  'run.measure.unpriced': 'This model publishes no price.',
+  'run.section.happened': 'What happened',
+  'run.section.reaches': 'What it reaches',
+  'run.section.order': 'In order',
+  'run.section.why': 'Why',
+  'run.section.todo': 'What to do',
+  'run.section.did': 'What it did',
+  'run.section.remembered': 'Worth remembering',
+  'run.happened.none': 'This investigation wrote no report beyond the line above.',
+  'run.reaches.none': 'This investigation is not filed under an incident.',
+  'run.remembered.written': 'written to the corpus',
+  'run.remembered.none': 'This investigation wrote nothing to the corpus.',
+  'run.remembered.unknown':
+    'This console could not read {dependency}, so whether this investigation wrote anything to the corpus is not known.',
+  'run.why.supporting': 'What backs it',
+  'run.why.missing': 'What nobody could read',
+  'run.why.none': 'This investigation never assessed its own evidence.',
+  'run.todo.none': 'Nothing from this investigation is waiting on a person.',
+  'run.did.summary': '{events} events across {turns} turns',
+  // What the section counts once the trace records stages. Turns are still
+  // counted for a run whose trace holds none, because that run genuinely has
+  // nothing but turns and saying "0 stages" about it would be a fact about
+  // this console rather than about the investigation.
+  'run.did.stages': '{events} events across {stages} stages',
+  'run.did.calls': '{calls} calls',
+  'run.did.more': 'Show {count} more calls',
+  'run.did.noRationale': 'This turn recorded no reasoning.',
+  'run.did.wroteReport': 'This turn wrote the report above.',
+  // The six stages, named as an operator reads them rather than as the trace
+  // spells them. `gather_evidence` is a field name; "Gather evidence" is what
+  // the stage is called on the screen that has always described the six.
+  'run.stage.resolve_integrations': 'Resolve integrations',
+  'run.stage.intake': 'Intake',
+  'run.stage.plan_evidence': 'Plan evidence',
+  'run.stage.gather_evidence': 'Gather evidence',
+  'run.stage.diagnose': 'Diagnose',
+  'run.stage.deliver': 'Deliver',
+  // What a stage that produced no loop turn shows instead. Not a stand-in for
+  // a turn: intake and diagnosis each make one model call and hand back a
+  // value, and this is that call counted. A stage with neither turns nor model
+  // calls made none, which is also true and also worth being able to see.
+  'run.stage.modelCalls': '{calls} model calls',
+  'run.stage.noFinding': 'This stage recorded no finding.',
+  'run.report.copy': 'Copy as Markdown',
+  'run.report.copied': 'Copied',
+  'run.report.copyRefused': 'The browser refused the clipboard',
+
   // --- Incidents -------------------------------------------------------------------
   'incidents.column.severity': 'Severity',
   'incidents.column.title': 'Incident',
@@ -787,6 +860,43 @@ export const EN = {
   'incidents.column.subjects': 'Subjects',
   'incidents.filter.state': 'State',
   'incidents.filter.severity': 'Severity',
+  'dashboard.band.active': 'Guardian active',
+  'dashboard.band.silent': 'Guardian silent',
+  'dashboard.band.meta':
+    '{posture} · {live} of {total} detectors live · {watched} resources watched',
+  'dashboard.band.meta.noDetectors':
+    '{posture} · no detector configured · {watched} resources watched',
+  'dashboard.stat.degraded.context.noDetectors':
+    '{count} open findings behind them, and no detector is switched on to raise one into an incident',
+  'dashboard.band.flight': 'Runs in flight',
+  'dashboard.band.blocked': 'Blocked on you',
+  'dashboard.band.detectors': 'Detectors live',
+  'dashboard.band.held': 'Incidents held',
+  'dashboard.band.idle': 'Nothing is being investigated right now.',
+  'dashboard.band.silent.body':
+    'The guardian is not reporting ready, so nothing is being watched and nothing will be raised. Everything below is the last thing this deployment knew.',
+  'dashboard.band.started': 'started {since}',
+  'dashboard.stat.unattended': 'Handled without a person',
+  'dashboard.stat.unattended.context':
+    '{closed} of {total} incidents closed themselves',
+  'dashboard.stat.unattended.context.none': 'nothing has closed yet',
+  'dashboard.attention.more': 'and {count} more waiting',
+  'dashboard.recurring.title': 'What keeps happening',
+  'dashboard.recurring.note': 'Grouped by subject, not by firing',
+  'dashboard.recurring.empty.heading': 'Nothing has recurred',
+  'dashboard.recurring.empty.body':
+    'A condition that fires more than once on the same subject is collected here, so a problem that keeps coming back is one row rather than a page of them.',
+  'dashboard.recurring.empty.action': 'See every incident',
+  'dashboard.held.title': 'The agent is on it',
+  'incidents.filter.view': 'View',
+  'incidents.view.grouped': 'By subject',
+  'incidents.view.flat': 'Every firing',
+  'incidents.group.count': '{count} firings',
+  'incidents.group.wasSeverity': 'was {severity}',
+  'incidents.group.count.one': 'Fired once',
+  'incidents.group.since': 'recurring since {since}',
+  'incidents.group.expand': 'Show every firing of {title}',
+  'incidents.group.summary': '{subjects} subjects · {firings} firings',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
   // --- Why this deployment is empty, as opposed to what the feature is for ----
@@ -795,11 +905,17 @@ export const EN = {
   // is that "nothing is wrong" and "nothing is watching" must stop rendering
   // identically, because they are opposite situations.
   'empty.cause.setup':
-    'Nothing has happened here yet because this deployment is still being set up — {count} step(s) are outstanding, and investigations cannot run until they are done.',
+    'Nothing has happened here yet because this deployment is still being set up — the next step is "{step}".',
   'empty.cause.setup.action': 'Finish setting up',
   'empty.cause.watching':
     'No detector is switched on, so nothing is being watched and nothing will open by itself.',
   'empty.cause.watching.action': 'Turn on continuous observation',
+  // Deliberately two facts and no diagnosis: the console can count finished
+  // investigations and read the corpus, and it cannot read why extraction
+  // failed — no endpoint serves that. See `surfaces/emptiness.ts`.
+  'empty.cause.extraction':
+    '{finished} investigations have finished and none of them left an episode behind. What turns a finished investigation into an episode is a model call, and each role picks its own model.',
+  'empty.cause.extraction.action': 'Check the model each role uses',
 
   'incidents.empty.heading': 'No open incidents',
   'incidents.empty.body':
@@ -846,12 +962,28 @@ export const EN = {
   'incident.chip.state.resolved': 'Resolved',
   'incident.chip.state.suppressed': 'Suppressed',
   'incident.chip.state.closedWithoutAction': 'Closed without action',
+  // Distinct from every named state above: this incident's own detail failed
+  // to load, so its state was never learned — never the same chip as `.open`,
+  // which is a claim about the incident rather than an admission the read
+  // never answered.
+  'incident.chip.state.unknown': 'Unknown',
+  'incident.chip.state.unknown.explain':
+    'This incident could not be read, so its state could not be told.',
   // Whether an investigation has run against this incident at all, and
   // whether it has delivered its report — read from the timeline itself
   // rather than from a run status this route does not carry.
   'incident.chip.investigation.none': 'No investigation',
   'incident.chip.investigation.running': 'Investigation running',
   'incident.chip.investigation.finished': 'Investigation finished',
+  // Distinct from `.none`: this incident's own detail failed to load, so
+  // whether an investigation exists at all was never learned — "no
+  // investigation" and "could not tell" call for opposite next steps.
+  'incident.chip.investigation.unknown': 'Unknown',
+  'incident.chip.investigation.unknown.explain':
+    'This incident could not be read, so whether it has an investigation could not be told either.',
+  'incident.chip.investigation.unseen.explain':
+    'This incident names a run, and nothing has recorded a trace for it yet, so where the investigation got to is not known here.',
+  'incident.header.unreadable': 'This incident could not be read',
 
   'incident.origin.alert': 'Alertmanager',
   'incident.origin.detector': "this deployment's own detectors",
@@ -915,6 +1047,8 @@ export const EN = {
     'The active rule asks for approval for actions at {threshold} and above.',
   'approvals.empty.rule.default': 'This is the deployment default.',
   'approvals.empty.rule.setAt': 'It is set at {node}.',
+  'approvals.expired.note':
+    'The window for answering this closed, and the deployment refuses a decision taken after it. What it was proposed against was read before then and nobody has looked since, so ask for it again to decide on a current reading.',
   'proposal.title': 'Proposed action — awaiting your decision',
   'proposal.risk': 'Risk {level} of 5',
   'proposal.target': 'Target',
@@ -935,6 +1069,11 @@ export const EN = {
   // Autonomy row above — the same slugs `config/constants/security.py`
   // declares, ordered least to most dangerous, in words rather than as the
   // bare deployment spelling.
+  'sideEffect.chip.read': 'Reads',
+  'sideEffect.chip.read_sensitive': 'Reads, sensitive',
+  'sideEffect.chip.write_reversible': 'Writes, reversible',
+  'sideEffect.chip.write_irreversible': 'Writes, irreversible',
+  'sideEffect.chip.destructive': 'Destructive',
   'sideEffect.level.read': 'Read — nothing on the estate changes.',
   'sideEffect.level.read_sensitive':
     'Sensitive read — nothing changes, but what comes back should be handled carefully.',
@@ -973,8 +1112,14 @@ export const EN = {
   // unhealthy — which had none anywhere on the screen while `problems` folded
   // it into degraded. A header that cannot be added up against the table under
   // it is a header nobody trusts twice.
-  'resources.summary':
-    '{watched} watched · {healthy} healthy · {degraded} degraded · {unhealthy} unhealthy',
+  'resources.none.placedOrGraded':
+    'Nothing in this estate has been placed in a zone or graded for criticality yet.',
+  'resources.none.placed': 'Nothing in this estate has been placed in a zone yet.',
+  'resources.none.graded':
+    'Nothing in this estate has been graded for criticality yet.',
+  'resources.none.action': 'Declare them',
+  'resources.summary.watched': 'watched',
+  'resources.summary.unaccounted': 'unaccounted for',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':
@@ -1130,7 +1275,13 @@ export const EN = {
   'memory.stats.episodes': 'Episodes',
   'memory.episodes.empty.heading': 'No episodes yet',
   'memory.episodes.empty.body':
-    'An episode is written when an investigation ends. None has ended yet, so there is nothing to recall.',
+    'An episode is written when an investigation ends, and none has been written yet.',
+  // The same mechanism with its second clause dropped, for the collapsed
+  // section that goes on to name a cause. "None has been written yet"
+  // followed by a sentence counting the investigations that finished is the
+  // panel saying the same thing twice and disagreeing with itself in tone.
+  'memory.episodes.empty.mechanism':
+    'An episode is written when an investigation ends.',
   'memory.episodes.empty.action': 'See what is running',
   'memory.strategies.title': 'Strategies',
   'memory.strategies.lead':
@@ -1168,17 +1319,18 @@ export const EN = {
   // Advanced, collapsed sections on the Documents tab: policy switches for
   // what an investigation may consult, and where the change source reads
   // from — technical groups the raw configuration editor used to carry.
-  'knowledge.advanced.changes.title': 'Advanced: change source',
+  'knowledge.advanced.heading': 'Advanced settings',
+  'knowledge.advanced.changes.title': 'Change source',
   'knowledge.advanced.field.repositoryPath': 'Repository path',
   'knowledge.advanced.field.gitHostVendor': 'Git host vendor',
   'knowledge.advanced.field.gitHostRepository': 'Git host repository',
-  'knowledge.advanced.knowledge.title': 'Advanced: knowledge access',
+  'knowledge.advanced.knowledge.title': 'Knowledge access',
   'knowledge.advanced.field.topologyEnabled': 'Follow resource topology',
   'knowledge.advanced.field.knowledgeBaseEnabled': 'Search the knowledge base',
-  'knowledge.advanced.memory.title': 'Advanced: episodic memory',
+  'knowledge.advanced.memory.title': 'Episodic memory',
   'knowledge.advanced.field.memoryReadEnabled': 'Recall past incidents',
   'knowledge.advanced.field.memoryWriteEnabled': 'Record finished investigations',
-  'knowledge.advanced.strategy.title': 'Advanced: strategy',
+  'knowledge.advanced.strategy.title': 'Strategy',
   'knowledge.advanced.field.strategyEnabled': 'Offer distilled playbooks',
 
   // --- Topology ---------------------------------------------------------------------------
@@ -1476,7 +1628,7 @@ export const EN = {
   'catalogue.title': 'Capabilities',
   'catalogue.tools': 'Tools',
   'catalogue.skills': 'Skills',
-  'catalogue.search': 'Find a tool or skill by name or domain',
+  'catalogue.search': 'Name, domain or capability',
   'catalogue.search.empty': 'Nothing here matches that search.',
   'catalogue.domains.nav': 'Jump to a domain',
   'catalogue.count': '{enabled} of {total} enabled',
@@ -1515,6 +1667,9 @@ export const EN = {
   'ingress.token.failed': 'The deployment refused to issue it.',
   'ingress.token.unreachable': 'The deployment could not be reached.',
   'firstRun.integrations.foundHere': 'Found in your estate at',
+  'catalogue.integrations.count.total': 'in the catalogue',
+  'catalogue.integrations.count.connected': 'connected',
+  'catalogue.integrations.count.available': 'available',
   'catalogue.integrations.title': 'Integrations',
   'catalogue.integrations.advanced.title': 'Advanced: configured vendors',
   'catalogue.integrations.state': 'Connection',
@@ -1545,9 +1700,8 @@ export const EN = {
   'catalogue.integrations.filter.state.degraded': 'Failing',
 
   // --- The integrations catalogue: connected first, the rest a search --------------
-  'catalogue.integrations.summary': '{total} integrations · {connected} connected',
   'catalogue.integrations.summary.suggested':
-    '{total} integrations · {connected} connected · {suggested} suggested',
+    '{suggested} of them are already running in this estate — connect one and it stops being a guess.',
   'catalogue.integrations.connected.title': 'Connected',
   'catalogue.integrations.connected.manage': 'Manage',
   'catalogue.integrations.filter.view.connected': 'Connected · {count}',
@@ -1598,6 +1752,15 @@ export const EN = {
     'Stored in the vault; never shown again. Testing it makes a real request — stored and working are different states.',
   'catalogue.integrations.panel.saveAndTest': 'Save and test',
   'catalogue.integrations.panel.testing': 'Saving and testing…',
+  'catalogue.integrations.panel.docs.heading': 'Package documentation',
+  'catalogue.integrations.panel.docs.toggle': 'Read the package documentation',
+  'catalogue.integrations.panel.docs.unreadable':
+    "This vendor's own documentation could not be read.",
+  // More than one team holds a credential for this vendor. The process does
+  // not choose one in silence: it falls back to the organisation-wide
+  // handle, and this is what says that decision was made.
+  'catalogue.integrations.panel.credentialTeamAmbiguous':
+    'More than one team holds a credential for this vendor. Investigations use the organisation-wide credential until this is resolved.',
   // --- A connected integration's panel: state and actions, not an empty form ------
   'catalogue.integrations.panel.storedInVault':
     'This credential is stored in the vault.',
@@ -1614,6 +1777,26 @@ export const EN = {
   'catalogue.integrations.panel.disconnect': 'Disconnect',
   'catalogue.integrations.panel.disconnect.consequence':
     'This removes the stored credential from the vault. The integration returns to Available until it is reconnected.',
+  // --- Certificate trust: what this deployment checks the endpoint against ---------
+  'catalogue.integrations.panel.trust.heading': 'Certificate trust',
+  'catalogue.integrations.panel.trust.intro':
+    'What this deployment accepts from the certificate this address presents. Declared for this address only — moving the address starts over.',
+  'catalogue.integrations.panel.trust.fingerprintsLabel': 'Pinned fingerprints',
+  'catalogue.integrations.panel.trust.fingerprintsHelp':
+    "One SHA-256 fingerprint per line, copied from the node's own interface. A cluster lists one fingerprint per node in the same declaration.",
+  'catalogue.integrations.panel.trust.certificateLabel': 'Certificate authority (PEM)',
+  'catalogue.integrations.panel.trust.certificateHelp':
+    'The authority the cluster minted for itself. Covers every node whose certificate chains to it — the form a cluster usually wants.',
+  'catalogue.integrations.panel.trust.submit': 'Declare trust',
+  'catalogue.integrations.panel.trust.sending': 'Declaring…',
+  'catalogue.integrations.panel.trust.saved': 'Declared. Testing the connection now.',
+  'catalogue.integrations.panel.trust.refused': 'The deployment refused it:',
+  'catalogue.integrations.panel.trust.unreachable':
+    'The deployment could not be reached.',
+  'catalogue.integrations.panel.trust.unverifiedHeading': 'Accept without verifying',
+  'catalogue.integrations.panel.trust.unverifiedReasonLabel': 'Why',
+  'catalogue.integrations.panel.trust.unverifiedReasonHelp':
+    'Recorded with your name and the moment you accept, because giving up certificate verification is a decision, not a setting.',
 
   // --- The reference page for vendors this catalogue does not cover ----------------
   'catalogue.notCovered.title': 'Not covered, and why',
@@ -1760,6 +1943,10 @@ export const EN = {
   'audit.empty.action': 'Widen the period',
 
   // --- Live: a run watched as it happens ------------------------------------------------------------
+  'live.state.live': 'Live',
+  'live.state.refreshing': 'Refreshing',
+  'live.state.stale': 'Not updating',
+  'live.state.paused': 'Paused',
   'live.connection': 'Connection',
   'live.connection.connecting': 'Connecting',
   'live.connection.connected': 'Live',
@@ -1836,6 +2023,7 @@ export const EN = {
   'agent.models.body':
     'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
   'agent.models.default': 'deployment default — nobody bound this role',
+  'agent.models.inherited': 'no choice of its own — follows the investigator',
   'agent.models.from': 'from {node}',
   'agent.models.empty.heading': 'No role is described here',
   'agent.models.empty.body':
@@ -1862,6 +2050,8 @@ export const EN = {
   'agent.advanced.field.promptDiagnose': 'Diagnose prompt override',
   'agent.advanced.field.operatingContextEnabled': 'Send operating context',
   'agent.advanced.field.maxSubagentIterations': 'Max specialist iterations',
+  'agent.document.untouched':
+    'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
   'agent.document.title': 'The same topology, as the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':
@@ -1897,6 +2087,7 @@ export const EN = {
   'agent.outlook.title': 'What would happen, by class of action',
   'agent.outlook.body':
     'One sentence per class, answered by the deployment itself under the policy as it stands right now.',
+  'agent.outlook.reason': 'Why:',
   'agent.outlook.bound': 'stopped by the {bound}',
   'agent.outlook.dryRun':
     'Everything here is simulated: dry-run is on for this node, so nothing is performed.',
@@ -1963,7 +2154,7 @@ export const EN = {
   'page.settings.title': 'Settings',
   'page.settings.context':
     'Everything about this deployment that is not incident work: who has access, how the agent behaves, and where data comes from.',
-  'settings.group.organization': 'Organization',
+  'settings.group.organization': 'Organisation',
   'settings.group.agent': 'Agent',
   'settings.group.data': 'Data',
   'settings.page.membersRoles': 'Members & roles',

@@ -24,6 +24,8 @@ from gateway.proxy.hosts import (
     bridge_hosts,
     hosts_from_configuration,
     refresh_configured_hosts,
+    refresh_configured_trust,
+    trust_from_configuration,
     with_configured_hosts,
 )
 from integrations.registry import injection_rules
@@ -61,14 +63,19 @@ def install_encryption_key() -> bool:
     return KEY_RING.configure_from_environment()
 
 
-async def _configured_hosts(store: Any) -> dict[str, tuple[str, ...]]:
-    """Return every host the configuration points an integration at.
+async def _configured_egress(store: Any) -> tuple[dict[str, tuple[str, ...]], tuple[Any, ...]]:
+    """Return the hosts the configuration points at, and what it trusts at each.
 
-    Two places, because the configuration has two. An integration entry carries
-    the address it is pointed at; the observability bridge names its metrics and
-    log systems in the policy tree. Reading only the first left an operator who
-    had configured their own Loki refused for reaching a host the integration
-    had not declared — correctly configured, and refused anyway.
+    One read producing both, deliberately. They are two facts about the same
+    entry — where the vendor is, and what this deployment accepts from the
+    certificate found there — and deriving them from two reads is how they come
+    to describe different documents.
+
+    Two places for the hosts, because the configuration has two. An integration
+    entry carries the address it is pointed at; the observability bridge names
+    its metrics and log systems in the policy tree. Reading only the first left
+    an operator who had configured their own Loki refused for reaching a host
+    the integration had not declared — correctly configured, and refused anyway.
     """
     scope = TenantScope(org_id=organisation_id())
     config = ConfigService(gateway=store, scope=scope)
@@ -79,13 +86,43 @@ async def _configured_hosts(store: Any) -> dict[str, tuple[str, ...]]:
             "name": getattr(entry, "name", ""),
             "enabled": getattr(entry, "enabled", True),
             "base_url": getattr(entry, "base_url", ""),
+            "trust": _trust_record(entry),
         }
         for entry in effective.config.integrations.active
     )
     hosts = hosts_from_configuration(entries)
     for name, found in bridge_hosts(effective.config.policies.observation.bridge).items():
         hosts[name] = tuple(dict.fromkeys((*hosts.get(name, ()), *found)))
-    return hosts
+    return hosts, trust_from_configuration(entries)
+
+
+def _trust_record(entry: Any) -> Mapping[str, Any]:
+    """Return an entry's certificate-trust section as a plain document."""
+    declared = getattr(entry, "trust", None)
+    if declared is None:
+        return {}
+    if isinstance(declared, Mapping):
+        return dict(declared)
+    dumped = getattr(declared, "model_dump", None)
+    return dict(dumped(exclude_none=True)) if dumped is not None else {}
+
+
+async def _refresh_trust_now(app: Any, store: Any) -> None:
+    """Run one trust cycle immediately — the read the timer runs, sooner.
+
+    Wired to ``/internal/trust-refresh`` so a declaration written through the
+    trust endpoint governs the very next forward rather than whichever one
+    happens to land after the timer's own tick. Failure is swallowed the same
+    way :func:`_watch_configured_hosts` swallows it: what is in force stays in
+    force and is logged rather than replaced by a read that did not complete,
+    and the timer's own next tick is still there regardless of this one.
+    """
+    try:
+        _, trusted = await _configured_egress(store)
+    except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
+        _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
+        return
+    refresh_configured_trust(app.engine.trust, trusted)
 
 
 async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
@@ -107,6 +144,15 @@ async def _serve(host: str, port: int) -> None:
     """Compose, check the key, and serve — all on one event loop."""
     app, store = build_proxy_app()
 
+    # Wired before anything else runs, so a declaration written through the
+    # trust endpoint while this process is already serving reaches this
+    # engine's own registry immediately, rather than waiting for the next
+    # sixty-second tick — see PROXY_TRUST_REFRESH_PATH.
+    async def _trust_refresh_requested() -> None:
+        await _refresh_trust_now(app, store)
+
+    app.set_trust_refresh(_trust_refresh_requested)
+
     # Before the check below, which cannot verify what has not been loaded.
     if not install_encryption_key():
         _LOGGER.warning("proxy.no_encryption_key")
@@ -120,15 +166,21 @@ async def _serve(host: str, port: int) -> None:
     # refuses the very cluster the deployment was pointed at, because an
     # integration ships a placeholder host and nothing widened it.
     try:
-        hosts = await _configured_hosts(store)
+        hosts, trusted = await _configured_egress(store)
     except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
         _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
     else:
         with_configured_hosts(app.engine.rules, hosts)
+        # The same read, applied at the same moment. Without this the first
+        # minute of every process verifies a self-signed cluster against the
+        # system store and refuses every call to it, which reads as an outage
+        # rather than as a cycle that has not run yet.
+        refresh_configured_trust(app.engine.trust, trusted)
 
     _LOGGER.info(
         "proxy.startup",
         integrations=len(app.engine.rules.integrations()),
+        trusted_addresses=len(app.engine.trust.hosts()),
     )
 
     watching = asyncio.create_task(_watch_configured_hosts(app, store))
@@ -144,7 +196,11 @@ async def _serve(host: str, port: int) -> None:
 
 
 async def _watch_configured_hosts(app: Any, store: Any) -> None:
-    """Keep the allow-list following the configuration rather than the process age.
+    """Keep the allow-list and the trust following the configuration, not the process age.
+
+    Both, from one read, in one cycle. Where a vendor is and what is accepted
+    from its certificate are two facts about one entry, and two cycles deriving
+    them separately is how they end up describing different documents.
 
     Rebuilt from the shipped rules each time rather than widened, so an address
     an operator removed stops being reachable — a permission that outlived the
@@ -160,12 +216,19 @@ async def _watch_configured_hosts(app: Any, store: Any) -> None:
     shipped = tuple(declared.get(name) for name in declared.integrations())
     while True:
         await asyncio.sleep(HOST_REFRESH_SECONDS)
+        # The whole cycle is guarded, not just the read. A background task
+        # that raises out of its loop body dies silently — asyncio prints an
+        # unretrieved-exception warning nobody watches, and nothing here
+        # restarts it — and a dead cycle is indistinguishable, from outside
+        # the process, from "this needs a restart", which is exactly the
+        # symptom this feature exists to remove.
         try:
-            hosts = await _configured_hosts(store)
+            hosts, trusted = await _configured_egress(store)
+            refresh_configured_hosts(app.engine.rules, shipped=shipped, hosts=hosts)
+            refresh_configured_trust(app.engine.trust, trusted)
         except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
             _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
             continue
-        refresh_configured_hosts(app.engine.rules, shipped=shipped, hosts=hosts)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -90,7 +90,22 @@ def _as_mapping(entry: Any) -> Mapping[str, Any]:
         "enabled": getattr(entry, "enabled", True),
         "base_url": getattr(entry, "base_url", ""),
         "settings": getattr(entry, "settings", {}) or {},
+        # What this deployment accepts from the endpoint's certificate. Carried
+        # for the same reason `settings` is: a composer downstream that needs it
+        # would otherwise read an entry configured correctly and arrive empty.
+        "trust": _trust_record(entry),
     }
+
+
+def _trust_record(entry: Any) -> Mapping[str, Any]:
+    """Return an entry's certificate-trust section as a plain document."""
+    declared = getattr(entry, "trust", None)
+    if declared is None:
+        return {}
+    if isinstance(declared, Mapping):
+        return dict(declared)
+    dumped = getattr(declared, "model_dump", None)
+    return dict(dumped(exclude_none=True)) if dumped is not None else {}
 
 
 def _endpoints(base_url: str) -> Sequence[str]:

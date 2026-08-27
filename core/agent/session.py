@@ -28,6 +28,7 @@ from enum import StrEnum
 from typing import Any
 
 from config.constants.investigation import MAX_INVESTIGATION_LOOPS, RUN_WALL_CLOCK_SECONDS
+from config.prompts import SUBJECT_BRIEF_HEADING
 from core.agent.turn import Turn
 from core.capability.metadata import EvidenceType
 from core.capability.result import Evidence
@@ -187,6 +188,26 @@ def message_from_record(record: Mapping[str, Any]) -> Message:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def context_brief(context: Mapping[str, str]) -> str:
+    """Return what a run already knows about its subject, as one stated turn.
+
+    Empty for a run that knows nothing, so a caller appends nothing rather than
+    a heading over an empty list — a brief that says only "here is what we
+    know" and then nothing is worse than silence, because it reads as "we
+    checked and there is nothing".
+
+    Keys are printed as written. They are the deployment's own vocabulary and
+    the agent is about to pass some of them straight to a vendor's tool; a
+    prettified rendering here would be a second spelling of a name that has to
+    match.
+    """
+    stated = [(key, value) for key, value in sorted(context.items()) if str(value).strip()]
+    if not stated:
+        return ""
+    lines = "\n".join(f"- {key}: {value}" for key, value in stated)
+    return f"{SUBJECT_BRIEF_HEADING}\n\n{lines}"
 
 
 @dataclass(slots=True)
@@ -399,6 +420,7 @@ __all__ = [
     "EvidenceEntry",
     "Session",
     "SessionStatus",
+    "context_brief",
     "message_from_record",
     "message_to_record",
 ]

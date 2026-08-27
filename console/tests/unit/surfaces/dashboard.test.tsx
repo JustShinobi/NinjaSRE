@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AGENT_INCIDENT_STATES, HUMAN_INCIDENT_STATES } from '@/design/status';
 import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
 import { AttentionBlock } from '@/surfaces/attention';
@@ -59,6 +60,222 @@ async function dashboardWithRaisedFailure(): Promise<void> {
                 finished_at: '2026-08-07T10:01:00.000Z',
                 summary:
                   "InvestigatorNotConfigured: Set NINJASRE_INVESTIGATOR to 'module:factory' — a callable returning the runner.",
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/**
+ * Render the dashboard over incidents the deployment has already finished
+ * with, spelled the way the store actually spells them.
+ *
+ * Every state below is a member of the store's enumeration. `closed` is not,
+ * which is the whole point: the screen used to drop an incident only when its
+ * state equalled that word, so the drop never happened.
+ */
+async function dashboardWithFinishedIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURES_BASE).pathname;
+    if (path === '/v1/incidents') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            incidents: [
+              {
+                incident_id: 'inc-resolved',
+                public_id: 'resolved',
+                title: 'ProxmoxGuestStopped cleared upstream',
+                summary: 'The guest came back and the condition cleared.',
+                state: 'resolved',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T09:00:00.000Z',
+                closed_at: '2026-08-07T09:04:00.000Z',
+                self_resolved: true,
+              },
+              {
+                incident_id: 'inc-suppressed',
+                public_id: 'suppressed',
+                title: 'CronJobStale during the maintenance window',
+                summary: 'A suppression rule covered it.',
+                state: 'suppressed',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T08:00:00.000Z',
+                closed_at: '2026-08-07T08:01:00.000Z',
+              },
+              {
+                incident_id: 'inc-shut',
+                public_id: 'shut',
+                title: 'RestoreDrillStale shut by an operator',
+                summary: 'Closed with nothing done.',
+                state: 'closed_without_action',
+                severity: 'critical',
+                origin: 'detector',
+                detector: 'alertmanager',
+                opened_at: '2026-08-07T07:00:00.000Z',
+                closed_at: '2026-08-07T07:02:00.000Z',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/**
+ * Render the dashboard over live incidents in all four live states, plus a
+ * cause that fired three times.
+ */
+async function dashboardWithLiveIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  const firing = (over: Record<string, unknown>): Record<string, unknown> => ({
+    incident_id: 'inc',
+    public_id: 'inc',
+    correlation_key: 'detector:a:resource:one',
+    title: 'A condition',
+    summary: '',
+    state: 'open',
+    severity: 'critical',
+    detector: 'alertmanager',
+    subjects: ['one'],
+    opened_at: '2026-08-26T09:00:00.000Z',
+    ...over,
+  });
+  const incidents = [
+    firing({ incident_id: 'a', public_id: 'a', summary: 'nobody has picked up' }),
+    firing({
+      incident_id: 'b',
+      public_id: 'b',
+      state: 'awaiting_human',
+      summary: 'asked a person',
+      opened_at: '2026-08-26T08:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'c',
+      public_id: 'c',
+      state: 'investigating',
+      summary: 'agent is reading',
+      opened_at: '2026-08-26T07:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'd',
+      public_id: 'd',
+      state: 'remediating',
+      correlation_key: 'detector:b:resource:two',
+      summary: 'agent is changing',
+      opened_at: '2026-08-26T06:00:00.000Z',
+    }),
+    firing({
+      incident_id: 'e',
+      public_id: 'e',
+      state: 'resolved',
+      correlation_key: 'detector:b:resource:two',
+      summary: 'over',
+      opened_at: '2026-08-26T05:00:00.000Z',
+    }),
+  ];
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const address = new URL(String(input), FIXTURES_BASE);
+    if (address.pathname === '/v1/incidents') {
+      const wanted = address.searchParams.getAll('state');
+      const served =
+        wanted.length === 0
+          ? incidents
+          : incidents.filter((one) => wanted.includes(String(one.state)));
+      return Promise.resolve(
+        new Response(JSON.stringify({ incidents: served }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/** Render the dashboard over three incidents that ended, two of them on their own. */
+async function dashboardWithClosedIncidents(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  const closed = [
+    { state: 'resolved', self_resolved: true },
+    { state: 'resolved', self_resolved: true },
+    { state: 'closed_without_action', self_resolved: false },
+  ].map((over, index) => ({
+    incident_id: `inc-${String(index)}`,
+    public_id: `inc-${String(index)}`,
+    correlation_key: `detector:a:resource:${String(index)}`,
+    title: 'A condition',
+    summary: '',
+    severity: 'critical',
+    detector: 'alertmanager',
+    subjects: [],
+    opened_at: '2026-08-26T06:00:00.000Z',
+    closed_at: '2026-08-26T07:00:00.000Z',
+    ...over,
+  }));
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const address = new URL(String(input), FIXTURES_BASE);
+    if (address.pathname === '/v1/incidents') {
+      const wanted = address.searchParams.getAll('state');
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            incidents: wanted.length === 0 ? closed : [],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/** Render the dashboard with a run list every one of which settled clean. */
+async function dashboardWithNothingButCleanFinishes(): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURES_BASE).pathname;
+    if (path === '/v1/runs') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            runs: [
+              {
+                run_id: 'run-clean-1',
+                status: 'completed',
+                trigger: 'alert',
+                started_at: '2026-08-07T10:00:00.000Z',
+                finished_at: '2026-08-07T10:01:00.000Z',
+                summary: 'Nothing was wrong; the alert cleared on its own.',
+              },
+              {
+                run_id: 'run-clean-2',
+                status: 'completed',
+                trigger: 'manual',
+                started_at: '2026-08-07T09:00:00.000Z',
+                finished_at: '2026-08-07T09:01:00.000Z',
+                summary: 'A second investigation, also concluded cleanly.',
               },
             ],
           }),
@@ -257,8 +474,44 @@ describe('an indicator of whether the agent itself is working', () => {
         figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
     );
     expect(successRate).toBeDefined();
-    // 2 succeeded of 4 settled runs in the populated dataset.
-    expect(successRate?.textContent).toContain('50');
+    // 5 succeeded (by role) of 7 settled runs in the populated dataset. The
+    // degraded run (run-0102) counts here too: the persistence store has no
+    // status word of its own for "finished, but the answer came from
+    // incomplete evidence" — it writes `completed` the same as a clean
+    // finish — so the run status this figure reads from carries no signal
+    // to withhold it on.
+    expect(successRate?.textContent).toContain('71');
+  });
+
+  it('shows no rate at all when nothing has settled yet', async () => {
+    // A deployment with no runs is where this page starts, not an edge case
+    // to tolerate — dividing zero by zero is not "0%", it is a figure with
+    // nothing behind it, and the em dash says so instead of a false number.
+    await dashboard('empty');
+
+    const figures = screen.getAllByTestId('figure');
+    const successRate = figures.find(
+      (figure) =>
+        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
+    );
+    expect(successRate).toBeDefined();
+    expect(successRate?.textContent).toContain('—');
+    expect(successRate?.getAttribute('href')).toBe('/runs');
+  });
+
+  it('sends the drill-down at /runs, not /runs?status=failed, when nothing failed', async () => {
+    // The failed-only filter is a shortcut to the runs that need attention.
+    // A deployment with none owes the operator the ordinary list, not a
+    // filtered one that would show nothing.
+    await dashboardWithNothingButCleanFinishes();
+
+    const figures = screen.getAllByTestId('figure');
+    const successRate = figures.find(
+      (figure) =>
+        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
+    );
+    expect(successRate?.textContent).toContain('100');
+    expect(successRate?.getAttribute('href')).toBe('/runs');
   });
 });
 
@@ -316,11 +569,173 @@ describe('the "needs you" band’s oldest badge', () => {
           },
         ]}
         openLabel="Open"
+        moreLabel={(over) => `and ${String(over)} more waiting`}
+        moreHref="/decisions"
       />,
     );
 
     const badge = screen.getByText('Waiting longest: 2h 14m');
     expect(badge.className).not.toMatch(/\buppercase\b/);
+  });
+
+  it('does not ask a person to look at an incident that has already ended', async () => {
+    // The regression this replaces: the screen dropped an incident only when
+    // its state equalled `closed`, a word the store's enumeration does not
+    // contain, so nothing was ever dropped and three finished incidents were
+    // counted as three things waiting on a person.
+    await dashboardWithFinishedIncidents();
+
+    const band = screen.queryByTestId('attention');
+    const rows = band === null ? [] : within(band).queryAllByTestId('attention-row');
+    const titles = rows.map((row) => row.textContent);
+    expect(titles.some((text) => text.includes('cleared upstream'))).toBe(false);
+    expect(titles.some((text) => text.includes('maintenance window'))).toBe(false);
+    expect(titles.some((text) => text.includes('shut by an operator'))).toBe(false);
+  });
+
+  it('tells the narrative that a self-resolved incident ended well', async () => {
+    // The same comparison, a second time: because `closed` never matched, the
+    // success branch of the activity feed was unreachable and an incident that
+    // resolved itself was drawn in the same red as a live outage.
+    await dashboardWithFinishedIncidents();
+
+    const entries = screen.queryAllByTestId('activity-entry');
+    const resolved = entries.find((entry) =>
+      entry.textContent.includes('cleared upstream'),
+    );
+    expect(resolved).toBeDefined();
+    expect(resolved?.querySelector('[class*="danger"]')).toBeNull();
+  });
+
+  it('asks for live incidents by name rather than hoping they are recent', async () => {
+    // The listing answers with the fifty most recently *opened* incidents. On
+    // an estate that closes a lot, an incident still open from Tuesday is
+    // pushed off that page by Thursday's closures and vanishes from the one
+    // screen whose job is to say what needs a person. So the screen names the
+    // states it wants instead of filtering a page it hoped would contain them.
+    const asked: string[] = [];
+    serveScenario('populated');
+    const scenario = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const address = new URL(String(input), FIXTURES_BASE);
+      if (address.pathname === '/v1/incidents') {
+        asked.push(address.search);
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await DashboardScreen(await surfaceContext({})));
+
+    // Two narrowed reads, because they answer two questions: what is blocked
+    // on a person, and what the agent is holding. Neither may be derived by
+    // filtering a page of the fifty most recently opened.
+    const blocked = asked.find((search) =>
+      HUMAN_INCIDENT_STATES.every((state) => search.includes(`state=${state}`)),
+    );
+    const held = asked.find((search) =>
+      AGENT_INCIDENT_STATES.every((state) => search.includes(`state=${state}`)),
+    );
+    expect(blocked).toBeDefined();
+    expect(held).toBeDefined();
+    expect(blocked).not.toBe(held);
+
+    // The band's read carries neither what the agent is holding nor anything
+    // terminal. Either would put the screen back to counting the product's own
+    // work as the operator's backlog.
+    for (const state of AGENT_INCIDENT_STATES) {
+      expect(blocked).not.toContain(`state=${state}`);
+    }
+    for (const state of ['resolved', 'suppressed', 'closed_without_action']) {
+      expect(blocked).not.toContain(`state=${state}`);
+      expect(held).not.toContain(`state=${state}`);
+    }
+  });
+
+  it('does not put what the agent is holding into what is waiting on you', async () => {
+    // The distinction the screen never drew. An incident being investigated or
+    // remediated is the agent's, and a product whose claim is that it works
+    // without you must not use its first screen to count its own work as your
+    // backlog. Only what nothing has picked up, or what stopped to ask a
+    // person, belongs in the band.
+    await dashboardWithLiveIncidents();
+
+    const band = screen.getByTestId('attention');
+    const kinds = within(band)
+      .getAllByTestId('attention-row')
+      .map((row) => row.textContent);
+    expect(kinds.some((text) => text.includes('nobody has picked up'))).toBe(true);
+    expect(kinds.some((text) => text.includes('asked a person'))).toBe(true);
+    expect(kinds.some((text) => text.includes('agent is reading'))).toBe(false);
+    expect(kinds.some((text) => text.includes('agent is changing'))).toBe(false);
+  });
+
+  it('folds what keeps happening into one row per cause', async () => {
+    await dashboardWithLiveIncidents();
+
+    const panel = screen.getByTestId('recurring-problems');
+    const groups = within(panel).getAllByTestId('incident-group');
+    // Five firings, two causes.
+    expect(groups).toHaveLength(2);
+    expect(groups.map((group) => group.getAttribute('data-count')).sort()).toEqual([
+      '2',
+      '3',
+    ]);
+  });
+
+  it('counts only what the agent is holding, whatever the deployment answers with', async () => {
+    // The narrowing is asked for in the query and held again here. A read is a
+    // request, not a guarantee: a deployment that ignores the parameter — the
+    // mock data plane does — would otherwise have this figure report every
+    // open incident as one the agent had picked up, which is the same
+    // overstatement in the opposite direction to the one this screen just
+    // stopped making.
+    await dashboardWithLiveIncidents();
+
+    // One `investigating`, one `remediating`, out of five incidents served.
+    expect(screen.getByTestId('tally-held')).toHaveTextContent('2');
+  });
+
+  it('leads with whether the deployment is working before what it has left', async () => {
+    await dashboardWithLiveIncidents();
+
+    const band = screen.getByTestId('guardian-band');
+    const attention = screen.getByTestId('attention');
+    // The band is the first thing on the page. `compareDocumentPosition` says
+    // so structurally rather than by reading class names, so a later layout
+    // change cannot quietly put the backlog back on top.
+    expect(band.compareDocumentPosition(attention)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('shows five figures, and two of them are about the agent', async () => {
+    await dashboardWithLiveIncidents();
+
+    const figures = screen.getAllByTestId('figure');
+    expect(figures).toHaveLength(5);
+    const labels = figures.map((figure) => figure.getAttribute('data-figure'));
+    expect(labels).toContain(EN['dashboard.stat.unattended']);
+    // Four of the five count things. The fifth says how long an answer takes,
+    // which is what somebody deciding whether to wait for the agent asks and
+    // no tile on this page answered until it was added.
+    expect(labels).toContain(EN['dashboard.stat.successRate']);
+    expect(labels).toContain(EN['dashboard.stat.timeToCause']);
+    // The two the band and the feed now answer better than a tile could.
+    expect(labels).not.toContain(EN['dashboard.stat.healthy']);
+    expect(labels).not.toContain(EN['dashboard.stat.runs']);
+  });
+
+  it('counts an incident that closed itself as one nobody had to touch', async () => {
+    await dashboardWithClosedIncidents();
+
+    const figure = screen
+      .getAllByTestId('figure')
+      .find(
+        (one) => one.getAttribute('data-figure') === EN['dashboard.stat.unattended'],
+      );
+    expect(figure).toBeDefined();
+    // Two of the three terminal incidents carry `self_resolved`.
+    expect(figure).toHaveTextContent('67%');
+    expect(figure).toHaveTextContent('2 of 3 incidents closed themselves');
   });
 
   it('chooses the oldest timestamp rather than the last source group', () => {

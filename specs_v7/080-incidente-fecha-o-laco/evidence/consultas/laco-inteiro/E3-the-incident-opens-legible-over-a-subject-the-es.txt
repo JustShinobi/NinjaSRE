@@ -1,0 +1,74 @@
+# E3 — the incident opens legible, over a subject the estate resolves
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## incident — the incident exists, is addressable, and is named by a title rather than an id
+## before the wave: every alert incident's detail was unrecoverable
+
+SELECT public_id,
+       title,
+       state,
+       severity,
+       origin,
+       origin_id,
+       opened_at,
+       closed_at,
+       subjects,
+       run_ids,
+       actions
+FROM incidents
+WHERE org_id = 'default'
+  AND (incident_id = 'inc_05328c58ca88676b' OR public_id = 'inc_05328c58ca88676b');
+
+--- output ---
+      public_id       |        title        |  state   | severity | origin |  origin_id   |           opened_at           |           closed_at           |                                                                                                                                                                                                                                                                                                                                                         subjects                                                                                                                                                                                                                                                                                                                                                          |              run_ids               | actions 
+----------------------+---------------------+----------+----------+--------+--------------+-------------------------------+-------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------+---------
+ inc_05328c58ca88676b | ProxmoxGuestStopped | resolved | critical | alert  | alertmanager | 2026-08-24 10:29:45.107477+00 | 2026-08-24 10:49:45.236473+00 | {"subjects": [{"detail": "Convidado Proxmox parou", "evidence": {"zone": "", "alert": "ProxmoxGuestStopped", "group": "{}/{severity=\"critical\"}:{alertname=\"ProxmoxGuestStopped\", service=\"pve-exporter\", severity=\"critical\"}", "target": "192.168.68.159", "reference": "http://prometheus:9090/graph?g0.expr=%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D+%3D%3D+0+and+max_over_time%28pve_up%7Bid%3D~%22%28lxc%7Cqemu%29%2F.%2A%22%7D%5B30m%5D%29+%3D%3D+1%29+%2A+on+%28id%29+group_left+%28name%2C+node%2C+type%29+pve_guest_info&g0.tab=1", "matched_on": "address", "target_label": "instance"}, "observed_at": null, "resource_id": "res-47555daca81efa67dacce16fb42c898e", "absent_since": null}]} | {d393d5d0916c404b854337a270fa825d} | {}
+(1 row)
+
+
+--- end of output ---
+
+
+## estate — the estate holds real resources rather than being empty
+## before the wave: 0 — the estate was empty and every incident showed an unplaced zone
+
+SELECT count(*) AS present_resources
+FROM estate_resources
+WHERE org_id = 'default'
+  AND absent_since IS NULL;
+
+--- output ---
+ present_resources 
+-------------------
+               100
+(1 row)
+
+
+--- end of output ---
+
+
+## subject — the resource the incident points at is one the estate actually holds
+## before the wave: no row — nothing to point at
+
+SELECT resource_id,
+       kind,
+       source,
+       native_id,
+       display_name,
+       health,
+       last_seen_at,
+       absent_since
+FROM estate_resources
+WHERE org_id = 'default'
+  AND resource_id = 'res-47555daca81efa67dacce16fb42c898e';
+
+--- output ---
+             resource_id              | kind | source  |     native_id      | display_name | health  |         last_seen_at          | absent_since 
+--------------------------------------+------+---------+--------------------+--------------+---------+-------------------------------+--------------
+ res-47555daca81efa67dacce16fb42c898e | node | proxmox | node/HAL9000/pve02 | pve02        | healthy | 2026-08-24 10:43:40.028834+00 | 
+(1 row)
+
+
+--- end of output ---
+

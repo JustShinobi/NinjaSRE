@@ -1,0 +1,310 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    a { color: #3ad195; text-decoration: none; } a:hover { color: #6ede9d; }
+    .sg { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 500; border: 1px solid; line-height: 1.3; }
+    .navitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; color: #9fb2aa; font-size: 13.5px; font-weight: 500; }
+    .navitem:hover { background: #16211d; color: #e9f0ec; }
+    .navlabel { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #6d7f77; padding: 14px 12px 6px; font-weight: 600; }
+    .card { background: #101815; border: 1px solid #223029; border-radius: 12px; }
+    .episode:hover { border-color: #35493f; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .compchip { display: inline-flex; align-items: center; gap: 5px; border-radius: 6px; padding: 2px 8px; font-size: 11px; border: 1px solid #223029; background: #0d1311; color: #9fb2aa; font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    .compchip:hover { border-color: #35493f; color: #e9f0ec; }
+    @keyframes pulseRing { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.4); opacity: 0; } }
+    .pulse { position: relative; }
+    .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 999px; border: 1.5px solid #3ad195; animation: pulseRing 2s ease-out infinite; }
+  </style>
+</helmet>
+<div style="display: flex; width: 1440px; height: 980px; background: #0a100e; color: #e9f0ec; overflow: hidden; background-image: radial-gradient(720px 320px at 78% -80px, rgba(58,209,149,.10), transparent 70%);">
+
+  <!-- ===== Sidebar ===== -->
+  <div style="display: flex; flex-direction: column; width: 232px; flex-shrink: 0; border-right: 1px solid #1a241f; background: rgba(13,19,17,.75); padding: 16px 12px 14px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 2px 12px 14px;">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 2l2.6 5.6L21 5.2l-1.9 5.7 5 3.1-5 3.1 1.9 5.7-5.4-2.4L13 26l-2.6-5.6L5 22.8l1.9-5.7-5-3.1 5-3.1L5 5.2l5.4 2.4L13 2z" fill="#3ad195" opacity=".92"/><circle cx="13" cy="14" r="4.2" fill="#0a100e"/><circle cx="13" cy="14" r="1.8" fill="#3ad195"/></svg>
+      <span class="sg" style="font-size: 17px; font-weight: 700; letter-spacing: -.01em;">Ninja<span style="color: #3ad195;">SRE</span></span>
+    </div>
+
+    <div class="navlabel">Agora</div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>
+      Painel
+    </div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6.2v4.2l2.6 1.6"/></svg>
+      Incidentes
+      <span class="mono" style="margin-left: auto; font-size: 11px; color: #ef7070;">4</span>
+    </div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.6" cy="8.6" r="5.6"/><path d="M13 13l4.4 4.4"/><path d="M6.4 8.6h4.4"/></svg>
+      Investigações
+      <span style="margin-left: auto; display: inline-flex; width: 8px; height: 8px;"><span style="width: 8px; height: 8px; background: #3ad195; transform: rotate(45deg); border-radius: 2px;"></span></span>
+    </div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5l6.5 3v4.7c0 4-2.8 6.6-6.5 7.8-3.7-1.2-6.5-3.8-6.5-7.8V5.5l6.5-3z"/><path d="M7.2 10l2 2 3.6-3.8"/></svg>
+      Decisões
+      <span style="margin-left: auto; background: #e0a84e; color: #241a08; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 0 7px;">1</span>
+    </div>
+
+    <div class="navlabel">Ambiente</div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="15" height="5.5" rx="1.5"/><rect x="2.5" y="11.5" width="15" height="5.5" rx="1.5"/><circle cx="5.6" cy="5.75" r=".9" fill="currentColor" stroke="none"/><circle cx="5.6" cy="14.25" r=".9" fill="currentColor" stroke="none"/></svg>
+      Recursos
+    </div>
+    <div class="navitem" style="background: #12271f; color: #3ad195; box-shadow: inset 2px 0 0 #3ad195;">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4.5c-1.6-1.4-3.8-1.6-6-1v12c2.2-.6 4.4-.4 6 1 1.6-1.4 3.8-1.6 6-1v-12c-2.2-.6-4.4-.4-6 1z"/><path d="M10 4.5v12"/></svg>
+      Conhecimento
+    </div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10h3l2-4.5 3 9 2-4.5h5"/></svg>
+      O agente
+    </div>
+
+    <div class="navlabel">Configuração</div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v4a3 3 0 006 0V3"/><path d="M10 10v3.5"/><path d="M6.5 17h7"/><path d="M10 13.5c-2 0-3.5 1.5-3.5 3.5h7c0-2-1.5-3.5-3.5-3.5z"/></svg>
+      Integrações
+    </div>
+    <div class="navitem">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2.2M10 15v2.2M2.8 10H5M15 10h2.2M4.9 4.9l1.6 1.6M13.5 13.5l1.6 1.6M15.1 4.9l-1.6 1.6M6.5 13.5l-1.6 1.6"/></svg>
+      Ajustes
+    </div>
+
+    <div style="margin-top: auto; padding: 10px 12px; border-top: 1px solid #1a241f; display: flex; align-items: center; gap: 8px;">
+      <span class="pulse" style="display: inline-flex; width: 8px; height: 8px; border-radius: 999px; background: #3ad195;"></span>
+      <span style="font-size: 12px; color: #9fb2aa;">Guardião ativo · <span style="color: #e9f0ec;">só propõe</span></span>
+    </div>
+  </div>
+
+  <!-- ===== Coluna principal ===== -->
+  <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+
+    <!-- Topbar -->
+    <div style="display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 24px; border-bottom: 1px solid #1a241f; background: rgba(13,19,17,.6);">
+      <div style="display: flex; align-items: center; gap: 8px; flex: 0 1 420px; background: #0d1311; border: 1px solid #223029; border-radius: 8px; padding: 7px 12px; color: #6d7f77; font-size: 13px;">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.6" cy="8.6" r="5.6"/><path d="M13 13l4.4 4.4"/></svg>
+        Buscar recursos, investigações, incidentes…
+        <span class="mono" style="margin-left: auto; font-size: 10.5px; border: 1px solid #223029; border-radius: 5px; padding: 1px 6px;">Ctrl K</span>
+      </div>
+      <span style="flex: 1;"></span>
+      <span class="chip" style="border-color: #12694a; background: #12271f; color: #3ad195;">
+        <span class="pulse" style="display: inline-flex; width: 7px; height: 7px; border-radius: 999px; background: #3ad195;"></span>
+        Ao vivo
+      </span>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#9fb2aa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M15.2 4.8l-1.3 1.3M6.1 13.9l-1.3 1.3"/></svg>
+      <span style="position: relative; display: inline-flex;">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#9fb2aa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a4.6 4.6 0 00-4.6 4.6c0 3.2-1.1 4.6-1.9 5.4h13c-.8-.8-1.9-2.2-1.9-5.4A4.6 4.6 0 0010 3z"/><path d="M8.4 16a1.7 1.7 0 003.2 0"/></svg>
+        <span style="position: absolute; top: -3px; right: -4px; background: #e0a84e; color: #241a08; border-radius: 999px; font-size: 9.5px; font-weight: 700; padding: 0 4px;">1</span>
+      </span>
+      <span class="chip" style="border-color: #5c2525; background: #2a1616; color: #ef7070; font-weight: 600; padding: 7px 14px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.4" y="6.4" width="7.2" height="7.2" rx="1"/><circle cx="10" cy="10" r="8"/></svg>
+        Parar automação
+      </span>
+      <span class="chip" style="border-color: #3ad195; background: #3ad195; color: #062018; font-weight: 600; padding: 7px 14px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4.5v11M4.5 10h11"/></svg>
+        Investigar
+      </span>
+      <span style="width: 30px; height: 30px; border-radius: 999px; background: linear-gradient(135deg, #12694a, #3ad195); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #062018;">EF</span>
+    </div>
+
+    <!-- Conteúdo -->
+    <div style="flex: 1; overflow: hidden; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px;">
+
+      <!-- Cabeçalho + abas -->
+      <div style="display: flex; align-items: baseline; gap: 14px;">
+        <span class="sg" style="font-size: 26px; font-weight: 700; letter-spacing: -.02em;">Conhecimento</span>
+        <span style="font-size: 13px; color: #9fb2aa;">O que as investigações podem ler — e o que elas deixaram para trás.</span>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <span class="chip" style="border-color: #3ad195; background: #12271f; color: #3ad195; font-weight: 600; padding: 6px 16px;">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5l2 4.3 4.7.5-3.5 3.2 1 4.6-4.2-2.4-4.2 2.4 1-4.6L3.3 7.3l4.7-.5 2-4.3z"/></svg>
+          Aprendido
+        </span>
+        <span class="chip" style="border-color: #223029; background: transparent; color: #9fb2aa; padding: 6px 16px;">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3.5 3.5v11.5h-10.5v-15z"/><path d="M12 2.5v3.5h3.5"/><path d="M7.5 10h5M7.5 13h5"/></svg>
+          Documentos
+        </span>
+        <span class="chip" style="border-color: #223029; background: transparent; color: #9fb2aa; padding: 6px 16px;">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="4.5" r="2"/><circle cx="4.5" cy="15" r="2"/><circle cx="15.5" cy="15" r="2"/><path d="M10 6.5v3M8.8 11.2l-3 2.4M11.2 11.2l3 2.4"/></svg>
+          Topologia
+        </span>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 12px; color: #6d7f77;">Filtrar:</span>
+        <span class="chip" style="border-color: #223029; background: #101815; color: #e9f0ec; padding: 6px 12px;">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#9fb2aa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="15" height="5.5" rx="1.5"/><rect x="2.5" y="11.5" width="15" height="5.5" rx="1.5"/></svg>
+          Componente <span style="color: #6d7f77;">·</span> <span style="color: #9fb2aa;">todos</span>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#6d7f77" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8l4.5 4.5L14.5 8"/></svg>
+        </span>
+        <span class="chip" style="border-color: #223029; background: #101815; color: #e9f0ec; padding: 6px 12px;">
+          Resultado <span style="color: #6d7f77;">·</span> <span style="color: #9fb2aa;">qualquer</span>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#6d7f77" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8l4.5 4.5L14.5 8"/></svg>
+        </span>
+        <span style="font-size: 11.5px; color: #6d7f77;">agrupado por tipo: 8 serviços · 3 nós · 5 guests · 1 cluster</span>
+        <span style="margin-left: auto; font-size: 12px; color: #6d7f77;">4 episódios</span>
+      </div>
+
+      <!-- Corpo: episódios + painel lateral -->
+      <div style="display: grid; grid-template-columns: 1fr 320px; gap: 16px; flex: 1; min-height: 0;">
+
+        <!-- Episódios -->
+        <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+          <span class="sg" style="font-size: 15px; font-weight: 600;">Episódios <span style="font-weight: 500; color: #6d7f77; font-size: 12.5px; font-family: 'IBM Plex Sans', system-ui, sans-serif;">— o que investigações passadas deixaram</span></span>
+
+          <!-- Episódio 1 -->
+          <div class="card episode" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <span style="margin-top: 4px; display: inline-flex; width: 10px; height: 10px; border-radius: 999px; border: 2.5px solid #e0a84e; flex-shrink: 0;"></span>
+              <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600;">Redis falhou probes TCP porque <span class="mono" style="font-weight: 500;">lxc/122</span> em pve01 foi desligado</span>
+                <span style="font-size: 12px; color: #9fb2aa;">workload_stopped · <span class="mono" style="font-size: 11.5px;">10.20.20.52:6379</span> · parada administrativa via vzshutdown</span>
+              </div>
+              <span class="chip" style="border-color: #6b4a1b; background: #2a2214; color: #e0a84e; font-size: 11px; flex-shrink: 0;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; border: 2px solid #e0a84e; display: inline-flex;"></span>
+                inconclusivo
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding-left: 20px;">
+              <span class="compchip">redis</span>
+              <span class="compchip">pve01</span>
+              <span class="compchip">lxc/122</span>
+              <span class="compchip">HAL9000</span>
+              <span style="margin-left: auto; font-size: 11.5px; color: #6d7f77;">há 10 min</span>
+              <a href="#" style="font-size: 12px;">abrir investigação →</a>
+            </div>
+          </div>
+
+          <!-- Episódio 2 -->
+          <div class="card episode" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <span style="margin-top: 4px; display: inline-flex; width: 10px; height: 10px; border-radius: 999px; background: #3ad195; flex-shrink: 0;"></span>
+              <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600;">Probe DNS falhou em adguard-primary por reboot administrativo intencional</span>
+                <span style="font-size: 12px; color: #9fb2aa;">workload_stopped · <span class="mono" style="font-size: 11.5px;">192.168.68.192:53</span> · contêiner reiniciado de propósito</span>
+              </div>
+              <span class="chip" style="border-color: #1d3a2d; background: #12271f; color: #6ede9d; font-size: 11px; flex-shrink: 0;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: #6ede9d; display: inline-flex;"></span>
+                resolvido
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding-left: 20px;">
+              <span class="compchip">adguard-primary</span>
+              <span class="compchip">pve01</span>
+              <span class="compchip">pve02</span>
+              <span class="compchip">blackbox-dns-adguard</span>
+              <span class="compchip">HAL9000</span>
+              <span style="margin-left: auto; font-size: 11.5px; color: #6d7f77;">há 37 min</span>
+              <a href="#" style="font-size: 12px;">abrir investigação →</a>
+            </div>
+          </div>
+
+          <!-- Episódio 3 -->
+          <div class="card episode" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <span style="margin-top: 4px; display: inline-flex; width: 10px; height: 10px; border-radius: 999px; border: 2.5px solid #e0a84e; flex-shrink: 0;"></span>
+              <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600;">Backup do guest <span class="mono" style="font-weight: 500;">129</span> travou porque o datastore GigaChad está inalcançável</span>
+                <span style="font-size: 12px; color: #9fb2aa;">backup_failed · CIFS sem resposta nos dois nós · job <span class="mono" style="font-size: 11.5px;">backup-1f376301</span> desabilitado depois</span>
+              </div>
+              <span class="chip" style="border-color: #6b4a1b; background: #2a2214; color: #e0a84e; font-size: 11px; flex-shrink: 0;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; border: 2px solid #e0a84e; display: inline-flex;"></span>
+                inconclusivo
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding-left: 20px;">
+              <span class="compchip">GigaChad</span>
+              <span class="compchip">lxc/129</span>
+              <span class="compchip">postgresql</span>
+              <span class="compchip">HAL9000</span>
+              <span style="margin-left: auto; font-size: 11.5px; color: #6d7f77;">ontem</span>
+              <a href="#" style="font-size: 12px;">abrir investigação →</a>
+            </div>
+          </div>
+
+          <!-- Episódio 4 -->
+          <div class="card episode" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <span style="margin-top: 4px; display: inline-flex; width: 10px; height: 10px; border-radius: 999px; background: #3ad195; flex-shrink: 0;"></span>
+              <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600;">pve-exporter caiu em pve02 enquanto o nó e o cluster seguiam saudáveis</span>
+                <span style="font-size: 12px; color: #9fb2aa;">exporter_down · métricas ausentes ≠ nó fora · quorum de HAL9000 intacto</span>
+              </div>
+              <span class="chip" style="border-color: #1d3a2d; background: #12271f; color: #6ede9d; font-size: 11px; flex-shrink: 0;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: #6ede9d; display: inline-flex;"></span>
+                resolvido
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding-left: 20px;">
+              <span class="compchip">pve-exporter</span>
+              <span class="compchip">pve02</span>
+              <span class="compchip">HAL9000</span>
+              <span style="margin-left: auto; font-size: 11.5px; color: #6d7f77;">há 51 min</span>
+              <a href="#" style="font-size: 12px;">abrir investigação →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Painel lateral: aprendizados -->
+        <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+          <span class="sg" style="font-size: 15px; font-weight: 600;">O que o agente aprendeu com isso</span>
+
+          <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-color: #1d3a2d; background: linear-gradient(180deg, #101815, #0e1613);">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <svg style="flex-shrink: 0; margin-top: 2px;" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#3ad195" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5a5.5 5.5 0 00-3 10.1v2.4h6v-2.4a5.5 5.5 0 00-3-10.1z"/><path d="M8 17.5h4"/></svg>
+              <span style="font-size: 13px; line-height: 1.5;">Paradas administrativas de <span class="mono" style="font-size: 12px;">lxc/122</span> disparam RedisExporterDown + DatabaseTcpProbeFailed juntos — tratar como um assunto só.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 11px; color: #6d7f77;">de 2 episódios</span>
+              <span class="chip" style="margin-left: auto; border-color: #3ad195; background: transparent; color: #3ad195; font-size: 11px; padding: 3px 10px;">promover a documento</span>
+            </div>
+          </div>
+
+          <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-color: #1d3a2d; background: linear-gradient(180deg, #101815, #0e1613);">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <svg style="flex-shrink: 0; margin-top: 2px;" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#3ad195" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5a5.5 5.5 0 00-3 10.1v2.4h6v-2.4a5.5 5.5 0 00-3-10.1z"/><path d="M8 17.5h4"/></svg>
+              <span style="font-size: 13px; line-height: 1.5;">Exporter fora do ar não significa nó fora: conferir quorum de HAL9000 antes de escalar qualquer <span class="mono" style="font-size: 12px;">*ExporterDown</span>.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 11px; color: #6d7f77;">de 3 episódios</span>
+              <span class="chip" style="margin-left: auto; border-color: #3ad195; background: transparent; color: #3ad195; font-size: 11px; padding: 3px 10px;">promover a documento</span>
+            </div>
+          </div>
+
+          <div style="font-size: 11.5px; color: #6d7f77; line-height: 1.5; padding: 0 4px;">
+            Aprendizados destilados entram na fila de revisão como qualquer outra mudança proposta — nada vira documento sem uma pessoa aprovar.
+          </div>
+        </div>
+      </div>
+
+      <!-- Faixa inferior: outras abas -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="card" style="padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+          <svg style="flex-shrink: 0;" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#9fb2aa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3.5 3.5v11.5h-10.5v-15z"/><path d="M12 2.5v3.5h3.5"/><path d="M7.5 10h5M7.5 13h5"/></svg>
+          <span style="font-size: 13px; color: #9fb2aa;"><span style="color: #e9f0ec; font-weight: 600;">Documentos</span> — nada ingerido ainda</span>
+          <a href="#" style="margin-left: auto; font-size: 12.5px; flex-shrink: 0;">revisar propostas →</a>
+        </div>
+        <div class="card" style="padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+          <svg style="flex-shrink: 0;" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#9fb2aa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="4.5" r="2"/><circle cx="4.5" cy="15" r="2"/><circle cx="15.5" cy="15" r="2"/><path d="M10 6.5v3M8.8 11.2l-3 2.4M11.2 11.2l3 2.4"/></svg>
+          <span style="font-size: 13px; color: #9fb2aa;"><span style="color: #e9f0ec; font-weight: 600;">Topologia</span> — construída do que as investigações observam</span>
+          <a href="#" style="margin-left: auto; font-size: 12.5px; flex-shrink: 0;">12 nós vistos →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

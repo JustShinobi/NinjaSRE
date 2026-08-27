@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { cache, type ReactNode } from 'react';
 
 import { Breadcrumb } from '@/components/navigation';
 import { ResolvedChip } from '@/components/status';
@@ -16,15 +16,34 @@ import {
   authorised,
   dataOf,
   dependencyOf,
+  existenceOf,
   field,
   list,
   panelRead,
   read,
   stateOf,
   text,
+  valueOf,
 } from '../read';
 import { IncidentDecisionControls } from './incident-decision-controls';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
+
+/**
+ * One incident's detail, read once per request.
+ *
+ * `React.cache` collapses this into a single fetch whichever caller reaches
+ * it first: `generateMetadata` (the tab title) and `IncidentDetailScreen`
+ * (the page body) both call it with the same `(credential, incidentId)`
+ * pair, so the H1 and the tab always name the same read rather than two
+ * requests that could answer differently. Exported so the route file can
+ * share it for the tab title instead of fetching a second time.
+ */
+export const incidentDetailFor = cache(async (credential: string, incidentId: string) =>
+  read('/v1/incidents/{incident_id}', {
+    ...authorised(credential),
+    params: { incident_id: incidentId },
+  }),
+);
 
 /**
  * One incident: what arrived, what was reasoned about it, what was found, what
@@ -63,6 +82,15 @@ const STEP_HEADING: Readonly<Record<string, MessageKey>> = {
   diagnosis: 'incident.investigation.step.diagnosis',
   delivery: 'incident.investigation.step.delivery',
 };
+
+/**
+ * The run statuses that mean the investigation has not stopped.
+ *
+ * Stated as the live set rather than the finished set, because the finished
+ * set is open: a status this console has never met is one it must not draw as
+ * "still running", which would be a claim about a process nobody here can see.
+ */
+const LIVE_RUN_STATUSES: ReadonlySet<string> = new Set(['running', 'suspended']);
 
 const INCIDENT_STATE_LABEL: Readonly<Record<string, MessageKey>> = {
   open: 'incident.chip.state.open',
@@ -111,11 +139,9 @@ export async function IncidentDetailScreen(
   const none = message(locale, 'surface.none');
 
   const detail = await panelRead('/v1/incidents/{incident_id}', () =>
-    read('/v1/incidents/{incident_id}', {
-      ...init,
-      params: { incident_id: incidentId },
-    }),
+    incidentDetailFor(credential, incidentId),
   );
+  const readFailed = detail.status === 'error';
   const body = dataOf(detail);
   const incident = field(body, 'incident');
   const timeline = list(body, 'timeline');
@@ -149,7 +175,6 @@ export async function IncidentDetailScreen(
   const steps = timeline
     .map((entry) => ({ entry, kind: REASONING_KIND[text(entry, 'kind')] ?? '' }))
     .filter((row) => row.kind !== '');
-  const hasReportDelivered = steps.some((row) => row.kind === 'delivery');
   // A diagnosis is the one reasoning step Article I lets a remediation stand
   // on. Without one, whatever is in the store is a hypothesis at best — and
   // proposing a remediation over that is the one outcome this page must never
@@ -163,34 +188,95 @@ export async function IncidentDetailScreen(
   const cost = hasInvestigation ? numberOrNull(investigation, 'cost') : null;
 
   // --- Header: trail, title, the two chips -------------------------------------
-  const title = text(incident, 'title') || incidentId;
+  // The identifier is never the title, in any circumstance: not as a
+  // fallback for a successful read whose title happens to be empty (that
+  // reads as the console's own declared absence, `none`), and not for a
+  // read that failed outright (that reads as a stated failure to read,
+  // never the address that was asked for).
+  const title = readFailed
+    ? message(locale, 'incident.header.unreadable')
+    : text(incident, 'title') || none;
   const trail = trailFor(areaFor('incidents'), [{ label: title }]);
 
-  const incidentState = text(incident, 'state');
-  const incidentPresented = statusPresentation(incidentState);
-  const incidentStateLabel = message(
-    locale,
-    INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
-  );
+  // Derived from the read's own outcome rather than from the body: `text()`
+  // on a failed read's `undefined` incident returns `''`, which is not a key
+  // `INCIDENT_STATE_LABEL` has — and falling back on an unmatched key would
+  // assert `open`, a claim about the incident, over a read that never
+  // answered one. `unknown` says that plainly instead, the same distinction
+  // `existenceOf` draws for the investigation chip beside this one.
+  const incidentStateRead = valueOf(detail, text(incident, 'state'));
+  const incidentPresented =
+    incidentStateRead.kind === 'unknown'
+      ? { role: 'neutral' as SemanticRole, shape: 'dash' as Shape }
+      : statusPresentation(incidentStateRead.value);
+  const incidentStateLabel =
+    incidentStateRead.kind === 'unknown'
+      ? message(locale, 'incident.chip.state.unknown')
+      : message(
+          locale,
+          INCIDENT_STATE_LABEL[incidentStateRead.value] ?? 'incident.chip.state.open',
+        );
 
-  const investigationChip: { role: SemanticRole; shape: Shape; label: string } =
-    !hasInvestigation
+  // Four states, derived from the read's own outcome rather than from its
+  // body: `unknown` when the read itself failed — naming the dependency
+  // that did — never "No investigation" over a read that never answered.
+  // Whether the run is still going, from the run's own status.
+  //
+  // This used to be "the timeline has no delivery step yet", and a run that
+  // completed without delivering anywhere therefore read as running for the
+  // rest of the incident's life — drawn beside a state chip saying the
+  // incident had been resolved two hours earlier. The absence of one kind of
+  // evidence is not the presence of another; the run says where it got to and
+  // that is the sentence to print.
+  const runStatus = hasInvestigation ? text(investigation, 'status') : '';
+  const runStillGoing = LIVE_RUN_STATUSES.has(runStatus);
+  // A run id attached with no trace row behind it yet. Neither chip is true:
+  // it has not finished, and nothing here has seen it start.
+  const runStateUnknown = hasInvestigation && runStatus === '';
+
+  // A read that succeeded and genuinely carries no investigation still
+  // says so; that is a fact, not a guess.
+  const investigationExistence = existenceOf(detail, hasInvestigation);
+  const investigationChip: {
+    role: SemanticRole;
+    shape: Shape;
+    label: string;
+    title?: string | undefined;
+  } =
+    investigationExistence.kind === 'unknown'
       ? {
           role: 'neutral',
           shape: 'dash',
-          label: message(locale, 'incident.chip.investigation.none'),
+          label: message(locale, 'incident.chip.investigation.unknown'),
+          title: message(locale, 'incident.chip.investigation.unknown.explain'),
         }
-      : hasReportDelivered
+      : investigationExistence.kind === 'absent'
         ? {
-            role: 'success',
-            shape: 'filled-circle',
-            label: message(locale, 'incident.chip.investigation.finished'),
+            role: 'neutral',
+            shape: 'dash',
+            label: message(locale, 'incident.chip.investigation.none'),
           }
-        : {
-            role: 'info',
-            shape: 'rotated-square',
-            label: message(locale, 'incident.chip.investigation.running'),
-          };
+        : runStateUnknown
+          ? {
+              role: 'neutral',
+              shape: 'dash',
+              label: message(locale, 'incident.chip.investigation.unknown'),
+              // A different sentence from the one a failed read gets. The read
+              // succeeded here; what it returned is an incident naming a run
+              // nothing has recorded a trace for yet.
+              title: message(locale, 'incident.chip.investigation.unseen.explain'),
+            }
+          : runStillGoing
+            ? {
+                role: 'info',
+                shape: 'rotated-square',
+                label: message(locale, 'incident.chip.investigation.running'),
+              }
+            : {
+                role: 'success',
+                shape: 'filled-circle',
+                label: message(locale, 'incident.chip.investigation.finished'),
+              };
 
   // --- Subtitle: rule, source, instant, zone, host -----------------------------
   const rule = text(incident, 'detector');
@@ -251,29 +337,44 @@ export async function IncidentDetailScreen(
             role={incidentPresented.role}
             shape={incidentPresented.shape}
             label={incidentStateLabel}
+            {...(incidentStateRead.kind === 'unknown'
+              ? { title: message(locale, 'incident.chip.state.unknown.explain') }
+              : {})}
           />
           <ResolvedChip
             testId="incident-chip"
             role={investigationChip.role}
             shape={investigationChip.shape}
             label={investigationChip.label}
+            {...(investigationChip.title === undefined
+              ? {}
+              : { title: investigationChip.title })}
           />
         </div>
-        <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
-          <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
-          {' · '}
-          <span data-testid="subtitle-source">{source}</span>
-          {' · '}
-          <span data-testid="subtitle-instant">
-            {message(locale, 'incident.subtitle.started', { when: opened.relative })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-zone">
-            {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
-          </span>
-          {' · '}
-          <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
-        </p>
+        {readFailed ? null : (
+          // Every field here is derived from the incident this route could
+          // not read at all when `readFailed` — rendering it anyway would
+          // fall back to the same placeholder word on more than one slot at
+          // once, which reads as a description of an incident rather than
+          // as what it actually is: five facts nobody could learn. The
+          // title already says the read failed; a subtitle repeating that
+          // five different ways says nothing more.
+          <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
+            <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
+            {' · '}
+            <span data-testid="subtitle-source">{source}</span>
+            {' · '}
+            <span data-testid="subtitle-instant">
+              {message(locale, 'incident.subtitle.started', { when: opened.relative })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-zone">
+              {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
+            </span>
+            {' · '}
+            <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

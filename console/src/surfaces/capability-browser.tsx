@@ -2,8 +2,9 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 
-import { Badge, CapabilityAvailabilityChip } from '@/components/status';
+import { CapabilityAvailabilityChip, SideEffectChip } from '@/components/status';
 import { Input } from '@/components/form';
+import { humaniseIdentifier } from '@/i18n/format';
 import type { Locale } from '@/i18n/messages';
 
 /**
@@ -67,6 +68,17 @@ function anchorId(domain: string): string {
 
 const SKILLS_ANCHOR = 'domain-skills';
 
+/**
+ * The shape a domain jump-link wears.
+ *
+ * `border-strong` rather than `border`: at 1.28:1 against the panel the
+ * fainter token is not a visible boundary, and the boundary is the whole of
+ * what says this is a control. Tall enough to be a target — twelve-pixel text
+ * has a line box about half of what WCAG 2.2 asks.
+ */
+const DOMAIN_CHIP =
+  'inline-flex items-center gap-2 min-h-6 rounded-4 px-3 py-1 edge border-border-strong bg-raised text-meta text-text motion-hover hover:bg-hover';
+
 export interface CapabilityBrowserLabels {
   readonly tableCaption: string;
   readonly search: string;
@@ -74,7 +86,6 @@ export interface CapabilityBrowserLabels {
   readonly domainsNav: string;
   readonly skillsHeading: string;
   readonly columnName: string;
-  readonly columnDomain: string;
   readonly columnEffect: string;
   readonly columnEnabled: string;
   readonly none: string;
@@ -147,19 +158,29 @@ export function CapabilityBrowser({
       </div>
 
       {namedGroups.length === 0 && matchingSkills.length === 0 ? null : (
+        // Still anchors — they jump to a section rather than filtering — but
+        // drawn as chips. Seventeen underlined twelve-pixel words wrapped over
+        // two rows read as a paragraph somebody had linked every noun in, and
+        // the underline that makes a link legible inside a sentence is what
+        // makes a row of them illegible. The border and the ground say
+        // "control"; the count stays because it is why you would pick one.
         <nav aria-label={labels.domainsNav} data-testid="domain-nav">
-          <ul className="flex flex-wrap gap-3 text-meta">
+          <ul className="flex flex-wrap gap-2">
             {namedGroups.map((group) => (
               <li key={group.domain}>
-                <a href={`#${anchorId(group.domain)}`} className="underline">
-                  {group.domain} ({group.tools.length})
+                <a href={`#${anchorId(group.domain)}`} className={DOMAIN_CHIP}>
+                  {humaniseIdentifier(group.domain)}
+                  <span className="text-muted tabular-nums">{group.tools.length}</span>
                 </a>
               </li>
             ))}
             {matchingSkills.length === 0 ? null : (
               <li>
-                <a href={`#${SKILLS_ANCHOR}`} className="underline">
-                  {labels.skillsHeading} ({matchingSkills.length})
+                <a href={`#${SKILLS_ANCHOR}`} className={DOMAIN_CHIP}>
+                  {labels.skillsHeading}
+                  <span className="text-muted tabular-nums">
+                    {matchingSkills.length}
+                  </span>
                 </a>
               </li>
             )}
@@ -177,54 +198,58 @@ export function CapabilityBrowser({
             <caption className="sr-only">{labels.tableCaption}</caption>
             <thead>
               <tr>
-                {[
-                  labels.columnName,
-                  labels.columnDomain,
-                  labels.columnEffect,
-                  labels.columnEnabled,
-                ].map((header) => (
-                  <th
-                    key={header}
-                    scope="col"
-                    className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
-                  >
-                    {header}
-                  </th>
-                ))}
+                {/* No Domain column. The rows are grouped by domain and each
+                    group is headed with it, so the column repeated its own
+                    heading once per row — twenty-four times under "cloud
+                    control plane" — for a table whose subject column was
+                    meanwhile breaking names across two lines. */}
+                {[labels.columnName, labels.columnEffect, labels.columnEnabled].map(
+                  (header) => (
+                    <th
+                      key={header}
+                      scope="col"
+                      className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                    >
+                      {header}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               {groups.map(({ domain, tools: domainTools }) => (
                 <Fragment key={domain === '' ? ' ' : domain}>
-                  {domain === '' ? null : (
-                    <tr data-testid="capability-domain" data-domain={domain}>
-                      <th
-                        id={anchorId(domain)}
-                        scope="rowgroup"
-                        colSpan={4}
-                        className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
-                      >
-                        {domain}{' '}
-                        <span className="text-muted font-normal">
-                          ({domainTools.length})
-                        </span>
-                      </th>
-                    </tr>
-                  )}
+                  {/* Headed even where the tools declare no domain. With the
+                      column gone the heading is the only thing saying which
+                      group a row is in, so a group without one would be a run
+                      of unattributed rows. */}
+                  <tr data-testid="capability-domain" data-domain={domain}>
+                    <th
+                      {...(domain === '' ? {} : { id: anchorId(domain) })}
+                      scope="rowgroup"
+                      colSpan={3}
+                      className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
+                    >
+                      {/* The catalogue's own word, read as a person writes it.
+                          The anchor and the grouping still key off the raw
+                          value, so nothing about navigation moves. */}
+                      {domain === '' ? labels.none : humaniseIdentifier(domain)}{' '}
+                      <span className="text-muted font-normal">
+                        ({domainTools.length})
+                      </span>
+                    </th>
+                  </tr>
                   {domainTools.map((tool) => (
                     <tr
                       key={tool.name}
                       data-testid="capability"
                       data-capability={tool.name}
                     >
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-words">
                         {tool.name}
                       </td>
                       <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        {tool.domain === '' ? labels.none : tool.domain}
-                      </td>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        <Badge status={tool.sideEffect} />
+                        <SideEffectChip locale={locale} level={tool.sideEffect} />
                       </td>
                       <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                         {!tool.known ? (
@@ -272,7 +297,7 @@ export function CapabilityBrowser({
                   </tr>
                   {matchingSkills.map((skill) => (
                     <tr key={skill.name} data-testid="capability">
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-words">
                         {skill.name}
                       </td>
                       <td

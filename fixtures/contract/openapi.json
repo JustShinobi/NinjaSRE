@@ -2216,6 +2216,11 @@
             "title": "Name",
             "type": "string"
           },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
           "user_id": {
             "title": "User Id",
             "type": "string"
@@ -2224,7 +2229,8 @@
         "required": [
           "user_id",
           "email",
-          "display_name"
+          "display_name",
+          "password"
         ],
         "title": "DurableCredentialRequest",
         "type": "object"
@@ -2415,6 +2421,11 @@
           },
           "outcome": {
             "title": "Outcome",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
             "type": "string"
           },
           "summary": {
@@ -2970,6 +2981,10 @@
             ],
             "title": "Closed At"
           },
+          "correlation_key": {
+            "title": "Correlation Key",
+            "type": "string"
+          },
           "detector": {
             "title": "Detector",
             "type": "string"
@@ -2985,6 +3000,10 @@
           },
           "origin": {
             "title": "Origin",
+            "type": "string"
+          },
+          "public_id": {
+            "title": "Public Id",
             "type": "string"
           },
           "run_id": {
@@ -3039,11 +3058,13 @@
         },
         "required": [
           "incident_id",
+          "public_id",
           "title",
           "summary",
           "state",
           "severity",
           "origin",
+          "correlation_key",
           "detector",
           "opened_at"
         ],
@@ -3231,6 +3252,35 @@
         "title": "InheritedValueView",
         "type": "object"
       },
+      "IntegrationDocsView": {
+        "description": "One vendor package's own documentation, as its ``docs.md`` reads.\n\n``markdown`` is the file's text, unmodified — the console renders it with\nthe markdown reader it already has rather than this route parsing\nanything. ``readable`` is false in exactly one situation: the vendor is\ninstalled and its parity report resolved a ``docs.md`` path, but the file\nat that path could not actually be read. That is never \"no such vendor\" —\na name outside the catalogue is a 404, not a row here — and it is never\n\"this vendor has no documentation\", because every embedded vendor is\nrequired to ship one. It is this deployment's own build failing to carry\na file its source tree has, which is exactly the failure the console has\nto say plainly rather than reporting as if the document never existed.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "markdown": {
+            "title": "Markdown",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readable": {
+            "default": true,
+            "title": "Readable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "markdown"
+        ],
+        "title": "IntegrationDocsView",
+        "type": "object"
+      },
       "IntegrationList": {
         "properties": {
           "integrations": {
@@ -3386,6 +3436,11 @@
             "title": "Category",
             "type": "string"
           },
+          "credential_team_ambiguous": {
+            "default": false,
+            "title": "Credential Team Ambiguous",
+            "type": "boolean"
+          },
           "direction": {
             "default": "outbound",
             "title": "Direction",
@@ -3463,6 +3518,11 @@
           },
           "summary": {
             "title": "Summary",
+            "type": "string"
+          },
+          "where_to_get_it": {
+            "default": "",
+            "title": "Where To Get It",
             "type": "string"
           }
         },
@@ -3563,6 +3623,35 @@
       },
       "InvestigationSummary": {
         "properties": {
+          "evidence_assessed": {
+            "default": false,
+            "title": "Evidence Assessed",
+            "type": "boolean"
+          },
+          "evidence_backed": {
+            "default": 0,
+            "title": "Evidence Backed",
+            "type": "integer"
+          },
+          "evidence_missing": {
+            "default": 0,
+            "title": "Evidence Missing",
+            "type": "integer"
+          },
+          "evidence_missing_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Missing Names",
+            "type": "array"
+          },
+          "evidence_supporting_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Supporting Names",
+            "type": "array"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -3573,6 +3662,21 @@
               }
             ],
             "title": "Finished At"
+          },
+          "headline": {
+            "default": "",
+            "title": "Headline",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "title": "Report",
+            "type": "string"
           },
           "run_id": {
             "title": "Run Id",
@@ -3603,6 +3707,13 @@
               }
             ],
             "title": "Summary"
+          },
+          "touched_resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Touched Resources",
+            "type": "array"
           },
           "trigger": {
             "title": "Trigger",
@@ -3641,6 +3752,11 @@
               }
             ],
             "title": "Duration Ms"
+          },
+          "status": {
+            "default": "",
+            "title": "Status",
+            "type": "string"
           },
           "step_count": {
             "title": "Step Count",
@@ -4060,6 +4176,25 @@
           "live"
         ],
         "title": "LivenessView",
+        "type": "object"
+      },
+      "LocalAdministratorAvailabilityView": {
+        "description": "The one fact the sign-in and first-run screens need before anybody is signed in.\n\nTernary, and nothing else deployment-specific: no name, no version, no\norganisation, no count of anything. ``state`` is one of ``\"unclaimed\"``\n(no local administrator and no identity provider — the CLI's own\ncommand is the way in), ``\"administered\"`` (a local administrator\nalready exists, whether from the environment or a deliberate\nenrolment), or ``\"identity_provider\"`` (this deployment's identity\nprovider is its way in).\n\n``command`` carries the CLI invitation exactly when it is relevant —\n``state == \"unclaimed\"`` — and is empty otherwise. It is a fixed\nconstant, the same string on every deployment, read from the one place\nthat also writes it into the boot announcement: naming nothing about\n*this* deployment is what keeps it inside FR-076's boundary despite\nbeing served unauthenticated.",
+        "properties": {
+          "command": {
+            "default": "",
+            "title": "Command",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "LocalAdministratorAvailabilityView",
         "type": "object"
       },
       "MaintenanceRequest": {
@@ -5343,6 +5478,10 @@
             "title": "Provider Id",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "verified": {
             "title": "Verified",
             "type": "boolean"
@@ -5359,6 +5498,7 @@
           "local",
           "configured",
           "verified",
+          "readiness",
           "default_model",
           "fields",
           "models",
@@ -5460,6 +5600,10 @@
             "title": "Provider Id",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "verified": {
             "title": "Verified",
             "type": "boolean"
@@ -5471,6 +5615,7 @@
           "local",
           "configured",
           "verified",
+          "readiness",
           "default_model"
         ],
         "title": "ProviderView",
@@ -5589,6 +5734,171 @@
           "reason"
         ],
         "title": "RejectRequest",
+        "type": "object"
+      },
+      "ReplayCallView": {
+        "description": "One call as a replay serves it: the thread's fields, plus what came back.\n\nThe thread view deliberately stops at \"which capability, how it went\". A\nreplay is read to answer what the run *found*, and a reader that cannot see\na single result can only list the questions the agent asked — the answers\nare in the trace and were being thrown away here.",
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          },
+          "result_truncated": {
+            "default": false,
+            "title": "Result Truncated",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "name",
+          "status"
+        ],
+        "title": "ReplayCallView",
+        "type": "object"
+      },
+      "ReplayStageView": {
+        "description": "One of the six stages, with the turns that ran inside it.\n\nFive of the six hold no turns and that is the point of serving them. Only\nthe gathering stage drives the loop, so a replay of turns alone is a\ndetailed account of one stage and silence about the other five — including\nintake and diagnosis, which each spend a model call and turn nothing.\n``llm_calls`` is what separates \"made no turn\" from \"did nothing\", and a\nreader who has only the turn list cannot tell those apart.",
+        "properties": {
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "failed": {
+            "default": false,
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "finding": {
+            "default": "",
+            "title": "Finding",
+            "type": "string"
+          },
+          "llm_calls": {
+            "default": 0,
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayTurnView"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stage",
+          "turns"
+        ],
+        "title": "ReplayStageView",
+        "type": "object"
+      },
+      "ReplayTurnView": {
+        "description": "One turn as a replay serves it, its calls carrying their results.\n\nThe turn's own fields are the thread view's, restated rather than\ninherited: a subclass cannot narrow ``list[ThreadCallView]`` to\n``list[ReplayCallView]``, because a list is mutable and so invariant. The\n*values* still come from ``thread_turn_view`` below, which is the half that\ncould actually drift.",
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayCallView"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "model": {
+            "default": "",
+            "title": "Model",
+            "type": "string"
+          },
+          "model_rationale": {
+            "default": "",
+            "title": "Model Rationale",
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "selection_rationale": {
+            "default": "",
+            "title": "Selection Rationale",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "index",
+          "calls"
+        ],
+        "title": "ReplayTurnView",
         "type": "object"
       },
       "RequiredPermissionView": {
@@ -5954,6 +6264,50 @@
         "title": "RevocationResult",
         "type": "object"
       },
+      "RoleBindingView": {
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "provider",
+          "model",
+          "source"
+        ],
+        "title": "RoleBindingView",
+        "type": "object"
+      },
+      "RoleBindings": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleBindingView"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "RoleBindings",
+        "type": "object"
+      },
       "RoleList": {
         "description": "Every role, least privileged first.",
         "properties": {
@@ -6165,6 +6519,23 @@
         "title": "RulesView",
         "type": "object"
       },
+      "RunEpisode": {
+        "description": "What one investigation left behind, or nothing.\n\n``None`` rather than a 404 for a run that wrote none. A run with no episode\nis an ordinary run — extraction skips a conclusion too short to learn from,\nand a run that failed reached none at all — and answering \"not found\" would\nturn a section that should print a calm sentence into an error state on\nevery card that has nothing to show.",
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpisodeView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RunEpisode",
+        "type": "object"
+      },
       "RunList": {
         "properties": {
           "runs": {
@@ -6191,27 +6562,50 @@
             "title": "Run Id",
             "type": "string"
           },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayStageView"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
           "total_cost": {
             "title": "Total Cost",
             "type": "number"
+          },
+          "total_events": {
+            "title": "Total Events",
+            "type": "integer"
           },
           "total_tokens": {
             "title": "Total Tokens",
             "type": "integer"
           },
+          "turn_tokens": {
+            "title": "Turn Tokens",
+            "type": "integer"
+          },
           "turns": {
             "items": {
-              "$ref": "#/components/schemas/ThreadTurnView"
+              "$ref": "#/components/schemas/ReplayTurnView"
             },
             "title": "Turns",
             "type": "array"
+          },
+          "unpriced_turns": {
+            "title": "Unpriced Turns",
+            "type": "integer"
           }
         },
         "required": [
           "run_id",
           "turns",
+          "stages",
           "total_cost",
+          "unpriced_turns",
           "total_tokens",
+          "turn_tokens",
+          "total_events",
           "is_interrupted"
         ],
         "title": "RunReplayView",
@@ -7224,6 +7618,22 @@
             "title": "Calls",
             "type": "array"
           },
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -7232,6 +7642,16 @@
             "default": "",
             "title": "Model",
             "type": "string"
+          },
+          "model_rationale": {
+            "default": "",
+            "title": "Model Rationale",
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
           },
           "selection_rationale": {
             "default": "",
@@ -7597,6 +8017,73 @@
           "state"
         ],
         "title": "TransitionView",
+        "type": "object"
+      },
+      "TrustWriteRequest": {
+        "description": "What an operator declares about this vendor's certificate.\n\nThere is no field here that turns verification off, and there is not going\nto be one. The insecure form is reached by writing down why, in\n``unverified_reason`` — which is also what makes it need a permission the\nrole that merely operates integrations does not hold. Who accepted it and\nwhen are stamped by the server; a value sent here for either is discarded\nbefore anything is validated.",
+        "properties": {
+          "certificate_pem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Pem"
+          },
+          "fingerprints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fingerprints",
+            "type": "array"
+          },
+          "unverified_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unverified Reason"
+          }
+        },
+        "title": "TrustWriteRequest",
+        "type": "object"
+      },
+      "TrustWriteView": {
+        "description": "What was written down, and which addresses it now covers.",
+        "properties": {
+          "addresses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addresses",
+            "type": "array"
+          },
+          "anchor": {
+            "title": "Anchor",
+            "type": "string"
+          },
+          "describes": {
+            "default": "",
+            "title": "Describes",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "anchor"
+        ],
+        "title": "TrustWriteView",
         "type": "object"
       },
       "TurnList": {
@@ -9293,7 +9780,7 @@
     },
     "/v1/approvals/{approval_id}/decision": {
       "post": {
-        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no rollback plan stored\nagainst it, so the guarantee that a change above read is undoable does not\ndepend on this handler getting an order right — there is no order to get\nwrong, because nothing here writes a plan, only reads one already there.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
+        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and then —\nwhen the change is a remediation and this deployment composed a desk —\ncarries the action out through the gate. The store refuses to record an\napproval with no rollback plan stored against it, so the undo is already\nthere before anything runs; the recording happens first for the reason the\nmodule docstring gives.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
         "operationId": "decide_approval_v1_approvals__approval_id__decision_post",
         "parameters": [
           {
@@ -12213,6 +12700,134 @@
         ]
       }
     },
+    "/v1/integrations/{name}/docs": {
+      "get": {
+        "description": "Return one embedded vendor's own package documentation.\n\nTakes the same authorisation every other route on this router does, even\nthough it reads nothing tenant-scoped: the permission check is what\n``authorized`` performs against the route table, and a route mounted\nwithout it would be reachable by anyone who could reach this deployment\nat all.\n\n``name`` is resolved against the installed catalogue and never used to\nbuild a filesystem path directly: the path this reads comes from the same\nparity report that already walked the package tree to confirm ``docs.md``\nis there, so a name that is not an installed vendor never reaches a disk\naccess at all — it is a 404 before that.",
+        "operationId": "integration_docs_v1_integrations__name__docs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationDocsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Docs",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/trust": {
+      "put": {
+        "description": "Declare what this deployment accepts from ``name``'s endpoint certificate.\n\nWritten into the organisation's own configuration, beside the address, where\nthe credential proxy already reads from. The write itself asks the proxy to\nre-read it immediately rather than waiting for the periodic cycle that\nrebuilds the egress allow-list — best-effort, and never a reason this write\nfails: an unreachable proxy still applies the declaration on that cycle's\nown next tick, without a restart, exactly as it always has.\n\nAccepting an unverified certificate needs a permission of its own and a\nreason in writing, and the identity recorded is the authenticated one rather\nthan anything the body carried. Nothing is written when either check fails:\nthe declaration is validated and authorised before the document is touched,\nso a refusal leaves it exactly as it was.\n\nRaises:\n    ApiProblem: the declaration is not one the vocabulary will hold (400) —\n        a blank reason, a private key where the certificate goes, a\n        fingerprint that is not one. The refusal names the field and never\n        quotes a value.",
+        "operationId": "store_certificate_trust_v1_integrations__name__trust_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustWriteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Certificate Trust",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/v1/integrations/{name}/verify": {
       "post": {
         "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.\n\nThe answer is written down. A check whose result lived only in the response\nleft the first run's \"check that each of them works\" step uncompletable:\ngreen while the tab was open, \"nobody has checked this one\" on reload.",
@@ -13322,6 +13937,65 @@
         ]
       }
     },
+    "/v1/memory/episode": {
+      "get": {
+        "description": "Return the episode ``run_id`` produced, or nothing.\n\nAddressed by the run rather than by the episode, because the caller with\nthe question is a screen showing an investigation and it has the run id and\nnot the episode's. ``run_id`` is required: without it this would answer\nwith whatever the store returned first, which is a different question\nwearing this one's address.\n\nFiltering a corpus search down to one run in the caller would be the same\nread at the wrong layer — fine at fifty episodes and wrong at the size a\ncorpus becomes worth having, which is exactly the size this feature is for.",
+        "operationId": "episode_for_run_v1_memory_episode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEpisode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Episode For Run",
+        "tags": [
+          "memory"
+        ]
+      }
+    },
     "/v1/memory/search": {
       "get": {
         "description": "Return episodes involving ``component``, most recent first.",
@@ -13439,6 +14113,56 @@
         "summary": "Memory Stats",
         "tags": [
           "memory"
+        ]
+      }
+    },
+    "/v1/models/roles": {
+      "get": {
+        "description": "Return what every declared role resolves to, and on whose say-so.",
+        "operationId": "model_roles_v1_models_roles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleBindings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Model Roles",
+        "tags": [
+          "models"
         ]
       }
     },
@@ -14526,7 +15250,7 @@
     },
     "/v1/runs": {
       "get": {
-        "description": "Return recent runs visible to the caller, newest first.",
+        "description": "Return recent runs visible to the caller, newest first.\n\nEach carries how sure it was, because the list is where somebody decides\nwhich run to open and \"did it actually back this\" is the question that\ndecides it. Read in one batched query over the whole page rather than one\nper row — the per-row version works on a demo and is a fifty-query page in\na deployment that has been running a while.",
         "operationId": "list_runs_v1_runs_get",
         "parameters": [
           {
@@ -14645,7 +15369,7 @@
     },
     "/v1/runs/{run_id}/replay": {
       "get": {
-        "description": "Return ``run_id`` reconstructed from its recorded events alone.",
+        "description": "Return ``run_id`` reconstructed from its recorded events alone.\n\nEach call carries what it returned, bounded for reading. The trace has held\nthe result since it was recorded; until it was served here, a reader could\nsee which capabilities a run asked and not one thing any of them answered,\nwhich is a transcript of the questions and none of the findings.\n\nThe turns arrive twice, and deliberately: flat in ``turns`` and grouped in\n``stages``. An investigation is six stages, and only the fourth of them\nruns the loop — so the flat list is a complete account of the gathering and\nsays nothing about the classification that decided the run was worth\nstarting or the diagnosis that structured what it found. The grouping is\nwhat a reader wants; the flat list is what a client that has never heard of\na stage still gets, including for the runs recorded before stages reached\nthe trace, whose ``stages`` is empty.",
         "operationId": "replay_v1_runs__run_id__replay_get",
         "parameters": [
           {
@@ -15170,7 +15894,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.\n\nThe provider's own readiness is read the same way, from the same ledger,\nby the same helper `/v1/providers` already reads it with — this is the\nfix for the checklist and the listing disagreeing about the same\nprovider: one document, read twice rather than derived twice.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {
@@ -15378,7 +16102,7 @@
     },
     "/v1/setup/durable-credential": {
       "post": {
-        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke.",
+        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke. The passphrase is the opposite\ncase: it is the caller's own, chosen for the first time, and the request\nbody is the only place it could come from.",
         "operationId": "durable_credential_v1_setup_durable_credential_post",
         "parameters": [
           {
@@ -15431,6 +16155,28 @@
           }
         },
         "summary": "Durable Credential",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/local-administrator": {
+      "get": {
+        "description": "Return the ternary fact the sign-in and first-run screens read.\n\nPublic by declaration: it is what tells an unauthenticated visitor\nwhether there is a way in at all, and revealing that is the whole point\nof the route — see ``LocalAdministratorAvailabilityView`` for what it\ndeliberately does not also reveal.",
+        "operationId": "local_administrator_availability_v1_setup_local_administrator_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAdministratorAvailabilityView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Local Administrator Availability",
         "tags": [
           "setup"
         ]

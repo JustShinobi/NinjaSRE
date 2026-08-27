@@ -57,3 +57,34 @@ test('each proposal carries the investigation it came out of, as a link', async 
   await expect(origin).toBeVisible();
   await expect(origin).toHaveAttribute('href', /^\/runs\/run-/);
 });
+
+test('a proposed action can be decided from the decisions screen', async ({ page }) => {
+  /**
+   * A screen called Decisions, listing a card that says "awaiting your
+   * decision", with nothing on it to decide with.
+   *
+   * The card has always accepted decision controls. The Actions tab passed
+   * them only when the approval could be matched to a live agent *interaction*
+   * — a question a running investigation is blocked on. A remediation the gate
+   * queued is an approval in the store and raises no interaction, so the
+   * lookup returned nothing and the controls were dropped, silently, on every
+   * proposal this product has ever made.
+   *
+   * Measured against staging on 2026-08-25: a pending approval with fifteen
+   * minutes left, and zero buttons in the page body — on the decisions list
+   * and on the incident it belonged to.
+   */
+  await page.goto('/decisions');
+
+  const card = page.getByTestId('proposal').first();
+  await expect(card).toBeVisible();
+
+  // Either mechanism satisfies this: a question the run is blocked on is
+  // answered through the run, a remediation the gate queued is answered at the
+  // approval. What must not happen is a card that asks for a decision and
+  // offers no way to make one, which is what every queued remediation got.
+  const controls = card.locator(
+    '[data-testid="decision-control"], [data-testid="approve"], [data-testid="reject"]',
+  );
+  await expect(controls.first()).toBeVisible();
+});

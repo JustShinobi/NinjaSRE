@@ -35,6 +35,11 @@ class ProxyErrorReason(StrEnum):
     REFRESH_FAILED = "refresh_failed"
     RATE_LIMITED = "rate_limited"
     UPSTREAM_UNREACHABLE = "upstream_unreachable"
+    #: The address answered and this deployment did not trust what it presented.
+    #: Its own reason rather than a shade of the one above, because the two lead
+    #: an operator to opposite places: one to the network, and one to a decision
+    #: nobody has taken yet about a certificate.
+    CERTIFICATE_UNTRUSTED = "certificate_untrusted"
 
     @property
     def retryable(self) -> bool:
@@ -123,6 +128,39 @@ class EgressDenied(ProxyError):
         )
         self.host = host
         self.allowed = tuple(allowed)
+
+
+class CredentialWouldCrossInClear(ProxyError):
+    """A credential resolved, and the destination would carry it unencrypted.
+
+    Same classification as ``EgressDenied`` — ``reason`` is identical, so
+    whatever a console derives from the reason does not change — because this
+    *is* an egress refusal by every fact the proxy checks. What differs is the
+    question the sentence answers. ``EgressDenied``'s message is about the
+    allow-list: an address the integration never declared. This refusal has
+    nothing wrong with the address; the host is one this integration is
+    permitted to reach. What is wrong is the scheme, on a call that is about
+    to carry a secret — and telling an operator to check hosts they already
+    got right sends them looking at the wrong list.
+
+    Never raised for a request carrying nothing: a self-hosted vendor with no
+    authentication of its own is not held to this, because there is nothing
+    here to protect. See ``refuse_credential_in_clear``.
+    """
+
+    reason = ProxyErrorReason.EGRESS_DENIED
+
+    def __init__(self, integration: str, *, scheme: str, host: str) -> None:
+        tls_host = f"https://{host}"
+        super().__init__(
+            f"{integration!r} would send a stored credential to {scheme}://{host}, and "
+            f"{scheme} is never encrypted. Point {integration!r} at {tls_host} instead, "
+            f"or remove the stored credential and connect it by address only.",
+            integration=integration,
+            detail=host,
+        )
+        self.host = host
+        self.scheme = scheme
 
 
 class CredentialUnavailable(ProxyError):
@@ -256,6 +294,95 @@ class UpstreamUnreachable(ProxyError):
         self.host = host
 
 
+class CertificateRefused(ProxyError):
+    """The address answered, and this deployment would not trust its certificate.
+
+    Three subclasses, one reason, and three sentences, because they lead to
+    three different actions: declare trust, compare the new fingerprint against
+    what the node shows, or correct the address. Flattening them into one is the
+    same mistake in miniature as flattening this whole class into "nothing
+    answered" — the operator is told less than the proxy knew.
+
+    Nothing here carries certificate material. A fingerprint is not a secret and
+    is exactly what an operator compares against what the host shows them; a PEM
+    is bulk that proves nothing more.
+    """
+
+    reason = ProxyErrorReason.CERTIFICATE_UNTRUSTED
+
+
+class CertificateUntrusted(CertificateRefused):
+    """Nothing declared what to trust at this address, so nothing was sent."""
+
+    def __init__(self, integration: str, *, host: str, observed: str) -> None:
+        super().__init__(
+            f"{host} presented a certificate this deployment has no reason to trust, so "
+            f"nothing was sent. Its SHA-256 fingerprint is {observed}. Compare that with "
+            f"what the host itself shows, then declare trust for this address: pin the "
+            f"fingerprint, or supply the authority that issued it.",
+            integration=integration,
+            detail=host,
+        )
+        self.host = host
+        self.observed = observed
+
+
+class CertificatePinBroken(CertificateRefused):
+    """The address presented a certificate that is not the one pinned for it.
+
+    Refused, and nothing else happens. No fall back to the system trust store,
+    no fall back to not verifying, and no adoption of the new fingerprint: a pin
+    that updates itself when it does not match is a decorative field, and a
+    replaced certificate is the exact event it exists to catch.
+    """
+
+    def __init__(
+        self,
+        integration: str,
+        *,
+        host: str,
+        expected: Sequence[str],
+        observed: str,
+    ) -> None:
+        listed = ", ".join(expected)
+        super().__init__(
+            f"{host} presented a certificate that is not pinned for it, so nothing was "
+            f"sent. Expected {listed}; observed {observed}. Nothing fell back to the "
+            f"system trust store and nothing stopped verifying. If the certificate was "
+            f"replaced legitimately, declare the new fingerprint deliberately — it is "
+            f"not adopted automatically.",
+            integration=integration,
+            detail=host,
+        )
+        self.host = host
+        self.expected = tuple(expected)
+        self.observed = observed
+
+
+class CertificateNameMismatch(CertificateRefused):
+    """The chain validated against the supplied authority and the name did not match.
+
+    Its own sentence because the fix is a different one: the certificate is
+    trusted and the address is wrong, which is what happens when a cluster is
+    reached by IP and its authority names the nodes. Reported as "not trusted"
+    it would send an operator to declare trust they have already declared.
+    """
+
+    def __init__(self, integration: str, *, host: str, certificate_names: Sequence[str]) -> None:
+        listed = ", ".join(certificate_names) if certificate_names else "no host at all"
+        super().__init__(
+            f"The certificate {host} presented is trusted — it chains to what was supplied "
+            f"for this integration — but it does not name {host}. It names {listed}. Point "
+            f"the integration at a name the certificate carries, or pin the node's "
+            f"fingerprint instead: a pin replaces the identity check rather than adding "
+            f"to it.",
+            integration=integration,
+            detail=host,
+        )
+        self.host = host
+        self.certificate_names = tuple(certificate_names)
+
+
 class ReconstructedProxyError(ProxyError):
     """A proxy error rebuilt on the client side of the internal API.
 
@@ -290,10 +417,15 @@ def error_from_record(record: Mapping[str, Any]) -> ProxyError:
 
 
 __all__ = [
+    "CertificateNameMismatch",
+    "CertificatePinBroken",
+    "CertificateRefused",
+    "CertificateUntrusted",
     "CredentialExpired",
     "CredentialFieldsMissing",
     "CredentialUnavailable",
     "CredentialUnreadable",
+    "CredentialWouldCrossInClear",
     "EgressDenied",
     "IntegrationNotDeclared",
     "MalformedProxyRequest",

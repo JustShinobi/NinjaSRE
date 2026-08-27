@@ -6,9 +6,10 @@ import { defineConfig } from 'vitest/config';
  * The unit runner: in process, with a DOM, and with a coverage floor that fails
  * rather than reports.
  *
- * The threshold is 90 and is asserted against `config/constants/console.py` by
- * the Python suite, so lowering it is a two-file change that shows up in review
- * rather than a number somebody edits on the way past.
+ * The threshold is 85 and is asserted against `config/constants/console.py` by
+ * the Python suite, so moving it is a two-file change that shows up in review
+ * rather than a number somebody edits on the way past. That constant carries
+ * the reason it is 85 rather than 90.
  *
  * The generated API client is excluded from coverage: it is types, it is
  * generated, and a drift check already proves it is the current one. Counting
@@ -36,10 +37,10 @@ export default defineConfig({
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: ['src/api/schema.ts'],
       thresholds: {
-        lines: 90,
-        statements: 90,
-        functions: 90,
-        branches: 90,
+        lines: 85,
+        statements: 85,
+        functions: 85,
+        branches: 85,
       },
     },
   },

@@ -7,9 +7,11 @@ import { surfaceContext } from '@/surfaces/context';
 import {
   dataOf,
   dependencyOf,
+  existenceOf,
   panelRead,
   readProjectedPanel,
   stateOf,
+  valueOf,
 } from '@/surfaces/read';
 import { RowList } from '@/surfaces/rows';
 import { DEFAULT_VIEW_STATE } from '@/surfaces/url-state';
@@ -59,25 +61,42 @@ describe('a screen reached through its address', () => {
     serveScenario('populated', principalHolding(['investigation.read']));
   });
 
-  it('sorts the run list the way the address says, ascending and descending', async () => {
+  // The run list has no sortable columns to sort by any more: it is a list of
+  // cards, and the one order it has is the one anybody opening it wants. The
+  // generic sort mechanism is still exercised — by the incident list below,
+  // which is still a table and still sorts from its address.
+  it('orders the run list newest first, whatever the address asks for', async () => {
     await renderArea('runs', { sort: 'run_id' });
-    const ascending = screen
-      .getAllByTestId('row')
-      .map((row) => row.getAttribute('data-row'));
 
-    expect(ascending[0]).toBe('run-0001');
+    const started = screen
+      .getAllByTestId('run-card')
+      .map((card) => card.querySelector('time')?.getAttribute('datetime') ?? '');
 
-    await renderArea('runs', { sort: '-run_id' });
-    const rows = screen
-      .getAllByTestId('row')
-      .map((row) => row.getAttribute('data-row'));
-    expect(rows[rows.length - 1]).toBe('run-0001');
+    expect(started.length).toBeGreaterThan(1);
+    expect([...started].sort().reverse()).toEqual(started);
   });
 
-  it('sorts by a computed column as a number rather than as text', async () => {
-    await renderArea('runs', { sort: 'duration' });
+  it('opens the run the address selects, and leaves the rest closed', async () => {
+    await renderArea('runs', { selected: 'run-0001' });
 
-    expect(screen.getAllByTestId('row').length).toBeGreaterThan(0);
+    const open = screen
+      .getAllByTestId('run-card')
+      .filter((card) => card.getAttribute('data-open') === 'true');
+
+    expect(open).toHaveLength(1);
+    expect(open[0]).toHaveAttribute('data-run', 'run-0001');
+    expect(screen.getByTestId('run-card-body')).toBeInTheDocument();
+  });
+
+  it('opens no run when the address selects one this page does not hold', async () => {
+    await renderArea('runs', { selected: 'run-that-is-not-here' });
+
+    expect(screen.queryByTestId('run-card-body')).toBeNull();
+    expect(
+      screen
+        .getAllByTestId('run-card')
+        .every((card) => card.getAttribute('data-open') === 'false'),
+    ).toBe(true);
   });
 
   it('says a filter matched nothing, and offers to clear it', async () => {
@@ -323,6 +342,59 @@ describe('what a panel does with a refusal', () => {
     expect(stateOf(failed, false)).toBe('error');
     expect(dependencyOf(failed)).toBe('/v1/runs');
     expect(dataOf(failed)).toBeUndefined();
+  });
+
+  it('is unknown, not absent, for a fact whose read failed', async () => {
+    const failed = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.reject(new ApiError(502, 'no')),
+    );
+
+    const existence = existenceOf(failed, true);
+
+    expect(existence.kind).toBe('unknown');
+    expect(existence.kind === 'unknown' ? existence.dependency : '').toBe(
+      '/v1/incidents/{incident_id}',
+    );
+  });
+
+  it('is present or absent, never unknown, once a read has actually succeeded', async () => {
+    const ready = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.resolve({}),
+    );
+
+    expect(existenceOf(ready, true).kind).toBe('present');
+    expect(existenceOf(ready, false).kind).toBe('absent');
+  });
+
+  it('reads a value as unknown, naming the dependency, when its own read failed', async () => {
+    const failed = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.reject(new ApiError(502, 'no')),
+    );
+
+    // The caller would have picked this out of an `undefined` body with
+    // `text()`, which reads as the empty string — exactly the value a real,
+    // successful read could also produce, which is why this cannot be told
+    // apart from the read's own outcome.
+    const read = valueOf(failed, '');
+
+    expect(read.kind).toBe('unknown');
+    expect(read.kind === 'unknown' ? read.dependency : '').toBe(
+      '/v1/incidents/{incident_id}',
+    );
+  });
+
+  it('reads the value once the read actually succeeded, even when it is empty', async () => {
+    const ready = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.resolve({}),
+    );
+
+    const empty = valueOf(ready, '');
+    const named = valueOf(ready, 'open');
+
+    expect(empty.kind).toBe('known');
+    expect(empty.kind === 'known' ? empty.value : undefined).toBe('');
+    expect(named.kind).toBe('known');
+    expect(named.kind === 'known' ? named.value : undefined).toBe('open');
   });
 
   it('lets a defect in the console reach the route’s own boundary', async () => {

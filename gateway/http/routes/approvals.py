@@ -10,10 +10,23 @@ Deciding is the one write here that is not the rollback. It calls
 ``ApprovalStore.decide`` directly rather than routing through the governance
 ``ApprovalService`` or the agent ``ProposalQueue``: both exist for a different
 shape of change (a configuration edit, a detector, a knowledge write, a
-prompt), neither claims a remediation approval as one of its own, and neither
-executes anything on approval — recording the decision is genuinely all this
-route does. Nothing above read is invoked from here; carrying that out is a
-separate mechanism this feature does not wire in.
+prompt), and neither claims a remediation approval as one of its own.
+
+**An approved remediation is then carried out, through the gate.** Not from
+here: this hands the action the request stored to
+``RemediationGate.execute_approved``, which re-reads the emergency stop and the
+closed loop's guards and descends the same execution path a proposal raised
+inside a run would. Calling the executor from a route would be a second
+entrance to a production write, and the whole design rests on there being one.
+
+The order matters and it is the one that survives a crash between the halves.
+The decision is recorded first: a stored approval that did not run is something
+an operator finds and re-runs, while a change applied with nothing saying who
+authorised it is indistinguishable from a compromise.
+
+A deployment that composed no remediation desk records the decision and carries
+nothing, which is the honest behaviour for a deployment that cannot act rather
+than one that decided not to.
 """
 
 from __future__ import annotations
@@ -32,19 +45,28 @@ from config.constants.security import (
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, conflict, not_found
 from gateway.http.state import GatewayState
-from platform.approvals.models import PROPOSED_KEY
+from platform.approvals.models import PROPOSED_KEY, ChangeType
 from platform.identity.audit.recorder import (
     APPROVAL_AUDIT_ACTION_DECIDE,
     AuditContext,
     AuditRecorder,
 )
-from platform.persistence.errors import AppendOnlyViolation, RecordNotFound
+from platform.incidents.errors import UnknownIncident
+from platform.incidents.lifecycle import IncidentLifecycle
+from platform.observability.logging import get_logger
+from platform.persistence.errors import AppendOnlyViolation, PersistenceError, RecordNotFound
 from platform.persistence.ports import ActorKind, AuditOutcome
 from platform.persistence.ports.approval_store import (
     ApprovalRequest,
     ApprovalState,
     RollbackPlan,
 )
+from platform.persistence.ports.transaction import TenantScope
+from platform.remediation.errors import RemediationError
+from platform.remediation.gating import RunContext
+from platform.remediation.models import RemediationAction
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/v1/approvals", tags=["approvals"])
 
@@ -262,12 +284,12 @@ async def decide_approval(
 ) -> ApprovalDecisionResult:
     """Approve or reject an approval request, in the caller's name.
 
-    Approving records the decision, the decider and the instant, and nothing
-    else: this route never invokes the capability the approval names. The
-    store itself refuses to record an approval with no rollback plan stored
-    against it, so the guarantee that a change above read is undoable does not
-    depend on this handler getting an order right — there is no order to get
-    wrong, because nothing here writes a plan, only reads one already there.
+    Approving records the decision, the decider and the instant, and then —
+    when the change is a remediation and this deployment composed a desk —
+    carries the action out through the gate. The store refuses to record an
+    approval with no rollback plan stored against it, so the undo is already
+    there before anything runs; the recording happens first for the reason the
+    module docstring gives.
 
     Rejecting without a reason is refused before either store is touched. The
     console's own control disables the reject button until a reason is typed;
@@ -319,12 +341,152 @@ async def decide_approval(
         },
     )
 
+    if decided.state is ApprovalState.APPROVED:
+        await _carry_out(state, decided, principal=auth.principal_id)
+    else:
+        await _record_refusal(state, decided, scope=auth.scope, principal=auth.principal_id)
+
     return ApprovalDecisionResult(
         approval_id=decided.approval_id,
         state=decided.state.value,
         decided_at=decided.decided_at.isoformat() if decided.decided_at else "",
         decided_by=decided.decided_by or "",
     )
+
+
+async def _record_refusal(
+    state: GatewayState,
+    decided: ApprovalRequest,
+    *,
+    scope: TenantScope,
+    principal: str,
+) -> None:
+    """Say on the incident that a person refused this change, and why.
+
+    The store and the audit trail already hold the decision, and neither is
+    where anybody looks. An incident whose proposed remediation was refused an
+    hour ago goes on presenting it as waiting for a decision, so the next person
+    to open it picks up a question that has been answered — which is how one
+    refusal becomes three.
+
+    Attributed to the reviewer rather than to the deployment. A refusal is the
+    one event on that timeline that a named person is responsible for, and
+    writing it as ``system`` would lose the only part of it that matters.
+
+    Never raises, for the reason ``_carry_out`` does not: the decision is
+    recorded and the response describes it, and failing to annotate an incident
+    must not tell the reviewer their refusal did not land.
+    """
+    action = _approved_action(decided)
+    if action is None or not action.run_id:
+        return
+
+    reason = (decided.reason or "").strip() or "no reason was recorded"
+    try:
+        async with state.gateway.begin(scope) as uow:
+            incident = await uow.incidents.find_by_run(action.run_id)
+            if incident is None:
+                return
+            await IncidentLifecycle(store=uow.incidents).record_action(
+                incident.incident_id,
+                f"{action.capability} on {action.target} was refused by {principal}: {reason}",
+                actor=principal,
+                now=datetime.now(UTC),
+            )
+    except (RemediationError, PersistenceError, UnknownIncident) as unrecorded:
+        logger.warning(
+            "remediation.refusal_not_recorded_on_incident",
+            approval_id=decided.approval_id,
+            run_id=action.run_id,
+            error=str(unrecorded),
+        )
+
+
+async def _carry_out(state: GatewayState, decided: ApprovalRequest, *, principal: str) -> None:
+    """Take an authorised remediation through the gate, or say why it went no further.
+
+    Never raises. The decision is already recorded and the response describes
+    that decision; a failure to act is a fact about this deployment, and turning
+    it into an error would tell the reviewer their decision did not land when it
+    did.
+    """
+    desk = getattr(state, "remediation", None)
+    if desk is None:
+        logger.info(
+            "remediation.approval_not_carried_out",
+            approval_id=decided.approval_id,
+            reason="this deployment composed no remediation desk",
+        )
+        return
+
+    action = _approved_action(decided)
+    if action is None:
+        return
+    if not desk.handles(action.capability):
+        logger.warning(
+            "remediation.approval_not_carried_out",
+            approval_id=decided.approval_id,
+            capability=action.capability,
+            reason="no components are registered for this capability here",
+        )
+        return
+
+    try:
+        outcome = await desk.gate_for(
+            RunContext(
+                requester=principal,
+                team_node_id=action.team_node_id,
+                run_id=action.run_id,
+                environment=action.target.environment,
+            )
+        ).execute_approved(action, approval_id=decided.approval_id)
+    except Exception as unexecuted:  # noqa: BLE001 — the approval was already stored
+        logger.warning(
+            "remediation.approval_execution_failed",
+            approval_id=decided.approval_id,
+            error=str(unexecuted),
+        )
+        return
+
+    logger.info(
+        "remediation.approval_carried_out",
+        approval_id=decided.approval_id,
+        capability=outcome.capability,
+        permitted=outcome.permitted,
+        reason=outcome.reason,
+    )
+
+
+def _approved_action(decided: ApprovalRequest) -> RemediationAction | None:
+    """Return the action this request stored, or ``None`` naming what is missing.
+
+    Rebuilt from what the reviewer read rather than from anything a process
+    happened to still hold, which is also what lets an approval survive the
+    replica that raised it being restarted. A payload that cannot describe an
+    action is refused by name instead of being approximated: executing a guess
+    at what somebody authorised is worse than executing nothing.
+    """
+    proposed = decided.arguments.get(PROPOSED_KEY)
+    if not isinstance(proposed, Mapping):
+        logger.warning(
+            "remediation.approval_not_carried_out",
+            approval_id=decided.approval_id,
+            reason="the request carries no proposed action to rebuild",
+        )
+        return None
+    if str(proposed.get("change_type", ChangeType.REMEDIATION.value)) != (
+        ChangeType.REMEDIATION.value
+    ):
+        return None
+    try:
+        return RemediationAction.of_payload(proposed)
+    except (KeyError, TypeError, ValueError) as incomplete:
+        logger.warning(
+            "remediation.approval_not_carried_out",
+            approval_id=decided.approval_id,
+            reason=f"the stored action could not be rebuilt: {incomplete}",
+        )
+        return None
 
 
 __all__ = ["router"]

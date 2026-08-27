@@ -1,3 +1,4 @@
+import NextLink from 'next/link';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 import { cx } from '@/design/cx';
@@ -159,12 +160,29 @@ export interface LinkProps {
   readonly 'data-testid'?: string;
 }
 
+/** The one skin, so the two elements below cannot drift apart. */
+const LINK_SKIN =
+  'inline-flex items-center gap-1 text-accent underline underline-offset-2 motion-hover hover:opacity-80';
+
 /**
  * A navigation, as a link.
  *
  * An external destination says so in the accessible name as well as with the
  * arrow, because a viewer who cannot see the arrow still deserves to know that
  * the tab is about to change under them.
+ *
+ * The two destinations are two elements, and that is the whole of the
+ * difference between them. Somewhere else on the web is a plain anchor: the
+ * router has nothing to say about a host it does not serve. Somewhere else in
+ * *this* console is a router transition — the same `href` in the document, so
+ * the address is still what a screen is, the link is still copyable and it
+ * still works with JavaScript disabled, but following it swaps the screen
+ * instead of tearing the document down and building it again.
+ *
+ * Prefetching is off. Every route in this console is rendered on demand, so a
+ * prefetch is a full server render and a set of reads against the deployment;
+ * doing that for each link a viewer merely scrolls past would spend the
+ * deployment's capacity on the ones nobody follows.
  */
 export function Link({
   href,
@@ -172,21 +190,25 @@ export function Link({
   external = false,
   ...rest
 }: LinkProps): ReactNode {
+  if (external) {
+    return (
+      <a
+        {...rest}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={LINK_SKIN}
+      >
+        {children}
+        <ArrowRightIcon />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    );
+  }
+
   return (
-    <a
-      {...rest}
-      href={href}
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noopener noreferrer' : undefined}
-      className="inline-flex items-center gap-1 text-accent underline underline-offset-2 motion-hover hover:opacity-80"
-    >
+    <NextLink {...rest} href={href} prefetch={false} className={LINK_SKIN}>
       {children}
-      {external ? (
-        <>
-          <ArrowRightIcon />
-          <span className="sr-only"> (opens in a new tab)</span>
-        </>
-      ) : null}
-    </a>
+    </NextLink>
   );
 }

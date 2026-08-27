@@ -39,9 +39,14 @@ from core.capability.metadata import EvidenceType
 from core.capability.telemetry import InvocationOutcome
 from platform.guardrails.engine import GuardrailEngine
 from platform.memory.embeddings.local import LocalEmbedder
-from platform.memory.extraction import EpisodeExtractor, capability_sequence, observed_findings
+from platform.memory.extraction import (
+    EPISODE_EXTRACTION_SCHEMA,
+    EpisodeExtractor,
+    capability_sequence,
+    observed_findings,
+)
 from platform.memory.lifecycle import MEMORY_LIFECYCLE_HOOK, MemoryLifecycle
-from platform.memory.models import EpisodeSeverity, MemoryEpisode
+from platform.memory.models import EpisodeSeverity, IssueType, MemoryEpisode
 from platform.memory.policy import MemoryPolicy
 from platform.persistence.ports import PersistenceGateway, TenantScope
 from tests.unit.platform.memory.conftest import EXTRACTION_REPLY, PRIMARY_ORG, StubLLM
@@ -233,6 +238,108 @@ async def test_a_reply_with_no_content_produces_no_episode(
     assert outcome.episode is None
     assert "neither an issue type nor a summary" in outcome.reason
     assert await stored(gateway, scope) == ()
+
+
+# -- the controlled vocabulary ------------------------------------------------
+
+
+def test_the_extraction_call_offers_the_model_the_closed_set() -> None:
+    """The model picks from a list rather than inventing a label each time.
+
+    A schema enum is where "both ends honour the vocabulary" is actually
+    enforced on the writing end: a provider with native structured output will
+    not emit a value outside it, and one without has still been shown the list.
+    """
+    issue_type = EPISODE_EXTRACTION_SCHEMA["properties"]["issue_type"]
+
+    assert issue_type["enum"] == [member.value for member in IssueType]
+    assert IssueType.OTHER.value in issue_type["enum"]
+
+
+async def test_an_invented_issue_type_is_classified_and_its_words_are_kept(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A model that answers off the list costs its label, never its episode.
+
+    The enum is a request, not a guarantee — most providers do not enforce one.
+    So an unlisted answer is classified into the bucket it belongs to, and the
+    words the model chose are stored beside it. A corpus that discarded what it
+    could not classify would discard exactly the incident nobody has seen before.
+    """
+    reply = dict(EXTRACTION_REPLY) | {"issue_type": "ProxmoxGuestStopped"}
+    built = session()
+
+    outcome = await lifecycle(gateway, scope, llm=StubLLM(structured=reply)).finalise(
+        built, result(built)
+    )
+
+    assert outcome.episode is not None
+    assert outcome.episode.issue_type == IssueType.WORKLOAD_STOPPED.value
+    assert outcome.episode.issue_label == "ProxmoxGuestStopped"
+
+
+async def test_a_failure_nobody_can_classify_is_still_written(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """``other`` is a bucket, not a rejection.
+
+    The label is what survives: an episode filed under ``other`` with the words
+    ``ceph_pg_inconsistent`` on it is one a person can find and one the next
+    extraction of the same failure will agree with.
+    """
+    reply = dict(EXTRACTION_REPLY) | {"issue_type": "ceph_pg_inconsistent_wibble"}
+    built = session()
+
+    outcome = await lifecycle(gateway, scope, llm=StubLLM(structured=reply)).finalise(
+        built, result(built)
+    )
+
+    assert outcome.episode is not None
+    assert outcome.episode.issue_type == IssueType.OTHER.value
+    assert outcome.episode.issue_label == "ceph_pg_inconsistent_wibble"
+    assert await stored(gateway, scope) != ()
+
+
+async def test_a_reply_carrying_only_the_other_bucket_is_not_an_episode(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A closed vocabulary must not make an empty reply look like a classified one.
+
+    Before the enum, "no issue type" was an empty string and clearly nothing.
+    A model that answers the enum's own escape hatch and nothing else has said
+    just as little, and writing that as an episode would put a row and a vector
+    in the corpus for a run that classified nothing and summarised nothing.
+    """
+    built = session()
+
+    outcome = await lifecycle(
+        gateway, scope, llm=StubLLM(structured={"issue_type": "other"})
+    ).finalise(built, result(built))
+
+    assert outcome.episode is None
+    assert await stored(gateway, scope) == ()
+
+
+async def test_an_unusable_reply_says_which_keys_it_carried(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The reason has to be diagnosable from the log line alone.
+
+    A live deployment recorded ``the structured reply named neither an issue type
+    nor a summary`` and left nothing else behind, so the reply that produced it
+    could not be told apart from an empty object, a wrapper of the wrong shape,
+    or a truncation repaired into a document missing both fields. Naming the keys
+    that did arrive separates all three without storing the reply itself.
+    """
+    built = session()
+
+    outcome = await lifecycle(
+        gateway, scope, llm=StubLLM(structured={"severity": "high", "resolved": True})
+    ).finalise(built, result(built))
+
+    assert outcome.episode is None
+    assert "resolved" in outcome.reason
+    assert "severity" in outcome.reason
 
 
 # -- exactly once -------------------------------------------------------------

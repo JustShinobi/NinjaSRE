@@ -1,0 +1,123 @@
+# E4 — the investigation records its turns, its calls, its evidence and its cost
+# collected at 2026-08-25T07:27:26.005973+00:00
+# parameters: org=default run=c2af8f73fa484061b483c6a4e9148131 incident=(none) approval=(none) resource=(none)
+
+## turns — the run recorded turns, read back from the store rather than the process
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS run_turns
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ run_turns 
+-----------
+         0
+(1 row)
+
+
+--- end of output ---
+
+
+## tool-calls — the run recorded the capability calls it made
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS tool_calls
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ tool_calls 
+------------
+          0
+(1 row)
+
+
+--- end of output ---
+
+
+## evidence — the run recorded the observations it cited
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS evidence_rows
+FROM evidence
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ evidence_rows 
+---------------
+             0
+(1 row)
+
+
+--- end of output ---
+
+
+## trace-events — the run's own log exists beside the counts above
+## before the wave: 73 for the whole instance, across 37 completed runs
+
+SELECT count(*) AS trace_events
+FROM trace_events
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131';
+
+--- output ---
+ trace_events 
+--------------
+            2
+(1 row)
+
+
+--- end of output ---
+
+
+## cost-per-turn — cost is recorded turn by turn, and an unpriced turn is empty rather than nought
+## before the wave: no turn was recorded at all, so no cost could be
+
+-- An unpriced turn carries an empty usage document rather than a zero.
+-- The difference is the whole point of reading this turn by turn.
+SELECT "index",
+       started_at,
+       finished_at,
+       usage
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131'
+ORDER BY "index";
+
+--- output ---
+ index | started_at | finished_at | usage 
+-------+------------+-------------+-------
+(0 rows)
+
+
+--- end of output ---
+
+
+## what-each-call-returned — each call carries what it returned, in the order it was recorded
+## before the wave: no row
+
+-- Ordered by the sequence the recorder assigned, not by time. Two calls in one
+-- concurrent batch routinely share a microsecond.
+SELECT recorded_seq,
+       tool_name,
+       status,
+       started_at,
+       finished_at,
+       error
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'c2af8f73fa484061b483c6a4e9148131'
+ORDER BY recorded_seq;
+
+--- output ---
+ recorded_seq | tool_name | status | started_at | finished_at | error 
+--------------+-----------+--------+------------+-------------+-------
+(0 rows)
+
+
+--- end of output ---
+

@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Hermes",
     category=IntegrationCategory.LOG_STORE,
     summary="Hermes log tailing and classification: what a stream is currently emitting, grouped by the class its own model assigned.",
+    where_to_get_it=(
+        "Hermes is this deployment's own log tailer; issue an access token from its own "
+        "console under Access tokens."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

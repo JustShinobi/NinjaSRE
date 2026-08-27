@@ -227,7 +227,7 @@ function PaletteBody({
               if (inGroup.length === 0) return null;
               return (
                 <li key={group}>
-                  <p className="px-4 pt-2 pb-1 text-micro uppercase text-muted">
+                  <p className="px-4 pt-2 pb-1 text-micro text-muted">
                     {message(locale, `palette.group.${group}`)}
                   </p>
                   <ul>

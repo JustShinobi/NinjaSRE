@@ -180,9 +180,15 @@ def test_a_sandbox_profile_a_deployment_lacks_excludes_the_tool() -> None:
 # --- Scoring ------------------------------------------------------------------
 
 
-def test_an_alert_source_match_outweighs_tag_overlap_alone() -> None:
-    """Tags are cheap to write and cheap to get wrong; a source match is not."""
-    incident = Incident(alert_source="datadog", tags=("logs", "latency", "errors"))
+def test_the_vendor_holding_the_subject_outweighs_tag_overlap_alone() -> None:
+    """Tags are cheap to write and cheap to get wrong; a subject match is not.
+
+    The subject's vendor is a fact the estate swept and alert resolution
+    matched. Tags are prose an author typed, and three of them agreeing with
+    an alert's labels is agreement about vocabulary rather than about what
+    broke.
+    """
+    incident = Incident(subject_sources=("datadog",), tags=("logs", "latency", "errors"))
 
     matched = score_capability(_tool("datadog_read", source="datadog").metadata, incident)
     tagged = score_capability(
@@ -191,6 +197,34 @@ def test_an_alert_source_match_outweighs_tag_overlap_alone() -> None:
     )
 
     assert matched.score > tagged.score
+
+
+def test_who_reported_the_alert_never_outweighs_what_the_alert_is_about() -> None:
+    """The notifier's own tools are relevant; they are not the most relevant.
+
+    This inequality used to run the other way, and the arithmetic reached a
+    deployment: a staging estate routed every alert through one Alertmanager,
+    so every incident it ever had ranked that one vendor's tools first. An
+    alert about failing Proxmox backup jobs offered the Alertmanager reads at
+    the top of the list and cut the Proxmox backup read at zero, and the
+    investigation concluded without reading the machine.
+
+    Both terms still fire, and a capability that is both — the alerting
+    system's own tools on an alerting-system subject — scores both.
+    """
+    incident = Incident(alert_source="alertmanager", subject_sources=("proxmox",))
+
+    reporter = score_capability(
+        _tool("alertmanager_read", source="alertmanager").metadata, incident
+    )
+    subject = score_capability(_tool("proxmox_read", source="proxmox").metadata, incident)
+
+    assert reporter.score > 0.0, "reading the alerting system about an alert is worth something"
+    assert subject.score > reporter.score, (
+        "the system that reported a failure outranked the system that has it. A "
+        "deployment with one alert receiver ranks that receiver first for every "
+        "incident it will ever have."
+    )
 
 
 def test_an_anti_example_describing_the_incident_suppresses_the_capability() -> None:

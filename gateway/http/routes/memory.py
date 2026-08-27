@@ -26,6 +26,13 @@ class EpisodeView(BaseModel):
     outcome: str
     components: list[str]
     occurred_at: str | None = None
+    #: The investigation this episode was extracted from. Empty for an episode
+    #: written outside a run, which the store allows. It is here because the
+    #: Learned tab draws a link from it, and that link is the whole of what
+    #: makes the corpus evidence rather than assertion — a claim about what
+    #: happened in April is worth the transcript behind it. Without the field
+    #: every row pointed at `/runs/` with nothing after it.
+    run_id: str = ""
 
 
 class SearchResult(BaseModel):
@@ -36,6 +43,19 @@ class MemoryStats(BaseModel):
     episode_count: int
 
 
+class RunEpisode(BaseModel):
+    """What one investigation left behind, or nothing.
+
+    ``None`` rather than a 404 for a run that wrote none. A run with no episode
+    is an ordinary run — extraction skips a conclusion too short to learn from,
+    and a run that failed reached none at all — and answering "not found" would
+    turn a section that should print a calm sentence into an error state on
+    every card that has nothing to show.
+    """
+
+    episode: EpisodeView | None = None
+
+
 def _view(episode: Episode) -> EpisodeView:
     return EpisodeView(
         episode_id=episode.episode_id,
@@ -44,6 +64,7 @@ def _view(episode: Episode) -> EpisodeView:
         outcome=episode.outcome.value,
         components=list(episode.components),
         occurred_at=episode.occurred_at.isoformat() if episode.occurred_at else None,
+        run_id=episode.run_id or "",
     )
 
 
@@ -61,6 +82,29 @@ async def search_memory(
         else:
             episodes = await uow.episodes.list_recent(limit=limit)
     return SearchResult(episodes=[_view(episode) for episode in episodes])
+
+
+@router.get("/episode", response_model=RunEpisode)
+async def episode_for_run(
+    run_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> RunEpisode:
+    """Return the episode ``run_id`` produced, or nothing.
+
+    Addressed by the run rather than by the episode, because the caller with
+    the question is a screen showing an investigation and it has the run id and
+    not the episode's. ``run_id`` is required: without it this would answer
+    with whatever the store returned first, which is a different question
+    wearing this one's address.
+
+    Filtering a corpus search down to one run in the caller would be the same
+    read at the wrong layer — fine at fifty episodes and wrong at the size a
+    corpus becomes worth having, which is exactly the size this feature is for.
+    """
+    async with state.gateway.begin(auth.scope) as uow:
+        found = await uow.episodes.get_by_run(run_id)
+    return RunEpisode(episode=_view(found) if found is not None else None)
 
 
 @router.get("/stats", response_model=MemoryStats)

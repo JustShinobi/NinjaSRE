@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * Everything that is not an area, routed into the shell so it can say so there.
  *

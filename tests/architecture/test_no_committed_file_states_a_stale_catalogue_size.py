@@ -53,6 +53,25 @@ EXCLUDED_TOP: frozenset[str] = frozenset(
     {".venv", "node_modules", "_research", ".git", ".codegraph", "__pycache__"}
 )
 
+
+def _is_planning_record(relative) -> bool:
+    """Return whether ``relative`` sits in a wave's planning directory.
+
+    Those directories are now committed, which is what makes a control file
+    readable beside the code it measured. They are a record of what was decided
+    at a moment, not a surface anybody reads to learn what this deployment is
+    today — a wave that planned against a catalogue of a different size states
+    that size truthfully about its own moment. Matched by shape, because a list
+    of wave names is out of date the first time nobody remembers to add one.
+    """
+    if relative.as_posix() == "docs/provenance-map.md":
+        # The same kind of record, kept beside the docs rather than in a wave:
+        # it says where each module came from, which is a fact about a moment
+        # and not a claim about what this deployment ships today.
+        return True
+    return any(part == "specs" or re.fullmatch(r"specs_v\d+", part) for part in relative.parts)
+
+
 #: Spelled-out numbers a contributor actually writes in prose here. Not a
 #: general number parser: the point is to catch a stated catalogue size, and
 #: the sizes anybody writes out in words are small multiples of ten plus a
@@ -151,7 +170,7 @@ def _tracked_text_files() -> tuple[Path, ...]:
             continue
         path = REPO_ROOT / name
         relative = path.relative_to(REPO_ROOT)
-        if set(relative.parts) & EXCLUDED_TOP:
+        if set(relative.parts) & EXCLUDED_TOP or _is_planning_record(relative):
             continue
         if path.suffix in {".png", ".jpg", ".ico", ".woff", ".woff2", ".zip"}:
             continue
@@ -179,6 +198,7 @@ def _stated_totals(line: str) -> list[int]:
     return [value for value in stated if value >= NOT_A_TOTAL_BELOW]
 
 
+@pytest.mark.sweep
 def test_no_committed_file_states_a_catalogue_size_that_is_not_the_real_one() -> None:
     size = _catalogue_size()
     offenders: dict[str, list[str]] = {}

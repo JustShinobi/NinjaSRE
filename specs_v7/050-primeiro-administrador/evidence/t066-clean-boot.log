@@ -1,0 +1,89 @@
+app-1  | setup plugin alembic.autogenerate.schemas
+app-1  | setup plugin alembic.autogenerate.tables
+app-1  | setup plugin alembic.autogenerate.types
+app-1  | setup plugin alembic.autogenerate.constraints
+app-1  | setup plugin alembic.autogenerate.defaults
+app-1  | setup plugin alembic.autogenerate.comments
+app-1  | setup plugin alembic.autogenerate.checkconstraint_byname
+app-1  | {"summary": "deployment profile standard: 4 containers; credential proxy container; sandbox container; concurrency 8 global / 2 per team", "event": "deployment.profile", "logger": "gateway.http.asgi", "level": "info", "timestamp": "2026-08-24T18:20:47.336893Z"}
+app-1  | {"event": "deployment.local_account_absent", "logger": "gateway.http.asgi", "level": "info", "timestamp": "2026-08-24T18:20:47.372099Z"}
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | Running upgrade  -> 0001_initial, Create the data platform schema.
+app-1  | Running upgrade 0001_initial -> 0002_strategies, Add the synthesised strategy table.
+app-1  | Running upgrade 0002_strategies -> 0003_identity_audit, Scope tokens to a node, remember when they were last used, and seal the audit.
+app-1  | Running upgrade 0003_identity_audit -> 0004_trace_events, Give every run an append-only event log with a cursor a client can hold.
+app-1  | Running upgrade 0004_trace_events -> 0005_estate, Give the deployment a noun for the things it is responsible for.
+app-1  | Running upgrade 0005_estate -> 0006_signals, Give the deployment somewhere to remember what it has been watching.
+app-1  | Running upgrade 0006_signals -> 0007_incidents, Give investigation results a noun to attach to.
+app-1  | Running upgrade 0007_incidents -> 0008_remediation_ledger, Record what each remediation did, and whether it worked.
+app-1  | Running upgrade 0008_remediation_ledger -> 0009_sweep_findings, What a sweep concluded beyond the counts, kept with the sweep.
+app-1  | Running upgrade 0009_sweep_findings -> 0010_transit, Give the deployment somewhere to remember what crossed its boundary.
+app-1  | Running upgrade 0010_transit -> 0011_verifications, Give the deployment somewhere to remember what it has actually checked.
+app-1  | Running upgrade 0011_verifications -> 0012_token_unscoped, Give a token its own flag for standing in for the person who holds it.
+app-1  | Running upgrade 0012_token_unscoped -> 0013_local_password, Give a person a place to keep a local passphrase, apart from the environment-configured account.
+app-1  | Running upgrade 0013_local_password -> 0014_timeline_evidence, Give a timeline entry somewhere to carry the query an evidence step ran.
+app-1  | Running upgrade 0014_timeline_evidence -> 0015_run_headline, Give a run a headline: one sentence, apart from the document it wrote.
+app-1  | Running upgrade 0015_run_headline -> 0016_incident_run_ids_index, Index ``incidents.run_ids`` for containment, so a run's incident is a lookup.
+app-1  | Running upgrade 0016_incident_run_ids_index -> 0017_incident_public_id, Give every incident a short, URL-safe address distinct from its primary key.
+app-1  | Running upgrade 0017_incident_public_id -> 0018_local_sign_in_opening, Record the one fact that decides whether a deployment's local sign-in exists.
+app-1  | Running upgrade 0018_local_sign_in_opening -> 0019_users_email_optional, Let more than one principal in a deployment have no email address.
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | {"error": "No organisation with id 'default'.", "event": "deployment.model_bindings_unavailable", "logger": "__main__", "level": "warning", "timestamp": "2026-08-24T18:20:48.234180Z"}
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | deployment profile standard: 4 containers; credential proxy container; sandbox container; concurrency 8 global / 2 per team
+app-1  | the encryption key is loaded
+app-1  | stored credentials open with the configured key
+app-1  | schema migrated from an empty database to 0019_users_email_optional: 19 revision(s) applied
+app-1  | ready: every dependency is available
+app-1  | {"organisation_id": "default", "event": "bootstrap.organisation_created", "logger": "platform.startup.bootstrap", "level": "info", "timestamp": "2026-08-24T18:20:48.256818Z"}
+app-1  | {"organisation_id": "default", "token_id": "8bfd151513a62d71104bcc325ff32bfd", "expires_at": "2026-08-24T19:20:48.287644+00:00", "event": "bootstrap.credential_issued", "logger": "platform.startup.bootstrap", "level": "info", "timestamp": "2026-08-24T18:20:48.315844Z"}
+app-1  | ========================================================================
+app-1  |   NinjaSRE is up. Create your first administrator with:
+app-1  | 
+app-1  |     ninjasre setup admin --name admin
+app-1  | 
+app-1  |   It will ask you to choose a passphrase, without echoing it.
+app-1  | 
+app-1  |   No shell on this host? Exchange the credential below for that
+app-1  |   administrator instead, through the setup API — it does not sign you
+app-1  |   in by itself:
+app-1  | 
+app-1  |     nsre_dZsAT14Ef5JGikriT-gNpLRgM7BzhbTppGSZivl_NJk
+app-1  | 
+app-1  |   It expires at 2026-08-24T19:20:48.287644+00:00 and can do exactly two
+app-1  |   things: tell you who you are, and establish that one administrator.
+app-1  |   It is revoked the moment you have.
+app-1  | 
+app-1  |   If you lose this screen it is readable again at /var/lib/ninjasre/bootstrap-credential.json
+app-1  | ========================================================================
+app-1  | Started server process [1]
+app-1  | Waiting for application startup.
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | {"store_state": "healthy", "connected": true, "ready": true, "reasons": [], "event": "gateway.startup", "logger": "gateway.http.lifespan", "level": "info", "timestamp": "2026-08-24T18:20:48.351664Z"}
+app-1  | {"org_id": "default", "team_id": "-", "endpoints": [], "event": "integrations.access_composed", "logger": "gateway.http.integration_access", "level": "info", "timestamp": "2026-08-24T18:20:48.371176Z"}
+app-1  | {"origins": {}, "event": "providers.credentials_composed", "logger": "gateway.http.provider_credentials", "level": "info", "timestamp": "2026-08-24T18:20:48.451169Z"}
+app-1  | {"integrations": ["alertmanager", "argocd", "github", "google_gemini", "grafana", "hermes", "kubernetes", "loki", "openobserve", "prometheus", "proxmox", "pushover", "redis", "signoz", "telegram"], "event": "integrations.deep_verify_composed", "logger": "gateway.http.deep_verification", "level": "info", "timestamp": "2026-08-24T18:20:48.502254Z"}
+app-1  | {"reason": "no configured integration is one this deployment knows how to change", "event": "remediation.control_plane_skipped", "logger": "gateway.http.control_plane", "level": "info", "timestamp": "2026-08-24T18:20:48.518531Z"}
+app-1  | {"missing": ["a control plane, so there is nothing for a write to change; an operator configures one before remediation is available"], "event": "remediation.desk_skipped", "logger": "gateway.http.remediation", "level": "info", "timestamp": "2026-08-24T18:20:48.527282Z"}
+app-1  | {"sources": [], "event": "changes.sources_composed", "logger": "gateway.http.change_sources", "level": "info", "timestamp": "2026-08-24T18:20:48.543077Z"}
+app-1  | {"integrations": [], "event": "discovery.sources_composed", "logger": "gateway.http.discovery_sources", "level": "info", "timestamp": "2026-08-24T18:20:48.557706Z"}
+app-1  | {"count": 0, "event": "observation.sources_composed", "logger": "gateway.http.discovery_sources", "level": "info", "timestamp": "2026-08-24T18:20:48.572474Z"}
+app-1  | {"integrations": [], "event": "estate.enrichment_plans_composed", "logger": "gateway.http.enrichment_plans", "level": "info", "timestamp": "2026-08-24T18:20:48.587019Z"}
+app-1  | {"reason": "no node executor is configured", "event": "node_access.skipped", "logger": "gateway.http.node_access", "level": "info", "timestamp": "2026-08-24T18:20:48.587159Z"}
+app-1  | {"reason": "the bridge's log source is switched off", "event": "logs.source_disabled", "logger": "gateway.http.log_sources", "level": "info", "timestamp": "2026-08-24T18:20:48.601625Z"}
+app-1  | {"count": 0, "event": "logs.sources_composed", "logger": "gateway.http.log_sources", "level": "info", "timestamp": "2026-08-24T18:20:48.601754Z"}
+app-1  | Application startup complete.
+app-1  | Uvicorn running on http://0.0.0.0:8420 (Press CTRL+C to quit)
+app-1  | Context impl PostgresqlImpl.
+app-1  | Will assume transactional DDL.
+app-1  | 127.0.0.1:43784 - "GET /health/live HTTP/1.1" 200

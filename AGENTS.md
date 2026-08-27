@@ -25,7 +25,7 @@ something in `make verify`, or it is not a rule.
 | **Single datastore** | One Postgres, reached through the thirteen repository ports. `make check-raw-sql` fails on SQL, Cypher, or a database driver imported outside `platform/persistence/`. |
 | **The operator owns their data** | No telemetry, analytics, crash reporting, or version check that transmits off-host. `make check-deps` enforces the dependency half. |
 | **Test-first** | The test lands before the implementation. A behaviour-preserving refactor gets a characterisation test first. |
-| **English** | All source, comments, identifiers, commit messages, documentation, prompts, and user-facing text — whatever language the conversation is happening in. |
+| **Language** | Source code, identifiers, comments, and commit messages in English; documentation, specifications, prompts, and user-facing text in Brazilian Portuguese (pt-BR) or English. |
 
 ## Repository map
 
@@ -193,6 +193,31 @@ success for a credential that cannot do the job.
 [`docs/integration-framework.md`](docs/integration-framework.md) is the long
 form. [`docs/integrations-catalogue.md`](docs/integrations-catalogue.md) is
 generated from the declarations and is what the console reads.
+
+## While you work
+
+```bash
+make fast
+```
+
+Lint, then the tests that mirror what `git status` says you have touched — a
+few seconds for most edits, about a minute for the largest directories. It
+reads the working tree, so it is meant to be run *during* an edit rather than
+after a commit; name the scope yourself when you want something else
+(`make test-fast SCOPE=tests/unit/core/llm`).
+
+A scope goes through the same mapping the automatic mode uses, so
+`SCOPE=platform/memory` — the directory you just edited, not a test path — runs
+`tests/unit/platform/memory`. A scope that maps to nothing is a failure, not an
+empty pass: the target names it and exits non-zero without reaching pytest.
+
+It is not the gate and does not pretend to be. It runs no whole-repository
+sweep, no latency budget, nothing that wants a container, and no console check;
+no rule maps a source file to `tests/architecture`, so a change to the tiers is
+only caught by the gate; and a file it cannot map at all gets no tests, which it
+says out loud rather than passing over. `make verify` runs all of it. What
+`make fast` drops is runnable on its own as `make test-sweeps`, and the Makefile
+states the split above the targets.
 
 ## Before you push
 

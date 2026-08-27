@@ -256,7 +256,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.incidents.context': 'O que um detector abriu e o que aconteceu desde então.',
   'page.runs.title': 'Investigações',
   'page.runs.context':
-    'Todas as investigações que esta instalação registou, da mais recente para a mais antiga.',
+    'Todas as investigações que esta instalação registrou, da mais recente para a mais antiga. Abra uma onde ela está.',
   'page.decisions.title': 'Decisões',
   'page.decisions.context':
     'O que o agente quer fazer agora, e o que ele quer que o deployment se torne.',
@@ -412,6 +412,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'palette.group.actions': 'Acções',
   'palette.close': 'Fechar a paleta',
 
+  'noAdministrator.title': 'Este deployment ainda não tem administrador',
+  'noAdministrator.body': 'Rode o comando abaixo no host para criar um.',
   'signIn.title': 'Entrar',
   'signIn.context': 'Esta consola contacta a sua instalação e mais nada.',
   'signIn.username': 'Utilizador',
@@ -487,6 +489,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.empty': 'Esta investigação não registrou eventos.',
   'transcript.arguments': 'Argumentos',
   'transcript.result': 'Resultado',
+  'transcript.note': 'Por que estas capacidades foram oferecidas',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} eventos',
   'transcript.events.one': '{count} evento',
@@ -516,6 +519,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.successRate.context':
     '{succeeded} de {settled} investigações concluídas tiveram sucesso',
   'dashboard.stat.successRate.context.none': 'Ainda não terminou nenhuma investigação',
+  'dashboard.stat.timeToCause': 'Tempo até a causa',
+  'dashboard.stat.timeToCause.context': 'mediana de {settled} · mais lenta {slowest}',
+  'dashboard.stat.timeToCause.context.none': 'Nenhuma investigação terminou ainda.',
   'dashboard.stat.drill': 'Ver a lista por trás deste número',
   'dashboard.activity.title': 'Actividade recente',
   'dashboard.activity.empty.heading': 'Ainda não aconteceu nada',
@@ -577,6 +583,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.calls': 'Chamadas',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Custo',
+  'run.usage.unpriced': 'Sem preço publicado para este modelo',
+  'run.usage.unpriced.short': 'sem preço',
   'run.usage.apportioned':
     'A investigação reporta um total; a divisão abaixo é esse total repartido pelos seus passos.',
   'run.usage.empty.heading': 'Nenhum custo registado',
@@ -596,6 +604,57 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Recursos e incidentes são ligados à medida que a investigação os nomeia. Esta não nomeou nenhum.',
   'run.links.empty.action': 'Ver o parque',
 
+  // --- Uma investigação, aberta onde ela está --------------------------------------
+  'runs.row.open': 'Abrir esta investigação',
+  'runs.row.opening': 'Abrindo esta investigação…',
+  'runs.row.close': 'Fechar esta investigação',
+  'runs.row.openPage': 'Abrir na página dela',
+  'run.evidence.backed': '{backed} de {claims} afirmações sustentadas',
+  'run.evidence.unassessed': 'nada a sustentar',
+  'run.evidence.unassessed.explain':
+    'Esta investigação nunca avaliou a própria evidência, o que não é o mesmo que não ter achado nada.',
+  'run.evidence.missing.explain':
+    'A investigação nomeou {missing} coisa(s) que ainda não conseguiu ler.',
+  'run.measure.duration': 'Tempo até a causa',
+  'run.measure.calls': 'Capacidades chamadas',
+  'run.measure.trigger': 'Disparada por',
+  'run.measure.tokens': 'Tokens',
+  'run.measure.unpriced': 'Este modelo não publica preço.',
+  'run.section.happened': 'O que aconteceu',
+  'run.section.reaches': 'O que ela alcança',
+  'run.section.order': 'Em ordem',
+  'run.section.why': 'Por quê',
+  'run.section.todo': 'O que fazer',
+  'run.section.did': 'O que ela fez',
+  'run.section.remembered': 'Vale lembrar',
+  'run.happened.none': 'Esta investigação não escreveu relatório além da linha acima.',
+  'run.reaches.none': 'Esta investigação não está arquivada sob nenhum incidente.',
+  'run.remembered.written': 'escrito no corpus',
+  'run.remembered.none': 'Esta investigação não escreveu nada no corpus.',
+  'run.remembered.unknown':
+    'Este console não conseguiu ler {dependency}, então não se sabe se esta investigação escreveu algo no corpus.',
+  'run.why.supporting': 'O que sustenta',
+  'run.why.missing': 'O que ninguém conseguiu ler',
+  'run.why.none': 'Esta investigação nunca avaliou a própria evidência.',
+  'run.todo.none': 'Nada desta investigação está esperando por uma pessoa.',
+  'run.did.summary': '{events} eventos em {turns} turnos',
+  'run.did.stages': '{events} eventos em {stages} etapas',
+  'run.did.calls': '{calls} chamadas',
+  'run.did.more': 'Mostrar mais {count} chamadas',
+  'run.did.noRationale': 'Este turno não registrou raciocínio.',
+  'run.did.wroteReport': 'Este turno escreveu o relatório acima.',
+  'run.stage.resolve_integrations': 'Resolver integrações',
+  'run.stage.intake': 'Triagem',
+  'run.stage.plan_evidence': 'Planejar evidência',
+  'run.stage.gather_evidence': 'Reunir evidência',
+  'run.stage.diagnose': 'Diagnosticar',
+  'run.stage.deliver': 'Entregar',
+  'run.stage.modelCalls': '{calls} chamadas ao modelo',
+  'run.stage.noFinding': 'Esta etapa não registrou constatação.',
+  'run.report.copy': 'Copiar como Markdown',
+  'run.report.copied': 'Copiado',
+  'run.report.copyRefused': 'O navegador recusou a área de transferência',
+
   'incidents.column.severity': 'Gravidade',
   'incidents.column.title': 'Incidente',
   'incidents.column.state': 'Estado',
@@ -604,14 +663,54 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.column.subjects': 'Assuntos',
   'incidents.filter.state': 'Estado',
   'incidents.filter.severity': 'Gravidade',
+  'dashboard.band.active': 'Guardião ativo',
+  'dashboard.band.silent': 'Guardião silencioso',
+  'dashboard.band.meta':
+    '{posture} · {live} de {total} detectores vivos · {watched} recursos observados',
+  'dashboard.band.meta.noDetectors':
+    '{posture} · nenhum detector configurado · {watched} recursos observados',
+  'dashboard.stat.degraded.context.noDetectors':
+    '{count} achados abertos por trás deles, e nenhum detector ligado para transformar algum em incidente',
+  'dashboard.band.flight': 'Investigações em curso',
+  'dashboard.band.blocked': 'Travado em você',
+  'dashboard.band.detectors': 'Detectores vivos',
+  'dashboard.band.held': 'Incidentes assumidos',
+  'dashboard.band.idle': 'Nada está sendo investigado neste momento.',
+  'dashboard.band.silent.body':
+    'O guardião não está reportando prontidão, então nada está sendo observado e nada será levantado. Tudo abaixo é a última coisa que este deployment soube.',
+  'dashboard.band.started': 'iniciada {since}',
+  'dashboard.stat.unattended': 'Resolvido sem uma pessoa',
+  'dashboard.stat.unattended.context':
+    '{closed} de {total} incidentes se fecharam sozinhos',
+  'dashboard.stat.unattended.context.none': 'nada foi fechado ainda',
+  'dashboard.attention.more': 'e mais {count} esperando',
+  'dashboard.recurring.title': 'O que continua acontecendo',
+  'dashboard.recurring.note': 'Agrupado por assunto, não por disparo',
+  'dashboard.recurring.empty.heading': 'Nada se repetiu',
+  'dashboard.recurring.empty.body':
+    'Uma condição que dispara mais de uma vez no mesmo assunto é reunida aqui, para que um problema recorrente seja uma linha e não uma página delas.',
+  'dashboard.recurring.empty.action': 'Ver todos os incidentes',
+  'dashboard.held.title': 'O agente está cuidando',
+  'incidents.filter.view': 'Exibição',
+  'incidents.view.grouped': 'Por assunto',
+  'incidents.view.flat': 'Cada disparo',
+  'incidents.group.count': '{count} disparos',
+  'incidents.group.wasSeverity': 'era {severity}',
+  'incidents.group.count.one': 'Disparou uma vez',
+  'incidents.group.since': 'recorrente desde {since}',
+  'incidents.group.expand': 'Mostrar cada disparo de {title}',
+  'incidents.group.summary': '{subjects} assuntos · {firings} disparos',
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':
-    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
+    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — o próximo passo é "{step}".',
   'empty.cause.setup.action': 'Terminar a configuração',
   'empty.cause.watching':
     'Nenhum detector está ligado, portanto nada está sendo observado e nada se abrirá sozinho.',
   'empty.cause.watching.action': 'Ligar a observação contínua',
+  'empty.cause.extraction':
+    '{finished} investigações terminaram e nenhuma delas deixou um episódio para trás. O que transforma uma investigação encerrada em episódio é uma chamada de modelo, e cada papel escolhe o seu.',
+  'empty.cause.extraction.action': 'Ver o modelo de cada papel',
 
   'incidents.empty.heading': 'Nenhum incidente aberto',
   'incidents.empty.body':
@@ -655,9 +754,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.chip.state.resolved': 'Resolvido',
   'incident.chip.state.suppressed': 'Suprimido',
   'incident.chip.state.closedWithoutAction': 'Encerrado sem ação',
+  'incident.chip.state.unknown': 'Desconhecido',
+  'incident.chip.state.unknown.explain':
+    'Não foi possível ler este incidente, então também não foi possível saber o seu estado.',
   'incident.chip.investigation.none': 'Sem investigação',
   'incident.chip.investigation.running': 'Investigação em andamento',
   'incident.chip.investigation.finished': 'Investigação concluída',
+  'incident.chip.investigation.unknown': 'Desconhecido',
+  'incident.chip.investigation.unknown.explain':
+    'Não foi possível ler este incidente, então também não foi possível saber se ele tem uma investigação.',
+  'incident.chip.investigation.unseen.explain':
+    'Este incidente nomeia uma investigação e nada gravou o traço dela ainda, então onde ela chegou não se sabe aqui.',
+  'incident.header.unreadable': 'Não foi possível ler este incidente',
 
   'incident.origin.alert': 'Alertmanager',
   'incident.origin.detector': 'os detectores deste deployment',
@@ -721,6 +829,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'A regra ativa pede aprovação para ações em {threshold} e acima.',
   'approvals.empty.rule.default': 'Esse é o padrão do deployment.',
   'approvals.empty.rule.setAt': 'Está definido em {node}.',
+  'approvals.expired.note':
+    'O prazo para responder a esta ação terminou, e o deployment recusa uma decisão tomada depois dele. O estado sobre o qual ela foi proposta foi lido antes disso e ninguém olhou desde então — peça a ação de novo para decidir sobre uma leitura atual.',
   'proposal.title': 'Ação proposta — aguardando a sua decisão',
   'proposal.risk': 'Risco {level} de 5',
   'proposal.target': 'Alvo',
@@ -740,6 +850,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // O que o pior efeito colateral da ação proposta significa, para a linha
   // Autonomia acima — os mesmos valores que security.py declara, do menos ao
   // mais perigoso, em palavras em vez do nome cru que o deployment manda.
+  'sideEffect.chip.read': 'Leitura',
+  'sideEffect.chip.read_sensitive': 'Leitura sensível',
+  'sideEffect.chip.write_reversible': 'Escrita reversível',
+  'sideEffect.chip.write_irreversible': 'Escrita irreversível',
+  'sideEffect.chip.destructive': 'Destrutiva',
   'sideEffect.level.read': 'Leitura — nada muda no parque.',
   'sideEffect.level.read_sensitive':
     'Leitura sensível — nada muda, mas o que volta deve ser tratado com cuidado.',
@@ -773,8 +888,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.sorted': 'Pior primeiro',
   'resources.sorted.hint':
     'A ordem padrão — clique no cabeçalho de uma coluna abaixo para ordenar de outro jeito.',
-  'resources.summary':
-    '{watched} observados · {healthy} saudáveis · {degraded} degradados · {unhealthy} com falha',
+  'resources.none.placedOrGraded':
+    'Nada neste ambiente foi colocado em uma zona nem teve criticidade definida ainda.',
+  'resources.none.placed': 'Nada neste ambiente foi colocado em uma zona ainda.',
+  'resources.none.graded': 'Nada neste ambiente teve criticidade definida ainda.',
+  'resources.none.action': 'Declarar',
+  'resources.summary.watched': 'observados',
+  'resources.summary.unaccounted': 'sem estado',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.divergent.hint':
@@ -920,7 +1040,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.stats.episodes': 'Episódios',
   'memory.episodes.empty.heading': 'Ainda não há episódios',
   'memory.episodes.empty.body':
-    'Um episódio é escrito quando uma investigação termina. Nenhuma terminou, por isso não há nada a recuperar.',
+    'Um episódio é escrito quando uma investigação termina, e nenhum foi escrito ainda.',
+  'memory.episodes.empty.mechanism':
+    'Um episódio é escrito quando uma investigação termina.',
   'memory.episodes.empty.action': 'Ver o que está em execução',
   'memory.strategies.title': 'Estratégias',
   'memory.strategies.lead':
@@ -950,17 +1072,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'knowledge.proposals.empty.body':
     'Quando uma investigação aprende algo que vale a pena escrever, propõe a mudança aqui em vez de a fazer.',
   'knowledge.proposals.empty.action': 'Ver os documentos',
-  'knowledge.advanced.changes.title': 'Avançado: origem das mudanças',
+  'knowledge.advanced.heading': 'Ajustes avançados',
+  'knowledge.advanced.changes.title': 'Origem das mudanças',
   'knowledge.advanced.field.repositoryPath': 'Caminho do repositório',
   'knowledge.advanced.field.gitHostVendor': 'Provedor do git host',
   'knowledge.advanced.field.gitHostRepository': 'Repositório do git host',
-  'knowledge.advanced.knowledge.title': 'Avançado: acesso ao conhecimento',
+  'knowledge.advanced.knowledge.title': 'Acesso ao conhecimento',
   'knowledge.advanced.field.topologyEnabled': 'Seguir a topologia de recursos',
   'knowledge.advanced.field.knowledgeBaseEnabled': 'Buscar na base de conhecimento',
-  'knowledge.advanced.memory.title': 'Avançado: memória episódica',
+  'knowledge.advanced.memory.title': 'Memória episódica',
   'knowledge.advanced.field.memoryReadEnabled': 'Recuperar incidentes anteriores',
   'knowledge.advanced.field.memoryWriteEnabled': 'Registrar investigações concluídas',
-  'knowledge.advanced.strategy.title': 'Avançado: estratégia',
+  'knowledge.advanced.strategy.title': 'Estratégia',
   'knowledge.advanced.field.strategyEnabled': 'Oferecer playbooks destilados',
 
   'topology.graph.title': 'Vizinhança',
@@ -1228,7 +1351,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.title': 'Capacidades',
   'catalogue.tools': 'Ferramentas',
   'catalogue.skills': 'Competências',
-  'catalogue.search': 'Encontrar uma ferramenta ou competência pelo nome ou domínio',
+  'catalogue.search': 'Nome, domínio ou capacidade',
   'catalogue.search.empty': 'Nada aqui corresponde a essa busca.',
   'catalogue.domains.nav': 'Ir para um domínio',
   'catalogue.count': '{enabled} de {total} habilitadas',
@@ -1263,6 +1386,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'ingress.token.failed': 'O deployment recusou a emiss\u00e3o.',
   'ingress.token.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'firstRun.integrations.foundHere': 'Encontrado no seu estate em',
+  'catalogue.integrations.count.total': 'no catálogo',
+  'catalogue.integrations.count.connected': 'conectadas',
+  'catalogue.integrations.count.available': 'disponíveis',
   'catalogue.integrations.title': 'Integrações',
   'catalogue.integrations.advanced.title': 'Avançado: vendors configurados',
   'catalogue.integrations.state': 'Ligação',
@@ -1295,9 +1421,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.filter.state.degraded': 'Falhando',
 
   // --- O catálogo de integrações: conectadas primeiro, o resto é uma busca ---------
-  'catalogue.integrations.summary': '{total} integrações · {connected} conectadas',
   'catalogue.integrations.summary.suggested':
-    '{total} integrações · {connected} conectadas · {suggested} sugeridas',
+    '{suggested} delas já estão rodando neste ambiente — conecte uma e ela deixa de ser um chute.',
   'catalogue.integrations.connected.title': 'Conectadas',
   'catalogue.integrations.connected.manage': 'Gerenciar',
   'catalogue.integrations.filter.view.connected': 'Conectadas · {count}',
@@ -1349,6 +1474,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.',
   'catalogue.integrations.panel.saveAndTest': 'Salvar e testar',
   'catalogue.integrations.panel.testing': 'Salvando e testando…',
+  'catalogue.integrations.panel.docs.heading': 'Documentação do pacote',
+  'catalogue.integrations.panel.docs.toggle': 'Ler a documentação do pacote',
+  'catalogue.integrations.panel.docs.unreadable':
+    'A documentação deste fornecedor não pôde ser lida.',
+  // Mais de um time detém credencial para este fornecedor. O processo não
+  // escolhe um em silêncio: ele cai para o handle da organização, e esta é
+  // a frase que diz que essa decisão foi tomada.
+  'catalogue.integrations.panel.credentialTeamAmbiguous':
+    'Mais de um time detém credencial para este fornecedor. As investigações usam a credencial da organização até isso ser resolvido.',
   // --- Painel de uma integração conectada: estado e ações, nunca um formulário vazio ---
   'catalogue.integrations.panel.storedInVault':
     'Esta credencial está guardada no vault.',
@@ -1365,6 +1499,27 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.panel.disconnect': 'Desconectar',
   'catalogue.integrations.panel.disconnect.consequence':
     'Isso remove a credencial guardada no vault. A integração volta para Disponíveis até ser reconectada.',
+  // --- Confiança de certificado: o que este deployment confere no endereço ---------
+  'catalogue.integrations.panel.trust.heading': 'Confiança de certificado',
+  'catalogue.integrations.panel.trust.intro':
+    'O que este deployment aceita do certificado que este endereço apresenta. Declarado para este endereço apenas — trocar o endereço reinicia a decisão.',
+  'catalogue.integrations.panel.trust.fingerprintsLabel': 'Fingerprints pinados',
+  'catalogue.integrations.panel.trust.fingerprintsHelp':
+    'Um fingerprint SHA-256 por linha, copiado da própria interface do nó. Um cluster lista um fingerprint por nó na mesma declaração.',
+  'catalogue.integrations.panel.trust.certificateLabel':
+    'Autoridade do certificado (PEM)',
+  'catalogue.integrations.panel.trust.certificateHelp':
+    'A autoridade que o cluster mintou para si mesmo. Cobre todo nó cujo certificado encadeia até ela — a forma que um cluster costuma preferir.',
+  'catalogue.integrations.panel.trust.submit': 'Declarar confiança',
+  'catalogue.integrations.panel.trust.sending': 'Declarando…',
+  'catalogue.integrations.panel.trust.saved': 'Declarado. Testando a conexão agora.',
+  'catalogue.integrations.panel.trust.refused': 'O deployment recusou:',
+  'catalogue.integrations.panel.trust.unreachable':
+    'Não foi possível alcançar o deployment.',
+  'catalogue.integrations.panel.trust.unverifiedHeading': 'Aceitar sem verificar',
+  'catalogue.integrations.panel.trust.unverifiedReasonLabel': 'Por quê',
+  'catalogue.integrations.panel.trust.unverifiedReasonHelp':
+    'Registrado com seu nome e o instante da aceitação, porque abrir mão da verificação de certificado é uma decisão, não um ajuste.',
 
   // --- A página de referência dos vendors que este catálogo não cobre --------------
   'catalogue.notCovered.title': 'Não coberto, e por quê',
@@ -1485,6 +1640,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'audit.empty.action': 'Alargar o período',
 
   // --- Live -----------------------------------------------------------------------------------------
+  'live.state.live': 'Ao vivo',
+  'live.state.refreshing': 'Atualizando',
+  'live.state.stale': 'Sem atualizar',
+  'live.state.paused': 'Pausado',
   'live.connection': 'Conexão',
   'live.connection.connecting': 'Conectando',
   'live.connection.connected': 'Ao vivo',
@@ -1556,6 +1715,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.models.body':
     'Uma etapa nomeia um papel, nunca um modelo. Aquilo em que um papel resolve é configuração, e cada linha aqui diz qual nó forneceu o valor.',
   'agent.models.default': 'padrão do deployment — ninguém vinculou este papel',
+  'agent.models.inherited': 'sem escolha própria — segue o investigador',
   'agent.models.from': 'de {node}',
   'agent.models.empty.heading': 'Nenhum papel está descrito aqui',
   'agent.models.empty.body':
@@ -1579,6 +1739,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.advanced.field.promptDiagnose': 'Substituição do prompt de diagnóstico',
   'agent.advanced.field.operatingContextEnabled': 'Enviar contexto operacional',
   'agent.advanced.field.maxSubagentIterations': 'Máximo de iterações do especialista',
+  'agent.document.untouched':
+    'Nada foi sobrescrito para este nó: ele roda o pipeline como ele veio. O documento abaixo diz isso nas palavras da própria instalação.',
   'agent.document.title': 'A mesma topologia, como documento',
   'agent.empty.heading': 'Não foi possível descrever o pipeline',
   'agent.empty.body':
@@ -1611,6 +1773,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.outlook.title': 'O que aconteceria, por classe de ação',
   'agent.outlook.body':
     'Uma frase por classe, respondida pelo próprio deployment sob a política tal como ela está agora.',
+  'agent.outlook.reason': 'Por quê:',
   'agent.outlook.bound': 'barrado por {bound}',
   'agent.outlook.dryRun':
     'Tudo aqui é simulado: dry-run está ligado para este nó, então nada é executado.',
@@ -1677,9 +1840,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.simulate.malformed': 'Isso n\u00e3o \u00e9 JSON v\u00e1lido.',
   'data.delivery.title': 'Para onde vai o resultado',
   'settings.schedulesDestinations.advanced.transit.title':
-    'Avan\u00e7ado: regras de roteamento e destinos de entrega',
+    'Regras de roteamento e destinos de entrega',
   'settings.schedulesDestinations.advanced.surfaces.title':
-    'Avan\u00e7ado: canais de chat, destinat\u00e1rios de relat\u00f3rio e alvos de notifica\u00e7\u00e3o',
+    'Canais de chat, destinatários de relatório e alvos de notificação',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Regras de roteamento',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Destinos de entrega',
@@ -1758,7 +1921,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.settings.title': 'Ajustes',
   'page.settings.context':
     'Tudo sobre esta instalação que não é trabalho de incidente: quem tem acesso, como o agente se comporta e de onde os dados vêm.',
-  'settings.group.organization': 'Organization',
+  'settings.group.organization': 'Organisation',
   'settings.group.agent': 'Agent',
   'settings.group.data': 'Data',
   'settings.page.membersRoles': 'Members & roles',

@@ -7,8 +7,210 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0001",
-        "total_cost": 0.124,
-        "total_tokens": 7360,
+        "stages": [
+          {
+            "completion_tokens": 0,
+            "duration_ms": 180,
+            "failed": false,
+            "finding": "6 capabilities available on this team",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "resolve_integrations",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 1410,
+            "failed": false,
+            "finding": "A new incident, not a repeat of one already open",
+            "llm_calls": 1,
+            "prompt_tokens": 0,
+            "stage": "intake",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 60,
+            "failed": false,
+            "finding": "4 capabilities shortlisted, best first",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "plan_evidence",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 27900,
+            "failed": false,
+            "finding": "3 observations gathered",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "gather_evidence",
+            "turns": [
+              {
+                "calls": [
+                  {
+                    "call_id": "call-0001-1",
+                    "duration_ms": 412,
+                    "error": null,
+                    "name": "estate.storage_pressure",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  }
+                ],
+                "index": 0,
+                "model": "operator-configured",
+                "selection_rationale": "storage pressure is a first-party domain",
+                "turn_id": "turn-0001-1"
+              },
+              {
+                "calls": [
+                  {
+                    "call_id": "call-0001-2",
+                    "duration_ms": 188,
+                    "error": null,
+                    "name": "estate.volume_fill",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  },
+                  {
+                    "call_id": "call-0001-3",
+                    "duration_ms": 96,
+                    "error": null,
+                    "name": "knowledge.search",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  },
+                  {
+                    "arguments": {
+                      "hours": 6,
+                      "resource": "proxmox:container/hal9000/110"
+                    },
+                    "call_id": "call-0001-4",
+                    "duration_ms": 341,
+                    "error": null,
+                    "name": "changes_in_window",
+                    "result": {
+                      "answered": true,
+                      "changes": [
+                        {
+                          "applied": true,
+                          "applied_at": "2026-08-05T08:48:00+00:00",
+                          "author": "erik",
+                          "chain": [
+                            "path",
+                            "component",
+                            "resource"
+                          ],
+                          "change_id": "9f2c1ab",
+                          "component": "adguard",
+                          "correlated_component": "adguard",
+                          "detail": {},
+                          "matched_name": "adguard",
+                          "matched_path": "services/adguard/stack/values.yaml",
+                          "message": "feat(adguard): keep query logs for a fortnight",
+                          "message_truncated": false,
+                          "occurred_at": "2026-08-05T08:19:00+00:00",
+                          "paths": [
+                            "services/adguard/stack/values.yaml"
+                          ],
+                          "paths_seen": 1,
+                          "paths_truncated": false,
+                          "redactions": [],
+                          "source": "infra_apply",
+                          "strength": "manages_resource",
+                          "temporal_only": false,
+                          "why": "services/adguard/stack/values.yaml belongs to the adguard component, which manages this container."
+                        },
+                        {
+                          "applied": true,
+                          "applied_at": "2026-08-05T10:56:00+00:00",
+                          "author": "erik",
+                          "chain": [],
+                          "change_id": "b0c99fe",
+                          "component": "storage",
+                          "correlated_component": "",
+                          "detail": {},
+                          "matched_name": "",
+                          "matched_path": "",
+                          "message": "chore(storage): widen the backup datastore",
+                          "message_truncated": false,
+                          "occurred_at": "2026-08-05T10:49:00+00:00",
+                          "paths": [
+                            "services/storage/datastore/main.tf"
+                          ],
+                          "paths_seen": 1,
+                          "paths_truncated": false,
+                          "redactions": [],
+                          "source": "infra_apply",
+                          "strength": "window_only",
+                          "temporal_only": true,
+                          "why": "This change happened in the same window and nothing connects it."
+                        }
+                      ],
+                      "degraded": [],
+                      "resource": "adguard",
+                      "resource_id": "proxmox:container/hal9000/110",
+                      "sources": [
+                        "infra_apply"
+                      ],
+                      "statement": "Two changes landed in the six hours before this run, and one of them manages the container that filled.",
+                      "text": "Two changes landed in the six hours before this run. One manages the container that filled; the other shares the window and nothing else.",
+                      "tool": "changes_in_window",
+                      "total": 2,
+                      "truncated": false,
+                      "window": {
+                        "end": "2026-08-05T11:19:00+00:00",
+                        "hours": 6,
+                        "start": "2026-08-05T05:19:00+00:00"
+                      }
+                    },
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  }
+                ],
+                "index": 1,
+                "model": "operator-configured",
+                "selection_rationale": "the datastore reading disagrees with the volume reading",
+                "turn_id": "turn-0001-2"
+              },
+              {
+                "calls": [],
+                "index": 2,
+                "model": "operator-configured",
+                "selection_rationale": "enough evidence to conclude",
+                "turn_id": "turn-0001-3"
+              }
+            ]
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 4120,
+            "failed": false,
+            "finding": "3 of 3 claims tied to an observation the run holds",
+            "llm_calls": 1,
+            "prompt_tokens": 0,
+            "stage": "diagnose",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 300,
+            "failed": false,
+            "finding": "No destination is configured for this team, so the report was produced and not shipped. It is in the investigation record.",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "deliver",
+            "turns": []
+          }
+        ],
+        "total_cost": 0.0,
+        "total_events": 15,
+        "total_tokens": 0,
+        "turn_tokens": 0,
         "turns": [
           {
             "calls": [
@@ -17,6 +219,8 @@
                 "duration_ms": 412,
                 "error": null,
                 "name": "estate.storage_pressure",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -32,6 +236,8 @@
                 "duration_ms": 188,
                 "error": null,
                 "name": "estate.volume_fill",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -39,6 +245,8 @@
                 "duration_ms": 96,
                 "error": null,
                 "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               },
               {
@@ -125,6 +333,7 @@
                     "start": "2026-08-05T05:19:00+00:00"
                   }
                 },
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -140,7 +349,8 @@
             "selection_rationale": "enough evidence to conclude",
             "turn_id": "turn-0001-3"
           }
-        ]
+        ],
+        "unpriced_turns": 3
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -160,9 +370,13 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0002",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
-        "turns": []
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -182,8 +396,42 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0003",
-        "total_cost": 0.093,
-        "total_tokens": 5520,
+        "stages": [
+          {
+            "completion_tokens": 0,
+            "duration_ms": 175,
+            "failed": false,
+            "finding": "6 capabilities available on this team",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "resolve_integrations",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 1260,
+            "failed": false,
+            "finding": "A new incident, not a repeat of one already open",
+            "llm_calls": 1,
+            "prompt_tokens": 0,
+            "stage": "intake",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 55,
+            "failed": false,
+            "finding": "3 capabilities shortlisted, best first",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "plan_evidence",
+            "turns": []
+          }
+        ],
+        "total_cost": 0.0,
+        "total_events": 8,
+        "total_tokens": 0,
+        "turn_tokens": 0,
         "turns": [
           {
             "calls": [
@@ -192,6 +440,8 @@
                 "duration_ms": 233,
                 "error": null,
                 "name": "estate.failed_units",
+                "result": {},
+                "result_truncated": false,
                 "status": "succeeded"
               }
             ],
@@ -207,6 +457,8 @@
                 "duration_ms": 0,
                 "error": null,
                 "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
                 "status": "running"
               }
             ],
@@ -215,7 +467,8 @@
             "selection_rationale": "one of the failed units is the hardening script",
             "turn_id": "turn-0003-2"
           }
-        ]
+        ],
+        "unpriced_turns": 2
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -235,9 +488,13 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0004",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
-        "turns": []
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -257,9 +514,184 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0005",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
-        "turns": []
+        "stages": [
+          {
+            "completion_tokens": 0,
+            "duration_ms": 168,
+            "failed": false,
+            "finding": "6 capabilities available on this team",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "resolve_integrations",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 1330,
+            "failed": false,
+            "finding": "A new incident, not a repeat of one already open",
+            "llm_calls": 1,
+            "prompt_tokens": 0,
+            "stage": "intake",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 48,
+            "failed": false,
+            "finding": "2 capabilities shortlisted, best first",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "plan_evidence",
+            "turns": []
+          },
+          {
+            "completion_tokens": 148,
+            "duration_ms": 11400,
+            "failed": false,
+            "finding": "2 observations gathered",
+            "llm_calls": 2,
+            "prompt_tokens": 612,
+            "stage": "gather_evidence",
+            "turns": [
+              {
+                "calls": [
+                  {
+                    "arguments": {
+                      "resource": "proxmox:container/hal9000/110"
+                    },
+                    "call_id": "call-0005-1",
+                    "duration_ms": 205,
+                    "error": null,
+                    "name": "estate.backup_job_status",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  },
+                  {
+                    "arguments": {
+                      "resource_id": "ct-101"
+                    },
+                    "call_id": "call-0005-2",
+                    "duration_ms": 179,
+                    "error": null,
+                    "name": "estate.backup_job_status",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  }
+                ],
+                "completion_tokens": 148,
+                "cost": 0.0091,
+                "index": 0,
+                "model": "operator-configured",
+                "prompt_tokens": 612,
+                "selection_rationale": "the disabled job's own state names the subject to check first",
+                "turn_id": "turn-0005-1"
+              },
+              {
+                "calls": [
+                  {
+                    "call_id": "call-0005-3",
+                    "duration_ms": 91,
+                    "error": null,
+                    "name": "knowledge.search",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  },
+                  {
+                    "arguments": {
+                      "resource": "proxmox:container/hal9000/110"
+                    },
+                    "call_id": "call-0005-4",
+                    "duration_ms": 133,
+                    "error": null,
+                    "name": "estate.backup_schedule",
+                    "result": {},
+                    "result_truncated": false,
+                    "status": "succeeded"
+                  }
+                ],
+                "index": 1,
+                "model": "operator-configured",
+                "selection_rationale": "both subjects share one disabled job; read the schedule that disabled it",
+                "turn_id": "turn-0005-2"
+              }
+            ]
+          }
+        ],
+        "total_cost": 0.0091,
+        "total_events": 11,
+        "total_tokens": 760,
+        "turn_tokens": 760,
+        "turns": [
+          {
+            "calls": [
+              {
+                "arguments": {
+                  "resource": "proxmox:container/hal9000/110"
+                },
+                "call_id": "call-0005-1",
+                "duration_ms": 205,
+                "error": null,
+                "name": "estate.backup_job_status",
+                "result": {},
+                "result_truncated": false,
+                "status": "succeeded"
+              },
+              {
+                "arguments": {
+                  "resource_id": "ct-101"
+                },
+                "call_id": "call-0005-2",
+                "duration_ms": 179,
+                "error": null,
+                "name": "estate.backup_job_status",
+                "result": {},
+                "result_truncated": false,
+                "status": "succeeded"
+              }
+            ],
+            "completion_tokens": 148,
+            "cost": 0.0091,
+            "index": 0,
+            "model": "operator-configured",
+            "prompt_tokens": 612,
+            "selection_rationale": "the disabled job's own state names the subject to check first",
+            "turn_id": "turn-0005-1"
+          },
+          {
+            "calls": [
+              {
+                "call_id": "call-0005-3",
+                "duration_ms": 91,
+                "error": null,
+                "name": "knowledge.search",
+                "result": {},
+                "result_truncated": false,
+                "status": "succeeded"
+              },
+              {
+                "arguments": {
+                  "resource": "proxmox:container/hal9000/110"
+                },
+                "call_id": "call-0005-4",
+                "duration_ms": 133,
+                "error": null,
+                "name": "estate.backup_schedule",
+                "result": {},
+                "result_truncated": false,
+                "status": "succeeded"
+              }
+            ],
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "both subjects share one disabled job; read the schedule that disabled it",
+            "turn_id": "turn-0005-2"
+          }
+        ],
+        "unpriced_turns": 1
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -279,9 +711,91 @@
       "body": {
         "is_interrupted": true,
         "run_id": "run-0006",
-        "total_cost": 0.031,
-        "total_tokens": 1840,
-        "turns": []
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0101"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0101",
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0102"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0102",
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-replay",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0103"
+      },
+      "body": {
+        "is_interrupted": false,
+        "run_id": "run-0103",
+        "stages": [],
+        "total_cost": 0,
+        "total_events": 2,
+        "total_tokens": 0,
+        "turn_tokens": 0,
+        "turns": [],
+        "unpriced_turns": 0
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",

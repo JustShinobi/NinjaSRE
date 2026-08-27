@@ -38,7 +38,18 @@ from typing import Final, Protocol, runtime_checkable
 
 from fastapi import APIRouter, Request, Response
 
-from config.constants.estate import MAX_ESTATE_PAGE_SIZE
+from config.constants.estate import (
+    MAX_ESTATE_PAGE_SIZE,
+    SUBJECT_CONTEXT_RESOLVED_FROM,
+    SUBJECT_CONTEXT_RESOURCE_ADDRESS,
+    SUBJECT_CONTEXT_RESOURCE_ID,
+    SUBJECT_CONTEXT_RESOURCE_KIND,
+    SUBJECT_CONTEXT_RESOURCE_NAME,
+    SUBJECT_CONTEXT_RESOURCE_NATIVE_ID,
+    SUBJECT_CONTEXT_RESOURCE_PARENT,
+    SUBJECT_CONTEXT_RESOURCE_SOURCE,
+    SUBJECT_CONTEXT_RESOURCE_ZONE,
+)
 from config.constants.runs import TRIGGER_ALERT
 from config.constants.surfaces import WEBHOOK_MAX_PAYLOAD_BYTES
 from config.constants.transit import (
@@ -66,6 +77,7 @@ from platform.identity.errors import TokenRejected
 from platform.identity.permissions import Permission
 from platform.incidents.dispatch import objective_for
 from platform.incidents.ingestion import raise_for_alert, resolution_key
+from platform.incidents.joining import JoinTarget, investigation_to_join
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.ingress.ledger import delivery_key, masked_sample, record_delivery
 from platform.ingress.rules import RuleMatch, Signals, evaluate
@@ -358,6 +370,33 @@ def _handler(
                 match, resolution=resolution, run_id=linked_run, incident=incident
             )
             return _ack({"run_id": linked_run, "incident_id": incident.incident_id, "linked": True})
+
+        # A different alert about the thing something is already investigating.
+        # The deduplication above catches the *same* alert firing again; this
+        # catches the second symptom of one failure, which arrives under its own
+        # name and its own fingerprint and is not a repeat of anything.
+        #
+        # One container being shut down produced five of these, and five
+        # investigations that could not see each other. Joining costs nothing
+        # and hands the run in flight the evidence it would otherwise never get.
+        joined = await _join_live_investigation(state, scope=scope, incident=incident, alert=alert)
+        if joined is not None:
+            await recorded.accepted(
+                match, resolution=resolution, run_id=joined.run_id, incident=incident
+            )
+            return _ack(
+                {
+                    "run_id": joined.run_id,
+                    "incident_id": incident.incident_id,
+                    "joined": True,
+                    "subject": joined.subject_id,
+                    # Which of the two joins happened. An incident pointed at an
+                    # answer and an incident feeding a live run are different
+                    # facts, and a caller that could not tell them apart would
+                    # read "joined" as "somebody is looking at this now".
+                    "answered": joined.answered,
+                }
+            )
 
         run_id = await start_investigation(
             state,
@@ -803,6 +842,102 @@ async def _resolve_against_estate(
     return resolution
 
 
+async def _join_live_investigation(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    incident: Incident,
+    alert: NormalisedAlert,
+) -> JoinTarget | None:
+    """Attach ``incident`` to an investigation already looking at its subject.
+
+    Returns the investigation joined, or ``None`` when there is none to join and
+    this incident needs one of its own.
+
+    Two writes and a message, in that order. The attachment goes in first
+    because it is the durable half: an operator reading the incident afterwards
+    has to be able to see which investigation covered it whether or not the
+    message ever reached a turn boundary. The message goes second because it is
+    the half that can fail — the run may finish between the decision and the
+    delivery, and a run that has already reported cannot be told anything.
+
+    A message that misses its run leaves the incident attached to an
+    investigation that never saw it. That is a worse outcome than a second
+    investigation, so it is not silent: the delivery is reported and the caller
+    falls back.
+    """
+    async with state.gateway.begin(scope) as uow:
+        target = await investigation_to_join(
+            incident, incidents=uow.incidents, runs=uow.run_traces, now=_utc_now()
+        )
+    if target is None:
+        return None
+
+    if not target.answered:
+        delivered = await state.investigator.queue_message(
+            target.run_id, _joined_alert_brief(alert, incident)
+        )
+        if delivered is False:
+            # The run ended between deciding and delivering. Investigate for
+            # ourselves rather than attach to something that never heard of us.
+            logger.info(
+                "incidents.join_missed",
+                incident_id=incident.incident_id,
+                run_id=target.run_id,
+                subject=target.subject_id,
+            )
+            return None
+
+    async with state.gateway.begin(scope) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        await lifecycle.attach_run(
+            incident.incident_id,
+            target.run_id,
+            objective=(
+                (
+                    f"answered moments ago for incident {target.incident_id}, on the "
+                    f"same subject ({target.subject_id}) — this incident points at "
+                    f"that report rather than repeating the investigation"
+                )
+                if target.answered
+                else (
+                    f"joined the investigation already running on {target.subject_id}, "
+                    f"started for incident {target.incident_id}"
+                )
+            ),
+            advance_state=not target.answered,
+            now=_utc_now(),
+        )
+    logger.info(
+        "incidents.joined_live_investigation",
+        incident_id=incident.incident_id,
+        run_id=target.run_id,
+        subject=target.subject_id,
+    )
+    return target
+
+
+def _joined_alert_brief(alert: NormalisedAlert, incident: Incident) -> str:
+    """Return what the running investigation is told about the alert that joined.
+
+    Named as another symptom rather than as an instruction. The run is in the
+    middle of reasoning about one failure and this is more evidence about that
+    same subject; telling it what to do with the evidence would be this handler
+    doing the investigating.
+    """
+    stated = ", ".join(f"{key}={value}" for key, value in sorted(alert.labels.items()))
+    return (
+        f"Another alert has fired on the same subject while you were working: "
+        f"{alert.alert_name or incident.title}"
+        f"{f' — {alert.summary}' if alert.summary else ''}\n"
+        f"Labels: {stated}\n"
+        f"It was raised as its own incident ({incident.incident_id}) and attached to "
+        f"this investigation because it is about the same resource. Treat it as a "
+        f"further symptom of what you are already looking at, and say in your report "
+        f"whether it has the same cause."
+    )
+
+
 def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:
     """Return what the run is told about its subject before its first turn.
 
@@ -814,11 +949,25 @@ def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:
     if target is None:
         return {}
     return {
-        "resource_id": target.resource_id,
-        "resource_kind": target.kind,
-        "resource_name": target.display_name,
-        "resource_zone": target.zone,
-        "resolved_from": f"{target.label}={target.value}",
+        SUBJECT_CONTEXT_RESOURCE_ID: target.resource_id,
+        SUBJECT_CONTEXT_RESOURCE_KIND: target.kind,
+        SUBJECT_CONTEXT_RESOURCE_NAME: target.display_name,
+        # Which vendor holds the subject. The run reads it as context, and
+        # capability ranking reads it to decide whose tools this incident is
+        # about — the difference between offering the Proxmox reads for a
+        # failing Proxmox backup job and offering the alerting system's own.
+        SUBJECT_CONTEXT_RESOURCE_SOURCE: target.source,
+        # The vendor's own handle for the subject, and the node it sits on.
+        # Without these the run is told which resource it is about in a
+        # vocabulary no vendor tool accepts, and an agent that needs
+        # ``node`` and ``vmid`` to ask about a guest works them out from
+        # whatever a cluster-wide read happened to list. It worked out the
+        # wrong guest.
+        SUBJECT_CONTEXT_RESOURCE_NATIVE_ID: target.native_id,
+        SUBJECT_CONTEXT_RESOURCE_PARENT: target.parent_name,
+        SUBJECT_CONTEXT_RESOURCE_ADDRESS: target.address,
+        SUBJECT_CONTEXT_RESOURCE_ZONE: target.zone,
+        SUBJECT_CONTEXT_RESOLVED_FROM: f"{target.label}={target.value}",
     }
 
 

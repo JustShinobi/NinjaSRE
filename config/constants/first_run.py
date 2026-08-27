@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from typing import Final
 
+from config.constants.surfaces import CLI_COMMAND_NAME
+
 # --- The organisation a fresh deployment creates ------------------------------
 
 #: The organisation bring-up creates when the store holds none. Named rather
@@ -77,6 +79,22 @@ DEFAULT_DURABLE_CREDENTIAL_NAME: Final = "first administrator"
 BOOTSTRAP_AUDIT_ACTION_ISSUE: Final = "bootstrap.credential_issued"
 BOOTSTRAP_AUDIT_ACTION_ESTABLISH: Final = "bootstrap.durable_credential_established"
 BOOTSTRAP_AUDIT_RESOURCE_KIND: Final = "bootstrap_credential"
+
+# --- The first administrator ---------------------------------------------------
+
+#: The complete, copy-pasteable command that creates this deployment's first
+#: administrator. One constant, read by the boot announcement and by the two
+#: console screens that name it, so the three can never drift into three
+#: different spellings of the same instruction.
+LOCAL_ADMIN_SETUP_COMMAND: Final = f"{CLI_COMMAND_NAME} setup admin --name admin"
+
+#: Which of the two deliberate acts opened a deployment's local sign-in.
+#: Free text describing a closed set, not an enum: a third path this release
+#: does not know about still records something readable rather than failing
+#: to serialise, and nothing here compares this value against anything but
+#: these two spellings.
+LOCAL_SIGN_IN_OPENED_VIA_CLI: Final = "cli"
+LOCAL_SIGN_IN_OPENED_VIA_BOOTSTRAP_EXCHANGE: Final = "bootstrap-exchange"
 
 # --- The self-check -----------------------------------------------------------
 
@@ -192,11 +210,18 @@ SETUP_STATES: Final[tuple[str, ...]] = (SETUP_STATE_DONE, SETUP_STATE_READY, SET
 SETUP_READINESS_ABSENT: Final = "absent"
 SETUP_READINESS_CONFIGURED: Final = "configured"
 SETUP_READINESS_VERIFIED: Final = "verified"
+#: The last recorded check of this thing did not pass. Distinct from
+#: ``configured``, which also covers "nobody has checked it yet" — those are
+#: different facts with opposite next actions, and collapsing a known-broken
+#: credential into the same word as an unchecked one is the state a wrong key
+#: sits in until an incident finds it.
+SETUP_READINESS_FAILING: Final = "failing"
 
 SETUP_READINESS: Final[tuple[str, ...]] = (
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
     SETUP_READINESS_VERIFIED,
+    SETUP_READINESS_FAILING,
 )
 
 # --- What a check concluded, and about what ------------------------------------
@@ -307,6 +332,9 @@ __all__ = [
     "DEMO_SCRIPTED_RUN_TRIGGER",
     "DURABLE_CREDENTIAL_LIFETIME_DAYS",
     "GUIDED_INVESTIGATION_TRIGGER",
+    "LOCAL_ADMIN_SETUP_COMMAND",
+    "LOCAL_SIGN_IN_OPENED_VIA_BOOTSTRAP_EXCHANGE",
+    "LOCAL_SIGN_IN_OPENED_VIA_CLI",
     "MAXIMUM_CLOCK_SKEW_SECONDS",
     "MINIMUM_FREE_DISK_BYTES",
     "NINJASRE_BOOTSTRAP_CREDENTIAL_PATH_ENV",
@@ -319,6 +347,7 @@ __all__ = [
     "SETUP_READINESS",
     "SETUP_READINESS_ABSENT",
     "SETUP_READINESS_CONFIGURED",
+    "SETUP_READINESS_FAILING",
     "SETUP_READINESS_VERIFIED",
     "SETUP_STATES",
     "SETUP_STATE_BLOCKED",

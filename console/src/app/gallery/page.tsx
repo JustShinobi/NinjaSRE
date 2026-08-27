@@ -58,7 +58,7 @@ export default function GalleryPage(): ReactNode {
                   data-entry={entry.id}
                   className="flex flex-col gap-2 min-w-0 max-w-full"
                 >
-                  <span className="text-micro uppercase text-muted">{entry.label}</span>
+                  <span className="text-micro text-muted">{entry.label}</span>
                   {entry.node}
                 </li>
               ))}

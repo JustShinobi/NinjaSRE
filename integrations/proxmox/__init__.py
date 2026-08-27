@@ -68,6 +68,11 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    where_to_get_it=(
+        "Generate an API token from Proxmox's own Datacenter → Permissions → API "
+        "Tokens, with the PVEAuditor role — or, where a token cannot be issued, "
+        "authenticate with a login that holds it."
+    ),
 )
 
 __all__ = [

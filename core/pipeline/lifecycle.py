@@ -35,6 +35,13 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
+from config.constants.runs import (
+    STAGE_DETAIL_COMPLETION_TOKENS,
+    STAGE_DETAIL_FINDING,
+    STAGE_DETAIL_LLM_CALLS,
+    STAGE_DETAIL_PROMPT_TOKENS,
+)
+from core.pipeline.findings import finding_for
 from core.pipeline.ownership import violations
 from core.pipeline.stage import Stage, annotate_failure
 from core.pipeline.streaming import EventStream, silent_stream
@@ -177,7 +184,10 @@ class Pipeline:
 
         await self._stream.stage_end(
             stage.name,
-            detail={"changed": ",".join(sorted(changed_paths(state, merged)))},
+            detail={
+                "changed": ",".join(sorted(changed_paths(state, merged))),
+                **_reckoning(stage.name, state, merged),
+            },
         )
         return merged
 
@@ -205,6 +215,30 @@ class Pipeline:
                     hook=type(hook).__name__,
                     error=str(error),
                 )
+
+
+def _reckoning(stage: StageName, before: AgentState, after: AgentState) -> dict[str, str]:
+    """Return what ``stage`` established and what it spent establishing it.
+
+    The spend is a *delta* across the stage, never the ledger. Every stage that
+    calls a model adds to one accounting slice, so a stage reporting the slice
+    would report the previous stages' spend as its own — and the two stages
+    whose spend this exists to surface, intake and diagnosis, are the second and
+    the fifth.
+
+    Reporting it here rather than leaving it to a reader to subtract is what
+    makes a run's token cost knowable at all. Only the gathering stage produces
+    loop turns, so a total summed over the turn records is a floor: it omits
+    both of the model calls the other stages made.
+    """
+    spent = after.accounting.tokens
+    already = before.accounting.tokens
+    return {
+        STAGE_DETAIL_FINDING: finding_for(stage, after),
+        STAGE_DETAIL_PROMPT_TOKENS: str(spent.total_input_tokens - already.total_input_tokens),
+        STAGE_DETAIL_COMPLETION_TOKENS: str(spent.output_tokens - already.output_tokens),
+        STAGE_DETAIL_LLM_CALLS: str(after.accounting.llm_calls - before.accounting.llm_calls),
+    }
 
 
 def _check_order(stages: Sequence[Stage]) -> None:

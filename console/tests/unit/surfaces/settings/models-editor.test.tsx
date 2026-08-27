@@ -72,6 +72,7 @@ const ANTHROPIC: ProviderOption = {
   displayName: 'Anthropic',
   configured: true,
   verified: true,
+  readiness: 'verified',
   detail: 'a check reached this provider and it answered',
   models: [
     { modelId: 'claude-sonnet-5', supportsTools: true },
@@ -84,6 +85,7 @@ const OLLAMA: ProviderOption = {
   displayName: 'Ollama',
   configured: false,
   verified: false,
+  readiness: 'absent',
   detail: 'no credential is stored for this provider',
   models: [],
 };
@@ -93,11 +95,22 @@ const OPENAI: ProviderOption = {
   displayName: 'OpenAI',
   configured: true,
   verified: false,
+  readiness: 'configured',
   detail: 'no verification has been run against this deployment',
   models: [{ modelId: 'gpt-5', supportsTools: true }],
 };
 
-const PROVIDERS = [ANTHROPIC, OLLAMA, OPENAI];
+const MISTRAL: ProviderOption = {
+  providerId: 'mistral',
+  displayName: 'Mistral',
+  configured: true,
+  verified: false,
+  readiness: 'failing',
+  detail: 'the last check of this provider did not pass: it did not answer',
+  models: [{ modelId: 'mistral-large', supportsTools: true }],
+};
+
+const PROVIDERS = [ANTHROPIC, OLLAMA, OPENAI, MISTRAL];
 
 const INVESTIGATOR: RoleValue = {
   role: 'investigator',
@@ -223,6 +236,38 @@ describe('a provider with no credential stored', () => {
     const subagent = screen.getByTestId('model-role-subagent');
     const chip = subagent.querySelector('[data-credential-status]');
     expect(chip).toHaveAttribute('data-credential-status', 'stored');
+  });
+
+  it('draws an advanced role whose last check failed as failing, never as stored', async () => {
+    editor([
+      INVESTIGATOR,
+      { ...SUBAGENT, provider: 'mistral', model: 'mistral-large' },
+    ]);
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
+
+    const subagent = screen.getByTestId('model-role-subagent');
+    const chip = subagent.querySelector('[data-credential-status]');
+    expect(chip).toHaveAttribute('data-credential-status', 'failing');
+  });
+});
+
+describe("the investigator's own headline chip", () => {
+  it('reads failing, not stored, when the provider bound to it last failed its check', () => {
+    editor([
+      { ...INVESTIGATOR, provider: 'mistral', model: 'mistral-large' },
+      SUBAGENT,
+    ]);
+
+    const chip = screen.getByTestId('provider-state-chip');
+    expect(chip).toHaveAttribute('data-credential-status', 'failing');
+  });
+
+  it('reads verified when the bound provider last passed its check', () => {
+    editor();
+
+    const chip = screen.getByTestId('provider-state-chip');
+    expect(chip).toHaveAttribute('data-credential-status', 'verified');
   });
 });
 

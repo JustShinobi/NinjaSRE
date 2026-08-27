@@ -133,6 +133,29 @@ describe('the shell renders before the page does', () => {
     renderShell();
     expect(screen.getByTestId('main')).toContainElement(screen.getByTestId('page'));
   });
+
+  /**
+   * The measure the design system declares is the measure a page gets.
+   *
+   * `--width-page` has been served on `:root` since the tokens landed and no
+   * screen ever applied it: on a 2498px display `<main>` measured 2247px, which
+   * is 887px past the width the system wrote for itself. What that width buys is
+   * not tidiness — it is every list row whose name and metadata stopped being
+   * one glance apart, and every paragraph that stopped running to 950px.
+   *
+   * Asserted on the frame rather than per screen, because a cap thirty screens
+   * each have to remember is a cap the thirty-first forgets.
+   */
+  it('holds the page to the measure the tokens declare', () => {
+    renderShell();
+    const measure = screen.getByTestId('page-measure');
+    expect(measure.className).toContain('max-w-page');
+    expect(measure.className).toContain('mx-auto');
+    expect(measure).toContainElement(screen.getByTestId('page'));
+    // The cap sits inside the scroll container rather than on it, so the
+    // scrollbar stays at the window's edge where a reader reaches for it.
+    expect(screen.getByTestId('main')).toContainElement(measure);
+  });
 });
 
 describe('the palette, from anywhere', () => {

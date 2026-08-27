@@ -41,6 +41,10 @@ SCHEMA: Final = credential_schema(
         "Leave empty for github.com.",
         required=False,
         label="Enterprise Server address",
+        guide_url=(
+            "https://docs.github.com/en/enterprise-server@latest/admin/overview/"
+            "about-github-enterprise-server"
+        ),
     ),
     secret(
         "token",
@@ -57,6 +61,10 @@ SCHEMA: Final = credential_schema(
         "owner",
         "Default organisation or user the repositories belong to",
         label="Default owner",
+        guide_url=(
+            "https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/"
+            "about-organizations"
+        ),
     ),
 )
 

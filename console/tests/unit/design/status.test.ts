@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEMANTIC_ROLES } from '@/design/tokens';
 import {
+  isLiveRun,
   isRunStatus,
   isSettled,
   ATTENTION_STATUSES,
@@ -81,12 +82,72 @@ describe('the status mapping', () => {
     }
   });
 
-  it('settles only the three statuses that will not change again', () => {
+  it('settles every terminal word the declared list carries', () => {
     expect(RUN_STATUSES.filter((status) => isSettled(status))).toEqual([
-      'succeeded',
-      'failed',
+      'completed',
       'cancelled',
+      'failed',
+      'interrupted',
     ]);
+  });
+
+  // The persistence store's own enumeration — `RunStatus` in
+  // `platform/persistence/ports/run_trace_store.py`, served verbatim by the
+  // gateway — enunciated here as data rather than imported: the console
+  // boundary forbids reaching into any Python package, this file included,
+  // so the fact this test holds the console to has to be a literal a reader
+  // can check against that enumeration by eye. `tools/
+  // check_run_status_vocabulary.py` is what actually keeps the two files
+  // honest against each other; this test is the console's own half of that
+  // property, exercised without a subprocess.
+  const STORE_STATUS_WORDS = [
+    'running',
+    'suspended',
+    'completed',
+    'cancelled',
+    'failed',
+    'interrupted',
+  ] as const;
+
+  it('declares exactly the store’s own run status words, no more and no fewer', () => {
+    expect([...RUN_STATUSES].sort()).toEqual([...STORE_STATUS_WORDS].sort());
+  });
+
+  it('names every status word the store actually emits for a run', () => {
+    for (const status of STORE_STATUS_WORDS) {
+      expect(RUN_STATUSES, status).toContain(status);
+      expect(statusPresentation(status).known, status).toBe(true);
+    }
+  });
+
+  it('treats a clean finish, a cancellation, a failure and an interruption as settled', () => {
+    for (const status of ['completed', 'cancelled', 'failed', 'interrupted']) {
+      expect(isSettled(status), status).toBe(true);
+      expect(isLiveRun(status), status).toBe(false);
+    }
+  });
+
+  it('treats an in-flight run as live, never as settled', () => {
+    expect(isLiveRun('running')).toBe(true);
+    expect(isSettled('running')).toBe(false);
+  });
+
+  it('treats a run paused on a human decision as neither live nor settled', () => {
+    // The same shape of decision `awaiting_approval` used to get: a run
+    // waiting on a person is not "still working" — nothing is calling a
+    // tool — and it is not "settled" either, because a decision can still
+    // reopen it. It gets the open-interaction panel, not a stop button and
+    // not a terminal chip.
+    expect(isLiveRun('suspended')).toBe(false);
+    expect(isSettled('suspended')).toBe(false);
+  });
+
+  it('treats a status neither list has ever heard of as neither live nor settled', () => {
+    // The regression this exists to catch: the old decision was the negation
+    // of "settled", so an unrecognised word fell through to "live" and a
+    // screen offered to stop an investigation it did not understand.
+    expect(isLiveRun('quiesced')).toBe(false);
+    expect(isSettled('quiesced')).toBe(false);
   });
 
   it('recognises the outcomes an audit event can carry', () => {

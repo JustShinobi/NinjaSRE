@@ -1,0 +1,32 @@
+MARCO ZERO — janela de 2026-08-25
+
+Autorização do operador: "o 122 não está em uso, qualquer teste nele está liberado".
+
+Árvore publicada     gitops fd98df056074, componentes app + proxy + web (sem COMPONENTS=)
+Argo                 Synced / Healthy
+Pods                 app/proxy/web, 2m36s de idade no instante do marco zero
+Rotas aquecidas      /, /incidents, /runs, /decisions, /resources, /integrations,
+                     /settings/alert-intake — todas 200, a mais lenta 1,67s
+
+Regra de alerta, lida do Prometheus vivo (CT137), em inglês:
+  ProxmoxGuestStopped   state: inactive   for: 120s   severity: critical
+  summary      "A Proxmox guest that was running has stopped"
+  description  "The guest {{ $labels.name }} ({{ $labels.id }}) was running on
+                node {{ $labels.node }} and has stopped."
+
+Contagens em 2026-08-25T19:28:36Z, antes do passo destrutivo:
+  approvals               0
+  rollback_plans          0
+  remediation_outcomes    0
+  episodes                0
+  incidents              42
+  agent_runs            410
+
+Vítima: CT122 (redis, nó pve01, 192.168.68.149) — status: running.
+
+O passo destrutivo: pct stop 122 em 2026-08-25T19:28:50Z. Confirmado stopped
+em 19:28:52Z. Nenhum alerta emitido à mão.
+
+pve_up{id="lxc/122"} = 0 medido em 19:29:33Z, 43 segundos depois do stop.
+A série carrega instance="192.168.68.159", que é o pve02 — o host do
+exportador, não o nó do convidado. É a origem do sujeito gravado errado.

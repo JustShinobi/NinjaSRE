@@ -7,6 +7,7 @@ import {
   SpecialistStateChip,
 } from '@/components/status';
 import { statusPresentation } from '@/design/status';
+import { humaniseIdentifier } from '@/i18n/format';
 import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -42,6 +43,7 @@ import {
   text,
   type PanelData,
 } from '../read';
+import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 import { TeamTab } from './team-context';
@@ -202,7 +204,8 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
   const init = authorised(credential);
 
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
-  const node = resolveNode(state, viewer, placedTree(dataOf(tree)));
+  const placed = placedTree(dataOf(tree));
+  const node = resolveNode(state, viewer, placed);
   const address = (wanted: AgentTab): string =>
     node === '' ? `?tab=${wanted}` : `?node=${encodeURIComponent(node)}&tab=${wanted}`;
 
@@ -269,7 +272,17 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
       <AreaHeader
         area={areaFor('agent')}
         locale={locale}
-        nested={node === '' ? [] : [{ label: node }]}
+        // The crumb names the node, never its identifier. It read "The agent ›
+        // default" — the last step of a trail spelled as a database key, under
+        // a heading that already says where the reader is. The tree carries a
+        // name for every node it places; this is the one place that was not
+        // asking it for one. With one node there is no choice to describe, so
+        // there is no crumb either.
+        nested={
+          node === '' || placed.length < 2
+            ? []
+            : [{ label: placed.find((each) => each.id === node)?.name ?? node }]
+        }
       />
 
       <TabLinks
@@ -381,9 +394,15 @@ function TopologyTab({
     {
       id: STAGES,
       label: message(locale, 'agent.rank.stages'),
+      // They run one after another — resolve, intake, plan, gather, diagnose,
+      // deliver — and drawn as a plain row fanning out of the orchestrator,
+      // nothing said which came first.
+      sequence: true,
       nodes: stages.map((stage) => ({
         id: text(stage, 'name'),
-        name: text(stage, 'name'),
+        // The readable form in the box; the identifier keeps its place in the
+        // list below, where a reader matching a log line will look for it.
+        name: humaniseIdentifier(text(stage, 'name')),
         kind: STAGES,
         href: '#agent-stages',
       })),
@@ -393,7 +412,7 @@ function TopologyTab({
       label: message(locale, 'agent.rank.specialists'),
       nodes: specialists.map((specialist) => ({
         id: specialist.name,
-        name: specialist.name,
+        name: humaniseIdentifier(specialist.name),
         kind: SPECIALISTS,
         href: AGENT_ADVANCED_HREF,
         disabled: !specialist.enabled,
@@ -432,8 +451,11 @@ function TopologyTab({
                 data-role={text(stage, 'model_role')}
                 className="flex flex-col gap-1"
               >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-small text-strong">
+                <span className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-strong">
+                    {humaniseIdentifier(text(stage, 'name'))}
+                  </span>
+                  <span className="font-mono text-meta text-muted">
                     {text(stage, 'name')}
                   </span>
                   {text(stage, 'model_role') === '' ? (
@@ -451,8 +473,15 @@ function TopologyTab({
                     <Badge status="active" />
                   ) : null}
                 </span>
-                <span className="text-meta text-muted">{text(stage, 'summary')}</span>
-                <span className="text-meta text-muted">
+                {/* Capped at a reading measure. The page cap stops a screen at
+                    1360px, which is right for a table and still half again too
+                    wide for prose — the longest of these consults lines runs to
+                    two hundred characters, and a reader loses the start of the
+                    next line looking for it. */}
+                <span className="text-meta text-muted max-w-prose">
+                  {text(stage, 'summary')}
+                </span>
+                <span className="text-meta text-muted max-w-prose">
                   {message(locale, 'agent.stage.consults')}{' '}
                   {list(stage, 'consults').map(String).join('; ')}
                 </span>
@@ -548,35 +577,80 @@ export interface RoleBinding {
   readonly model: string;
   /** The node that bound it, empty when nothing did. */
   readonly provenance: string;
+  /** Whether this row is running on the investigator's choice rather than its own. */
+  readonly inherited: boolean;
 }
+
+/**
+ * The role every other one follows when nobody bound it.
+ *
+ * Named here rather than passed in, because the rule is the deployment's and
+ * not this screen's: `resolve_binding` gives an unnamed role the investigator's
+ * provider, and this row has to say the same thing or stop being worth reading.
+ */
+const INVESTIGATOR_ROLE = 'investigator';
 
 /**
  * What role `role` resolves to, and whether anybody chose it.
  *
  * A bound role reads its provider and model from the value a node set. An
- * unbound one used to read only "deployment default" and name nothing — but
- * the schema declares a real default for every role (`ModelSelection`'s own
- * `provider`/`model`, in `platform/config_service/schema/agents.py`), served on
- * the exact same field the value and the provenance are
- * (`ConfigField.default`, in `platform/config_service/fields.py`). The
- * first-run wizard already reads a deployment's running provider from this
- * kind of data (`console/src/surfaces/screens/first-run.tsx`); this reads the
- * schema's own default the same way, from the fields this screen already
- * fetched.
+ * unbound one follows the investigator, because that is what the deployment
+ * does: `resolve_binding` (`core/llm/factory.py`) gives a role nobody named
+ * the investigator's provider and model, and reaches the shipped default only
+ * where nothing at all is configured.
  *
- * Still the only place on this screen a provider or a model may be named, and
- * still for the same reason: every row says where its value came from — a
- * node, or the deployment default, never a guess.
+ * This row used to print the *schema's* default instead — `ConfigField.default`,
+ * the value in a Pydantic field — and the difference was not cosmetic. A
+ * deployment whose investigator was on Gemini, with the other seven roles left
+ * alone as the console invites, had every one of those calls going to Gemini
+ * while this panel said `anthropic / claude-sonnet-5`. Somebody read that
+ * during an incident and spent an afternoon looking for a missing Anthropic
+ * credential. A row that names a model no call will ever reach is worse than
+ * a row that says nothing.
+ *
+ * The derivation is here rather than served because no endpoint answers "what
+ * does this role actually resolve to" yet; the durable fix is the gateway
+ * publishing its own resolution, and this mirrors the one rule that resolution
+ * follows until it does. Still the only place on this screen a provider or a
+ * model may be named, and still for the same reason: every row says where its
+ * value came from — a node, the investigator, or the shipped default, never a
+ * guess.
  */
 export function roleBinding(declared: readonly unknown[], role: string): RoleBinding {
   const providerField = fieldAt(declared, `models.${role}.provider`);
   const modelField = fieldAt(declared, `models.${role}.model`);
   const bound = providerField !== undefined && text(providerField, 'provenance') !== '';
+  if (bound) {
+    return {
+      bound: true,
+      inherited: false,
+      provider: text(providerField, 'value'),
+      model: text(modelField, 'value'),
+      provenance: text(providerField, 'provenance'),
+    };
+  }
+
+  const leadProvider = fieldAt(declared, `models.${INVESTIGATOR_ROLE}.provider`);
+  const leadBound =
+    role !== INVESTIGATOR_ROLE &&
+    leadProvider !== undefined &&
+    text(leadProvider, 'provenance') !== '';
+  if (leadBound) {
+    return {
+      bound: false,
+      inherited: true,
+      provider: text(leadProvider, 'value'),
+      model: text(fieldAt(declared, `models.${INVESTIGATOR_ROLE}.model`), 'value'),
+      provenance: '',
+    };
+  }
+
   return {
-    bound,
-    provider: text(providerField, bound ? 'value' : 'default'),
-    model: text(modelField, bound ? 'value' : 'default'),
-    provenance: bound ? text(providerField, 'provenance') : '',
+    bound: false,
+    inherited: false,
+    provider: text(providerField, 'default'),
+    model: text(modelField, 'default'),
+    provenance: '',
   };
 }
 
@@ -633,7 +707,12 @@ function ModelRolePanel({
                 </span>
               ) : (
                 <span className="text-meta text-muted" data-testid="model-role-default">
-                  {message(locale, 'agent.models.default')}
+                  {message(
+                    locale,
+                    binding.inherited
+                      ? 'agent.models.inherited'
+                      : 'agent.models.default',
+                  )}
                 </span>
               )}
             </li>
@@ -840,6 +919,12 @@ function DocumentPanel({
 }): ReactNode {
   const section = field(values, 'agents');
   const document = JSON.stringify({ agents: section ?? {} }, null, 2);
+  // `{ "agents": {} }` is three lines of punctuation standing where a fact
+  // belongs. The fact is that nothing on this screen has been overridden for
+  // this node, which the panel can say in a sentence — and which the tables
+  // above already say per row.
+  const overridden =
+    typeof section === 'object' && section !== null && Object.keys(section).length > 0;
   return (
     <Panel
       title={message(locale, 'agent.document.title')}
@@ -853,12 +938,25 @@ function DocumentPanel({
         href: AGENT_ADVANCED_HREF,
       }}
     >
-      <pre
-        data-testid="agent-document"
-        className="text-meta font-mono overflow-x-auto whitespace-pre"
-      >
-        {document}
-      </pre>
+      <div className="flex flex-col gap-2">
+        {/* An empty object is three lines of punctuation standing where a fact
+            belongs. The fact — that nothing has been overridden for this node —
+            is said in words above it, and the document stays underneath for
+            anyone who came to read the document. Not the panel's empty state:
+            the specialists panel beside this one already carries that, and two
+            empty states in a row explain the same nothing twice. */}
+        {overridden ? null : (
+          <p data-testid="agent-document-untouched" className="text-small text-muted">
+            {message(locale, 'agent.document.untouched')}
+          </p>
+        )}
+        <pre
+          data-testid="agent-document"
+          className="text-meta font-mono overflow-x-auto whitespace-pre"
+        >
+          {document}
+        </pre>
+      </div>
     </Panel>
   );
 }
@@ -980,7 +1078,6 @@ function ToolsTab({
             domainsNav: message(locale, 'catalogue.domains.nav'),
             skillsHeading: message(locale, 'catalogue.skills'),
             columnName: message(locale, 'catalogue.column.name'),
-            columnDomain: message(locale, 'catalogue.column.domain'),
             columnEffect: message(locale, 'catalogue.column.effect'),
             columnEnabled: message(locale, 'catalogue.column.enabled'),
             none,
@@ -1182,10 +1279,11 @@ function AutonomyTab({
               data-decision={text(entry, 'decision')}
               className="flex flex-col gap-1"
             >
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-small text-strong">
-                  {text(entry, 'risk_class')}
-                </span>
+              <span className="flex flex-wrap items-center gap-3">
+                <RiskLadder
+                  riskClass={text(entry, 'risk_class')}
+                  label={humaniseIdentifier(text(entry, 'risk_class'))}
+                />
                 <Badge status={text(entry, 'decision')} />
                 {text(entry, 'refused_by') === '' ? null : (
                   <span className="text-meta text-muted" data-testid="outlook-bound">
@@ -1195,10 +1293,22 @@ function AutonomyTab({
                   </span>
                 )}
               </span>
-              <span className="text-small" data-testid="outlook-sentence">
+              <span className="text-small max-w-prose" data-testid="outlook-sentence">
                 {text(entry, 'sentence')}
               </span>
-              <span className="text-meta text-muted">{text(entry, 'reason')}</span>
+              {/* Labelled, because unlabelled it read as the sentence above it
+                  said a second time in grey. It is not: the sentence says what
+                  would happen, this says which rule decided — and the two
+                  necessarily share most of their words, so only the label
+                  tells a reader they are two different claims. It is the
+                  decision's own audit text, complete on purpose, because it is
+                  also read on a decision record with none of this around it. */}
+              <span className="text-meta text-muted max-w-prose">
+                <span className="text-strong">
+                  {message(locale, 'agent.outlook.reason')}
+                </span>{' '}
+                {text(entry, 'reason')}
+              </span>
             </li>
           ))}
         </ul>

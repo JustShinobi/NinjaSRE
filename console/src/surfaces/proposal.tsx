@@ -70,7 +70,7 @@ export function ProposalCard({
           <ShieldIcon />
         </span>
         <h3 className="text-section">{heading}</h3>
-        <span className="ml-auto text-micro uppercase edge border-danger text-danger rounded-1 px-2">
+        <span className="ml-auto text-micro edge border-danger text-danger rounded-1 px-2">
           {risk}
         </span>
       </header>

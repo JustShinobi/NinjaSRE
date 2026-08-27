@@ -5,6 +5,9 @@ import { areaMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { DashboardScreen } from '@/surfaces/screens/dashboard';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /** The screen an operator lands on. What it is for comes from the manifest. */
 export function generateMetadata(): Promise<Metadata> {
   return areaMetadata('dashboard');

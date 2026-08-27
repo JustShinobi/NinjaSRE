@@ -130,6 +130,65 @@ export function dataOf<T>(data: PanelData<T>): T | undefined {
   return data.status === 'ready' ? data.data : undefined;
 }
 
+/**
+ * Whether a fact a read carries exists, distinguishing "it does not" from
+ * "the read that would say so failed" — the third answer `stateOf` and
+ * `dependencyOf` give for the panel around it, given here for the fact
+ * inside it.
+ *
+ * A chip, a badge, or any short label that would otherwise say "No X" from
+ * a read that never answered derives from this instead: `unknown` names the
+ * dependency that failed, and only a `status: 'ready'` read is ever allowed
+ * to say `present` or `absent`. A screen deriving its own boolean from
+ * `dataOf(...) !== undefined` cannot tell "confirmed absent" from "never
+ * asked" apart — this function exists so nothing has to.
+ */
+export type Existence =
+  | { readonly kind: 'unknown'; readonly dependency: string }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'present' };
+
+/**
+ * The existence `data` implies for one fact inside it, given whether the
+ * caller found it once the read succeeded.
+ *
+ * `present`, mirroring `stateOf`'s own second parameter: the caller has
+ * already looked at the body and knows whether the fact is there, because
+ * only the caller knows which field of which shape it is looking for.
+ */
+export function existenceOf(data: PanelData<unknown>, present: boolean): Existence {
+  if (data.status === 'error') return { kind: 'unknown', dependency: data.dependency };
+  return present ? { kind: 'present' } : { kind: 'absent' };
+}
+
+/**
+ * A value read from inside `data`, distinguishing "this is what it said" from
+ * "the read that would carry it failed" — `existenceOf`'s own shape, for a
+ * leaf that is a word rather than a presence.
+ *
+ * `text()` on a failed read's `undefined` body returns `''`, which is
+ * indistinguishable from a field that is genuinely blank. A status map keyed
+ * on that empty string and falling back to a default then asserts whatever
+ * the default happens to be — a positive claim over a read that never
+ * answered — which is the same mistake `existenceOf` exists to stop, one
+ * level up from a yes/no fact to a word chosen from several.
+ */
+export type Read<T> =
+  | { readonly kind: 'unknown'; readonly dependency: string }
+  | { readonly kind: 'known'; readonly value: T };
+
+/**
+ * `value`, or the dependency's name when the read that would carry it failed.
+ *
+ * `value`, mirroring `existenceOf`'s own second parameter: the caller has
+ * already picked the field out of the body, because only the caller knows
+ * which one and how to read it.
+ */
+export function valueOf<T>(data: PanelData<unknown>, value: T): Read<T> {
+  if (data.status === 'error') return { kind: 'unknown', dependency: data.dependency };
+  return { kind: 'known', value };
+}
+
 // --- Picking fields out of a payload ---------------------------------------------
 
 /** One field of `record`, whatever it turns out to be. */
@@ -195,6 +254,33 @@ export function pairs(
     key,
     typeof value === 'string' ? value : JSON.stringify(value),
   ]);
+}
+
+/**
+ * What the sign-in and first-run screens need before anybody is signed in:
+ * whether this deployment has an owner yet, and — only when it does not —
+ * the command that gives it one.
+ *
+ * Read with no credential at all: the route is public by declaration, and
+ * this is the one read in the whole console that is ever made without one.
+ * A failed read returns `command: ''`, the same shape as an administered
+ * deployment — this is the one fact where "could not tell" and "nothing to
+ * show" have to render identically, because a wrong guess in the other
+ * direction would print a stale invitation on a deployment that already has
+ * an owner.
+ */
+export async function localAdministratorAvailability(): Promise<{
+  readonly command: string;
+}> {
+  try {
+    const body = await read('/v1/setup/local-administrator', { cache: 'no-store' });
+    return { command: text(body, 'command') };
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof TypeError) {
+      return { command: '' };
+    }
+    throw error;
+  }
 }
 
 /** The gateway read every surface makes, so the credential is applied in one place. */

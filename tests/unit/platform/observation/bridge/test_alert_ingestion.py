@@ -177,6 +177,10 @@ async def test_an_alert_and_a_detected_condition_produce_structurally_identical_
     }
     assert differing <= {
         "incident_id",
+        # Derived from ``incident_id``, so two incidents that are allowed to
+        # carry different identifiers are allowed to carry different addresses
+        # for the same reason. A shared address would be the defect.
+        "public_id",
         "correlation_key",
         "origin",
         "origin_id",

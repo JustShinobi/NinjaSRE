@@ -45,7 +45,17 @@ class ThreadTurnView(BaseModel):
     turn_id: str
     index: int
     model: str = ""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    #: ``None`` when the provider publishes no price for this turn — never a
+    #: fabricated ``0.0`` standing in for "unknown".
+    cost: float | None = None
     selection_rationale: str = ""
+    #: What the model said on this turn, as it said it. Beside the selection
+    #: rationale rather than in place of it: one is the agent's reasoning and
+    #: the other is the deployment's note about what the agent was offered, and
+    #: a reader asking why a capability was missing wants the second.
+    model_rationale: str = ""
     calls: list[ThreadCallView]
 
 
@@ -70,7 +80,11 @@ def thread_turn_view(turn: ReplayedTurn) -> ThreadTurnView:
         turn_id=turn.turn_id,
         index=turn.index,
         model=turn.model,
+        prompt_tokens=turn.prompt_tokens,
+        completion_tokens=turn.completion_tokens,
+        cost=turn.cost,
         selection_rationale=turn.selection_rationale,
+        model_rationale=turn.model_rationale,
         calls=[
             ThreadCallView(
                 call_id=call.call_id,

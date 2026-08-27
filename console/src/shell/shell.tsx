@@ -272,8 +272,17 @@ export function Shell({
               </Button>
             </p>
           ) : null}
-          <main id="main" data-testid="main" className="flex-1 overflow-auto p-5">
-            {children}
+          {/* The scroll container is full-bleed and the measure sits inside it,
+              so the scrollbar stays at the window's edge while the content stops
+              at the width the tokens declare. `--width-page` had been served on
+              `:root` since the tokens landed with nothing applying it: on a wide
+              display `<main>` ran to 2247px, and what that cost was not tidiness
+              — it was every row whose name and metadata were a head-turn apart,
+              and every paragraph running past 900px. */}
+          <main id="main" data-testid="main" className="flex-1 overflow-auto">
+            <div data-testid="page-measure" className="mx-auto w-full max-w-page p-5">
+              {children}
+            </div>
           </main>
         </div>
       </div>

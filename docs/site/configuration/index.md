@@ -2,7 +2,7 @@
 
 # Configuration reference
 
-78 settings, generated from the catalogue `deploy/compose/.env.example` is rendered from — so this page and that file cannot disagree.
+76 settings, generated from the catalogue `deploy/compose/.env.example` is rendered from — so this page and that file cannot disagree.
 
 ## The minimum
 
@@ -19,7 +19,7 @@ Everything else has a working default.
 |---|---|
 | [Deployment profile](deployment-profile.md) | 9 |
 | [Database](database.md) | 3 |
-| [Model provider](model-provider.md) | 27 |
+| [Model provider](model-provider.md) | 25 |
 | [Ports and addresses](ports-and-addresses.md) | 4 |
 | [Isolation, masking, and the credential proxy](isolation--masking--and-the-credential-proxy.md) | 16 |
 | [Memory, knowledge, and the runtime](memory--knowledge--and-the-runtime.md) | 7 |

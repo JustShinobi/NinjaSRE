@@ -486,12 +486,12 @@ export interface paths {
          * Decide Approval
          * @description Approve or reject an approval request, in the caller's name.
          *
-         *     Approving records the decision, the decider and the instant, and nothing
-         *     else: this route never invokes the capability the approval names. The
-         *     store itself refuses to record an approval with no rollback plan stored
-         *     against it, so the guarantee that a change above read is undoable does not
-         *     depend on this handler getting an order right — there is no order to get
-         *     wrong, because nothing here writes a plan, only reads one already there.
+         *     Approving records the decision, the decider and the instant, and then —
+         *     when the change is a remediation and this deployment composed a desk —
+         *     carries the action out through the gate. The store refuses to record an
+         *     approval with no rollback plan stored against it, so the undo is already
+         *     there before anything runs; the recording happens first for the reason the
+         *     module docstring gives.
          *
          *     Rejecting without a reason is refused before either store is touched. The
          *     console's own control disables the reject button until a reason is typed;
@@ -1507,6 +1507,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integrations/{name}/docs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration Docs
+         * @description Return one embedded vendor's own package documentation.
+         *
+         *     Takes the same authorisation every other route on this router does, even
+         *     though it reads nothing tenant-scoped: the permission check is what
+         *     ``authorized`` performs against the route table, and a route mounted
+         *     without it would be reachable by anyone who could reach this deployment
+         *     at all.
+         *
+         *     ``name`` is resolved against the installed catalogue and never used to
+         *     build a filesystem path directly: the path this reads comes from the same
+         *     parity report that already walked the package tree to confirm ``docs.md``
+         *     is there, so a name that is not an installed vendor never reaches a disk
+         *     access at all — it is a 404 before that.
+         */
+        get: operations["integration_docs_v1_integrations__name__docs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{name}/trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Certificate Trust
+         * @description Declare what this deployment accepts from ``name``'s endpoint certificate.
+         *
+         *     Written into the organisation's own configuration, beside the address, where
+         *     the credential proxy already reads from. The write itself asks the proxy to
+         *     re-read it immediately rather than waiting for the periodic cycle that
+         *     rebuilds the egress allow-list — best-effort, and never a reason this write
+         *     fails: an unreachable proxy still applies the declaration on that cycle's
+         *     own next tick, without a restart, exactly as it always has.
+         *
+         *     Accepting an unverified certificate needs a permission of its own and a
+         *     reason in writing, and the identity recorded is the authenticated one rather
+         *     than anything the body carried. Nothing is written when either check fails:
+         *     the declaration is validated and authorised before the document is touched,
+         *     so a refusal leaves it exactly as it was.
+         *
+         *     Raises:
+         *         ApiProblem: the declaration is not one the vocabulary will hold (400) —
+         *             a blank reason, a private key where the certificate goes, a
+         *             fingerprint that is not one. The refusal names the field and never
+         *             quotes a value.
+         */
+        put: operations["store_certificate_trust_v1_integrations__name__trust_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations/{name}/verify": {
         parameters: {
             query?: never;
@@ -1879,6 +1950,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/memory/episode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Episode For Run
+         * @description Return the episode ``run_id`` produced, or nothing.
+         *
+         *     Addressed by the run rather than by the episode, because the caller with
+         *     the question is a screen showing an investigation and it has the run id and
+         *     not the episode's. ``run_id`` is required: without it this would answer
+         *     with whatever the store returned first, which is a different question
+         *     wearing this one's address.
+         *
+         *     Filtering a corpus search down to one run in the caller would be the same
+         *     read at the wrong layer — fine at fifty episodes and wrong at the size a
+         *     corpus becomes worth having, which is exactly the size this feature is for.
+         */
+        get: operations["episode_for_run_v1_memory_episode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/memory/search": {
         parameters: {
             query?: never;
@@ -1911,6 +2012,26 @@ export interface paths {
          * @description Return what the episodic corpus holds for this team.
          */
         get: operations["memory_stats_v1_memory_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/models/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Roles
+         * @description Return what every declared role resolves to, and on whose say-so.
+         */
+        get: operations["model_roles_v1_models_roles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2309,6 +2430,12 @@ export interface paths {
         /**
          * List Runs
          * @description Return recent runs visible to the caller, newest first.
+         *
+         *     Each carries how sure it was, because the list is where somebody decides
+         *     which run to open and "did it actually back this" is the question that
+         *     decides it. Read in one batched query over the whole page rather than one
+         *     per row — the per-row version works on a demo and is a fifty-query page in
+         *     a deployment that has been running a while.
          */
         get: operations["list_runs_v1_runs_get"];
         put?: never;
@@ -2349,6 +2476,20 @@ export interface paths {
         /**
          * Replay
          * @description Return ``run_id`` reconstructed from its recorded events alone.
+         *
+         *     Each call carries what it returned, bounded for reading. The trace has held
+         *     the result since it was recorded; until it was served here, a reader could
+         *     see which capabilities a run asked and not one thing any of them answered,
+         *     which is a transcript of the questions and none of the findings.
+         *
+         *     The turns arrive twice, and deliberately: flat in ``turns`` and grouped in
+         *     ``stages``. An investigation is six stages, and only the fourth of them
+         *     runs the loop — so the flat list is a complete account of the gathering and
+         *     says nothing about the classification that decided the run was worth
+         *     starting or the diagnosis that structured what it found. The grouping is
+         *     what a reader wants; the flat list is what a client that has never heard of
+         *     a stage still gets, including for the runs recorded before stages reached
+         *     the trace, whose ``stages`` is empty.
          */
         get: operations["replay_v1_runs__run_id__replay_get"];
         put?: never;
@@ -2496,6 +2637,11 @@ export interface paths {
          *     the recorded checks found, so "verified" means something answered rather than
          *     that a credential is present — and it means that on the next request too,
          *     which is the whole reason the answer is written down.
+         *
+         *     The provider's own readiness is read the same way, from the same ledger,
+         *     by the same helper `/v1/providers` already reads it with — this is the
+         *     fix for the checklist and the listing disagreeing about the same
+         *     provider: one document, read twice rather than derived twice.
          */
         get: operations["checklist_v1_setup_checklist_get"];
         put?: never;
@@ -2570,9 +2716,36 @@ export interface paths {
          *     Reads the bootstrap credential from the host file rather than from the
          *     request: the caller has already proved they hold it by getting this far, and
          *     accepting it in a body would be a second way in — one where a caller could
-         *     name somebody else's credential to revoke.
+         *     name somebody else's credential to revoke. The passphrase is the opposite
+         *     case: it is the caller's own, chosen for the first time, and the request
+         *     body is the only place it could come from.
          */
         post: operations["durable_credential_v1_setup_durable_credential_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/local-administrator": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Local Administrator Availability
+         * @description Return the ternary fact the sign-in and first-run screens read.
+         *
+         *     Public by declaration: it is what tells an unauthenticated visitor
+         *     whether there is a way in at all, and revealing that is the whole point
+         *     of the route — see ``LocalAdministratorAvailabilityView`` for what it
+         *     deliberately does not also reveal.
+         */
+        get: operations["local_administrator_availability_v1_setup_local_administrator_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4025,6 +4198,8 @@ export interface components {
              * @default first administrator
              */
             name: string;
+            /** Password */
+            password: string;
             /** User Id */
             user_id: string;
         };
@@ -4133,6 +4308,11 @@ export interface components {
             occurred_at?: string | null;
             /** Outcome */
             outcome: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
             /** Summary */
             summary: string;
             /** Title */
@@ -4410,6 +4590,8 @@ export interface components {
             close_reason: string;
             /** Closed At */
             closed_at?: string | null;
+            /** Correlation Key */
+            correlation_key: string;
             /** Detector */
             detector: string;
             /** Incident Id */
@@ -4421,6 +4603,8 @@ export interface components {
             opened_at: string;
             /** Origin */
             origin: string;
+            /** Public Id */
+            public_id: string;
             /** Run Id */
             run_id?: string | null;
             /**
@@ -4542,6 +4726,34 @@ export interface components {
             /** Value */
             value?: unknown;
         };
+        /**
+         * IntegrationDocsView
+         * @description One vendor package's own documentation, as its ``docs.md`` reads.
+         *
+         *     ``markdown`` is the file's text, unmodified — the console renders it with
+         *     the markdown reader it already has rather than this route parsing
+         *     anything. ``readable`` is false in exactly one situation: the vendor is
+         *     installed and its parity report resolved a ``docs.md`` path, but the file
+         *     at that path could not actually be read. That is never "no such vendor" —
+         *     a name outside the catalogue is a 404, not a row here — and it is never
+         *     "this vendor has no documentation", because every embedded vendor is
+         *     required to ship one. It is this deployment's own build failing to carry
+         *     a file its source tree has, which is exactly the failure the console has
+         *     to say plainly rather than reporting as if the document never existed.
+         */
+        IntegrationDocsView: {
+            /** Display Name */
+            display_name: string;
+            /** Markdown */
+            markdown: string;
+            /** Name */
+            name: string;
+            /**
+             * Readable
+             * @default true
+             */
+            readable: boolean;
+        };
         /** IntegrationList */
         IntegrationList: {
             /** Integrations */
@@ -4609,6 +4821,11 @@ export interface components {
             /** Category */
             category: string;
             /**
+             * Credential Team Ambiguous
+             * @default false
+             */
+            credential_team_ambiguous: boolean;
+            /**
              * Direction
              * @default outbound
              */
@@ -4641,6 +4858,11 @@ export interface components {
             suggested?: components["schemas"]["SuggestionView"] | null;
             /** Summary */
             summary: string;
+            /**
+             * Where To Get It
+             * @default
+             */
+            where_to_get_it: string;
         };
         /** InteractionList */
         InteractionList: {
@@ -4674,8 +4896,42 @@ export interface components {
         };
         /** InvestigationSummary */
         InvestigationSummary: {
+            /**
+             * Evidence Assessed
+             * @default false
+             */
+            evidence_assessed: boolean;
+            /**
+             * Evidence Backed
+             * @default 0
+             */
+            evidence_backed: number;
+            /**
+             * Evidence Missing
+             * @default 0
+             */
+            evidence_missing: number;
+            /** Evidence Missing Names */
+            evidence_missing_names?: string[];
+            /** Evidence Supporting Names */
+            evidence_supporting_names?: string[];
             /** Finished At */
             finished_at?: string | null;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Report
+             * @default
+             */
+            report: string;
             /** Run Id */
             run_id: string;
             /** Started At */
@@ -4684,6 +4940,8 @@ export interface components {
             status: string;
             /** Summary */
             summary?: string | null;
+            /** Touched Resources */
+            touched_resources?: string[];
             /** Trigger */
             trigger: string;
         };
@@ -4701,6 +4959,11 @@ export interface components {
             cost?: number | null;
             /** Duration Ms */
             duration_ms?: number | null;
+            /**
+             * Status
+             * @default
+             */
+            status: string;
             /** Step Count */
             step_count: number;
         };
@@ -4886,6 +5149,34 @@ export interface components {
         LivenessView: {
             /** Live */
             live: boolean;
+        };
+        /**
+         * LocalAdministratorAvailabilityView
+         * @description The one fact the sign-in and first-run screens need before anybody is signed in.
+         *
+         *     Ternary, and nothing else deployment-specific: no name, no version, no
+         *     organisation, no count of anything. ``state`` is one of ``"unclaimed"``
+         *     (no local administrator and no identity provider — the CLI's own
+         *     command is the way in), ``"administered"`` (a local administrator
+         *     already exists, whether from the environment or a deliberate
+         *     enrolment), or ``"identity_provider"`` (this deployment's identity
+         *     provider is its way in).
+         *
+         *     ``command`` carries the CLI invitation exactly when it is relevant —
+         *     ``state == "unclaimed"`` — and is empty otherwise. It is a fixed
+         *     constant, the same string on every deployment, read from the one place
+         *     that also writes it into the boot announcement: naming nothing about
+         *     *this* deployment is what keeps it inside FR-076's boundary despite
+         *     being served unauthenticated.
+         */
+        LocalAdministratorAvailabilityView: {
+            /**
+             * Command
+             * @default
+             */
+            command: string;
+            /** State */
+            state: string;
         };
         /**
          * MaintenanceRequest
@@ -5621,6 +5912,8 @@ export interface components {
             models: string[];
             /** Provider Id */
             provider_id: string;
+            /** Readiness */
+            readiness: string;
             /** Verified */
             verified: boolean;
             /**
@@ -5684,6 +5977,8 @@ export interface components {
             local: boolean;
             /** Provider Id */
             provider_id: string;
+            /** Readiness */
+            readiness: string;
             /** Verified */
             verified: boolean;
         };
@@ -5730,6 +6025,131 @@ export interface components {
         RejectRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * ReplayCallView
+         * @description One call as a replay serves it: the thread's fields, plus what came back.
+         *
+         *     The thread view deliberately stops at "which capability, how it went". A
+         *     replay is read to answer what the run *found*, and a reader that cannot see
+         *     a single result can only list the questions the agent asked — the answers
+         *     are in the trace and were being thrown away here.
+         */
+        ReplayCallView: {
+            /** Call Id */
+            call_id: string;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /** Error */
+            error?: string | null;
+            /** Name */
+            name: string;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Result Truncated
+             * @default false
+             */
+            result_truncated: boolean;
+            /** Status */
+            status: string;
+        };
+        /**
+         * ReplayStageView
+         * @description One of the six stages, with the turns that ran inside it.
+         *
+         *     Five of the six hold no turns and that is the point of serving them. Only
+         *     the gathering stage drives the loop, so a replay of turns alone is a
+         *     detailed account of one stage and silence about the other five — including
+         *     intake and diagnosis, which each spend a model call and turn nothing.
+         *     ``llm_calls`` is what separates "made no turn" from "did nothing", and a
+         *     reader who has only the turn list cannot tell those apart.
+         */
+        ReplayStageView: {
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /**
+             * Failed
+             * @default false
+             */
+            failed: boolean;
+            /**
+             * Finding
+             * @default
+             */
+            finding: string;
+            /**
+             * Llm Calls
+             * @default 0
+             */
+            llm_calls: number;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /** Stage */
+            stage: string;
+            /** Turns */
+            turns: components["schemas"]["ReplayTurnView"][];
+        };
+        /**
+         * ReplayTurnView
+         * @description One turn as a replay serves it, its calls carrying their results.
+         *
+         *     The turn's own fields are the thread view's, restated rather than
+         *     inherited: a subclass cannot narrow ``list[ThreadCallView]`` to
+         *     ``list[ReplayCallView]``, because a list is mutable and so invariant. The
+         *     *values* still come from ``thread_turn_view`` below, which is the half that
+         *     could actually drift.
+         */
+        ReplayTurnView: {
+            /** Calls */
+            calls: components["schemas"]["ReplayCallView"][];
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /** Cost */
+            cost?: number | null;
+            /** Index */
+            index: number;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /**
+             * Model Rationale
+             * @default
+             */
+            model_rationale: string;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Selection Rationale
+             * @default
+             */
+            selection_rationale: string;
+            /** Turn Id */
+            turn_id: string;
         };
         /**
          * RequiredPermissionView
@@ -5902,6 +6322,22 @@ export interface components {
             /** Token Ids */
             token_ids: string[];
         };
+        /** RoleBindingView */
+        RoleBindingView: {
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Role */
+            role: string;
+            /** Source */
+            source: string;
+        };
+        /** RoleBindings */
+        RoleBindings: {
+            /** Roles */
+            roles: components["schemas"]["RoleBindingView"][];
+        };
         /**
          * RoleList
          * @description Every role, least privileged first.
@@ -5996,6 +6432,19 @@ export interface components {
             /** Rules */
             rules?: components["schemas"]["RuleView"][];
         };
+        /**
+         * RunEpisode
+         * @description What one investigation left behind, or nothing.
+         *
+         *     ``None`` rather than a 404 for a run that wrote none. A run with no episode
+         *     is an ordinary run — extraction skips a conclusion too short to learn from,
+         *     and a run that failed reached none at all — and answering "not found" would
+         *     turn a section that should print a calm sentence into an error state on
+         *     every card that has nothing to show.
+         */
+        RunEpisode: {
+            episode?: components["schemas"]["EpisodeView"] | null;
+        };
         /** RunList */
         RunList: {
             /** Runs */
@@ -6007,12 +6456,20 @@ export interface components {
             is_interrupted: boolean;
             /** Run Id */
             run_id: string;
+            /** Stages */
+            stages: components["schemas"]["ReplayStageView"][];
             /** Total Cost */
             total_cost: number;
+            /** Total Events */
+            total_events: number;
             /** Total Tokens */
             total_tokens: number;
+            /** Turn Tokens */
+            turn_tokens: number;
             /** Turns */
-            turns: components["schemas"]["ThreadTurnView"][];
+            turns: components["schemas"]["ReplayTurnView"][];
+            /** Unpriced Turns */
+            unpriced_turns: number;
         };
         /**
          * SampleView
@@ -6584,6 +7041,13 @@ export interface components {
         ThreadTurnView: {
             /** Calls */
             calls: components["schemas"]["ThreadCallView"][];
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /** Cost */
+            cost?: number | null;
             /** Index */
             index: number;
             /**
@@ -6591,6 +7055,16 @@ export interface components {
              * @default
              */
             model: string;
+            /**
+             * Model Rationale
+             * @default
+             */
+            model_rationale: string;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
             /**
              * Selection Rationale
              * @default
@@ -6731,6 +7205,42 @@ export interface components {
             signal?: components["schemas"]["SignalView"] | null;
             /** State */
             state: string;
+        };
+        /**
+         * TrustWriteRequest
+         * @description What an operator declares about this vendor's certificate.
+         *
+         *     There is no field here that turns verification off, and there is not going
+         *     to be one. The insecure form is reached by writing down why, in
+         *     ``unverified_reason`` — which is also what makes it need a permission the
+         *     role that merely operates integrations does not hold. Who accepted it and
+         *     when are stamped by the server; a value sent here for either is discarded
+         *     before anything is validated.
+         */
+        TrustWriteRequest: {
+            /** Certificate Pem */
+            certificate_pem?: string | null;
+            /** Fingerprints */
+            fingerprints?: string[];
+            /** Unverified Reason */
+            unverified_reason?: string | null;
+        };
+        /**
+         * TrustWriteView
+         * @description What was written down, and which addresses it now covers.
+         */
+        TrustWriteView: {
+            /** Addresses */
+            addresses?: string[];
+            /** Anchor */
+            anchor: string;
+            /**
+             * Describes
+             * @default
+             */
+            describes: string;
+            /** Integration */
+            integration: string;
         };
         /** TurnList */
         TurnList: {
@@ -9221,6 +9731,76 @@ export interface operations {
             };
         };
     };
+    integration_docs_v1_integrations__name__docs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationDocsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_certificate_trust_v1_integrations__name__trust_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrustWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustWriteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     verify_integration_v1_integrations__name__verify_post: {
         parameters: {
             query?: never;
@@ -9832,6 +10412,39 @@ export interface operations {
             };
         };
     };
+    episode_for_run_v1_memory_episode_get: {
+        parameters: {
+            query: {
+                run_id: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunEpisode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_memory_v1_memory_search_get: {
         parameters: {
             query?: {
@@ -9884,6 +10497,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_roles_v1_models_roles_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleBindings"];
                 };
             };
             /** @description Validation Error */
@@ -10996,6 +11640,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    local_administrator_availability_v1_setup_local_administrator_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalAdministratorAvailabilityView"];
                 };
             };
         };

@@ -1,0 +1,527 @@
+{
+  "wave": "specs_v7",
+  "updated": "2026-08-26",
+  "orchestrator": "Opus 5 lead session (/spec-wave specs_v7)",
+  "execution": "pares paralelos por slot conforme EXECUCAO.md — S0: 000 | S1: 001+020 | S2: 010+040 | S3: 030+070 | S4: 050+060 | S5: 080. Worktrees isoladas por implementer; single-write com dono por slot (EXECUCAO.md §2); deploy-stg + acceptance contra staging no fim de cada slot (EXECUCAO.md §3); checkpoint do laço mínimo no fim do S2.",
+  "feature_order": [
+    "000-regras-e-governanca",
+    "001-registro-do-que-o-agente-fez",
+    "020-identidade-enderecavel",
+    "030-uma-fonte-por-fato",
+    "040-decisao-composta",
+    "010-leitura-do-relato",
+    "070-confianca-de-certificado",
+    "050-primeiro-administrador",
+    "060-o-catalogo-ensina",
+    "080-incidente-fecha-o-laco"
+  ],
+  "slots": {
+    "S0": [
+      "000-regras-e-governanca"
+    ],
+    "S1": [
+      "001-registro-do-que-o-agente-fez",
+      "020-identidade-enderecavel"
+    ],
+    "S2": [
+      "030-uma-fonte-por-fato",
+      "040-decisao-composta"
+    ],
+    "S3": [
+      "010-leitura-do-relato",
+      "070-confianca-de-certificado"
+    ],
+    "S4": [
+      "050-primeiro-administrador",
+      "060-o-catalogo-ensina"
+    ],
+    "S5": [
+      "080-incidente-fecha-o-laco"
+    ]
+  },
+  "single_write_owner_by_slot": {
+    "S1": "020-identidade-enderecavel",
+    "S2": "030-uma-fonte-por-fato",
+    "S3": "010-leitura-do-relato",
+    "S4": "060-o-catalogo-ensina"
+  },
+  "dependencies": {
+    "000-regras-e-governanca": [],
+    "001-registro-do-que-o-agente-fez": [
+      "000-regras-e-governanca"
+    ],
+    "020-identidade-enderecavel": [
+      "000-regras-e-governanca"
+    ],
+    "010-leitura-do-relato": [
+      "001-registro-do-que-o-agente-fez"
+    ],
+    "040-decisao-composta": [
+      "001-registro-do-que-o-agente-fez"
+    ],
+    "030-uma-fonte-por-fato": [
+      "020-identidade-enderecavel"
+    ],
+    "070-confianca-de-certificado": [
+      "000-regras-e-governanca"
+    ],
+    "050-primeiro-administrador": [
+      "000-regras-e-governanca"
+    ],
+    "060-o-catalogo-ensina": [
+      "010-leitura-do-relato"
+    ],
+    "080-incidente-fecha-o-laco": [
+      "001-registro-do-que-o-agente-fez",
+      "010-leitura-do-relato",
+      "020-identidade-enderecavel",
+      "030-uma-fonte-por-fato",
+      "040-decisao-composta",
+      "070-confianca-de-certificado"
+    ]
+  },
+  "spec_generation": {
+    "status": "complete",
+    "started": "2026-08-23",
+    "finished": "2026-08-23",
+    "method": "10 agentes de geração paralelos (Opus), um por feature, escrevendo direto de .specify/templates/ na forma da casa (exemplar specs_v6/001), a partir de specs_v7/briefings/{COMUM,000..080}.md — mesmo método da v6; caminho scriptado do spec-kit segue abandonado",
+    "totals": "10 features, 40 arquivos, ~14.700 linhas em spec/plan/tasks/checklists; controle.md deliberadamente ausente (implementer escreve)"
+  },
+  "completed": [
+    "000-regras-e-governanca",
+    "001-registro-do-que-o-agente-fez",
+    "010-leitura-do-relato",
+    "020-identidade-enderecavel",
+    "030-uma-fonte-por-fato",
+    "040-decisao-composta",
+    "050-primeiro-administrador",
+    "060-o-catalogo-ensina",
+    "070-confianca-de-certificado",
+    "080-incidente-fecha-o-laco"
+  ],
+  "current_feature": null,
+  "last_verdict": "Dez features implementadas e mergeadas. Verificacao independente por feature em 2026-08-25: seis PASS (000, 001, 020, 040, 060, 070) e quatro FAIL (010, 030, 050, 080). Nenhum dos quatro FAIL e codigo quebrado — os quatro sao a mesma familia: uma tarefa marcada feita cujo trabalho nao existe. Marcacao de tarefas: 28 abertas no inicio do dia, 14 agora, 1 encerrada sem execucao.",
+  "decisions_taken_during_generation": [
+    "Vocabulário de status: a enumeração do STORE (run_trace_store.py:30) é a servida por summary_of; o console aprende (010) e o gate bidirecional + purga das fixtures ('succeeded', 'awaiting_approval') é da 030 (Phase 2b, T060-T069, ordem rígida). Unificar runtime×store NÃO é desta onda (recusa registrada no plan da 030).",
+    "Canônico de runtime: ReActLoop; build_pipeline declara-se dormente nomeando o harness (040). zero_integration_outcome vira função com dois chamadores.",
+    "OpenAPI/cliente TS: regenerados pelo orquestrador no merge de cada slot, nunca mergeados textualmente (EXECUCAO.md).",
+    "first-run.tsx no S4: dono 050; as duas edições da 060 aplicadas no merge (EXECUCAO.md).",
+    "000 recupera a governança committed-e-perdida de 6d1ede6 (revertida por 19431fc) em vez de reescrever (REGRAS.md §1).",
+    "060 releu o alvo min_scope: obrigatório nos 21 campos secretos, proibido nos 19 não-secretos (endpoint() nem aceita); guide_url nos 40.",
+    "050: CLI ninjasre setup admin canônico + credencial de boot promovida a convite; tela de first-run que cria conta RECUSADA (nenhuma rota não autenticada cria administrador).",
+    "070: aceitação por endereço (não por vendor); permissão nova integration.trust_unverified admin+; PEM cobre cluster, fingerprint nó único; três mensagens de falha distintas.",
+    "080: dois roteiros (laço de leitura reexecutável + laço inteiro com aprovação humana); vítima CT122/redis (CT139/CT103 são invisíveis às regras — não disparam alerta)."
+  ],
+  "operator_answers_2026-08-23": [
+    "080: CT122 (redis) AUTORIZADA — fora de uso no momento; pode ficar fora. Janela da demo: a combinar no dispatch do S5. Privilégio VM.PowerMgmt do token Proxmox: segue em aberto até a E9 — o ramo 'não-exercida com decisão registrada' cobre.",
+    "070: pve01/pve02 alcançados por IP (confirmado pelo operador; consistente com a skill debug-k3s) ⇒ fingerprint-first é o caminho; PEM só se um dia houver nome+cluster.",
+    "030: DECIDIDO pelo orquestrador (delegado): o 4º valor 'failing' ENTRA — um check registrado que falhou aparecendo como 'Stored' é a mesma classe de mentira que a feature existe para matar; a varredura de leitores do plan cobre o risco.",
+    "020: prefixo 'inc_' CONFIRMADO.",
+    "040: perfil de sandbox do staging = KUBERNETES (k3s disponível) ⇒ o balcão compõe inteiro no staging; ligação real de control-plane genérico fica pós-onda.",
+    "060: DECIDIDO pelo orquestrador (delegado): vendors cujo token não tem modelo de escopo no vendor (pushover/telegram/signoz/redis) usam a frase explícita 'este token não carrega escopo — trate como acesso pleno'; gate aceita essa forma. Hermes aponta a documentação do próprio pacote.",
+    "050: DECIDIDO pelo orquestrador (delegado): aviso 'sem administrador' sempre visível no estado sem dono (não dá forma de entrar — abrir a porta exige shell); rotação de passphrase REVOGA sessões vivas (o motivo de rotacionar é desconfiar da credencial; sessão que sobrevive anula a rotação).",
+    "ops-1/2/3: DECIDIDO pelo orquestrador (delegado): NÃO bloqueiam a demo — entram no backlog novo com estado real (a demo usa Gemini e alertas que já chegam; nenhuma das três é pré-condição do laço). Se sobrar folga no S5, ops-3 (chave Ollama) é a única com valor imediato."
+  ],
+  "backlog_candidates_discovered": [
+    "Guardrails engine não registrado nos hooks do laço de serving (investigation_hooks só registra o guarda de janela; GatewayState.guardrails + trust_controls.py sabem registrar) — mesmo formato de seam, sem feature dona nesta onda (achado da 040).",
+    "readSetupState lê /v1/config/{node_id} como stub Promise.resolve({}) — zera modelChosen/providerName nas 9 telas que usam a causa (achado da 030).",
+    "Divergência docs.md × schema por vendor (tabela de Setup duplicada) — vira tela mentindo agora que docs.md é servido (achado da 060).",
+    "Fixtures não exercitam todos os estados do domínio — T069 da 030 registra a lacuna; preencher é trabalho posterior.",
+    "surfaces/console (sign-in próprio) sem estatuto decidido — REGRAS.md §4; a 050 só exige não-contradição.",
+    "bans.ts COMPOSITE_ID: o aperto que removeu o falso positivo em relogio (23:41:02) abriu um falso negativo estreito — composto de segmentos todos numericos nao e pego. Sem alcance no dominio hoje (o unico composto em tela Now e alert:alertmanager:<hash>, segmentos alfabeticos por construcao). Severidade baixa; travado por teste permanente no fechamento do S0."
+  ],
+  "model_strategy": "spec-implementer segue Sonnet effort max como default (as specs foram escritas para tornar a implementação mecânica: 50-75 tarefas/feature com file:line). Exceção recomendada: 040 e 070 — as duas features de fronteira (composition roots com ordem entre elas; TLS no credential proxy) — implementadas com Opus, OU Sonnet com verifier em Opus. O orquestrador do /spec-wave permanece Opus+ (os merges, a regeneração de artefatos e os gates de staging são onde mora o julgamento agora).",
+  "notes": "Ler EXECUCAO.md antes de dispatchar qualquer slot: é o opt-in de paralelismo e staging que a skill spec-wave exige — inclui a regra de artefatos gerados, a de arquivos fora do índice em worktrees, e a de merge que recusa hunk revertendo arquivo alheio (precedente 6d1ede6→19431fc). Constituição alvo pós-000: 2.2.0. Confronto final ganha a coluna 'quem constrói isso em produção?'.",
+  "current_slot": "todas as dez features implementadas; reconciliacao e portao final em curso",
+  "baseline_commit": "abbc418",
+  "baseline_tree": "limpa (git status --short vazio) no dispatch do S0",
+  "staging_access": {
+    "env_file": ".env na raiz do repositorio — gitignored (.gitignore:10), modo 600, LF, NOME=valor, sourceable com 'set -a; . ./.env; set +a'",
+    "variables": [
+      "NINJASRE_STAGING_URL",
+      "NINJASRE_STAGING_USERNAME",
+      "NINJASRE_STAGING_CREDENTIAL"
+    ],
+    "shape": "NINJASRE_STAGING_CREDENTIAL e SENHA, nao token de sessao. Verificado 2026-08-23 pelo orquestrador.",
+    "exchange": "POST {url}/api/session form-encoded username+password+returnTo -> 303 + Set-Cookie ninjasre_session=<token>. O handler (console/src/app/api/session/route.ts:73) repassa para POST {api}/auth/sign-in e devolve {token}.",
+    "why_it_matters": "console/tests/e2e/session.ts:26 le NINJASRE_CONSOLE_E2E_CREDENTIAL e poe o valor DIRETO como cookie ninjasre_session. Senha nesse cookie nao autentica: guard.ts:55 so confere presenca, e a shell redireciona com reason=expired depois que a API recusa. O backing de staging precisa do passo de troca, como o backing compose ja faz.",
+    "gateway_reachability": "GET /v1/* no host do console cai em 307 para /sign-in mesmo com Bearer — a troca tem de passar pelo /api/session do proprio console.",
+    "declared_deviations_handed_to_000": [
+      "T035: a credencial nao e repassada crua; e trocada por token antes de virar NINJASRE_CONSOLE_E2E_CREDENTIAL.",
+      "T032: a lista de constantes ganha uma quarta variavel (usuario), declarada no mesmo tier."
+    ]
+  },
+  "last_gate": {
+    "when": "2026-08-25, arvore com os tres reparos",
+    "make verify": "exit 0 — 12778 passed / 31 skipped / 31 warnings em 674,92s (11:14); benchmarks 37 passed; 7 contratos de import mantidos; zero linhas FAILED ou ERROR",
+    "make test-postgres": "exit 0 — 578 passed / 20 skipped em 365,35s (6:05). Rodado a parte porque o alvo verify NAO o inclui, e e onde vive a prova de concorrencia do primeiro administrador",
+    "nota": "o skip a mais em verify (30 -> 31) e o bloco novo da recusa em claro, que se pula sozinho contra o backing de mock e roda de verdade so contra compose. E o comportamento desejado, nao uma regressao."
+  },
+  "slot_results": {
+    "S0": {
+      "feature": "000-regras-e-governanca",
+      "verdict": "PASS",
+      "gates": {
+        "make_verify": "exit 0 — 12223 passed / 27 skipped (base 12210/27)",
+        "transversal_deterministico": "35 passed / 17 skipped",
+        "transversal_staging": "exit 0 — 10 passed / 10 skipped, contra https://stg-ninjasre.lan.kyo.ninja",
+        "evidencia": "10 capturas full-page em specs_v7/000-regras-e-governanca/evidence/, produzidas pela flag --evidence-dir documentada",
+        "credencial": "ausente do log completo (conferido com comparacao embutida do shell, nunca grep com o segredo em argv)"
+      },
+      "entregue": [
+        "Constituicao 2.0.0 -> 2.2.0, duas emendas: clausula de paridade no artigo de capacidades, e artigo novo 'composto ou nao foi entregue'.",
+        "ADR 0016 novo, self-contained; ADR 0009 com exatamente uma linha alterada (Superseded by 0015).",
+        "Indice de ADRs e traceability do roadmap fechando os dois em 16, mesmo conjunto, sem reescrever as preexistentes.",
+        "Cinco regras transversais novas com o vermelho capturado antes de qualquer allowlist, e dez entradas de allowlist (nove previstas + uma descoberta).",
+        "Backing 'staging' na validacao de navegador: nao sobe nada, troca usuario+senha por token, captura evidencia no mesmo run."
+      ],
+      "allowlist_entries": 10,
+      "allowlist_nota": "e o numero que cada slot seguinte precisa fazer cair",
+      "reparos": [
+        "Ciclo 1 (achado pelo orquestrador): --evidence-dir nao chegava em quem captura — chegava ao Playwright so como --output=, e a captura le a variavel de ambiente. Zero capturas com exit 0. Corrigido exportando a variavel no ambiente do subprocesso e removendo o --output inteiramente.",
+        "Ciclo 2 (achado pelo verifier): cinco linhas de tests/unit/tools/test_console_e2e.py citavam numero de tarefa e papel de fluxo — arquivo committed dependendo de arquivo que nao vai no clone. Reescritas em substancia. E controle.md citava 79 passed ao lado de um comando que devolve 54; o numero estava certo, faltava um terceiro arquivo na citacao."
+      ]
+    }
+  },
+  "licoes_de_execucao": [
+    "O spec-implementer bateu o teto de turnos TRES vezes na 000 (154, 275, 391 chamadas). A model_strategy presume tarefas mecanicas de file:line; as da 000 nao eram (auditar artigos, capturar cinco vermelhos reais, implementar um backing). Para features de forma parecida, fatiar o dispatch por fase em vez de por feature — vale especialmente para 040 e 070.",
+    "O implementer nao escreveu controle.md ate ser mandado escreve-lo primeiro e incrementalmente. Nas proximas features, exigir o controle.md como primeira entrega e nao como ultima.",
+    "Escrever log de run DENTRO do --evidence-dir invalida o resultado: a ferramenta limpa o diretorio. Log sempre fora.",
+    "Nunca conferir vazamento de segredo com 'grep -F -- \"$SEGREDO\"': o proprio grep nasce com o segredo em argv e o ps seguinte o encontra. Usar comparacao embutida do shell (case).",
+    "Commitar por fase nao basta: quatro agentes bateram o teto de turnos segurando trabalho nao commitado, dois deles com a instrucao de commitar por fase no proprio prompt. O teto nao chega numa fronteira de fase. A regra passou a ser commitar onde a arvore estiver coerente.",
+    "O codigo de saida vem do comando, nunca da ultima linha da cadeia: um 'echo' no fim faz toda notificacao dizer 0. Aconteceu duas vezes nesta onda, uma delas comigo.",
+    "Ao reportar um negativo, diga o que voce olhou. 'Nenhuma regra sobre a metrica do convidado' e um achado; 'nada vigia este conteiner' era palpite com roupa de achado — quatro regras vigiavam pelo lado do servico e dispararam antes."
+  ],
+  "s1_state": {
+    "001": {
+      "status": "implementer fechou — 17 commits, arvore limpa, relatorio completo",
+      "branch": "worktree-agent-afb5dc9d0a0d01793",
+      "head": "58fcc99"
+    },
+    "020": {
+      "status": "em execucao — 4o teto de turnos; nucleo entregue",
+      "branch": "worktree-agent-a7470b9f74733948a",
+      "head": "d35449e"
+    },
+    "merge_ensaiado": "git merge-tree: UM conflito, platform/persistence/postgres/models.py — puramente aditivo dos dois lados (001 acrescenta AgentRun.headline e um indice GIN em incidents.run_ids; 020 acrescenta Incident.public_id e um indice unico org_id+public_id). Manter os dois hunks. NAO e a classe de hunk que o EXECUCAO.md manda recusar (nenhum reverte conteudo alheio). transversal-rules.spec.ts automerge limpo apesar de ambas o tocarem."
+  },
+  "achados_estruturais_do_S1": [
+    "A lista de escrita unica do EXECUCAO.md esta incompleta. Ela cobre console/src/i18n/*.ts, console/src/shell/routes.ts e console/visual/screens.json — e deixa de fora dois arquivos que o S1 provou serem compartilhados: platform/persistence/postgres/models.py (guarda o modelo de TODA tabela, entao qualquer feature que acrescente coluna colide) e fixtures/scenarios/** (a 001 mexeu nos arquivos de runs, a 020 nos de incidents; deu disjunto por coincidencia de dominio, nao por desenho). Para o S3 em diante, ou a lista inclui os dois, ou o dispatch declara quais tabelas e quais cenarios cada lado possui.",
+    "A declaracao de interseccao 'nenhuma' entre 001 e 020 estava errada na letra e certa no espirito: houve interseccao real em models.py e em transversal-rules.spec.ts, mas ambas aditivas e resolviveis. O que salvou foi as duas features mexerem em dominios diferentes dentro dos mesmos arquivos.",
+    "Correcao de leitura do orquestrador: eu atribui a 001 a derrubada de cinco entradas de allowlist. Errado. As entradas descrevem o que a TELA imprime; a 001 e backend e so PRODUZ os campos novos (headline/report). Quem CONSOME e a 010. As dez entradas continuam de pe ao fim do S1, e a conta cai no S2. A allowlist e uma divida do console, e so uma feature de console a paga."
+  ],
+  "allowlist_transversal": {
+    "inicio": 10,
+    "agora": 8,
+    "caiu_no_S1": [
+      "/incidents/{id} identifier-as-name",
+      "/incidents/{id} negative-assertion"
+    ],
+    "nota": "a conta e divida do console; so uma feature de console a paga. A 010 no S2 e dona das quatro entradas de markdown cru e id-como-nome em /runs, /runs/{id} e /."
+  },
+  "tese_provada_no_ambiente_real": "Staging, apos o deploy do S1: run_turns=5, tool_calls=4, evidence=1 (base da onda era 0/0/0 com 37 runs). Processo subiu 21:03:41Z, turnos gravados 21:23:23Z-21:23:39Z. Investigacao veio de alerta real pelo caminho de producao, nao foi disparada para a prova. headline e sentenca limpa; summary segue comecando com ###.",
+  "regras_novas_para_o_S2": [
+    "Recursos compartilhados que o EXECUCAO.md nao previa e que o S1 provou: numeros de revisao de migracao, platform/persistence/postgres/models.py, fixtures/scenarios/**, e a propria transversal-rules.spec.ts. Regra geral: todo recurso que ambos os lados podem editar precisa de passo de reconciliacao declarado no merge.",
+    "Commit por fase e condicao de entrada no dispatch, nao lembrete depois. A feature que commitava por fase transformava teto de turnos em recado; a que acumulava, em risco de perda.",
+    "Aquecimento entre o Argo Synced+Healthy e a aceitacao. Synced+Healthy nao significa que o console renderizou; sem isso a aceitacao pega a pagina fria e produz falso defeito.",
+    "Evidencia de ambiente real sai do tasks.md das features e vira etapa declarada do orquestrador no fim do slot: worktree nao alcanca cluster nem banco.",
+    "Dispatch fatiado por fase para features de julgamento (040 e 070 em especial), nao por feature inteira."
+  ],
+  "divida_para_a_010": "O dataset simulado nao carrega custo por turno: derivar era impossivel sem dado real, e inventar cifra era o padrao a evitar. Todo turno fica 'sem custo', entao a tela sempre dira 'nao registrado'. A 010 promete 'transcript e custo reais' e vai precisar de turnos com custo no cenario — pre-requisito dela, nao descoberta no meio.",
+  "bloqueio_descoberto_no_S1": {
+    "CORRECAO": "A conclusao anterior — 'o console serve as listas do cache de rota congelado' — estava ERRADA. Registrada aqui como erro do orquestrador, nao apagada.",
+    "o_que_eu_media": "Carreguei /incidents e /runs no staging e grepei o log do pod 'app' por requisicoes a /v1/incidents. Zero. Conclui cache congelado.",
+    "por_que_estava_errado": "O console nao fala com o 'app'. NINJASRE_CONSOLE_API_URL=http://console:8421 aponta para o deployment 'console' LEGADO — outra imagem (ninjasre/console), subido 02:59Z, 18h antes do deploy do slot, nunca redeployado por 'deploy-stg app web'. As requisicoes existiam; iam para outro pod, e eu grepava o log errado.",
+    "o_que_isso_explica_de_verdade": "Os 19 links de incidente vazios: o backend legado nao serve public_id, porque e anterior ao merge do S1. E ele responde 400 a /v1/incidents?limit=1 — nem a mesma forma de API.",
+    "o_manifesto_desmente_o_cache": "prerender-manifest.json do build implantado lista apenas /gallery como pre-renderizada. Nem /incidents nem /runs. A borda tambem repassa cache-control: no-store, sem Age nem X-Cache. Nao ha cache congelado em lugar nenhum.",
+    "quem_achou": "A 030, ao nao conseguir reproduzir o defeito localmente e pedir a comparacao entre a borda e o pod. Ela estava certa em duvidar da premissa que eu dei.",
+    "o_conserto": "Apontar NINJASRE_CONSOLE_API_URL para app:8420 e remover o deployment 'console' legado. E trabalho no repositorio GitOps, fora desta arvore. A remocao ja estava documentada pela 000 (T048) como workload legado a remover — agora sabemos que ele nao esta so ocioso, esta SERVINDO dados velhos ao console.",
+    "dono": "operador / infra."
+  },
+  "troca_S2_S3": {
+    "decidido": "2026-08-23, pelo orquestrador, apos o achado do cache congelado no S1.",
+    "o_que_mudou": "030 sobe para o S2 (com a 040); 010 desce para o S3 (com a 070). Nada mais muda.",
+    "porque": "030 desfaz o cache de rota congelado. Enquanto ele durar, nenhuma tela de lista pode ser validada contra staging — carregar /incidents e /runs produz zero requisicoes ao servico. A 010 e a feature cuja tese e 'o console le o registro'; valida-la contra paginas que nao leem nada nao prova nada. 030 e pre-condicao de prova das outras no ambiente real.",
+    "pareamento_preservado": "A regra do EXECUCAO.md e um lado console x um lado backend. 030 e console e 040 e backend, entao S2 continua disjunto. No S3, 010 e console e 070 e credential proxy mais integracao — tambem disjunto. Parear 010 com 030 teria colidido: as duas sao console.",
+    "dependencias_conferidas": "030 depende de 020 (feita). 040 depende de 001 (feita). 010 depende de 001 (feita). 070 depende de 000 (feita). 060 depende de 010, que agora fecha no S3 — S4 segue valido. 080 depende de 001,010,020,030,040,070, todas fechadas ate o fim do S3.",
+    "consequencia": "O checkpoint do laco minimo, declarado para o fim do S2, move para o fim do S3: ele exige investigacao LEGIVEL, e legibilidade e da 010.",
+    "revisao": "A troca continua valendo, mas a razao que eu dei para ela estava errada. Movi a 030 para o S2 alegando que o cache congelado bloqueava a validacao em ambiente real. Nao havia cache congelado. O que bloqueava — e ainda bloqueia — e o console falar com um backend legado. A 030 entregou valor real de qualquer forma (gate de rota dinamica, chip Unknown, contador de requisicoes, allowlist 8->7), entao a troca nao custou nada; mas a premissa era falsa e fica registrada como tal."
+  },
+  "achados_de_infraestrutura": [
+    "PROVISIONAMENTO DE WORKTREE: as tres worktrees da onda (001, 020, 030) nasceram no commit RAIZ do repositorio (c789c2d, 'Add initial README') em vez da ponta da master. Cada implementer consertou sozinho com fast-forward ou reset e relatou como nota de rodape, entao passou duas vezes como curiosidade. Tres de tres e defeito sistematico do isolation: worktree. Custo por ocorrencia: o implementer gasta turnos diagnosticando uma arvore sem codigo antes de comecar. Mitigacao ate haver conserto: o dispatch deve mandar conferir 'git log --oneline -1' antes de qualquer trabalho e corrigir para a ponta se necessario.",
+    "RELATORIO DE AGENTE PODE VOLTAR VAZIO: o relatorio de um verifier voltou sem conteudo apos 118 chamadas de ferramenta. Mitigacao adotada no S2 e obrigatoria daqui em diante: todo implementer grava o controle.md incrementalmente num arquivo em /tmp/.../scratchpad/controle/<feature>.md, fora do repositorio e da worktree, ao fim de cada fase junto com o commit. Provou-se no mesmo dia: a 030 bateu o teto sem relatorio e o arquivo em disco tinha o ledger inteiro.",
+    "O proxy de credencial rodava havia 30 horas quando a 070 foi validada: o deploy levara apenas app e web. O componente que aplica a confianca de certificado era exatamente o nao atualizado. O T003 da 080 ja mandava rodar make deploy-stg SEM COMPONENTS=, e estava certo.",
+    "A maquina fica saturada com cinco agentes: carga 9.7/19.6/25.5 em 3 CPUs, vitest orfaos, execucoes de cobertura falhando por contencao e nao por regressao. O portao final tem de rodar sozinho.",
+    "Worktrees de agente podem nascer no primeiro commit do repositorio: tres agentes de uma so onda abriram arvores com um README.md e nada mais, uma delas 757 commits atras. Recuperacao: git merge --ff-only master. Agora esta nas definicoes dos agentes."
+  ],
+  "defeitos_nomeados_com_dono": [
+    {
+      "o_que": "O registro de hooks nao distingue observador de portao, e trata os dois como observador. core/agent/hooks/registry.py:139: quando um hook de PRE_TOOL_USE levanta excecao, ele loga 'agent.hook_failed' e faz continue — a chamada de ferramenta segue. O comentario declara a intencao ('a crash is not a decision'), que e correta para o gravador e errada para um portao: um portao cujo corpo quebra deve NEGAR, nao deixar passar.",
+      "descoberto_por": "040, medido (nao inferido): o hook levantou e a chamada prosseguiu.",
+      "por_que_nao_e_catastrofico_hoje": "a rede e a recusa dentro do corpo da propria capacidade — por isso ela nunca pode ser afrouxada. Mas a defesa em profundidade tem uma camada a menos do que o desenho supoe.",
+      "recomendacao": "O registro precisa saber que tipo de hook esta despachando: observador falha aberto (o turno nao pode cair porque o gravador caiu), portao falha fechado. Nao e edicao avulsa — muda o modelo de seguranca e precisa de ciclo test-first proprio, com o vermelho capturado.",
+      "dono": "080 (incidente fecha o laco) ou feature propria pos-onda. NAO e da 040, que o encontrou e o nomeou corretamente sem expandir escopo."
+    },
+    {
+      "o_que": "Sem plano de controle vinculado, o balcao de remediacao nao compoe: RequestBuilder le um instantaneo ilegivel, PlanFactory nao deriva plano, e a chamada e recusada por falta de plano. Compor um balcao nessa condicao seria compor um que so sabe recusar, entao compose_remediation nao compoe e escreve remediation.desk_skipped nomeando o que falta.",
+      "consequencia_medivel": "No staging, 'select count(*) from approvals where ... remediation' da ZERO por construcao. Medir mesmo assim: o numero e a evidencia de que a causa e essa, e o log dira desk_skipped ou desk_composed.",
+      "caminho_mais_curto": "Vincular ProxmoxControlPlane (capabilities/tools/remediation/proxmox/plane.py:124) a partir do cliente que compose_discovery_sources ja constroi; treze capacidades de hipervisor ja tem componentes registrados.",
+      "por_que_a_040_nao_fez": "Vincular e decidir que o agente proponha escritas contra o hipervisor real. A 040 nomeou e nao decidiu — correto.",
+      "dono": "070 (confianca de certificado) conecta o Proxmox de verdade, e a 080 depende disso para o laco fechar. O vinculo cai naturalmente ali, nao na 040."
+    },
+    {
+      "o_que": "Quatro escritas fora do pacote de remediacao deixam de ser oferecidas com o balcao composto: alertmanager_acknowledge_incident, propose_knowledge, pushover_post_message, telegram_post_message. E o filtro fazendo o que a spec pede (capacidade acima de leitura sensivel sem componentes nao e oferecida), e e mudanca de comportamento visivel — o agente perde notificacao e proposta de conhecimento.",
+      "recomendacao": "Se nao for desejado, o conserto e registrar componentes ou rebaixar o nivel declarado. NUNCA afrouxar o filtro.",
+      "dono": "operador decide; 060 (o catalogo ensina) e onde o nivel declarado de cada capacidade vive."
+    },
+    {
+      "o_que": "O corpus sintetico nao passa pelo caminho de selecao de ferramentas do investigador de serving. make test-synthetic roda tests/harness sobre tests/corpus/, e o harness constroi o proprio laco e o proprio catalogo — entao o estreitamento por integracao configurada nunca e exercitado por ele.",
+      "o_que_a_040_fechou": "A composicao de serving esta provada ponta a ponta por tests/synthetic/test_the_proposal_and_the_act.py, com o estreitamento lido de verdade da arvore de configuracao, e com fio-cortado medido (3/10, 6/10, 1/10 conforme o fio).",
+      "o_que_continua_aberto": "Fazer o corpus dirigir o investigador de serving em vez do proprio laco. E trabalho de instrumento no harness.",
+      "dono": "trabalho de instrumento pos-onda; NAO e da 040, que fechou o que a fase pedia e nomeou o resto."
+    }
+  ],
+  "demo_080_executada": {
+    "quando": "2026-08-24, 10:26:29Z a 10:50:06Z (UTC)",
+    "onde": "staging real + hipervisor Proxmox real (cluster HAL9000)",
+    "sujeito": "CT122 redis, no pve01, autorizada pelo operador, fora por 18 minutos",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/ (EVIDENCIA.md + 11 capturas)",
+    "estacoes_cumpridas": [
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E10"
+    ],
+    "estacoes_nao_exercidas": [
+      "E7",
+      "E8",
+      "E9"
+    ],
+    "porque_E7_a_E9_nao_correram": "O catalogo inteiro tem tres capacidades de escrita — acknowledge_incident, pushover/post_message, telegram/post_message — e as tres sao aviso. Nenhuma capacidade atua sobre infraestrutura. O balcao compos 20 capacidades, o portao se registra por run, o teto de ferramentas e 40 e so 4 foram usadas: nada foi cortado por orcamento. O agente estava certo em nao propor nada.",
+    "o_laco_fecha_ate_onde": "A maquinaria fecha o laco inteiro: 20 acoes no balcao, portao por run, 13 acoes oferecidas ao run da demo. Esta demo nao fechou porque a acao que resolvia o incidente ficou de fora do corte de 40, nao porque faltasse vocabulario. E correcao com dono e uma linha, nao decisao de escopo de produto.",
+    "porque_E7_a_E9_nao_correram_CORRIGIDO": "A explicacao anterior estava errada e foi derivada de um grep em integrations/ que achou tres arquivos, generalizado para o catalogo inteiro. O catalogo tem 24 capacidades de escrita, 20 delas de remediacao, incluindo proxmox_start_guest. O run da demo recebeu 40 capacidades oferecidas, 13 delas acoes de remediacao. O seletor ofereceu sete maneiras de parar, desligar, suspender, reiniciar, retomar, migrar e relocar um convidado, e cortou a unica que liga um — num incidente cujo conteudo era um convidado que parou. O agente nao escolheu nao agir: nao tinha como. Causa em gateway/runtime/investigator.py::_select_tools, no ranqueamento contra o teto de 40. Evidencia: specs_v7/080-incidente-fecha-o-laco/evidence/demo-2026-08-24/T041-ferramentas-oferecidas.md"
+  },
+  "achados_da_demo": [
+    {
+      "achado": "O titulo do incidente e o nome do alerta, nao uma frase",
+      "evidencia": "Tela mostra 'ProxmoxGuestStopped'. A manchete da investigacao, na tela seguinte, e uma frase correta e completa.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "O cabecalho do incidente atribui o sujeito ao no errado",
+      "evidencia": "Cabecalho diz 'node pve02'; os rotulos do alerta na mesma tela dizem 'node=pve01'; a investigacao tambem diz pve01. O cabecalho le 'instance' — o endereco de quem raspou a metrica — e o apresenta como o no do sujeito.",
+      "consequencia": "Um operador abre sessao no no errado. O dado certo esta em duas outras superficies.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "RETIRADO — estava errado: a descoberta nao omite o no do convidado",
+      "evidencia": "Todo convidado tem native_id na forma lxc/HAL9000/unknown/122. O pve_guest_info do exportador carrega node=pve01, entao o dado existe.",
+      "dono": "por atribuir (na forma corrigida)",
+      "correcao": "O terceiro segmento de lxc/HAL9000/unknown/122 e o instante de criacao, nao o no (integrations/proxmox/identity.py). O no e excluido de proposito para que a identidade sobreviva a uma migracao entre nos. Achado construido sobre um formato que eu nao conhecia; apurado por um verificador que abriu o arquivo.",
+      "o_que_sobra": "O instante de criacao esta mesmo ausente em todos os convidados. Pelo desenho da funcao, um convidado que o ganhe depois passa a ser uma identidade diferente — pode duplicar o que existe."
+    },
+    {
+      "achado": "O custo aparece de duas formas em duas telas para o mesmo run",
+      "evidencia": "Painel do incidente: '5 steps · 23s · Not recorded'. Tela do run: 'Cost $0.00' com reparticao por turno.",
+      "dono": "por atribuir"
+    },
+    {
+      "achado": "prometheus_metric_statistics devolve 400 com start vazio",
+      "evidencia": "invalid parameter 'start': cannot parse '' to a valid timestamp — visto num run anterior, nao reincidiu no run da demo",
+      "dono": "por atribuir"
+    }
+  ],
+  "seguranca": {
+    "exposicao": "Um agente imprimiu NINJASRE_STAGING_CREDENTIAL na propria transcricao ao rodar 'cat -A' no .env para conferir fim de linha. Ele mesmo declarou, sem ser perguntado.",
+    "alcance": "Confinado a transcricao daquela sessao em disco. Nenhum commit, arquivo do repositorio ou relatorio carrega o valor.",
+    "acao_recomendada": "Rodar a senha do operador de staging. Decisao do operador."
+  },
+  "portao_em_2026-08-24": {
+    "veredito": "verde, exceto a comparacao visual — que e revisao humana e nao de agente",
+    "medido_peca_a_peca": {
+      "estaticos": "exit 0 — lint, format, mypy, 7 contratos de importacao, constantes, protocolos, dependencias, deriva de documentacao, 15 integracoes em paridade",
+      "tests/unit + tests/architecture": "8288 passed, 1 skipped",
+      "tests/contract (sem console) + security + chaos + corpus + synthetic + e2e": "4001 passed, 29 skipped, exit 0",
+      "tests/contract/console": "483 passed; a unica falha e test_the_untouched_baselines_still_match",
+      "benchmarks": "37 passed",
+      "console vitest": "170 arquivos, 2802 testes, todos passando; 93.77% de sentencas, 90.08% de ramos",
+      "console build": "verde",
+      "console e2e": "exit 0 — 335 no projeto behaviour, 20 no first-day",
+      "console visual": "14 baselines divergentes, nenhuma aceita — aceitar uma baseline e decisao de gente"
+    },
+    "por_que_nao_num_comando_so": "Tarefas de fundo desta sessao foram mortas tres vezes no mesmo ponto e o primeiro plano limita a dez minutos, entao o portao foi medido peca a peca. Nenhuma peca ficou por medir.",
+    "consertado_para_chegar_aqui": [
+      "Deriva do OpenAPI que so existe com 030 e 070 na mesma arvore: nenhum portao estatico a pegou, e o cliente do console derivava dela.",
+      "test_one_fictional_deployment varria a saida do proprio Playwright — gravacao do dataset sendo servido, nao segunda declaracao dele.",
+      "Duas falhas herdadas do master, ambas consertadas pela raiz: o anonimizador comia a documentacao do Proxmox por causa de um exemplo de PEM, e um teste passou a ler o livro de verificacoes como a rota real le, em vez de largar o argumento removido."
+    ],
+    "achado_de_ferramenta": "console/.toolchain/tree-writing-suite.lock guarda um PID e nao confere se ele ainda vive. Toda corrida interrompida deixa a sua, e a proxima recusa-se a rodar citando um processo morto. Bloqueou o portao quatro vezes ate eu remover o arquivo a mao."
+  },
+  "deploy_final_2026-08-24": {
+    "comando": "make deploy-stg, sem COMPONENTS= — como a T003 da 080 exigia",
+    "exit": 0,
+    "componentes": [
+      "app",
+      "web",
+      "proxy"
+    ],
+    "argo": "Synced/Healthy, gitops 83d7ef9b8bde",
+    "confirmado_separadamente": {
+      "a_interface_responde": "GET / -> 307 para /sign-in em 0.03s",
+      "a_sessao_abre": "POST /api/session devolve token",
+      "proxmox": "verify/report ok=True — 'Proxmox accepted the token.'",
+      "estate": "100 recursos presentes, sobreviveram ao deploy"
+    },
+    "o_bloqueio_que_ele_revelou": "O manifesto declarava quatro componentes e o cluster roda tres. O quarto, 'console', e a mesma roda que o 'app' iniciada noutro ponto de entrada — uma segunda copia inteira da aplicacao, nao um front-end — e a copia que este cluster rodava tinha derivado 18 horas enquanto o 'web' apontava para ela. Retirado do manifesto de staging, com a compensacao nomeada no lugar: trafego de navegador e de agente passam a dividir um gateway.",
+    "a_correcao_da_070_provada_em_producao": {
+      "antes": "declarar um pin errado deixava as chamadas passando ate reiniciar o processo",
+      "agora": "pin errado -> ok=False imediatamente, nomeando os dois fingerprints; pin correto -> ok=True imediatamente",
+      "sem_reiniciar_nada": true
+    }
+  },
+  "independent_verification_2026_08_25": {
+    "method": "sete spec-verifier em contexto limpo, um por feature sem veredito individual registrado; instrucao de nao copiar controle.md e de nomear com file:line qualquer marcacao que o codigo nao sustentasse",
+    "verdicts": {
+      "000-regras-e-governanca": "PASS (registrado no fechamento do proprio slot)",
+      "001-registro-do-que-o-agente-fez": "PASS (registrado no fechamento do proprio slot)",
+      "010-leitura-do-relato": "FAIL — quatro baselines visuais seguem pending; a tarefa que as aceitava foi fechada com evidencia de outra feature",
+      "020-identidade-enderecavel": "PASS (registrado no fechamento do proprio slot)",
+      "030-uma-fonte-por-fato": "FAIL — nenhuma das 36 rotas declara a propria dinamica; a tarefa que o exigia estava marcada feita",
+      "040-decisao-composta": "PASS — os quatro mecanismos compostos na raiz de serving, nenhum dormente",
+      "050-primeiro-administrador": "FAIL — a prova de concorrencia contra Postgres real nao existe",
+      "060-o-catalogo-ensina": "PASS — duas tarefas abertas, ambas conhecidas e corretamente abertas",
+      "070-confianca-de-certificado": "PASS — a recusa acontece dentro do connect(), antes de um byte",
+      "080-incidente-fecha-o-laco": "FAIL — a tarefa que declara o alcance do diff e falsa como redigida; o coletor e o backlog estao solidos"
+    }
+  },
+  "open_questions": [
+    "DEFEITO COM DONO — o portao de remediacao recebe call.arguments vazio no pre_tool_use enquanto a linha gravada em tool_calls carrega os argumentos. Nenhuma escrita vira proposta. Localizado; a camada que os perde nao esta apurada.",
+    "DESENHO A REVISITAR — core/agent/hooks/registry.py le um crash de pre_tool_use como Allow, por razao declarada e boa para um gancho de mascaramento. Para o portao do Artigo III isso torna um crash um allow, e quem sustenta a garantia hoje e a rede da capacidade.",
+    "DECISAO HUMANA — aceitar as baselines visuais: quatro telas de run (010 T054). O slide-over de integracoes (060 T052) saiu desta entrada em 2026-08-26: o arnes de captura foi consertado para alcancar a rolagem interna do painel, a imagem inteira foi revista, e a baseline esta commitada com o registro de aceitacao dizendo contra o que. A frase original segue valendo para as quatro telas de run — um agente que virasse pending em baselined estaria fabricando a revisao que o campo existe para exigir.",
+    "ESCOPO SEM DONA — a selecao de ferramentas depende do idioma do alerta e nada declara isso (capabilities/registry/scoring.py:127-199). Arquivo anterior a esta onda; nenhuma feature dela se apropriou. SEGUE ABERTA: tres pontos deste arquivo a contaram como fechada pela reescrita da regra de alerta em ingles, e ela nao estava — ver retificacao_escorador_2026_08_26.",
+    "ESCOPO SEM DONA — o sujeito gravado de um incidente pode ser o host do exportador em vez do convidado (casamento por endereco na borda).",
+    "ESCOPO SEM DONA — a suite transversal nao tem guarda de que esta olhando para a aplicacao: quatro regras passaram contra a tela de login numa corrida contra staging.",
+    "ESCOPO SEM DONA — nada e jamais marcado como citado: as 24 linhas de evidence na instancia tem cited = false, sem excecao."
+  ],
+  "what_the_orchestrator_measured_2026_08_25": {
+    "make_verify": "exit 0, 12778 passed / 30 skipped, 13:05, na arvore final",
+    "staging_carrega_a_arvore_final": "446 turnos desde o deploy, todos com selection_rationale gravado — o commit ee68164 esta vivo em staging, entao nao foi preciso republicar",
+    "coletor_a_seco": "run pre-onda c2af8f73... em 2026-08-22 23:51:38Z: run_turns 0, tool_calls 0, evidence 0, trace_events 2, custo 0 linhas",
+    "coletor_do_laco": "run da demo d393d5d0...: run_turns 5, tool_calls 4, evidence 0, trace_events 13",
+    "capturas": "evidence/telas/, full-page a 1920 de largura, contra staging, com LEIA-ME mapeando arquivo para estacao",
+    "acceptance_contra_staging": "cinco corridas; falhas so em duas causas de ambiente (sessao caida, /v1/incidents sem responder), ambas lidas na tela; corridas 2 e 4 verdes inteiras"
+  },
+  "repair_round_2026_08_25": {
+    "dispatched": "tres spec-implementer, um por marcacao falsa que precisava de codigo",
+    "050-T020": {
+      "outcome": "CONSERTADO — a prova que faltava encontrou o defeito que ela existia para pegar",
+      "defeito": "advisory lock de escopo de sessao solto quando flush() retornava, nao quando a transacao terminava; o segundo chamador lia a linha como ausente, disputava o INSERT, e o unlock do finally reprovava com 'Can't operate on closed transaction' deixando o lock preso na conexao",
+      "sintoma": "~50% de reprovacao com 8 tentativas simultaneas; as demais esperavam ate o statement_timeout de 30s e caiam com texto de driver puro",
+      "conserto": "pg_advisory_xact_lock — escopo de transacao, solto pelo Postgres no commit ou rollback, sem liberacao explicita para falhar",
+      "prova": "20 rodadas verdes pelo implementador + 6 rodadas independentes do orquestrador, ~1,3s cada; pg_locks sem nenhum advisory pendurado; suite vizinha 47 passed / 9 skipped",
+      "por_que_passou_por_cinco_auditorias": "a prova que existia era contra um fake que serializa tudo atras de um lock global — o comentario do proprio fake diz que o GIL e 'toda a implementacao do arbitro que o backend Postgres precisa de um advisory lock para ter'. O fake nao tinha como falhar."
+    },
+    "030-T048": {
+      "outcome": "FEITO — as 36 rotas declaram a propria dinamica",
+      "achado": "o corte de fio nao produziu vermelho: a autenticacao do layout le cookie incondicionalmente, o que ja torna toda rota dinamica. A propriedade tinha tres camadas redundantes. O portao de rotas dinamicas nao consegue detectar a ausencia da declaracao porque inspeciona a saida do build."
+    },
+    "060-T050": {
+      "outcome": "TESTE ESCRITO, TAREFA DESMARCADA — uma das duas alegacoes reprova contra o produto real",
+      "o_que_existia": "test.skip no nivel do bloco e corpo com expect(locator).toBeDefined(), que nunca falha — assercao vazia por construcao",
+      "achado": "a frase de CredentialWouldCrossInClear nao chega ao painel; chega a de outra causa, dizendo que o host nao esta na allow-list quando o host esta e o problema e o http://. Quinze vendors com a mesma tabela."
+    }
+  },
+  "pendencias_restantes": {
+    "total": 13,
+    "decisao_de_roteiro": "9 — 040 S01/S02 e 080 T053-T056/T061-T063. Quatro janelas em 2026-08-25. A causa esta agora localizada e nao e roteiro: o portao de remediacao recebe os argumentos vazios, levanta excecao, e o registro de ganchos a engole como allow. Nenhuma escrita pode virar proposta ate isso ser consertado. Deixa de ser tarefa de janela e vira conserto de produto com dono.",
+    "revisao_humana_de_baseline": "3 linhas — 010 T054 e sua linha de DoD (quatro telas de run), 060 T052 (slide-over de integracoes). Aceitar baseline e decisao de quem olha.",
+    "decisao_de_produto": "1 — 060 T050, cujo conserto atravessa quinze pacotes de integracao."
+  },
+  "backlog": "22 entradas: duas reescritas contra medicao (a explicacao anterior estava errada nas duas), cinco novas desta sessao, zero identificadores de planejamento",
+  "janela_ct122_2026_08_25": {
+    "autorizacao": "operador: 'o 122 nao esta em uso, qualquer teste nele esta liberado'",
+    "janela": "19:28:50Z a 19:34:08Z — CT122 fora por 5m18s",
+    "versao_medida": "gitops fd98df056074, app+proxy+web sem COMPONENTS=, Argo Synced/Healthy, pods com 2m36s no marco zero, rotas aquecidas antes do passo destrutivo",
+    "o_bloqueio_caiu": {
+      "medido_antes": "catalogo real de 80 ferramentas: descricao em portugues -> proxmox_start_guest 0,0000 e 57a; em ingles -> 1,8182 e 7a",
+      "medido_dentro": "run 88b24f72, selection_rationale gravado: 'ranked 60, offered 40, cut by the ceiling 20' com '+ proxmox_start_guest (0.625)' — 20a de 40, OFERECIDA",
+      "conclusao": "a reescrita da regra em ingles corrigiu de fato o corte. O agente teve, pela primeira vez, a acao que desfaz o estado que o alerta descreve. RETIFICADO EM 2026-08-26: a medicao esta certa e a atribuicao de causa nao. A reescrita mudou a ENTRADA do escorador, nao o escorador — e o caminho que serve nem chamava capabilities.registry.selection.select(), o que so passou a acontecer em fe7229e. Ver retificacao_escorador_2026_08_26."
+    },
+    "estacoes": {
+      "E1": "cumprida — alerta ativo em 19:31:49Z, 2m59s depois do stop, sem ninguem emitir nada",
+      "E2": "cumprida — 'the delivery was authenticated by alertmanager-delivery'",
+      "E3": "REPROVOU (produto) — mesmas duas razoes: cabecalho diz 'node pve02' contra rotulos 'node=pve01' na mesma tela, e o titulo e o nome do alerta",
+      "E4": "cumprida — 5 turnos, 21s, quatro chamadas pareadas com resultado",
+      "E5": "cumprida — 'Proxmox LXC container 122 running redis on node pve01 stopped unexpectedly'",
+      "E6": "cumprida, sem a ressalva da demo anterior — proxmox_start_guest entre as 40",
+      "E7": "NAO EXERCIDA — approvals = 0",
+      "E8_E9": "NAO EXERCIDAS — dependem de E7",
+      "E10": "cumprida — incidente resolveu sozinho em 19:36:45Z, close_reason 'ProxmoxGuestStopped was resolved upstream'"
+    },
+    "contagens_no_fim": "approvals 0, rollback_plans 0, remediation_outcomes 0, episodes 0 — iguais ao marco zero",
+    "por_que_nada_foi_proposto": {
+      "chamadas": "prometheus_active_alerts SUCCEEDED; proxmox_guest_tasks FAILED 501; proxmox_guest_start_diagnosis FAILED com o MESMO 501; logs_for_resource FAILED por ausencia de fonte de log",
+      "defeito_novo_com_dona": "integrations/proxmox/client.py:756 monta /nodes/{node}/{kind}/{vmid}/status/tasks, um caminho que NAO EXISTE na API do Proxmox. Conferido contra o hipervisor 9.2.6: \"No 'get' handler defined for '/nodes/pve01/lxc/122/status/tasks'\". O caminho real e /nodes/{node}/tasks?vmid= e devolve o vzstop por root@pam em 19:28:52Z — exatamente a evidencia que o run procurava.",
+      "e_o_conserto_nao_destrava_a_estacao": "Com a evidencia certa o agente leria uma parada MANUAL e DELIBERADA, e recusar-se a religar continuaria correto. O passo destrutivo desta demonstracao e indistinguivel de uma manutencao. E propriedade do roteiro, nao defeito do produto."
+    },
+    "achado_da_origem_do_sujeito": "A serie pve_up{id='lxc/122'} carrega instance='192.168.68.159' (pve02, o host do exportador). O mesmo stop abriu CINCO incidentes; os outros quatro casaram por 10.20.20.52, o endereco do proprio convidado, e resolveram o sujeito CERTO. So o alerta do hipervisor erra, porque so nele o instance e o raspador em vez do raspado.",
+    "achado_novo_de_tela": "O cartao da investigacao mostra '5 steps · 21s · Not recorded' ao lado de um chip 'Investigation running', com o run completed desde 19:32:06Z. O chip le o estado do incidente e e rotulado como se lesse o do run.",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25/ (EVIDENCIA.md, marco-zero.txt, 4 telas full-page a 1920)"
+  },
+  "janela_ct122_2026_08_25_b": {
+    "janela": "21:28:25Z a 21:32:51Z — CT122 fora por 4m26s",
+    "passo_destrutivo": "kill -9 no init do convidado a partir do host, e nao um pct stop — uma parada que nenhum operador poderia ter feito pela API",
+    "versao": "gitops bc33825d716c, tres pods novos, portao local verde 12778/31 + 37 benchmarks",
+    "a_parada_e_atribuivel_a_defeito": "o log de tarefas do no, lido logo apos: a tarefa mais recente do convidado e um vzstart das 19:34:00Z, duas horas antes. Nada registra a parada das 21:28.",
+    "o_conserto_do_endpoint_funciona_em_producao": "proxmox_guest_tasks e proxmox_guest_start_diagnosis, que morriam em 501 na janela anterior, ambas SUCCEEDED. Nove chamadas contra quatro, 52s contra 21s.",
+    "e_ainda_assim_nada_foi_proposto": {
+      "approvals": 0,
+      "a_ultima_chamada": "assess_evidence_sufficiency, com sufficient=true, missing_evidence=[], conclusion='there are no blocking locks, datastore unreachable errors, or insufficient resources preventing it from running'",
+      "a_capacidade_estava_na_mao": "proxmox_start_guest, 20a de 40, escore 0,625, lido da gravacao do run",
+      "o_que_sobra": "o passo entre concluir e propor. O agente concluiu e parou; nao chamou a capacidade que desfaz o estado."
+    },
+    "explicacoes_eliminadas_por_medicao": [
+      "'o catalogo nao tem acao de infraestrutura' — tem 24 de escrita, 20 de remediacao",
+      "'o escorador corta por idioma' — corrigido; oferecida em 20a de 40 em duas janelas [RETIFICADO 2026-08-26: 'corrigido' e falso; ver retificacao_escorador_2026_08_26]",
+      "'a evidencia do motivo nao chega' — endpoint consertado, as duas leituras passaram",
+      "'a parada parece manutencao' — provocada sem registro de tarefa nenhum"
+    ],
+    "o_limite_da_afirmacao": "Esta medido que a capacidade foi oferecida, que o agente declarou evidencia suficiente, que nao a chamou, e que nenhuma aprovacao existe. NAO esta medido o que aconteceria se ele a chamasse: esse caminho segue provado so por teste (33 contratos em test_proposed_action_decision.py).",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25-b/"
+  },
+  "janela_ct122_2026_08_25_c": {
+    "janela": "22:02:21Z a 22:06:23Z, versao gitops 9c70cb4d2876 com o INVESTIGATION_SYSTEM_PROMPT publicado",
+    "portao_local": "make verify exit 0 — 12779 passed / 31 skipped + 37 benchmarks",
+    "o_prompt_funcionou": "Pela primeira vez em quatro janelas o agente CHAMOU proxmox_start_guest, com os argumentos certos: {kind: lxc, node: pve01, vmid: 122}.",
+    "mas_a_chamada_falhou": "approvals 0, rollback_plans 0. error_class permission_denied, com a recusa de rede da propria capacidade (UNGATED_REFUSAL).",
+    "A_CAUSA_REAL": {
+      "defeito_1": "O portao de remediacao recebe os argumentos VAZIOS. Log do processo em 22:05:36.317Z: {'point':'pre_tool_use','hook':'remediation.pre_tool_use','error':\"proxmox_start_guest needs the node, the guest number and the guest kind, and was given {}\",'event':'agent.hook_failed'}. A linha gravada em tool_calls carrega os tres argumentos. Como toda escrita atravessa o portao, toda escrita levanta excecao e NENHUMA jamais vira proposta — que e por que approvals nunca saiu de zero em quatro janelas.",
+      "localizado": "capabilities/tools/remediation/proxmox/plane.py::_guest_of levanta o erro; action_for monta os argumentos de call.arguments; logo o ToolCall que chega ao pre_tool_use esta vazio.",
+      "NAO_apurado": "qual camada perde os argumentos. Candidato: core/llm/providers/gemini.py:174-184 cai para {} quando args nao e um mapa. Mas tool_calls tem os argumentos, entao duas leituras do mesmo instante discordam. Exige medicao, nao deducao.",
+      "tensao_deliberada_nao_defeito": "core/agent/hooks/registry.py:139 engole a excecao do gancho e a chamada segue. A docstring do modulo declara isso e da a razao (uma regra de mascaramento quebrada desabilitaria toda escrita). Para o portao do Artigo III um crash e um allow, e hoje quem sustenta a garantia e a rede da capacidade, nao o portao. Decisao de desenho a revisitar, nao conserto de sessao."
+    },
+    "cadeia_de_cinco_explicacoes_eliminadas": [
+      "1 catalogo sem acao de infraestrutura — falso: 24 de escrita, 20 de remediacao",
+      "2 escorador corta pelo idioma — corrigido pela regra em ingles; oferecida em 20a de 40 [RETIFICADO 2026-08-26: nao foi corrigido; ver retificacao_escorador_2026_08_26]",
+      "3 evidencia do motivo nao chega — endpoint do Proxmox consertado, as duas leituras passam",
+      "4 a parada parece manutencao — provocada com kill -9 no init, sem registro de tarefa",
+      "5 o agente nao sabe que pode propor — INVESTIGATION_SYSTEM_PROMPT; ele chamou",
+      "6 O PORTAO RECEBE {} — esta. Medida no log do processo."
+    ],
+    "licao_de_metodo": "As cinco primeiras foram deduzidas de leitura de codigo e de contagens. A que valeu veio do log do processo no instante da falha, que ninguem tinha aberto em quatro janelas.",
+    "evidencia": "specs_v7/080-incidente-fecha-o-laco/evidence/janela-2026-08-25-c/"
+  },
+  "retificacao_escorador_2026_08_26": {
+    "o_que_este_registro_dizia": "Que o escorador de capacidades estava corrigido, e que o conserto foi a reescrita da regra de alerta em ingles. Aparece em tres lugares: janela_ct122_2026_08_25.o_bloqueio_caiu.conclusao, janela_ct122_2026_08_25_b.explicacoes_eliminadas_por_medicao[1] e janela_ct122_2026_08_25_c.cadeia_de_cinco_explicacoes_eliminadas[1]. As tres frases seguem escritas onde estavam, marcadas com um apontador para aqui. Nenhuma foi apagada: um registro que muda sem dizer que mudou e o mesmo defeito outra vez.",
+    "o_que_era_verdade": "A medicao. proxmox_start_guest saiu de cortada para oferecida — 20a de 40, escore 0,625, lido do selection_rationale de runs reais em tres janelas contra staging. Isso aconteceu, e a reescrita da regra em ingles e o que mudou entre o antes e o depois.",
+    "o_que_era_falso": "Que isso fosse um conserto. A reescrita mudou a ENTRADA, nao o mecanismo: capabilities/registry/scoring.py::_terms segue tokenizando com [a-z0-9_]+ e filtrando 26 palavras vazias so em ingles, e SCORE_STOP_WORDS segue sendo essa lista. Um alerta em portugues continua pontuando todas as capacidades em zero, e o desempate continua sendo ordem alfabetica. Escrever o alerta na lingua que o escorador entende nao e consertar o escorador; e parar de mostrar a ele a lingua que ele nao entende.",
+    "o_elo_que_ninguem_tinha_visto": "Mais fundo que a lingua: o caminho que serve NUNCA chamou capabilities.registry.selection.select(). O runner pegava o topo N de uma ordenacao. Fora do proprio pacote capabilities/registry/, os unicos importadores de select eram dois testes — tests/unit/capabilities/registry/test_selection.py e tests/contract/integrations/test_catalogue_wide_guarantees.py. Quatro mecanismos (ordenacao pelo plano, puxada dirigida por skill, reserva e supressao por anti-exemplo) mergeados, testados e inalcancaveis a partir de qualquer raiz de serving. E exatamente o defeito que o Artigo XIV nomeia: um teste que passa prova que um mecanismo se comporta como desenhado, nunca que algo num deployment em execucao o chama.",
+    "por_quanto_tempo_esteve_aberto": "Vinte e um dias. capabilities/registry/selection.py nasceu em 68c1e150 (2026-08-05, 'build the unified capability catalogue') e so passou a ser chamado do caminho de serving em fe7229e (2026-08-26). A onda v7 inteira correu com o elo aberto. Nenhuma das medicoes contra staging podia te-lo pego: elas mediam o que foi OFERECIDO, e a oferta vinha do corte por topo N — a mesma linha que fazia o seletor ser desnecessario e por isso invisivel.",
+    "o_que_fechou_o_elo": "fe7229e, 'rank on what the incident is about, not on who reported it'. Tres coisas na aritmetica e uma no caminho: (1) um termo novo para o SUJEITO do incidente, peso 40, lido do recurso que a resolucao de alerta ja tinha casado antes de qualquer chamada de modelo; (2) o termo da fonte do alerta caiu de 40 para 10 — um deployment que roteia todo alerta por um receiver dava aos ferramentais desse receiver o maior termo da formula em todo incidente que ele tera; (3) dominio e tags passaram a ser lidos dos rotulos do proprio alerta, porque chegavam vazios de um deployment que serve, e o resumo contra o qual a sobreposicao lexica corre foi alargado alem do objetivo; (4) o runner parou de pegar o topo N e passou a entregar o catalogo estreitado a select().",
+    "o_que_continua_aberto": "A dependencia de idioma. Nada declara que a selecao de ferramentas depende da lingua em que o alerta foi escrito, e o escorador segue com a lista de palavras vazias so em ingles. Continua em open_questions como ESCOPO SEM DONA, que e onde sempre esteve — o que muda aqui e que ela nunca deveria ter sido contada como fechada.",
+    "licao": "As tres frases retificadas foram escritas a partir de uma medicao verdadeira. O erro nao foi medir errado; foi ler uma melhora no resultado como prova de que a causa suposta era a causa real. Uma medicao contra staging responde 'mudou?', nunca 'por que?' — e a pergunta 'quem chama isso?' nao aparece em contagem nenhuma de runs."
+  }
+}

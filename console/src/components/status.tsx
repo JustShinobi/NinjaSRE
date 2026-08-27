@@ -24,22 +24,83 @@ import { message, type Locale } from '@/i18n/messages';
  * different ones for that reason, which is asserted rather than assumed.
  */
 
-/** The tint, foreground and boundary each role wears. */
+/**
+ * The shape every status chip is drawn in.
+ *
+ * One carrier of the signal, not three. This used to be a stroke *and* a tint
+ * *and* coloured text, wrapped around eleven-pixel capitals tracked out to
+ * 0.06em — the vocabulary an administrative console used a decade ago, and a
+ * measurable cost besides: a reader scans by word shape, and capitals flatten
+ * every word to the same rectangle. Fifty of them in a column stopped being
+ * read at all.
+ *
+ * Every value here is a step that already existed. `rounded-full` is a
+ * declared radius rather than a written number, `text-meta` is the
+ * twelve-pixel step at regular weight, and the box is padding rather than a
+ * height nobody could derive.
+ *
+ * Exported because a chip outside this module is still a chip. The frame's
+ * freshness indicator was written with `h-control` in place of `py-1` and so
+ * rendered with no vertical padding at all — visibly thinner than every other
+ * chip in the product, on the one chip that is on every screen. Naming the
+ * geometry once is what makes that a thing a test can hold rather than a thing
+ * a reviewer has to notice at four chips' distance.
+ */
+export const CHIP_SHAPE =
+  'inline-flex items-center gap-2 px-2 py-1 rounded-full text-meta';
+
+/**
+ * The tint and foreground each role wears.
+ *
+ * The pair is `${role}` on `${role}-bg`, which the contrast proof already
+ * measures at 4.5:1 in both themes — so losing the border costs no legibility
+ * and WCAG 1.4.11 does not apply to a chip that is not a control.
+ *
+ * Neutral is the one exception and keeps a boundary. Its tint is the page
+ * ground in the dark theme, so an unbordered neutral chip on a raised card
+ * reads as a hole punched through it rather than as an object on it.
+ */
 const ROLE_SKIN: Readonly<Record<SemanticRole, string>> = {
-  success: 'bg-success-bg text-success border-success',
-  warning: 'bg-warning-bg text-warning border-warning',
-  danger: 'bg-danger-bg text-danger border-danger',
-  info: 'bg-info-bg text-info border-info',
-  neutral: 'bg-neutral-bg text-neutral border-border-strong',
+  success: 'bg-success-bg text-success',
+  warning: 'bg-warning-bg text-warning',
+  danger: 'bg-danger-bg text-danger',
+  info: 'bg-info-bg text-info',
+  neutral: 'bg-neutral-bg text-neutral edge border-border',
 };
 
-/** The fill each role gives a shape. */
+/** The fill each role gives a solid shape. */
 const ROLE_FILL: Readonly<Record<SemanticRole, string>> = {
   success: 'bg-success border-success',
   warning: 'bg-warning border-warning',
   danger: 'bg-danger border-danger',
   info: 'bg-info border-info',
   neutral: 'bg-neutral border-neutral',
+};
+
+/**
+ * The ring each role gives a hollow shape, and no fill at all.
+ *
+ * A table of its own rather than `ROLE_FILL` with `bg-transparent` added
+ * beside it, because that arrangement did not work and passed every test
+ * anyway. Two background utilities on one element are not decided by the order
+ * of the class attribute; they are decided by the order of the generated
+ * stylesheet, which Tailwind writes alphabetically. `bg-transparent` therefore
+ * beat `bg-danger`, `bg-info`, `bg-neutral` and `bg-success`, and lost to
+ * `bg-warning` — so a warning hollow circle rendered solid, and `pending` and
+ * `propose` became the same filled disc as `completed` with only a hue between
+ * them. On the one pair of statuses this whole module exists to keep apart.
+ *
+ * Splitting the two tables means the mark never carries two backgrounds, so
+ * there is no ordering left to lose. That property is asserted directly, and
+ * it survives a role named alphabetically after `transparent` — which the
+ * previous arrangement would have silently broken all over again.
+ */
+const ROLE_RING: Readonly<Record<SemanticRole, string>> = {
+  success: 'bg-transparent border-success',
+  warning: 'bg-transparent border-warning',
+  danger: 'bg-transparent border-danger',
+  info: 'bg-transparent border-info',
+  neutral: 'bg-transparent border-neutral',
 };
 
 /**
@@ -51,7 +112,7 @@ const ROLE_FILL: Readonly<Record<SemanticRole, string>> = {
  */
 const SHAPE_CLASS: Readonly<Record<Shape, string>> = {
   'filled-circle': 'icon-inline rounded-full',
-  'hollow-circle': 'icon-inline rounded-full bg-transparent edge-ring',
+  'hollow-circle': 'icon-inline rounded-full edge-ring',
   'dimmed-circle': 'icon-inline rounded-full opacity-50',
   square: 'icon-inline',
   'rotated-square': 'icon-inline rotate-45',
@@ -59,21 +120,44 @@ const SHAPE_CLASS: Readonly<Record<Shape, string>> = {
   dash: 'icon-inline h-0 edge-ring rounded-full',
 };
 
+/**
+ * The shapes drawn as an outline, which are the ones that take the ring.
+ *
+ * `dash` is deliberately not one of them: its box has no height, so the fill
+ * has nothing to paint and the border is the whole of the mark either way.
+ * Listing it here would change nothing on screen and would claim a difference
+ * that is not there.
+ */
+const HOLLOW_SHAPES: readonly Shape[] = ['hollow-circle'];
+
 export interface ShapeMarkProps {
   readonly shape: Shape;
   readonly role: SemanticRole;
+  /**
+   * What to call the mark when it is the only thing saying what the status is.
+   *
+   * Absent for the ordinary case, where a word sits beside it and a mark that
+   * announced itself would say "healthy" twice on every row.
+   */
+  readonly name?: string;
   readonly className?: string;
 }
 
 /** The glyph itself, which is what carries the meaning when colour cannot. */
-function ShapeMark({ shape, role, className }: ShapeMarkProps): ReactNode {
+function ShapeMark({ shape, role, name, className }: ShapeMarkProps): ReactNode {
   return (
     <span
       data-shape={shape}
-      aria-hidden="true"
+      {...(name === undefined
+        ? // Decorative, because a word is sitting next to it.
+          { 'aria-hidden': true as const }
+        : // The only thing saying what the status is, so it is named — and it
+          // carries the role, which is what a suite reads when the mark is
+          // standing on its own rather than inside a chip that already has one.
+          { role: 'img', 'aria-label': name, 'data-role': role })}
       className={cx(
         SHAPE_CLASS[shape],
-        ROLE_FILL[role],
+        HOLLOW_SHAPES.includes(shape) ? ROLE_RING[role] : ROLE_FILL[role],
         'edge inline-block shrink-0',
         className,
       )}
@@ -101,7 +185,10 @@ export function Badge({ status, className }: BadgeProps): ReactNode {
       data-role={presented.role}
       data-known={presented.known}
       className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro uppercase',
+        CHIP_SHAPE,
+        // The one chip carrying a word the deployment wrote rather than one
+        // this console chose, so it is the one that needs casing at all.
+        'capitalize',
         ROLE_SKIN[presented.role],
         className,
       )}
@@ -141,18 +228,16 @@ export function StatusDot({
       />
     );
   }
+  // The same mark, named. Composed by `ShapeMark` rather than beside it: this
+  // branch used to spell the class list out a second time, which is how the two
+  // copies would eventually disagree about how a shape is drawn — and one of
+  // them would be the copy nobody looked at.
   return (
-    <span
-      role="img"
-      aria-label={presented.label}
-      data-shape={presented.shape}
-      data-role={presented.role}
-      className={cx(
-        SHAPE_CLASS[presented.shape],
-        ROLE_FILL[presented.role],
-        'edge inline-block shrink-0',
-        className,
-      )}
+    <ShapeMark
+      shape={presented.shape}
+      role={presented.role}
+      name={presented.label}
+      className={cx('', className)}
     />
   );
 }
@@ -207,11 +292,7 @@ export function StatusChip({
       data-credential-status={canonical}
       data-testid={testId}
       title={explain}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[presented.role],
-        className,
-      )}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[presented.role], className)}
     >
       <ShapeMark shape={presented.shape} role={presented.role} />
       {label}
@@ -240,6 +321,13 @@ export interface ResolvedChipProps {
   readonly label: string;
   readonly testId: string;
   readonly className?: string | undefined;
+  /**
+   * What an unknown or otherwise unresolved state names as its own
+   * explanation — the same tooltip technique `StatusChip` already uses for
+   * its own `unknown` word, offered here for a chip whose label the caller
+   * resolves itself.
+   */
+  readonly title?: string | undefined;
 }
 
 export function ResolvedChip({
@@ -248,16 +336,14 @@ export function ResolvedChip({
   label,
   testId,
   className,
+  title,
 }: ResolvedChipProps): ReactNode {
   return (
     <span
       data-testid={testId}
       data-role={role}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[role],
-        className,
-      )}
+      {...(title === undefined ? {} : { title })}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[role], className)}
     >
       <ShapeMark shape={shape} role={role} />
       {label}
@@ -563,6 +649,92 @@ export function CapabilityAvailabilityChip({
   );
 }
 
+/** The five side-effect levels, least to most consequential. */
+const SIDE_EFFECT_LEVELS = [
+  'read',
+  'read_sensitive',
+  'write_reversible',
+  'write_irreversible',
+  'destructive',
+] as const;
+
+type SideEffectLevel = (typeof SIDE_EFFECT_LEVELS)[number];
+
+/** Which role and shape each level carries. Escalating, and never colour alone. */
+const SIDE_EFFECT: Readonly<
+  Record<SideEffectLevel, { readonly role: SemanticRole; readonly shape: Shape }>
+> = {
+  read: { role: 'neutral', shape: 'filled-circle' },
+  read_sensitive: { role: 'info', shape: 'hollow-circle' },
+  write_reversible: { role: 'warning', shape: 'rotated-square' },
+  write_irreversible: { role: 'danger', shape: 'triangle' },
+  destructive: { role: 'danger', shape: 'square' },
+};
+
+/** The short label each level wears in a chip. */
+const SIDE_EFFECT_CHIP: Readonly<Record<SideEffectLevel, MessageKey>> = {
+  read: 'sideEffect.chip.read',
+  read_sensitive: 'sideEffect.chip.read_sensitive',
+  write_reversible: 'sideEffect.chip.write_reversible',
+  write_irreversible: 'sideEffect.chip.write_irreversible',
+  destructive: 'sideEffect.chip.destructive',
+};
+
+/** The sentence each level carries as its explanation. */
+const SIDE_EFFECT_SENTENCE: Readonly<Record<SideEffectLevel, MessageKey>> = {
+  read: 'sideEffect.level.read',
+  read_sensitive: 'sideEffect.level.read_sensitive',
+  write_reversible: 'sideEffect.level.write_reversible',
+  write_irreversible: 'sideEffect.level.write_irreversible',
+  destructive: 'sideEffect.level.destructive',
+};
+
+export interface SideEffectChipProps {
+  readonly locale: Locale;
+  /** The level as the catalogue declares it. */
+  readonly level: string;
+  readonly className?: string;
+}
+
+/**
+ * What a capability does to the estate, in words rather than in its spelling.
+ *
+ * This went through `Badge` for a year, which capitalises the first letter of
+ * whatever the API sent and prints the rest — so the column read
+ * `Write_reversible` and `Read_sensitive`: neither an identifier a reader could
+ * paste anywhere nor a phrase in any language. `Badge` is right for a run's or
+ * a resource's status, where a provider one version ahead may invent a word
+ * this console has never heard of and printing it verbatim is the only honest
+ * move. A side-effect level is not that: it is a closed set this console has
+ * carried full sentences for since the guardrails shipped, and it was the one
+ * place those sentences were not being used.
+ *
+ * The sentence stays, as the chip's own explanation. A level the catalogue
+ * invents still falls through to its own spelling rather than to a blank.
+ */
+export function SideEffectChip({
+  locale,
+  level,
+  className,
+}: SideEffectChipProps): ReactNode {
+  const known = (SIDE_EFFECT_LEVELS as readonly string[]).includes(level)
+    ? (level as SideEffectLevel)
+    : undefined;
+  if (known === undefined) {
+    return <Badge status={level} {...(className === undefined ? {} : { className })} />;
+  }
+  return (
+    <ResolvedChip
+      role={SIDE_EFFECT[known].role}
+      shape={SIDE_EFFECT[known].shape}
+      label={message(locale, SIDE_EFFECT_CHIP[known])}
+      title={message(locale, SIDE_EFFECT_SENTENCE[known])}
+      testId="capability-side-effect"
+      className={className}
+    />
+  );
+}
+
 export interface CheckChipProps {
   readonly name: string;
   /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */
@@ -599,11 +771,7 @@ export function CheckChip({
       data-role={role}
       data-check-status={status}
       data-testid={testId}
-      className={cx(
-        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
-        ROLE_SKIN[role],
-        className,
-      )}
+      className={cx(CHIP_SHAPE, ROLE_SKIN[role], className)}
     >
       <ShapeMark
         shape={

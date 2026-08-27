@@ -43,9 +43,19 @@ const ARBITRARY = /(?:^|[\s:])-?[a-z][a-z0-9-]*-\[[^\]]*\]/;
  * Listed rather than inferred: `z-10` and `grid-cols-3` also end in a number
  * and have nothing to do with spacing, and a rule that guessed would be a rule
  * people turn off.
+ *
+ * The width, height and translate families were missing from this list, and
+ * that is how `max-h-96`, `max-h-64`, `h-44` and `w-0.5` shipped. They took
+ * their length from Tailwind's own `--spacing` base — a scale nobody here
+ * declared, which the stylesheet's comment and the documentation both insisted
+ * was absent. The stylesheet now closes that base, so those four compile to
+ * nothing; being listed here is what turns "no CSS, no complaint" into an
+ * error naming the file and the utility. A width off the scale needs to be
+ * caught where it is written, not inferred from a layout that looks nearly
+ * right.
  */
 const SPACED =
-  /(?:^|\s)-?(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y|inset|top|right|bottom|left|size|basis)-(\d+(?:\.\d+)?)(?![\w-])/g;
+  /(?:^|\s)-?(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y|inset|inset-x|inset-y|top|right|bottom|left|start|end|size|basis|w|h|min-w|min-h|max-w|max-h|translate|translate-x|translate-y)-(\d+(?:\.\d+)?)(?![\w-])/g;
 
 /**
  * The seven steps, the three density aliases, and zero.

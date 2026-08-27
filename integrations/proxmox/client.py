@@ -36,7 +36,7 @@ called by something that thought it was reading.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Final
+from typing import Any, Final, Self
 
 from integrations._base.client import ClientResponse, IntegrationClient
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
@@ -181,6 +181,23 @@ class ProxmoxClient(IntegrationClient):
     def trust(self) -> CertificateTrust:
         """Return what this deployment accepts from the endpoint's certificate."""
         return self._trust
+
+    def for_team(self, team_id: str) -> Self:
+        """Return a copy of this client configured with ``team_id`` in its request context."""
+        if not team_id or team_id == self._context.team_id:
+            return self
+        return type(self)(
+            transport=self._transport,
+            context=RequestContext(
+                org_id=self._context.org_id,
+                team_id=team_id,
+                capability=self._context.capability,
+            ),
+            endpoints=self._endpoints.hosts,
+            trust=self._trust,
+            base_url=self._base_url,
+            retry=self._retry,
+        )
 
     # -- the one read path ----------------------------------------------------
 
@@ -752,9 +769,33 @@ class ProxmoxClient(IntegrationClient):
         return _records(await self._read(f"{_guest_path(node, vmid, kind)}/pending"))
 
     async def guest_tasks(self, node: str, vmid: int, *, kind: str) -> tuple[TaskRecord, ...]:
-        """Return a guest's own recent task history."""
-        records = _records(await self._read(f"{_guest_path(node, vmid, kind)}/status/tasks"))
-        return tuple(_task(row) for row in records)
+        """Return a guest's own recent task history, newest first.
+
+        Read from the node's task log narrowed to this guest, because a guest
+        has no task endpoint of its own. ``/nodes/{node}/{kind}/{vmid}/status/
+        tasks`` looks like it should be one and a live hypervisor answers ``No
+        'get' handler defined`` — a 501 that arrives as a vendor failure and
+        costs the caller its turn. It cost two capabilities theirs on a real
+        incident, where the answer they were after, a manual stop and who made
+        it, was one path away the whole time.
+
+        Narrowed on both sides. Proxmox filters when it is given ``vmid``, and
+        the result is filtered again here, so a deployment whose Proxmox ignores
+        the parameter gets this guest's tasks rather than the node's.
+
+        ``kind`` is still validated even though the path no longer carries it: a
+        caller naming something that is neither a container nor a virtual
+        machine has a bug, and a filtered list that happens to be empty would
+        hide it.
+        """
+        _guest_path(node, vmid, kind)
+        reading = await self._read_node(
+            node,
+            "/tasks",
+            params={"vmid": str(vmid), "limit": str(MAX_TASKS), "start": "0"},
+        )
+        tasks = (_task(row) for row in _records(reading.or_else([])))
+        return tuple(task for task in tasks if task.vmid == vmid)
 
     async def guest_agent_filesystems(
         self, node: str, vmid: int
@@ -895,10 +936,35 @@ def _task(row: Mapping[str, Any]) -> TaskRecord:
         exit_status=str(row.get("exitstatus", "")),
         node=str(row.get("node", packed.get("node", ""))),
         user=str(row.get("user", packed.get("user", ""))),
-        vmid=int(row.get("id", packed.get("id", 0)) or 0),
+        vmid=_guest_of(row.get("id", packed.get("id", 0))),
         started_at=int(row.get("starttime", packed.get("starttime", 0)) or 0),
         ended_at=int(row.get("endtime", 0) or 0),
     )
+
+
+def _guest_of(value: Any) -> int:
+    """Return the guest a task is about, or nought when it is about no guest.
+
+    A task's ``id`` means whatever its type means: the vmid for a guest
+    operation, the datastore for a backup, the node's own name for anything
+    about the node. Reading all three as an integer raised ``ValueError`` on
+    the first ``vzdump`` or ``srvstop`` in the log — and because the parse ran
+    over the whole list, one such row took every task with it.
+
+    That cost three capabilities at once: the guest's task history, backup
+    coverage and backup failures all read this log, so on a cluster that takes
+    backups they failed together and kept failing. It is what stopped an
+    investigation from ever learning that a container had been shut down by
+    hand — the evidence was a few rows below one that would not parse.
+
+    Nought rather than a raise or a sentinel, because ``vmid`` already means
+    "which guest" and every reader compares it to a guest's own id. A task
+    about the node matches no guest, which is exactly true.
+    """
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _with_polls(record: TaskRecord, polls: int) -> TaskRecord:

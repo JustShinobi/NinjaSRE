@@ -24,7 +24,7 @@ from pathlib import Path
 
 from config.constants.fixtures import DEFAULT_FIXTURE_SCENARIO
 from tools import console_gate
-from tools.console_e2e import HarnessError
+from tools.console_e2e import HarnessError, run_staging
 from tools.console_e2e import run as run_browser
 from tools.console_toolchain import ToolchainError, console_root
 from tools.console_visual import VisualError
@@ -80,9 +80,19 @@ def run_browser_validation(
     project: str,
     repeat: int,
     build: bool,
+    evidence_dir: Path | None = None,
     dry_run: bool = False,
 ) -> int:
-    """Build and run the requested Playwright project for one feature."""
+    """Build and run the requested Playwright project for one feature.
+
+    Raises:
+        HarnessError: an argument that only makes sense for a backing which
+            brings up its own environment was passed together with
+            ``backing="staging"`` — a data scenario or a rebuild request,
+            neither of which a shared, already-running deployment can honour.
+            Refused rather than silently ignored: an argument that quietly
+            does nothing is how somebody learns a flag works when it does not.
+    """
     validate_feature_directory(feature)
     if repeat < 1:
         raise ValueError("repeat must be at least 1")
@@ -90,6 +100,33 @@ def run_browser_validation(
     console_directory = console_root()
     extra = tuple(normalise_test_path(test, console_directory) for test in tests)
     selected = ", ".join(extra) if extra else "the complete Playwright project"
+
+    if backing == "staging":
+        if scenario != DEFAULT_FIXTURE_SCENARIO:
+            raise HarnessError(
+                f"--scenario {scenario!r} does not apply to the staging backing — "
+                "staging is one already-seeded deployment, not a dataset this "
+                "harness chooses"
+            )
+        if not build:
+            raise HarnessError(
+                "--no-build does not apply to the staging backing — nothing here "
+                "is ever built, so there is no existing build to reuse either"
+            )
+        if dry_run:
+            print(
+                f"spec browser: would run {project} against staging ({selected}, repeat={repeat})",
+                flush=True,
+            )
+            return 0
+        print(f"spec browser: {feature} -> {project}: {selected}", flush=True)
+        return run_staging(
+            project=project,
+            evidence_dir=evidence_dir,
+            repeat=repeat,
+            extra=extra,
+        )
+
     if dry_run:
         build_step = "build, then " if build else "reuse the existing build, then "
         print(
@@ -136,10 +173,16 @@ def _add_browser_arguments(parser: argparse.ArgumentParser) -> None:
         default=[],
         help="Playwright test path, relative to the repository or console (repeatable)",
     )
-    parser.add_argument("--backing", choices=("mock", "compose"), default="mock")
+    parser.add_argument("--backing", choices=("mock", "compose", "staging"), default="mock")
     parser.add_argument("--scenario", default=DEFAULT_FIXTURE_SCENARIO)
     parser.add_argument("--project", choices=("behaviour", "first-day"), default="behaviour")
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument(
+        "--evidence-dir",
+        type=Path,
+        default=None,
+        help="where the staging backing writes its full-page captures (staging only)",
+    )
     parser.add_argument(
         "--no-build",
         dest="build",
@@ -188,6 +231,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 project=arguments.project,
                 repeat=arguments.repeat,
                 build=arguments.build,
+                evidence_dir=arguments.evidence_dir,
                 dry_run=arguments.dry_run,
             )
         if arguments.command == "visual":
@@ -205,6 +249,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             project=arguments.project,
             repeat=arguments.repeat,
             build=arguments.build,
+            evidence_dir=arguments.evidence_dir,
             dry_run=arguments.dry_run,
         )
         if status != 0:

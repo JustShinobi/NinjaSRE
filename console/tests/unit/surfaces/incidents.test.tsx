@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
-import { surfaceContext } from '@/surfaces/context';
+import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { IncidentsScreen } from '@/surfaces/screens/incidents';
 
 /**
@@ -45,15 +45,20 @@ const PRINCIPAL = {
   impersonated_by: null,
 };
 
-/** A checklist that still has outstanding steps: no provider stored. */
+/** A checklist that still has outstanding steps: no provider stored, and no
+ * investigation has completed — the step this screen's own cause depends on. */
 const SETUP_INCOMPLETE = {
   complete: false,
   provider: 'absent',
   integrations: [],
-  // At least one step not done, so the count this deployment reports is
-  // actually outstanding — an empty array is not a shape the real checklist
-  // route ever answers with.
-  steps: [{ name: 'model-provider', state: 'ready' }],
+  steps: [
+    { name: 'model-provider', state: 'ready' },
+    {
+      name: 'first-investigation',
+      state: 'blocked',
+      title: 'Run your first investigation',
+    },
+  ],
 };
 
 /** A checklist with nothing left to do. */
@@ -132,8 +137,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function incidents(): Promise<void> {
-  render(await IncidentsScreen(await surfaceContext({})));
+async function incidents(search: SearchParams = {}): Promise<void> {
+  render(await IncidentsScreen(await surfaceContext(search)));
 }
 
 function emptyPanel(): HTMLElement {
@@ -293,5 +298,18 @@ describe('the empty state’s call to action', () => {
       .getAllByText(label)
       .filter((node) => !node.className.includes('sr-only'));
     expect(visible).toHaveLength(1);
+  });
+});
+
+describe('view selector in address', () => {
+  it('does not filter out incidents when flat view is selected', async () => {
+    serve({
+      detectors: [enabledDetector('quorum-margin-zero')],
+      incidents: [OPEN_INCIDENT],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents({ view: 'flat' });
+
+    expect(screen.getByText('Backup job disabled')).toBeInTheDocument();
   });
 });

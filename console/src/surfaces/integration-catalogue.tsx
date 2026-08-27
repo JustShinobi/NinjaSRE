@@ -4,9 +4,11 @@ import { useMemo, useState, type ReactNode } from 'react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { CONTROL_SHAPE, VARIANT_SKIN } from '@/components/action';
 import { Input } from '@/components/form';
 import { StatusChip } from '@/components/status';
 import { EmptyState } from '@/components/state';
+import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
 import { captureScrollPosition } from './scroll-memory';
 import { ScrollCapturingLink } from './scroll-link';
@@ -177,7 +179,7 @@ export function IntegrationCatalogue({
         <>
           {matchingConnected.length === 0 ? null : (
             <section data-testid="connected-section" className="flex flex-col gap-2">
-              <h2 className="text-micro uppercase tracking-wide text-muted">
+              <h2 className="text-micro tracking-wide text-muted">
                 {message(locale, 'catalogue.integrations.connected.title')}
               </h2>
               <ul className="flex flex-col gap-2">
@@ -186,32 +188,47 @@ export function IntegrationCatalogue({
                     key={item.name}
                     data-testid="connected-integration"
                     data-integration={item.name}
+                    // Structured rather than a run of siblings that wrap
+                    // wherever they land. As a flat wrapping row, each card
+                    // broke at a different point — one carried its chip inline
+                    // and dropped the button to a second line, the next did
+                    // the opposite — so a column of identical objects had no
+                    // two rows the same shape. The subject grows, the controls
+                    // hold their corner, and nothing separates the chip from
+                    // the action it belongs beside.
                     className="flex flex-wrap items-center gap-3 rounded-3 edge border-border p-3"
                   >
-                    <span className="text-strong">{item.displayName}</span>
-                    <span className="text-meta text-muted">
-                      {item.categoryLabel} · {item.summary}
-                    </span>
-                    {item.healthDetail === '' ? null : (
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="connected-health-detail"
-                      >
-                        {item.healthDetail}
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-strong">{item.displayName}</span>
+                      <span className="text-meta text-muted">
+                        {item.categoryLabel} · {item.summary}
                       </span>
-                    )}
-                    <StatusChip
-                      locale={locale}
-                      status={item.health}
-                      className="ml-auto"
-                    />
-                    <ScrollCapturingLink
-                      href={hrefTo(item.name)}
-                      data-testid="manage-integration"
-                      className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
-                    >
-                      {message(locale, 'catalogue.integrations.connected.manage')}
-                    </ScrollCapturingLink>
+                      {item.healthDetail === '' ? null : (
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="connected-health-detail"
+                        >
+                          {item.healthDetail}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <StatusChip locale={locale} status={item.health} />
+                      {/* The same control shape as Connect below it. Both take
+                        a reader to the same panel to do the same kind of thing;
+                        one of them was an underlined word and the other a
+                        filled button, which said they were different actions.
+                        The hierarchy between them is carried by the variant —
+                        connecting something is the step forward — and never by
+                        one of them not looking like a control at all. */}
+                      <ScrollCapturingLink
+                        href={hrefTo(item.name)}
+                        data-testid="manage-integration"
+                        className={cx(CONTROL_SHAPE, VARIANT_SKIN.secondary)}
+                      >
+                        {message(locale, 'catalogue.integrations.connected.manage')}
+                      </ScrollCapturingLink>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -223,7 +240,7 @@ export function IntegrationCatalogue({
               data-testid="suggested-section"
               className="flex flex-col gap-2 rounded-3 edge border-accent p-3"
             >
-              <h2 className="text-micro uppercase tracking-wide text-accent">
+              <h2 className="text-micro tracking-wide text-accent">
                 {message(locale, 'catalogue.integrations.suggested.title')}
               </h2>
               <ul className="flex flex-col gap-2">
@@ -248,7 +265,11 @@ export function IntegrationCatalogue({
                     <ScrollCapturingLink
                       href={hrefTo(item.name)}
                       data-testid="connect-suggested"
-                      className="ml-auto text-on-accent bg-accent rounded-2 edge border-accent px-3 py-1 text-meta motion-hover hover:opacity-90"
+                      // The design system's own control, not a second copy of
+                      // it written out by hand — the hand-rolled one had drifted
+                      // to a shorter height and a smaller type step than every
+                      // other button on the screen.
+                      className={cx('ml-auto', CONTROL_SHAPE, VARIANT_SKIN.primary)}
                     >
                       {message(locale, 'catalogue.integrations.suggested.connect')}
                     </ScrollCapturingLink>
@@ -260,7 +281,7 @@ export function IntegrationCatalogue({
 
           {matchingAvailable.length === 0 ? null : (
             <section data-testid="available-section" className="flex flex-col gap-2">
-              <h2 className="text-micro uppercase tracking-wide text-muted">
+              <h2 className="text-micro tracking-wide text-muted">
                 {message(locale, 'catalogue.integrations.available.title')}
               </h2>
               <ul

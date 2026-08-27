@@ -39,7 +39,7 @@ implementations of "are we set up" would disagree on the day it mattered.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,6 +47,7 @@ from config.constants.first_run import (
     BOOTSTRAP_PRINCIPAL_ID,
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_FAILING,
     SETUP_READINESS_VERIFIED,
     SETUP_STATE_BLOCKED,
     SETUP_STATE_DONE,
@@ -58,12 +59,12 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
 )
 from config.constants.llm import SUPPORTED_PROVIDERS
-from core.llm.verification import ModelVerdict
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
 from platform.persistence.ports.estate_repository import EstateQuery, Resource
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.persistence.ports.verification_ledger import VerificationRecord
 
 #: How many resources are named in the guided objective before it stops listing.
 #: Enough to make the objective concrete, few enough that the prompt does not
@@ -175,24 +176,26 @@ async def build_checklist(
     gateway: PersistenceGateway,
     *,
     organisation_id: str,
-    verify_model: Callable[[], Awaitable[ModelVerdict]] | None = None,
     integrations: Sequence[str] = (),
-    verified_integrations: Sequence[str] = (),
+    provider_checks: Mapping[str, VerificationRecord] | None = None,
+    integration_checks: Mapping[str, VerificationRecord] | None = None,
     runtime_composed: bool = False,
 ) -> SetupChecklist:
     """Return the checklist this deployment is actually at.
 
-    ``verify_model`` is injected for the reason the self-check injects it too:
-    verifying a provider makes real calls against the operator's endpoint, and
-    rendering a console page must not be able to spend their tokens by accident.
-    Absent, the step reports that nothing has been verified — which is not the
-    same as reporting that nothing is configured, and the wording says so.
+    ``integrations`` is which vendors this deployment declares. ``provider_checks``
+    and ``integration_checks`` are the last recorded verdict for a provider or an
+    integration, by name — the same record the verification ledger already holds,
+    read once by the caller and handed down rather than looked up again here.
+    This module never calls a provider's endpoint or a vendor's API to answer a
+    checklist read: verifying makes a real call against the operator's own
+    infrastructure, and rendering a console page must not be able to spend that
+    by accident. A name absent from either mapping is a thing nobody has checked
+    — which is not the same claim as "it does not work", and the wording says so.
 
-    ``integrations`` is which vendors this deployment declares and
-    ``verified_integrations`` is which of them a live run has actually reached.
-    Both are told to this module rather than discovered by it: the catalogue and
-    the health ledger are tier 2, and reaching up for them is the boundary
-    ``make check-imports`` exists to hold.
+    The catalogue of declared integrations and the ledger are told to this
+    module rather than discovered by it: both are tier 2, and reaching up for
+    them is the boundary ``make check-imports`` exists to hold.
 
     ``runtime_composed`` is whether this process holds something that can
     actually drive an investigation. Told for the same reason and one more: the
@@ -204,6 +207,8 @@ async def build_checklist(
     """
     scope = TenantScope(org_id=organisation_id)
     stored = await _stored_credentials(gateway, scope)
+    checked_providers = provider_checks or {}
+    checked_integrations = integration_checks or {}
 
     async with gateway.begin(scope) as uow:
         people = [
@@ -223,34 +228,48 @@ async def build_checklist(
 
     configured_providers = tuple(name for name in SUPPORTED_PROVIDERS if name in stored)
     credential = _credential_step(claimed, people_count=len(people))
-    provider = await _provider_step(
-        verify_model, blocked=not credential.done, configured=configured_providers
+    provider = _provider_step(
+        blocked=not credential.done,
+        configured=configured_providers,
+        checked=checked_providers,
     )
     source = _source_step(bool(resources), blocked=not provider.done)
     runtime = _runtime_step(runtime_composed, blocked=not source.done)
     investigation = _investigation_step(bool(finished), blocked=not runtime.done)
 
-    verified = set(verified_integrations)
     return SetupChecklist(
         steps=(credential, provider, source, runtime, investigation),
         integrations=tuple(
             IntegrationReadiness(
                 name=name,
-                readiness=_readiness(configured=name in stored, verified=name in verified),
+                readiness=readiness_of(
+                    configured=name in stored, checked=checked_integrations.get(name)
+                ),
             )
             for name in sorted(set(integrations))
         ),
     )
 
 
-def _readiness(*, configured: bool, verified: bool) -> str:
+def readiness_of(*, configured: bool, checked: VerificationRecord | None) -> str:
     """Return how far along one thing is, given what was found about it.
 
-    Verified implies configured, and is reported without re-establishing it:
-    something a live run reached is something whose credential resolved.
+    Public, and reused outside this module: `/v1/providers` derives the same
+    word for the same provider from the same record, which is what FR-003
+    asks for structurally rather than by two implementations agreeing to.
+
+    A recorded check outranks configuration either way: something a check
+    reached and passed is verified without re-establishing that it is
+    configured (a working provider's credential plainly resolved), and
+    something a check reached and did not pass is reported as failing even
+    though a credential is present — a stored key and a working one are
+    different facts, and collapsing a known-broken one into "configured" is
+    the state a wrong key would otherwise sit in until an incident finds it.
+    ``checked`` absent — nobody has checked, or the ledger could not be read —
+    falls back to whether a credential is stored at all.
     """
-    if verified:
-        return SETUP_READINESS_VERIFIED
+    if checked is not None:
+        return SETUP_READINESS_VERIFIED if checked.verified else SETUP_READINESS_FAILING
     return SETUP_READINESS_CONFIGURED if configured else SETUP_READINESS_ABSENT
 
 
@@ -299,30 +318,44 @@ def _credential_step(claimed: bool, *, people_count: int) -> ChecklistStep:
     )
 
 
-async def _provider_step(
-    verify: Callable[[], Awaitable[ModelVerdict]] | None,
+def _provider_step(
     *,
     blocked: bool,
     configured: Sequence[str],
+    checked: Mapping[str, VerificationRecord],
 ) -> ChecklistStep:
     """Return the step that says whether a usable model is configured.
 
-    Usable, not configured. The verification exercises tool calling and
-    structured output against the endpoint, so this step goes green only for a
-    model that could actually run an investigation.
+    Usable, not merely configured — but established by reading the last
+    recorded check (FR-001), never by calling the endpoint from here
+    (FR-004): verification exercises tool calling and structured output
+    against the operator's own infrastructure, and rendering this document
+    must not be able to spend that by accident. The route that serves it
+    calls the provider's own verify endpoint, which writes the record this
+    step reads.
 
-    ``configured`` is which providers hold a credential, and it is what makes
-    the middle state sayable. Without it this step has one sentence for a
-    deployment with nothing at all and for one whose key is sitting in the vault
-    unchecked, and those are two different next actions.
+    ``configured`` is which providers hold a vault credential — the fact
+    that makes the middle, unverified state sayable. ``checked`` is the last
+    recorded verdict, by provider id, for whichever provider was ever
+    checked, and it is read on its own rather than filtered to ``configured``:
+    a provider that runs on the operator's own infrastructure can be verified
+    with nothing in the vault at all, and a record that exists is evidence a
+    check actually happened regardless of where its credential came from. A
+    passed record wins over a failed one when a deployment has tried more
+    than one provider, because "usable at all" is the question this step
+    answers.
     """
-    if verify is None:
+    record = next((entry for entry in checked.values() if entry.verified), None) or next(
+        iter(checked.values()), None
+    )
+    readiness = readiness_of(configured=bool(configured), checked=record)
+    if record is None:
         stored = ", ".join(configured)
         return ChecklistStep(
             name=SETUP_STEP_MODEL_PROVIDER,
             title="Connect a model provider",
             state=_state(False, blocked=blocked),
-            readiness=_readiness(configured=bool(configured), verified=False),
+            readiness=readiness,
             detail=(
                 f"a credential is stored for {stored}, and nothing has verified it against "
                 f"this deployment — a stored key and a working one are different facts"
@@ -337,16 +370,22 @@ async def _provider_step(
             ),
         )
 
-    verdict = await verify()
+    exercised = f" ({record.model_id})" if record.model_id else ""
     return ChecklistStep(
         name=SETUP_STEP_MODEL_PROVIDER,
         title="Connect a model provider",
-        state=_state(verdict.satisfied, blocked=blocked),
-        readiness=_readiness(
-            configured=bool(configured) or verdict.satisfied, verified=verdict.satisfied
+        state=_state(record.verified, blocked=blocked),
+        readiness=readiness,
+        detail=(
+            f"a check reached {record.subject}{exercised} and it answered"
+            if record.verified
+            else f"the last check of {record.subject}{exercised} did not pass: {record.detail}"
         ),
-        detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
-        action="nothing further" if verdict.satisfied else verdict.remedy,
+        action=(
+            "nothing further"
+            if record.verified
+            else "verify the provider again once the finding above is addressed"
+        ),
     )
 
 
@@ -386,7 +425,11 @@ def _runtime_step(composed: bool, *, blocked: bool) -> ChecklistStep:
         name=SETUP_STEP_INVESTIGATION_RUNTIME,
         title="Give it something to investigate with",
         state=_state(composed, blocked=blocked),
-        readiness=_readiness(configured=composed, verified=composed),
+        # Not through `_readiness`: this step has no verification ledger
+        # entry to read, and no "stored but unchecked" middle state — the
+        # runtime either is or is not composed, established by the entry
+        # point that would have composed it.
+        readiness=SETUP_READINESS_VERIFIED if composed else SETUP_READINESS_ABSENT,
         detail=(
             "this deployment holds a runtime, so an investigation has something to run in"
             if composed
@@ -502,4 +545,5 @@ __all__ = [
     "build_checklist",
     "guided_objective",
     "readable_transcript",
+    "readiness_of",
 ]

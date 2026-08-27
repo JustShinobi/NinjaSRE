@@ -69,7 +69,7 @@ class DeliverStage:
             investigation=replace(
                 state.investigation,
                 delivery=outcome,
-                outcome=_outcome(diagnosis, outcome),
+                outcome=_verdict(state.investigation.outcome, diagnosis, outcome),
             )
         )
 
@@ -99,6 +99,27 @@ class DeliverStage:
                 detail=DELIVERY_FAILED_DETAIL.format(destination=destination.name, error=error),
             )
         return DeliveryAttempt(destination=destination.name, delivered=True, detail=str(reference))
+
+
+def _verdict(
+    reached: InvestigationOutcome | None,
+    diagnosis: Diagnosis | None,
+    delivery: DeliveryOutcome,
+) -> InvestigationOutcome:
+    """Return the outcome the run ends on, keeping one it already failed with.
+
+    Gathering records ``FAILED`` when the runtime produced nothing usable, and
+    that outcome deliberately does not halt: the remaining stages still say
+    what little can be said, and the report is still shipped. What they must
+    not do is overwrite the verdict. A caller reading the finished state — the
+    serving path decides between "the run completed" and "the run failed" on
+    exactly this — would otherwise be told an investigation that gathered
+    nothing was diagnosed, and the reason the runtime gave would be gone with
+    the outcome that carried it.
+    """
+    if reached is not None and reached.kind is OutcomeKind.FAILED:
+        return reached
+    return _outcome(diagnosis, delivery)
 
 
 def _outcome(diagnosis: Diagnosis | None, delivery: DeliveryOutcome) -> InvestigationOutcome:

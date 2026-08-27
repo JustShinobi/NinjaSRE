@@ -77,6 +77,17 @@ class PostgresIncidentStore(TenantBound):
         row = found.scalar_one_or_none()
         return None if row is None else _incident(row)
 
+    async def get_by_public_id(self, public_id: str) -> Incident | None:
+        """Return the incident whose public address is ``public_id``, or ``None``."""
+        found = await self.session.execute(
+            select(models.IncidentRow).where(
+                models.IncidentRow.org_id == self.org_id,
+                models.IncidentRow.public_id == public_id,
+            )
+        )
+        row = found.scalar_one_or_none()
+        return None if row is None else _incident(row)
+
     async def open_for(self, correlation_key: str) -> Incident | None:
         """Return the live incident for ``correlation_key``, or ``None``."""
         found = await self.session.execute(
@@ -90,6 +101,21 @@ class PostgresIncidentStore(TenantBound):
             .limit(1)
         )
         row = found.scalar_one_or_none()
+        return None if row is None else _incident(row)
+
+    async def find_by_run(self, run_id: str) -> Incident | None:
+        """Return the incident ``run_id`` is attached to, or ``None``.
+
+        A containment lookup over the GIN index on ``run_ids``, not a scan —
+        the same reasoning ``episodes.components`` already uses.
+        """
+        found = await self.session.execute(
+            select(models.IncidentRow).where(
+                models.IncidentRow.org_id == self.org_id,
+                models.IncidentRow.run_ids.contains([run_id]),
+            )
+        )
+        row = found.scalars().first()
         return None if row is None else _incident(row)
 
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
@@ -188,6 +214,7 @@ def _row(org_id: str, incident: Incident) -> dict[str, Any]:
     return {
         "org_id": org_id,
         "incident_id": incident.incident_id,
+        "public_id": incident.public_id,
         "correlation_key": incident.correlation_key,
         "title": incident.title,
         "summary": incident.summary,
@@ -240,6 +267,7 @@ def _incident(row: models.IncidentRow) -> Incident:
     """Return the stored row as the record callers hold."""
     return Incident(
         incident_id=row.incident_id,
+        public_id=row.public_id,
         correlation_key=row.correlation_key,
         title=row.title,
         summary=row.summary,

@@ -143,7 +143,14 @@ describe('an empty queue that says where a proposal would come from', () => {
       '/v1/proposals': EMPTY_QUEUE,
       '/v1/setup/checklist': {
         complete: false,
-        steps: [{ name: 'model-provider', state: 'ready' }],
+        steps: [
+          { name: 'model-provider', state: 'ready' },
+          {
+            name: 'first-investigation',
+            state: 'blocked',
+            title: 'Run your first investigation',
+          },
+        ],
       },
     });
 

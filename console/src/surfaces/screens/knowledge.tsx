@@ -10,6 +10,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { AdvancedConfigSection } from '../advanced-config-section';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -86,7 +87,7 @@ export async function DocumentsTab(context: SurfaceContext): Promise<ReactNode> 
     ),
     readSetupState(credential),
   ]);
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
   const records = list(dataOf(documents), 'documents');
 
   function kindOf(record: unknown): string {
@@ -373,7 +374,11 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
 
       <div className="mt-4">{content}</div>
 
+      {/* One heading, four labels. The word "Advanced" was the first word of
+          all four titles, so the distinguishing word arrived second — down the
+          left edge, which is exactly where the eye scans. */}
       <div className="flex flex-col gap-3 mt-5">
+        <h3 className="text-strong">{message(locale, 'knowledge.advanced.heading')}</h3>
         <AdvancedConfigSection
           title={message(locale, 'knowledge.advanced.changes.title')}
           prefix={CHANGES_ADVANCED_PREFIX}

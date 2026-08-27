@@ -210,6 +210,64 @@ class LocalSignInRejected(IdentityError):
         super().__init__("the credential was not accepted")
 
 
+# --- Local administrator enrolment --------------------------------------------
+
+
+class LocalAdministratorNameTaken(IdentityError):
+    """The name a caller asked to create already signs in to this deployment.
+
+    Distinct from a plain duplicate: the remedy is in the message, because
+    the caller almost certainly meant one of two things — create somebody
+    else, or rotate this name's passphrase — and guessing which one silently
+    would be wrong exactly as often as it was right.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            f"{name!r} already signs in to this deployment. To replace that "
+            f"passphrase instead of creating a new administrator, run the same "
+            f"command again with rotation requested explicitly."
+        )
+        self.name = name
+
+
+class LocalSignInAlreadyOpen(IdentityError):
+    """The bootstrap credential was exchanged, but this deployment is already administered.
+
+    Distinct from the bootstrap credential simply being spent or missing —
+    ``TokenRejected`` already covers that. This is the case where the
+    credential file is still on the host, still authenticates, and the
+    exchange would otherwise mint a second, unintended administrator: a
+    stale file left over from before somebody ran the CLI command, or from
+    an identity provider that was activated afterwards.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "this deployment already has a local administrator. Use "
+            "'ninjasre setup admin --rotate' to change a passphrase, or "
+            "create another administrator with a different name."
+        )
+
+
+class LocalEnrolmentBlockedBySso(IdentityError):
+    """A local administrator cannot be created or rotated while SSO is active.
+
+    Deliberately offers no override: a flag that bypassed this would be the
+    second door the product exists to not have. Whoever is locked out has the
+    break-glass path instead, which already carries its own deadline, its own
+    written reason, and its own error-level log line.
+    """
+
+    def __init__(self, *, emergency_path: str) -> None:
+        super().__init__(
+            f"This deployment's identity provider is its way in. Local "
+            f"administrator accounts cannot be created or changed while it is "
+            f"active. If you are locked out, use {emergency_path} instead."
+        )
+        self.emergency_path = emergency_path
+
+
 class UnsafeDefaultPassword(IdentityError):
     """A deployment that is not the demo still has the shipped passphrase.
 
@@ -271,6 +329,9 @@ __all__ = [
     "IdentityError",
     "ImpersonationRejected",
     "LastOwnerRemoval",
+    "LocalAdministratorNameTaken",
+    "LocalEnrolmentBlockedBySso",
+    "LocalSignInAlreadyOpen",
     "LocalSignInRejected",
     "PermissionDenied",
     "SessionRejected",

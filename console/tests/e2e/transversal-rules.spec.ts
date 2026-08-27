@@ -4,6 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 import { signIn } from './session';
+import {
+  identifierAsName,
+  liveControlOnTerminalRun,
+  negativeAssertionAfterFailedRead,
+  rawMarkdown,
+  twoPlaceholders,
+} from './bans';
 
 /**
  * Four rules every Settings screen is held to, checked against the built
@@ -57,6 +64,25 @@ function constant(name: string): number {
   }
   return Number(found[1]);
 }
+
+/** One string constant, read out of `config/constants/console.py`. */
+function stringConstant(name: string): string {
+  const source = readFileSync(
+    fileURLToPath(new URL('../../../config/constants/console.py', import.meta.url)),
+    'utf8',
+  );
+  const found = new RegExp(`^${name}: Final = "([^"]*)"`, 'm').exec(source);
+  if (found?.[1] === undefined) {
+    throw new Error(`${name} is not declared in config/constants/console.py`);
+  }
+  return found[1];
+}
+
+// The one spelling of the tag that marks a test safe to run against a shared,
+// live environment — read from the constants layer, never repeated as a
+// literal, so the suite that declares it and the harness that selects by it
+// cannot drift into two spellings that between them select nothing.
+const STAGING_SAFE_TAG = stringConstant('CONSOLE_STAGING_SAFE_TAG');
 
 // The suite's own viewport for the rolagem rule: 1920x1080, read from the
 // same named constants the product's own scroll-budget instrument reads,
@@ -140,7 +166,15 @@ const ROUTES_UNDER_THESE_RULES: readonly SettingsRoute[] = [
 
 // --- Exceptions: named per route and per rule, with a substantive reason ---
 
-type Rule = 'vocabulary' | 'scroll-budget' | 'value-column';
+type Rule =
+  | 'vocabulary'
+  | 'scroll-budget'
+  | 'value-column'
+  | 'markdown'
+  | 'identifier-as-name'
+  | 'two-placeholders'
+  | 'live-control'
+  | 'negative-assertion';
 
 interface Exception {
   readonly path: string;
@@ -153,8 +187,8 @@ interface Exception {
  * measured, never as a blanket relaxation. Each entry names one route and one
  * rule; the same route can still be held to every rule it has no entry for.
  *
- * Empty today. `/settings/alert-intake` + `scroll-budget` used to carry an
- * entry here ("the screen repeats seven near-identical sources with nothing
+ * `/settings/alert-intake` + `scroll-budget` used to carry an entry here
+ * ("the screen repeats seven near-identical sources with nothing
  * collapsed"), but that route is in `SCROLL_BUDGET_MEASURED_ELSEWHERE` below
  * and the scroll-budget test checks that set with `test.skip` before it ever
  * reaches the `test.fixme` lookup against this table — the entry was already
@@ -162,6 +196,32 @@ interface Exception {
  * and the seven-sources reason it gave stopped being true once an earlier
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
+ *
+ * `/runs`, `/runs/{id}` and `/` carried seven entries between them — three
+ * `markdown` (the run detail screen's title and summary panel, the runs
+ * list's subject column, and the dashboard's recent-activity feed, all
+ * printing a run's raw report where a name or a rendered document belonged),
+ * two `identifier-as-name` (the runs list's subject column and the run
+ * detail breadcrumb, both showing a run's hex id for want of anything else
+ * to call it), one `two-placeholders`, and one `live-control`. All seven are
+ * gone: a run's name is read from its own record everywhere it is shown,
+ * its report is rendered rather than printed raw, a run's own status —
+ * including the two words the runtime actually emits on a finish that this
+ * console did not used to know — decides whether it is offered a live
+ * control, and a metadata line no longer repeats the same fallback word
+ * twice. Proved by the suite below running these two routes without a
+ * `test.fixme` in the way, not by deleting the table entries — see the
+ * transversal run recorded for this change.
+ *
+ * `/incidents/{id}` carries none of `identifier-as-name`, `negative-assertion`
+ * or `two-placeholders` any more: an opaque, short incident id decoded once
+ * at the edge replaced the composite, percent-encoded route parameter the
+ * title used to fall back to; a read that fails no longer renders a chip
+ * that could assert anything about an investigation, so there is nothing
+ * left for that rule to catch either; and the subtitle — the whole reason
+ * `two-placeholders` survived the first two fixes — no longer renders at
+ * all once the read has failed, rather than repeating the same fallback
+ * word across the facts that read never answered.
  */
 const EXCEPTIONS: readonly Exception[] = [];
 
@@ -456,5 +516,310 @@ test.describe('setup progress: one count, everywhere it is shown', () => {
         `the dashboard card draws ${String(notDone)} not-done rows (of ${String(rows.length)} total) against a stated ${String(stated?.[1])}`,
       ).toBe(Number(stated?.[1]));
     }
+  });
+});
+
+// --- The "Now" rules: five ways a "Now" screen has been found to mislead ---
+//
+// Unlike the four rules above, these five are not about Settings — they hold
+// the group a person is standing in front of when something has broken:
+// the dashboard, incidents, runs, and decisions, plus the two dynamic detail
+// screens a run or an incident opens onto. The mechanics are the same
+// (routes read from the product's own manifest, exceptions named per route
+// and per rule, never a softened assertion), and the detectors themselves
+// live in `./bans` — pure functions this file calls, proved separately by
+// `console/tests/unit/e2e/bans.test.ts` against the exact text a diagnosis
+// once recorded, so they stay proved on every run of the standard gate and
+// not only on the day this file is pointed at a dataset built to violate
+// them.
+
+/** One "Now" route, read from the product's own top-level manifest. */
+interface NowRoute {
+  readonly id: string;
+  readonly path: string;
+}
+
+/**
+ * The routes `shell/routes.ts` places in the "now" navigation group.
+ *
+ * Read the same way `settingsRoutesFromSource` reads `SETTINGS_PAGES`: a
+ * narrow parse of the one file that owns `AREAS`, because a Playwright spec
+ * cannot import a Next.js server module. A route added to the "now" group
+ * lands in this list the day it ships, without anyone remembering to add a
+ * line here for it.
+ */
+function nowRoutesFromSource(): readonly NowRoute[] {
+  const source = readFileSync(
+    fileURLToPath(new URL('../../src/shell/routes.ts', import.meta.url)),
+    'utf8',
+  );
+  const start = source.indexOf('export const AREAS');
+  const end = source.indexOf('\n];', start);
+  if (start === -1 || end === -1) {
+    throw new Error('AREAS is not declared in shell/routes.ts');
+  }
+  const body = source.slice(start, end);
+  const routes: NowRoute[] = [];
+  const entryPattern = /id:\s*'([^']+)',\s*path:\s*'([^']+)',\s*group:\s*'([^']+)'/g;
+  let match: RegExpExecArray | null;
+  while ((match = entryPattern.exec(body)) !== null) {
+    const id = match[1];
+    const path = match[2];
+    const group = match[3];
+    if (id === undefined || path === undefined || group === undefined) continue;
+    if (group === 'now') routes.push({ id, path });
+  }
+  if (routes.length === 0) {
+    throw new Error('no "now" area was read from shell/routes.ts');
+  }
+  return routes;
+}
+
+const NOW_ROUTES = nowRoutesFromSource();
+
+/**
+ * The two dynamic detail screens, reached by the list's own first row.
+ *
+ * `path` is the label these routes are named by everywhere this suite
+ * reports on them — allowlist entries, failure messages — because there is
+ * no single address to name (every run and every incident has its own).
+ * `list` is where the sweep starts; it never types an id, per the rule this
+ * whole file is written to keep: a run or an incident id literal in a test
+ * file is a dataset dependency in disguise.
+ */
+const NOW_DETAIL_ROUTES: readonly { readonly path: string; readonly list: string }[] = [
+  { path: '/runs/{id}', list: '/runs' },
+  { path: '/incidents/{id}', list: '/incidents' },
+];
+
+/** Every label these five rules sweep: the static "now" routes, then the two detail ones. */
+const NOW_LABELS: readonly string[] = [
+  ...NOW_ROUTES.map((route) => route.path),
+  ...NOW_DETAIL_ROUTES.map((route) => route.path),
+];
+
+/** Go to `label` — a static route as itself, a detail route via its list's first row. */
+async function openNowLabel(page: Page, label: string): Promise<void> {
+  const detail = NOW_DETAIL_ROUTES.find((route) => route.path === label);
+  if (detail !== undefined) {
+    await page.goto(detail.list);
+    await page.getByTestId('row').first().locator('a').first().click();
+    // Wait for the list to be gone before anything reads the page.
+    //
+    // The click starts a client-side navigation, and every reader below counts
+    // rather than asserts — `locator.count()` has no auto-wait. Against a mock
+    // that answers instantly the detail screen is already there; against a real
+    // deployment it is not, and a rule that ran here would measure the *list*
+    // and find nothing to complain about. Passing because the page had not
+    // arrived yet is the one failure mode worse than failing.
+    await page.waitForURL((url) => !url.pathname.endsWith(detail.list));
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+    return;
+  }
+  await page.goto(label);
+}
+
+/**
+ * Every non-empty line of `page`'s own header block: title, subtitle, and —
+ * on a detail screen — the breadcrumb's current crumb, because all three sit
+ * inside the one `page-header` region every screen in this console draws.
+ * `[]` when the screen draws no header block at all.
+ */
+async function pageHeaderLines(page: Page): Promise<readonly string[]> {
+  const header = page.getByTestId('page-header');
+  if ((await header.count()) === 0) return [];
+  const text = await header.innerText();
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+}
+
+/** Every cell of every drawn row, one array of texts per row — never the whole row as one string. */
+async function rowCells(page: Page): Promise<readonly (readonly string[])[]> {
+  const rows = page.getByTestId('row');
+  const count = await rows.count();
+  const drawn: string[][] = [];
+  for (let index = 0; index < count; index += 1) {
+    drawn.push(await rows.nth(index).locator('td').allInnerTexts());
+  }
+  return drawn;
+}
+
+/**
+ * Where the staging backing wants a full-page capture per route swept — set
+ * only by that backing, read here rather than passed down through every
+ * test, because the alternative is a parameter every one of these tests
+ * would carry for a concern that belongs to how they are run, not to what
+ * they check.
+ */
+const EVIDENCE_DIR = process.env.NINJASRE_STAGING_EVIDENCE_DIR;
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (EVIDENCE_DIR === undefined || EVIDENCE_DIR === '') return;
+  // A route this test declared fixme never navigated anywhere — capturing it
+  // would be a blank page standing in for a route nothing here actually
+  // swept.
+  const skipped = testInfo.annotations.some(
+    (annotation) => annotation.type === 'fixme' || annotation.type === 'skip',
+  );
+  if (skipped) return;
+  const safeName = testInfo.titlePath
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  await page
+    .screenshot({ path: `${EVIDENCE_DIR}/${safeName}.png`, fullPage: true })
+    .catch(() => {
+      // A capture that fails (a route this run never reached, a page already
+      // closed) is not this hook's failure to report — the test itself
+      // already reported its own result.
+    });
+});
+
+// --- Rule: markdown cru -------------------------------------------------
+
+test.describe('markdown cru: no "Now" screen prints a raw report as text', () => {
+  for (const label of NOW_LABELS) {
+    test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+      test.fixme(
+        exceptionFor(label, 'markdown') !== undefined,
+        exceptionFor(label, 'markdown')?.reason ?? '',
+      );
+
+      await openNowLabel(page, label);
+      const body = await page.locator('body').innerText();
+      const found = rawMarkdown(body);
+      expect(found, `${label} shows raw markdown: "${found ?? ''}"`).toBeNull();
+    });
+  }
+});
+
+// --- Rule: identifier as name --------------------------------------------
+
+test.describe('identificador como nome: nothing here is a name only because it is an id', () => {
+  for (const label of NOW_LABELS) {
+    test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+      test.fixme(
+        exceptionFor(label, 'identifier-as-name') !== undefined,
+        exceptionFor(label, 'identifier-as-name')?.reason ?? '',
+      );
+
+      await openNowLabel(page, label);
+
+      let found: string | null = null;
+      for (const line of await pageHeaderLines(page)) {
+        found = identifierAsName(line);
+        if (found !== null) break;
+      }
+      if (found === null) {
+        for (const cells of await rowCells(page)) {
+          for (const cell of cells) {
+            // The first line only: index 0's cell also carries the row
+            // link's screen-reader-only "Open" label, appended on its own
+            // line, which is not part of the value this rule is about.
+            const value = cell.split('\n')[0]?.trim() ?? '';
+            found = identifierAsName(value);
+            if (found !== null) break;
+          }
+          if (found !== null) break;
+        }
+      }
+      expect(
+        found,
+        `${label} shows an identifier standing in for a name: "${found ?? ''}"`,
+      ).toBeNull();
+    });
+  }
+});
+
+// --- Rule: two placeholders in one metadata line -------------------------
+
+test.describe('dois placeholders: no metadata line carries more than one fallback', () => {
+  for (const label of NOW_LABELS) {
+    test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+      test.fixme(
+        exceptionFor(label, 'two-placeholders') !== undefined,
+        exceptionFor(label, 'two-placeholders')?.reason ?? '',
+      );
+
+      await openNowLabel(page, label);
+
+      let found: string | null = null;
+      for (const line of await pageHeaderLines(page)) {
+        found = twoPlaceholders(line);
+        if (found !== null) break;
+      }
+      if (found === null) {
+        for (const cells of await rowCells(page)) {
+          found = twoPlaceholders(cells.join(' '));
+          if (found !== null) break;
+        }
+      }
+      expect(found, `${label}: ${found ?? ''}`).toBeNull();
+    });
+  }
+});
+
+// --- Rule: a live control never survives onto a terminal run -------------
+
+test.describe('controle de run vivo: a settled run offers no live-only control', () => {
+  const label = '/runs/{id}';
+
+  test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+    test.fixme(
+      exceptionFor(label, 'live-control') !== undefined,
+      exceptionFor(label, 'live-control')?.reason ?? '',
+    );
+
+    await page.goto('/runs');
+    const firstRow = page.getByTestId('row').first();
+    // The status column: the second cell of every row this screen draws.
+    const listStatus = (await firstRow.locator('td').nth(1).innerText()).trim();
+    await firstRow.locator('a').first().click();
+
+    const stopRun = page.getByTestId('stop-run');
+    const controlText =
+      (await stopRun.count()) > 0 ? (await stopRun.innerText()).trim() : '';
+    const found = liveControlOnTerminalRun(listStatus, controlText);
+    expect(found, `${label}: ${found ?? ''}`).toBeNull();
+  });
+});
+
+// --- Rule: no negative assertion after a failed read ----------------------
+
+test.describe('afirmação negativa: nothing here answers from a read that failed', () => {
+  const label = '/incidents/{id}';
+
+  test(label, async ({ page }) => {
+    // Not staging-safe: an id shaped like a real one, guaranteed absent —
+    // querying an arbitrary identifier against a shared environment is kept
+    // out of the staging-safe set even though it is a read, the same
+    // caution the identity-addressable incidents feature's own acceptance
+    // spec already applies to this exact technique.
+    test.fixme(
+      exceptionFor(label, 'negative-assertion') !== undefined,
+      exceptionFor(label, 'negative-assertion')?.reason ?? '',
+    );
+
+    // A real, forced failure — not whichever incident happens to sort
+    // first, which is an ordinary, successfully-read one against this
+    // dataset and would let this test pass without ever exercising the
+    // failure path it is named for.
+    await page.goto('/incidents/inc_0000000000000000');
+
+    const failedPanel = page.locator('[data-testid="panel"][data-state="error"]');
+    const dependencyFailed = (await failedPanel.count()) > 0;
+    expect(dependencyFailed, `${label}: the forced-failure address did not fail`).toBe(
+      true,
+    );
+    // The investigation chip: the second of the two chips this header
+    // draws next to the incident's own title.
+    const chips = page.getByTestId('incident-chip');
+    const chipCount = await chips.count();
+    const assertion = chipCount > 1 ? (await chips.nth(1).innerText()).trim() : '';
+    const found = negativeAssertionAfterFailedRead(dependencyFailed, assertion);
+    expect(found, `${label}: ${found ?? ''}`).toBeNull();
   });
 });

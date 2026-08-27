@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 
 import { searchFrom, type SearchParams } from '@/surfaces/context';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * Retired by the hybrid navigation: this screen now lives at its Settings
  * address, with every filter the old address carried riding along — the

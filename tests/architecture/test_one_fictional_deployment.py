@@ -21,6 +21,7 @@ check happens on every commit.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -39,21 +40,42 @@ MAY_NAME_THE_DEPLOYMENT = (MOCKPLANE, FIXTURES, REPO_ROOT / "tests")
 
 #: Trees this check does not walk: the tooling's own caches, the virtual
 #: environment, and local reference material that is never committed.
+#: Directory names this sweep never walks into.
+#:
+#: Three kinds, and the last two keep being forgotten. Caches and installed
+#: dependencies hold nobody's decisions. Agent worktrees hold a whole second
+#: copy of this repository, so a sweep that walked one would find every file
+#: twice and call the duplicate a second deployment — which it did, on every
+#: run of the gate while a parallel slot was in flight. And a browser run
+#: leaves its traces and screenshots behind: those are a recording of the
+#: dataset being served, not a second declaration of it, and the run that
+#: produced them is the same one this rule exists to protect.
 SKIPPED = frozenset(
     {
         ".git",
+        ".claude",
         ".venv",
         "__pycache__",
         "_research",
         "node_modules",
-        "specs",
-        "specs_v2",
-        "specs_v3",
-        "specs_v4",
-        "specs_v5",
-        "specs_v6",
+        "test-results",
+        "playwright-report",
     }
 )
+
+
+def _is_wave_directory(name: str) -> bool:
+    """Return whether ``name`` is a wave's planning directory.
+
+    Matched by shape rather than listed by name: the list was three waves out
+    of date the first time anybody looked at it, and a wave that has to be
+    added to a test before the test tells the truth is a test that lies
+    quietly in between.
+    """
+    return name == "specs" or _WAVE.fullmatch(name) is not None
+
+
+_WAVE = re.compile(r"specs_v\d+")
 
 
 def _searchable(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
@@ -63,9 +85,11 @@ def _searchable(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
         if path.is_file()
         and path.suffix in suffixes
         and not SKIPPED.intersection(path.relative_to(root).parts)
+        and not any(_is_wave_directory(part) for part in path.relative_to(root).parts)
     )
 
 
+@pytest.mark.sweep
 def test_exactly_one_fictional_deployment_exists_in_the_repository() -> None:
     offenders = [
         path.relative_to(REPO_ROOT)
@@ -79,6 +103,7 @@ def test_exactly_one_fictional_deployment_exists_in_the_repository() -> None:
     )
 
 
+@pytest.mark.sweep
 def test_only_one_directory_holds_scenario_fixtures() -> None:
     trees = [
         path.parent.parent

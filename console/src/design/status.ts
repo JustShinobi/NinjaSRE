@@ -16,17 +16,61 @@
 
 import type { SemanticRole } from './tokens';
 
-/** The statuses the gateway reports for a run. */
+/**
+ * The statuses the gateway reports for a run.
+ *
+ * This is the persistence store's own enumeration, served verbatim —
+ * `gateway/http/routes/investigations.py::summary_of` writes
+ * `status=run.status.value` with no translation, so this is the one closed
+ * set a real run's status ever arrives in. It is not the runtime's own
+ * status (how one loop iteration ended: completed, partial, cancelled,
+ * failed) and it is not a fixture's invention — a repository check
+ * (`tools/check_run_status_vocabulary.py`) reads this array and the store's
+ * enumeration and reproves the build the moment either lists a word the
+ * other does not.
+ *
+ * `succeeded` is deliberately absent from this list even though the shared
+ * presentation table below still knows it: a tool call's own outcome
+ * (`ToolCallStatus.SUCCEEDED`) is spelled the same word for an unrelated
+ * fact, and a transcript badge still needs to draw it.
+ */
 export const RUN_STATUSES = [
-  'queued',
   'running',
-  'waiting',
-  'succeeded',
-  'failed',
+  'suspended',
+  'completed',
   'cancelled',
+  'failed',
+  'interrupted',
 ] as const;
 
 export type RunStatus = (typeof RUN_STATUSES)[number];
+
+/**
+ * Every word that means a run is still doing something — still taking tool
+ * calls, on its own.
+ *
+ * `suspended` is deliberately absent. A run in that state has stopped
+ * calling tools and is paused on a person's decision, which is neither
+ * "still working" nor "settled and will not change again" — it is its own
+ * third thing, surfaced by the open-interaction panel rather than by a live
+ * transcript stream watching for tool calls that are not coming.
+ */
+const LIVE_RUN_STATUSES: readonly string[] = ['running'];
+
+/**
+ * Every word that means a run has finished and will not change again.
+ *
+ * `interrupted` counts as settled here even though it is not a conclusion:
+ * nothing is going to resume producing events for a run the store only
+ * marked this way because the process that was running it is gone, so a
+ * live transcript has nothing further to wait for.
+ */
+const SETTLED_RUN_STATUSES: readonly string[] = [
+  'completed',
+  'cancelled',
+  'failed',
+  'interrupted',
+];
 
 /** The statuses a resource, detector or dependency reports. */
 export const RESOURCE_STATUSES = [
@@ -62,8 +106,11 @@ export const ATTENTION_STATUSES = [
   'info',
   'open',
   'investigating',
-  'closed',
+  'awaiting_human',
+  'remediating',
+  'resolved',
   'suppressed',
+  'closed_without_action',
   'awaiting_approval',
   'approval',
   'question',
@@ -188,12 +235,24 @@ export interface StatusPresentation {
 
 const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> = {
   // Runs.
-  queued: { role: 'neutral', shape: 'hollow-circle' },
   running: { role: 'info', shape: 'rotated-square' },
-  waiting: { role: 'warning', shape: 'triangle' },
+  // Paused on a human decision — the persistence store's own word for the
+  // fact `awaiting_approval` used to spell inconsistently across fixtures.
+  // Same role and shape `waiting` drew, because it is the same fact.
+  suspended: { role: 'warning', shape: 'triangle' },
+  completed: { role: 'success', shape: 'filled-circle' },
+  // A tool call's own word for succeeding, not a run's: the persistence
+  // store never writes this spelling for where a run is (RUN_STATUSES
+  // above does not carry it), but `ToolCallStatus.SUCCEEDED` does, and the
+  // transcript's own call badges still read it through this shared table.
   succeeded: { role: 'success', shape: 'filled-circle' },
   failed: { role: 'danger', shape: 'square' },
   cancelled: { role: 'neutral', shape: 'dash' },
+  // Nobody knows how far this run got — the process running it is gone,
+  // and recording it as a failure would put a conclusion in the history
+  // that nothing established. Its own shape, borrowing neither `failed`'s
+  // nor `cancelled`'s, for exactly that reason.
+  interrupted: { role: 'neutral', shape: 'dimmed-circle' },
   // Resources.
   healthy: { role: 'success', shape: 'filled-circle' },
   degraded: { role: 'warning', shape: 'triangle' },
@@ -214,11 +273,29 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   medium: { role: 'warning', shape: 'triangle' },
   low: { role: 'info', shape: 'rotated-square' },
   info: { role: 'info', shape: 'hollow-circle' },
-  // An incident's state.
+  // An incident's state. Every member of the store's own enumeration and
+  // nothing else, which `make check-incident-states` proves in both
+  // directions. `closed` used to sit here and is not a member: the gateway
+  // writes `incident.state.value` verbatim and the route refuses any filter
+  // outside the enumeration by name, so every screen comparing against
+  // `closed` was comparing against a word that cannot arrive.
   open: { role: 'danger', shape: 'square' },
   investigating: { role: 'info', shape: 'rotated-square' },
-  closed: { role: 'success', shape: 'filled-circle' },
+  // Waiting on a person, which is the same fact `suspended` carries for a run
+  // and is drawn the same way for that reason.
+  awaiting_human: { role: 'warning', shape: 'triangle' },
+  // A write to production is happening right now. Warning rather than info:
+  // this is the only incident state during which the estate is being changed,
+  // and its own shape, so it is never mistaken for `investigating` — which is
+  // the agent reading rather than the agent acting.
+  remediating: { role: 'warning', shape: 'square' },
+  // Terminal, and the outcome the product exists to produce.
+  resolved: { role: 'success', shape: 'filled-circle' },
   suppressed: { role: 'neutral', shape: 'dimmed-circle' },
+  // Terminal with nothing done. Neutral rather than success: an incident a
+  // person shut without a fix is not an incident that was solved, and drawing
+  // it green is how a deployment's success rate lies.
+  closed_without_action: { role: 'neutral', shape: 'dash' },
   // What is waiting on a person, and what happened to it.
   awaiting_approval: { role: 'warning', shape: 'triangle' },
   approval: { role: 'warning', shape: 'triangle' },
@@ -329,7 +406,95 @@ export function roleFor(status: string): SemanticRole {
   return statusPresentation(status).role;
 }
 
+/**
+ * Everything an incident may be, in the store's own order.
+ *
+ * A closed set, in the shape `RUN_STATUSES` already has, and held against
+ * `platform.persistence.ports.incident_store.IncidentState` in both directions
+ * by `make check-incident-states`. It exists because the alternative had just
+ * failed in production: the overview compared `state === 'closed'` against an
+ * enumeration with no such member, so the comparison never once matched and
+ * every incident the agent had finished was counted as one waiting on a
+ * person. A word written at a call site is held against nothing.
+ */
+export const INCIDENT_STATES = [
+  'open',
+  'investigating',
+  'awaiting_human',
+  'remediating',
+  'resolved',
+  'suppressed',
+  'closed_without_action',
+] as const;
+
+export type IncidentState = (typeof INCIDENT_STATES)[number];
+
+/** The three the store's own `is_closed` property returns true for. */
+const TERMINAL_INCIDENT_STATES: readonly string[] = [
+  'resolved',
+  'suppressed',
+  'closed_without_action',
+];
+
+/**
+ * The four an incident can still be in, as a listing asks for them.
+ *
+ * Derived rather than written twice: a second literal is a second thing to
+ * forget, which is the whole shape of the defect above.
+ */
+export const LIVE_INCIDENT_STATES: readonly string[] = INCIDENT_STATES.filter(
+  (state) => !TERMINAL_INCIDENT_STATES.includes(state),
+);
+
+/**
+ * The live states that are a person's problem.
+ *
+ * `open` because nothing has picked it up yet, and `awaiting_human` because
+ * the deployment stopped and asked. Those two, and no others.
+ *
+ * This is the distinction the overview never drew, and not drawing it is why
+ * its headline was an indictment: every incident that had not ended went into
+ * "N items need you", the ones the agent had picked up and was actively
+ * working included. A product whose claim is that it investigates without you
+ * was using its first screen to count how much it had left undone.
+ */
+export const HUMAN_INCIDENT_STATES: readonly string[] = ['open', 'awaiting_human'];
+
+/**
+ * The live states the agent is holding — reading, or writing to the estate.
+ *
+ * These belong on the overview too, and prominently. They are the answer to
+ * "is it working", which is a different question from "does it need me" and
+ * the one an operator actually opens the console asking.
+ */
+export const AGENT_INCIDENT_STATES: readonly string[] = LIVE_INCIDENT_STATES.filter(
+  (state) => !HUMAN_INCIDENT_STATES.includes(state),
+);
+
+/** Whether an incident in `state` has ended and needs nobody. */
+export function isTerminalIncident(state: string): boolean {
+  return TERMINAL_INCIDENT_STATES.includes(state);
+}
+
+/** Whether an incident in `state` is blocked on a person rather than on the agent. */
+export function needsAPerson(state: string): boolean {
+  return HUMAN_INCIDENT_STATES.includes(state);
+}
+
 /** Whether a run in `status` has finished and will not change again. */
 export function isSettled(status: string): boolean {
-  return status === 'succeeded' || status === 'failed' || status === 'cancelled';
+  return SETTLED_RUN_STATUSES.includes(status);
+}
+
+/**
+ * Whether a run in `status` is live: steerable, watchable, worth a stream.
+ *
+ * Affirmative rather than "not settled" — the decision this replaces treated
+ * every status neither list had a word for as live by default, which is how
+ * a run whose status the console had never seen ended up offered a stop
+ * button. A status this function has not declared is neither live nor
+ * settled; it is drawn as the unknown word it is, and offered nothing.
+ */
+export function isLiveRun(status: string): boolean {
+  return LIVE_RUN_STATUSES.includes(status);
 }

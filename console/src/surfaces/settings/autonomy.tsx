@@ -515,7 +515,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     heavily-ruled node never grows the tab past its budget. */}
                 <div
                   data-testid="rules-scroll"
-                  className="w-full max-h-96 overflow-auto"
+                  className="w-full max-h-scroll-pane overflow-auto"
                 >
                   <table className="w-full text-small">
                     <caption className="sr-only">
@@ -532,7 +532,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                           <th
                             key={header}
                             scope="col"
-                            className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                            className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
                           >
                             {header}
                           </th>

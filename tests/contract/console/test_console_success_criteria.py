@@ -76,9 +76,9 @@ class Claim:
 #: proof is a job rather than a test.
 CLAIMS = (
     Claim(
-        "make verify runs both halves, and nothing sits outside it",
+        "make verify runs the static console checks, with browser checks explicit",
         "tests/contract/console/test_console_gate_configuration.py",
-        "test_the_gate_runs_every_console_check",
+        "test_verify_uses_the_static_gate_and_browser_checks_remain_explicit",
     ),
     Claim(
         "a seeded failure fails its check and says where",

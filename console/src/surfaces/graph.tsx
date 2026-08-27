@@ -166,6 +166,15 @@ export interface HierarchyRank {
   readonly id: string;
   readonly label: string;
   readonly nodes: readonly HierarchyNode[];
+  /**
+   * Whether this rank's boxes run in order rather than side by side.
+   *
+   * The stages of an investigation do — resolve, intake, plan, gather,
+   * diagnose, deliver — and drawn as a plain row fanning out of their parent,
+   * nothing on the screen said which ran first. A reader was left to guess a
+   * sequence from a picture that had deliberately not drawn one.
+   */
+  readonly sequence?: boolean;
 }
 
 export interface HierarchyGraphProps {
@@ -176,8 +185,29 @@ export interface HierarchyGraphProps {
 /** How many boxes a rank draws before it stops drawing. */
 export const RANK_BOUND = 8;
 
-/** Minimum horizontal gap between two boxes drawn in the same rank. */
-const NODE_GAP = 16;
+/**
+ * How far below its drawn size the picture may be scaled before it pans.
+ *
+ * A drawing that scales freely is a drawing that disappears: at a phone's width
+ * a twelve-hundred-pixel one came out at three hundred and ninety and its
+ * labels at about four pixels, which is a picture that is present, occupies the
+ * room, and cannot be read. A floor rather than no shrinking at all, because
+ * refusing to shrink makes a laptop pan a diagram that would have fitted — at
+ * three quarters the twelve-pixel labels are still above nine, which reads.
+ */
+const LEGIBLE_SCALE = 0.75;
+
+/**
+ * Horizontal gap between two boxes drawn in the same rank.
+ *
+ * Wide enough for an arrow to be drawn in and no wider. At sixteen the six
+ * stage boxes did not merely touch — the spacing put them ten pixels *inside*
+ * one another, so every sequence arrow was drawn from a point right of where it
+ * ended and rendered as nothing at all. At forty the drawing grew past the
+ * content column on a 1280px display and panned by nineteen pixels, which is a
+ * scrollbar for almost nothing. This leaves a twenty-nine-pixel arrow and fits.
+ */
+const NODE_GAP = 32;
 
 /**
  * A hierarchy, top to bottom, in the same visual language as the neighbourhood.
@@ -193,72 +223,155 @@ const NODE_GAP = 16;
  * the accessible copy of itself.
  */
 export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNode {
-  const drawn = ranks.map((rank) => ({
-    ...rank,
-    nodes: rank.nodes.slice(0, RANK_BOUND),
-  }));
-  const height = Math.max(VIEW_HEIGHT, drawn.length * RANK_HEIGHT);
+  // A rank with nothing in it is not drawn. It reserved a third of the canvas
+  // and put nothing on it: the specialists rank is empty on every deployment
+  // that has declared none, which is most of them, and the panel below already
+  // says so in words.
+  const drawn = ranks
+    .filter((rank) => rank.nodes.length > 0)
+    .map((rank) => ({ ...rank, nodes: rank.nodes.slice(0, RANK_BOUND) }));
+  // Sized to the ranks it has, with no floor. The floor was the neighbourhood
+  // graph's own constant, and a two-rank hierarchy borrowing it reserved a
+  // third more canvas than it drew on — which, because the element scales to
+  // its container, became roughly three hundred pixels of void beneath the
+  // boxes on a wide screen.
+  const height = drawn.length * RANK_HEIGHT;
   // The widest rank decides how wide the picture is. A fixed canvas sized for
   // a handful of boxes per row draws a wider rank overlapping instead of
   // refusing to — which for an SVG box is one opaque rectangle sitting on
   // top of its neighbour's label, not a visible layout bug so much as a
   // vanished word.
   const widestRank = Math.max(1, ...drawn.map((rank) => rank.nodes.length));
-  const width = Math.max(VIEW_WIDTH, widestRank * (NODE_WIDTH + NODE_GAP));
+  const width = Math.max(VIEW_WIDTH, widestRank * (NODE_WIDTH + NODE_GAP) + NODE_GAP);
   const rowY = (index: number): number => index * RANK_HEIGHT + RANK_HEIGHT / 2;
 
   return (
-    <svg
-      role="img"
-      aria-label={labels.title}
-      viewBox={`0 0 ${String(width)} ${String(height)}`}
-      data-testid="hierarchy"
-      className="w-full h-auto"
-    >
-      <title>{labels.title}</title>
-      <g className="stroke-border" strokeWidth={1} fill="none">
-        {drawn
-          .slice(1)
-          .map((rank, index) =>
-            rank.nodes.map((node) => (
-              <line
-                key={`edge-${node.id}`}
-                x1={width / 2}
-                y1={rowY(index) + NODE_HEIGHT / 2}
-                x2={
-                  acrossFor(rank.nodes.indexOf(node), rank.nodes.length, width) +
-                  NODE_WIDTH / 2
-                }
-                y2={rowY(index + 1) - NODE_HEIGHT / 2}
-              />
-            )),
-          )}
-      </g>
-      {drawn.map((rank, index) =>
-        rank.nodes.map((node, position) => (
-          <g
-            key={node.id}
-            data-testid="hierarchy-node"
-            data-node={node.id}
-            data-rank={rank.id}
-            data-disabled={node.disabled === true ? 'true' : 'false'}
-            data-entry={node.entryPoint === true ? 'true' : 'false'}
-            className={node.disabled === true ? 'opacity-60' : undefined}
+    // Wide content scrolls inside its own box rather than shrinking out of
+    // legibility. Free to shrink was not free: at a phone's width a
+    // twelve-hundred-pixel drawing scaled to three hundred and ninety, and the
+    // stage labels came out about four pixels tall — a picture that is present,
+    // occupies the room, and cannot be read. It is drawn at the size it was
+    // designed at and the reader pans it, which is what every wide table on
+    // these screens already does.
+    <div className="w-full overflow-x-auto">
+      <svg
+        role="img"
+        aria-label={labels.title}
+        viewBox={`0 0 ${String(width)} ${String(height)}`}
+        data-testid="hierarchy"
+        className="h-auto"
+        style={{
+          inlineSize: `${String(width)}px`,
+          maxInlineSize: '100%',
+          minInlineSize: `${String(Math.round(width * LEGIBLE_SCALE))}px`,
+        }}
+      >
+        <title>{labels.title}</title>
+        <defs>
+          <marker
+            id="hierarchy-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
           >
-            <Box
-              node={node}
-              x={acrossFor(position, rank.nodes.length, width)}
-              y={rowY(index) - NODE_HEIGHT / 2}
-            />
-          </g>
-        )),
-      )}
-    </svg>
+            <path d="M 0 1 L 9 5 L 0 9" className="fill-none stroke-border-strong" />
+          </marker>
+        </defs>
+        <g className="stroke-border" strokeWidth={1} fill="none">
+          {drawn
+            .slice(1)
+            .map((rank, index) =>
+              rank.nodes.map((node) => (
+                <line
+                  key={`edge-${node.id}`}
+                  x1={width / 2}
+                  y1={rowY(index) + NODE_HEIGHT / 2}
+                  x2={
+                    acrossFor(rank.nodes.indexOf(node), rank.nodes.length, width) +
+                    NODE_WIDTH / 2
+                  }
+                  y2={rowY(index + 1) - NODE_HEIGHT / 2}
+                />
+              )),
+            )}
+        </g>
+        {/* The order, where a rank has one. Between the boxes rather than on
+          them: the arrow is the claim that one follows another, and a glyph
+          inside a box could only ever repeat the box's own name. */}
+        <g className="stroke-border-strong" strokeWidth={1} fill="none">
+          {drawn.flatMap((rank, index) =>
+            rank.sequence !== true
+              ? []
+              : rank.nodes.slice(0, -1).map((node, position) => {
+                  const from =
+                    acrossFor(position, rank.nodes.length, width) + NODE_WIDTH;
+                  const to = acrossFor(position + 1, rank.nodes.length, width);
+                  return (
+                    <line
+                      key={`sequence-${node.id}`}
+                      data-testid="sequence-edge"
+                      x1={from + 4}
+                      y1={rowY(index)}
+                      x2={to - 4}
+                      y2={rowY(index)}
+                      markerEnd="url(#hierarchy-arrow)"
+                    />
+                  );
+                }),
+          )}
+        </g>
+        {drawn.map((rank, index) =>
+          rank.nodes.map((node, position) => (
+            <g
+              key={node.id}
+              data-testid="hierarchy-node"
+              data-node={node.id}
+              data-rank={rank.id}
+              data-disabled={node.disabled === true ? 'true' : 'false'}
+              data-entry={node.entryPoint === true ? 'true' : 'false'}
+              className={node.disabled === true ? 'opacity-60' : undefined}
+            >
+              <Box
+                node={node}
+                x={acrossFor(position, rank.nodes.length, width)}
+                y={rowY(index) - NODE_HEIGHT / 2}
+              />
+              {rank.sequence !== true ? null : (
+                // Which one this is, so the order survives the picture being
+                // read out of order — or read by something that cannot see the
+                // arrows at all.
+                <text
+                  data-testid={`sequence-ordinal-${node.id}`}
+                  x={acrossFor(position, rank.nodes.length, width) + NODE_WIDTH / 2}
+                  y={rowY(index) - NODE_HEIGHT / 2 - 6}
+                  textAnchor="middle"
+                  className="fill-muted text-micro"
+                >
+                  {position + 1}
+                </text>
+              )}
+            </g>
+          )),
+        )}
+      </svg>
+    </div>
   );
 }
 
-/** Where the `index`th of `count` boxes sits across a picture `width` wide. */
+/**
+ * Where the `index`th of `count` boxes sits across a picture `width` wide.
+ *
+ * One cell per box, and the box centred in its own cell. Spacing the *centres*
+ * by `width / (count + 1)` — which is what this did — leaves a cell narrower
+ * than the box whenever the count is high enough, and six boxes at a hundred
+ * and sixty-eight pixels across a step of a hundred and fifty-eight overlap
+ * their neighbours by ten. The width above guarantees the cell is the wider of
+ * the two, so boxes in one rank never touch.
+ */
 function acrossFor(index: number, count: number, width: number): number {
-  const step = width / (count + 1);
-  return step * (index + 1) - NODE_WIDTH / 2;
+  const step = width / count;
+  return step * index + (step - NODE_WIDTH) / 2;
 }

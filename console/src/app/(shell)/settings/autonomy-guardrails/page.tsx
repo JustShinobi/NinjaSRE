@@ -5,6 +5,9 @@ import { settingsPageMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { AutonomyScreen } from '@/surfaces/settings/autonomy';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 export function generateMetadata(): Promise<Metadata> {
   return settingsPageMetadata('settings-autonomy-guardrails');
 }

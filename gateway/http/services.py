@@ -43,6 +43,10 @@ class InvestigationStart:
     objective: str
     team_node_id: str
     principal_id: str
+    #: The organisation this run belongs to. Alongside ``team_node_id`` because
+    #: a runner that can record needs a full tenant scope to open its own units
+    #: of work with — the team alone is not a scope the persistence layer opens.
+    org_id: str = ""
     alert_source: str = ""
     context: Mapping[str, str] = field(default_factory=dict)
     incident_id: str = ""
@@ -79,8 +83,16 @@ class InvestigationRunner(Protocol):
     async def resume(self, run_id: str) -> None:
         """Hand ``run_id`` back to the agent, with what the person did in context."""
 
-    async def queue_message(self, run_id: str, text: str) -> None:
-        """Queue ``text`` for delivery on the run's next turn."""
+    async def queue_message(self, run_id: str, text: str) -> bool:
+        """Queue ``text`` for delivery on the run's next turn, and say whether it landed.
+
+        ``False`` when this process is driving no such run: there is no turn
+        boundary left to deliver at. Reported rather than swallowed, because a
+        caller that attached an incident to this run on the strength of the
+        message has to be able to undo that — an incident recorded as covered
+        by an investigation that never heard of it is worse than a second
+        investigation.
+        """
 
     async def pending_interactions(self, run_id: str) -> tuple[Interaction, ...]:
         """Return the run's open questions and approvals, longest-waiting first."""

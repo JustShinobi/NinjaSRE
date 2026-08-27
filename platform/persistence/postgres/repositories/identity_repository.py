@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.constants.persistence import LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY
 from platform.persistence.errors import DuplicateRecord
 from platform.persistence.ports.identity_repository import (
     ApiToken,
+    LocalSignInOpening,
     PrincipalKind,
     RoleBinding,
     TokenLocation,
@@ -19,11 +22,13 @@ from platform.persistence.ports.identity_repository import (
     User,
 )
 from platform.persistence.postgres import models
+from platform.persistence.postgres.models import USERS_EMAIL_UNIQUE_INDEX_NAME
 from platform.persistence.postgres.repositories.common import (
     TenantBound,
     as_list,
     as_tuple,
     as_utc,
+    constraint_name_of,
     translating,
     utc_now,
 )
@@ -69,6 +74,14 @@ def _to_binding(row: models.RoleBinding) -> RoleBinding:
     )
 
 
+def _to_opening(row: models.LocalSignInOpening) -> LocalSignInOpening:
+    # ``opened_at`` is NOT NULL: unlike the other timestamps in this module,
+    # there is no "not yet happened" state for a row that exists at all.
+    moment = row.opened_at
+    aware = moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+    return LocalSignInOpening(opened_at=aware.astimezone(UTC), opened_via=row.opened_via)
+
+
 @dataclass(slots=True)
 class PostgresIdentityRepository(TenantBound):
     """Users, tokens, and role bindings for one organisation."""
@@ -79,7 +92,16 @@ class PostgresIdentityRepository(TenantBound):
         return _to_user(row) if row is not None else None
 
     async def find_user_by_email(self, email: str) -> User | None:
-        """Return the user with ``email``, or ``None``."""
+        """Return the user with ``email``, or ``None``.
+
+        An empty ``email`` never matches: ``email_folded`` is ``NULL`` for
+        every principal with no address, and this returns before asking the
+        database rather than relying on ``NULL`` never equalling ``NULL`` —
+        a guard the fake needs explicitly is a guard worth being explicit
+        about here too, rather than a coincidence of SQL's own semantics.
+        """
+        if not email:
+            return None
         row = await self.session.scalar(
             select(models.User).where(
                 models.User.org_id == self.org_id,
@@ -99,7 +121,16 @@ class PostgresIdentityRepository(TenantBound):
         return _to_user(row) if row is not None else None
 
     async def upsert_user(self, user: User) -> User:
-        """Store ``user`` and return it as stored."""
+        """Store ``user`` and return it as stored.
+
+        Raises ``DuplicateRecord`` naming ``user.email`` when another
+        principal already holds it — the collision the unique index catches
+        that a caller's own pre-check did not, because two callers reached
+        it at the same instant. The error names the address that collided,
+        never ``USERS_EMAIL_UNIQUE_INDEX_NAME``: the constraint name is read
+        back only to tell this collision apart from any other ``23505`` this
+        table could raise, and it goes no further than that ``if``.
+        """
         row = await self.session.get(models.User, (self.org_id, user.user_id))
         if row is None:
             row = models.User(org_id=self.org_id, user_id=user.user_id)
@@ -112,15 +143,22 @@ class PostgresIdentityRepository(TenantBound):
         # Stored beside the address rather than derived in a functional index:
         # PostgreSQL's ``lower()`` and Python's ``casefold()`` disagree on
         # non-ASCII, and a uniqueness rule that disagrees with the lookup that
-        # enforces it is worse than no rule.
-        row.email_folded = user.email.casefold()
+        # enforces it is worse than no rule. ``None`` for "no address" — never
+        # the empty string — because it is ``NULL`` that the unique index
+        # never treats as a collision between two rows that both carry it.
+        row.email_folded = user.email.casefold() or None
         row.display_name = user.display_name
         row.kind = user.kind.value
         row.is_active = user.is_active
         row.external_subject = user.external_subject
 
-        with translating(kind="user", identifier=user.user_id):
+        try:
             await self.session.flush()
+        except IntegrityError as error:
+            if constraint_name_of(error) == USERS_EMAIL_UNIQUE_INDEX_NAME:
+                raise DuplicateRecord(kind="user", identifier=user.email) from error
+            with translating(kind="user", identifier=user.user_id):
+                raise
         return _to_user(row)
 
     async def list_users(self) -> tuple[User, ...]:
@@ -276,6 +314,52 @@ class PostgresIdentityRepository(TenantBound):
         await self.session.delete(row)
         await self.session.flush()
         return True
+
+    async def local_sign_in_opening(self) -> LocalSignInOpening | None:
+        """Return this deployment's opening record, or ``None`` if it has never opened."""
+        row = await self.session.get(models.LocalSignInOpening, self.org_id)
+        return _to_opening(row) if row is not None else None
+
+    async def open_local_sign_in(
+        self, *, opened_at: datetime, opened_via: str
+    ) -> LocalSignInOpening:
+        """Record that the local sign-in door has been opened, once.
+
+        Held under a *transaction*-scoped advisory lock, with a key of its
+        own — ``pg_advisory_xact_lock`` rather than the schema migrator's
+        session-scoped ``pg_advisory_lock``/``pg_advisory_unlock`` pair,
+        deliberately. This call is one step inside a caller-owned unit of
+        work that keeps writing after it returns (granting the owner role,
+        setting a passphrase) and that must roll back together with the
+        opening if any of that later work fails; the migrator has no such
+        caller; it commits and unlocks itself. A session-level lock released
+        here, before the surrounding transaction has committed or rolled
+        back, opens exactly the window this method exists to close: a second
+        caller's check would find the row absent — it is not durable yet —
+        and race its own insert against it, which is what previously
+        surfaced as an `IntegrityError` sent to a session whose ambient
+        transaction the ORM had already started tearing down, itself failing
+        the explicit unlock in a way that left the lock permanently held by
+        that connection. A transaction-scoped lock has no such window and
+        needs no explicit release: PostgreSQL drops it exactly when this
+        transaction commits or rolls back, so a second caller's check cannot
+        run until the first is truly settled, one way or the other, and
+        whichever row that leaves behind is the only one a following read
+        can ever find.
+        """
+        await self.session.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"),
+            {"key": LOCAL_SIGN_IN_OPEN_ADVISORY_LOCK_KEY},
+        )
+        existing = await self.session.get(models.LocalSignInOpening, self.org_id)
+        if existing is not None:
+            raise DuplicateRecord(kind="local sign-in opening", identifier=self.org_id)
+        row = models.LocalSignInOpening(
+            org_id=self.org_id, opened_at=opened_at, opened_via=opened_via
+        )
+        self.session.add(row)
+        await self.session.flush()
+        return _to_opening(row)
 
 
 @dataclass(slots=True)

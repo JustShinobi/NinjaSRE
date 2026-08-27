@@ -1,15 +1,32 @@
-"""Which provider a role runs on is configuration, not a deployment setting.
+"""Which provider a role runs on is configuration, and only configuration.
 
-``binding_for`` used to read the environment and nothing else, which made the
+``binding_for`` once read the environment and nothing else, which made the
 choice of model provider something an operator changed by editing a manifest
-and restarting. The configuration service already holds the answer —
-``models.for_role(role)`` returns the provider and model bound to a role — and
-this is the seam that lets it win.
+and restarting. Configuration was put above it, and the environment was left
+underneath as a fallback for any role configuration did not name. That
+remainder is what this module removes, and it is worth saying plainly why,
+because it looked harmless.
 
-The precedence is explicit argument, then configuration, then the environment,
-then the shipped default. The environment keeps its place deliberately: a
-deployment that names its provider in a manifest is a supported shape, and it
-must not break when configuration is simply absent.
+A deployment bound its investigator to Gemini through the console and left the
+other seven roles alone, which is the ordinary thing to do — the console offers
+one provider box and says the rest follow it. Underneath, every unnamed role
+fell past configuration into ``NINJASRE_LLM_PROVIDER``, which a manifest had
+set to ``ollama`` long before, pointing at a host that no longer answered. So
+episode extraction called a provider nobody had chosen and nobody could see,
+and fifty investigations in a row lost their episode to a connection refused.
+Nothing was misconfigured: the operator chose one provider, and the deployment
+ran on two.
+
+**So an unnamed role follows the investigator.** That is the promise the
+console already makes in words, and it is the only fallback that cannot
+surprise somebody: the provider they picked is the provider their deployment
+uses. The shipped default answers only when nothing at all is configured, which
+is a deployment nobody has set up yet.
+
+The environment keeps the things it is genuinely for — an endpoint and a
+credential — and loses the one it should never have decided: what this
+deployment runs on. That answer is in the configuration tree, where the console
+can show it, an audit can read it, and changing it does not need a restart.
 
 ``binding_for`` is synchronous and reading configuration is not, so the
 composition root resolves the tree once and publishes the result here rather
@@ -20,6 +37,7 @@ from __future__ import annotations
 
 import pytest
 
+from config.constants.config_service import MODEL_ROLE_EXTRACTION, MODEL_ROLE_INVESTIGATOR
 from config.constants.llm import (
     DEFAULT_PROVIDER,
     NINJASRE_LLM_MODEL_ENV,
@@ -47,31 +65,66 @@ def _forget_published_configuration():
 def test_configuration_beats_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """The operator's configured choice is the deployment's answer."""
     monkeypatch.setenv(NINJASRE_LLM_PROVIDER_ENV, PROVIDER_OPENAI)
-    publish_configured_bindings({"investigator": (PROVIDER_OLLAMA, "qwen2.5:7b")})
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
 
-    binding = resolve_binding("investigator")
+    binding = resolve_binding(MODEL_ROLE_INVESTIGATOR)
 
     assert binding.provider_id == PROVIDER_OLLAMA
     assert binding.model_id == "qwen2.5:7b"
 
 
-def test_the_environment_still_answers_for_a_role_configuration_does_not_name(
+def test_a_role_nobody_bound_follows_the_investigator_not_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Configuration binding one role must not silently rebind every other."""
-    monkeypatch.setenv(NINJASRE_LLM_PROVIDER_ENV, PROVIDER_OPENAI)
-    publish_configured_bindings({"investigator": (PROVIDER_OLLAMA, "qwen2.5:7b")})
+    """The whole defect, as one assertion.
 
-    binding = resolve_binding("summariser")
+    An operator who binds the investigator has chosen a provider for this
+    deployment. A role they never opened must not quietly run on a different
+    one because a manifest named it before they arrived.
+    """
+    monkeypatch.setenv(NINJASRE_LLM_PROVIDER_ENV, PROVIDER_OPENAI)
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
+
+    binding = resolve_binding(MODEL_ROLE_EXTRACTION)
+
+    assert binding.provider_id == PROVIDER_OLLAMA
+    assert binding.model_id == "qwen2.5:7b"
+
+
+def test_a_role_bound_to_its_own_provider_keeps_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Following the investigator is a fallback, never an override."""
+    monkeypatch.delenv(NINJASRE_LLM_PROVIDER_ENV, raising=False)
+    publish_configured_bindings(
+        {
+            MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b"),
+            MODEL_ROLE_EXTRACTION: (PROVIDER_OPENAI, "gpt-4o-mini"),
+        }
+    )
+
+    binding = resolve_binding(MODEL_ROLE_EXTRACTION)
 
     assert binding.provider_id == PROVIDER_OPENAI
+    assert binding.model_id == "gpt-4o-mini"
+
+
+def test_the_environment_no_longer_chooses_a_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A manifest may describe a deployment; it may not decide what it runs on."""
+    monkeypatch.setenv(NINJASRE_LLM_PROVIDER_ENV, PROVIDER_OLLAMA)
+    monkeypatch.setenv(NINJASRE_LLM_MODEL_ENV, "qwen2.5:7b")
+
+    binding = resolve_binding(MODEL_ROLE_INVESTIGATOR)
+
+    assert binding.provider_id == DEFAULT_PROVIDER
+    assert binding.model_id != "qwen2.5:7b"
 
 
 def test_an_explicit_argument_still_wins_over_configuration() -> None:
     """A caller that named a provider asked a question configuration cannot answer."""
-    publish_configured_bindings({"investigator": (PROVIDER_OLLAMA, "qwen2.5:7b")})
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
 
-    binding = resolve_binding("investigator", provider_id=PROVIDER_OPENAI)
+    binding = resolve_binding(MODEL_ROLE_INVESTIGATOR, provider_id=PROVIDER_OPENAI)
 
     assert binding.provider_id == PROVIDER_OPENAI
 
@@ -83,16 +136,41 @@ def test_nothing_configured_anywhere_still_resolves_to_the_shipped_default(
     monkeypatch.delenv(NINJASRE_LLM_PROVIDER_ENV, raising=False)
     monkeypatch.delenv(NINJASRE_LLM_MODEL_ENV, raising=False)
 
-    binding = resolve_binding("investigator")
+    binding = resolve_binding(MODEL_ROLE_INVESTIGATOR)
 
     assert binding.provider_id == DEFAULT_PROVIDER
 
 
 def test_a_configured_provider_with_no_model_takes_that_providers_default() -> None:
     """Choosing a provider at first run must not require also choosing a model."""
-    publish_configured_bindings({"investigator": (PROVIDER_OLLAMA, "")})
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "")})
 
-    binding = resolve_binding("investigator")
+    binding = resolve_binding(MODEL_ROLE_INVESTIGATOR)
 
     assert binding.provider_id == PROVIDER_OLLAMA
     assert binding.model_id != ""
+
+
+def test_a_binding_says_whether_anybody_chose_it() -> None:
+    """The distinction `specs_v2/043`'s own deviations warned about.
+
+    That document put it exactly: "the router has to be able to tell a role
+    somebody chose from one that fell through — a default that looks like a
+    choice is how a deployment comes to believe it split its models when it
+    did not." `TaskRouter` kept the distinction, in `TaskBinding.configured`.
+    This function, which is what the deployment actually calls, threw it away,
+    and a deployment came to believe exactly that: the console had nothing to
+    read but a provider string, so it printed the schema's default as though
+    somebody had picked it.
+
+    Three answers, not two, because "I chose this for extraction" and "this
+    follows the investigator" are different facts to put in front of an
+    operator, and only one of them is worth changing.
+    """
+    publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
+
+    assert resolve_binding(MODEL_ROLE_INVESTIGATOR).source == "configured"
+    assert resolve_binding(MODEL_ROLE_EXTRACTION).source == "investigator"
+
+    reset_configured_bindings()
+    assert resolve_binding(MODEL_ROLE_EXTRACTION).source == "default"

@@ -155,6 +155,46 @@ describe('the wizard screen', () => {
     expect(within(one(offer)).getByLabelText('API token')).toBeInTheDocument();
   });
 
+  it('shows the catalogue’s declared where-to-get-it phrase on the integrations step, from the catalogue payload', async () => {
+    // The integration panel (`/integrations/{name}`) and this step read the
+    // same vendor declaration. This drives the fixture the way the deployment
+    // actually would — a `where_to_get_it` string on the catalogue record —
+    // rather than building the offer by hand the way the component-level
+    // tests below do, so a composition that drops the field on the floor is
+    // caught here even though `IntegrationsStep` itself renders it correctly.
+    const phrase =
+      'Create a read-only service account token from Prometheus’s own reverse proxy.';
+    const origin = ['http:', '//fixtures.invalid'].join('');
+    serveScenario('first-run');
+    const withoutOverride = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), origin).pathname;
+      const answer = await withoutOverride(input as never, init);
+      if (path !== '/v1/integrations') return answer;
+      const body = (await answer.json()) as {
+        integrations: readonly Record<string, unknown>[];
+      };
+      const patched = {
+        ...body,
+        integrations: body.integrations.map((entry) =>
+          entry.name === 'prometheus' ? { ...entry, where_to_get_it: phrase } : entry,
+        ),
+      };
+      return new Response(JSON.stringify(patched), {
+        status: answer.status,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+
+    render(await FirstRunScreen(await surfaceContext({ step: 'integrations' })));
+
+    const offer = screen
+      .getAllByTestId('integration-offer')
+      .find((each) => each.getAttribute('data-integration') === 'prometheus');
+    expect(offer).toBeDefined();
+    expect(within(one(offer)).getByTestId('where-to-get-it')).toHaveTextContent(phrase);
+  });
+
   it('keeps every step of the deployment’s own checklist visible, marking exactly one as where you are', async () => {
     await firstRun();
 
@@ -773,6 +813,7 @@ describe('connecting integrations', () => {
         { name: 'api_token', label: 'Token', help: '', secret: true, required: true },
       ],
       configured: false,
+      whereToGetIt: "Create a service account token from the vendor's own console.",
     },
     {
       name: 'chat',
@@ -845,6 +886,28 @@ describe('connecting integrations', () => {
     render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
 
     expect(screen.getByText('all optional')).toBeInTheDocument();
+  });
+
+  it("shows an offer's declared where-to-get-it phrase beside its form", () => {
+    const { container } = render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
+
+    const metricsStore = container.querySelector('[data-integration="metrics-store"]');
+    expect(metricsStore).not.toBeNull();
+    expect(
+      within(metricsStore as HTMLElement).getByTestId('where-to-get-it'),
+    ).toHaveTextContent(
+      "Create a service account token from the vendor's own console.",
+    );
+  });
+
+  it('renders no where-to-get-it line for an offer with no declared phrase', () => {
+    const { container } = render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
+
+    const ticketing = container.querySelector('[data-integration="ticketing"]');
+    expect(ticketing).not.toBeNull();
+    expect(
+      within(ticketing as HTMLElement).queryByTestId('where-to-get-it'),
+    ).toBeNull();
   });
 
   it('says so when a search matches nothing, rather than showing an empty list', async () => {
@@ -2042,7 +2105,12 @@ describe('the tutorial overlay', () => {
     for (let index = 0; index < SLIDES.length; index += 1) {
       expect(card()?.className).toContain('w-full');
       expect(card()?.className).toContain('max-w-prose');
-      expect(screen.getByTestId('tutorial-body').className).toContain('h-44');
+      // `h-scroll-slot` rather than the `h-44` this replaced, and for the same
+      // reason `w-prose` was wrong: `h-44` took its length from Tailwind's own
+      // spacing base, which this design never declared. Closing that base
+      // would have left this block with no height at all — the original defect
+      // back again, silently.
+      expect(screen.getByTestId('tutorial-body').className).toContain('h-scroll-slot');
       expect(screen.getByTestId('tutorial-body').className).toContain(
         'overflow-y-auto',
       );

@@ -1,9 +1,36 @@
 # NinjaSRE Constitution
 
-**Version:** 2.0.0
+**Version:** 2.5.0
 **Ratified:** 2026-08-04
-**Last amended:** 2026-08-04 — Article XIII, see [ADR 0011](../../docs/adr/0011-attribution-in-readme-only.md)
+**Last amended:** 2026-08-27 — Article XIII: documentation, specifications, prompts,
+agent instructions, and user-facing text may be in Brazilian Portuguese (pt-BR)
+or English, while source code, identifiers, and commit messages remain in English,
+see [ADR 0019](../../docs/adr/0019-portuguese-documentation-prompts-and-text.md)
 **Status:** Active
+
+**Amendment history:**
+
+- 2026-08-27 — Article XIII: documentation, specifications, planning artifacts,
+  prompts, agent instructions, and user-facing text may be in Brazilian
+  Portuguese (pt-BR) or English; source code identifiers, comments, and commit
+  messages remain in English. See
+  [ADR 0019](../../docs/adr/0019-portuguese-documentation-prompts-and-text.md)
+- 2026-08-04 — Article XIII, see [ADR 0011](../../docs/adr/0011-attribution-in-readme-only.md)
+- 2026-08-24 — Article XIII: the clause forbidding attribution from appearing
+  anywhere but `README.md` and `NOTICE` is replaced. Completeness there is what
+  the licence asks for; uniqueness was this project's own addition, and it
+  suppressed records that help a reader. See
+  [ADR 0018](../../docs/adr/0018-attribution-complete-not-unique.md)
+- 2026-08-23 — Article XIII: the clause forbidding a committed file from
+  depending on an uncommitted one is replaced. The repository now carries
+  everything except a credential, so the dependency it guarded against cannot
+  arise. See [ADR 0017](../../docs/adr/0017-everything-but-a-credential.md)
+- 2026-08-23 — Article IX gained a parity clause: parity is per embedded
+  integration and unchanged in form, breadth is staged by validatable
+  environment, see [ADR 0015](../../docs/adr/0015-parity-per-embedded-integration.md)
+- 2026-08-23 — Article XIV added: a mechanism merged with no path from a
+  serving composition root, and no declaration that it is dormant, is not a
+  delivery, see [ADR 0016](../../docs/adr/0016-composed-or-it-is-not-shipped.md)
 
 This document defines the non-negotiable principles of NinjaSRE. Every `spec.md`,
 `plan.md`, and `tasks.md` in `specs/` MUST pass a Constitution Check against these
@@ -202,10 +229,24 @@ The agent's abilities are a typed, discoverable catalogue.
 3. Capability selection MUST be scored and bounded, never "send everything".
 4. Adding a capability MUST NOT require editing a central registry file;
    discovery is automatic from the owning package.
+5. Parity across the integration catalogue is per embedded integration, and it
+   is unchanged in form: every integration the catalogue carries MUST ship all
+   seven artefacts the integration framework declares — config schema,
+   verifier, client, typed tools, methodology skill, documentation, and at
+   least one synthetic scenario. Breadth MUST be staged by validatable
+   environment rather than asserted as a total: an integration is embedded
+   once a deployment exists that can store its credential, verify its
+   connection against the real system, and exercise at least one real read
+   against it. An integration that cannot meet those three conditions is not
+   embedded, and its intent MUST be recorded rather than shipped as code
+   nobody can exercise.
 
 **Rationale:** Free-form shell access is cheap to write and impossible to plan
 against, score, or evaluate. Typed capabilities are the precondition for
-trajectory measurement.
+trajectory measurement. Clause 5 exists because parity enforced against an
+artefact's shape and parity enforced against evidence that the artefact works
+are two different claims, and only the second is one an operator can rely on
+at 03:00.
 
 ---
 
@@ -258,24 +299,66 @@ ask for.
 
 ## Article XIII — Language and Attribution
 
-1. All source, comments, identifiers, commit messages, documentation, prompts,
-   and user-facing text are in **English**.
+1. Source code, identifiers, comments, and commit messages are in **English**.
+   Documentation, specifications, planning artifacts (`specs_v*/`), prompts,
+   agent instructions, and user-facing text MAY be in **Brazilian Portuguese
+   (pt-BR)** or **English**. Where a bilingual context exists, English remains
+   normative for code identifiers, while Brazilian Portuguese is fully supported
+   for user surfaces, prompts, and documentation.
 2. Attribution for the Apache-2.0 work NinjaSRE draws on lives in `README.md`
    and `NOTICE`, and MUST be complete there.
-3. It MUST NOT be repeated anywhere else in the repository. No per-file
-   provenance headers, no provenance map, no "derived from" comments, no asides
-   naming a prior project. A file that needs a fact from prior art states the
-   fact.
-4. A committed file MUST NOT depend on an uncommitted one — no link, no import,
-   no test that reads it. Where a committed artefact needs a rule written down
-   elsewhere, the rule is restated in a committed file, and that copy is the
-   source of truth.
+3. It MAY be repeated elsewhere. A provenance record, a "derived from" note or
+   an aside naming a prior project is allowed where it helps a reader — the
+   obligation the licence creates is that the attribution in `README.md` and
+   `NOTICE` is complete, not that it is unique. A file that needs a fact from
+   prior art may state the fact, cite where it came from, or both; stating the
+   fact is still the better writing where a citation would stand in for it.
+4. The repository carries everything except a credential. Specifications,
+   control files, this constitution and the working guidance are committed, so
+   a committed file MAY link to them and a test MAY read them. A password, a
+   token, a private key or a connection string carrying a secret MUST NOT be
+   committed; a live secret is read from the process that holds it and never
+   copied into a file, a commit message or a summary.
+5. Citing a document that ships is allowed and is not a substitute for saying
+   the thing. A file that answers "why" with a pointer where it could answer
+   with the substance is worse for the next reader, and the obligation to be
+   readable does not move.
 
 **Rationale:** Apache 2.0 obliges attribution, and one complete, maintained
 statement of it discharges that obligation better than a hundred scattered
 comments that drift out of date. Clause 4 exists because a check that reads a
 file absent from a clean checkout does not fail — it skips, which is worse than
 not existing.
+
+---
+
+## Article XIV — Composed or It Is Not Shipped
+
+A mechanism that is merged and cannot be reached from anything that serves a
+real request has not been delivered, whatever its tests say.
+
+1. Every mechanism MUST be reachable from a composition root that serves real
+   traffic — the place in the running deployment's own startup or
+   request-handling path where a concrete instance is actually constructed and
+   wired to its caller — or the module that defines it MUST declare itself
+   dormant, naming the composition root that would wire it in.
+2. A symbol constructed only by tests, contract tests, or a mock data plane
+   MUST NOT be reported as delivered. Passing tests are evidence the mechanism
+   behaves as designed; they are not evidence that anything in a running
+   deployment calls it.
+3. Closing any feature MUST include evidence of the serving path for the
+   behaviour it adds: a caller a reader can open at a named `file:line`, or,
+   for a mechanism deliberately left dormant, the declaration naming what
+   would wire it.
+
+**Rationale:** Independent mechanisms have merged fully tested, passed every
+gate that existed, and were never called from anything a deployment runs.
+Nothing in this document's other articles asks whether a mechanism is
+reachable — Article XII asks whether tests came first, not whether either the
+tests or the implementation are ever invoked outside a test. A test is a
+caller by construction, and it is definitionally not a serving path; treating
+one as sufficient evidence of delivery is the exact substitution that let
+this happen more than once.
 
 ---
 
@@ -309,4 +392,5 @@ not existing.
 | X | Operator Owns Their Data | Does anything leave the host without an explicit opt-in? |
 | XI | Single Datastore | Does this reach storage only through a repository port? |
 | XII | Test-First, Trace-Backed | Were the tests written first, and is the scenario-suite delta reported? |
-| XIII | Language and Attribution | Is it in English, and does every reference in it resolve inside the repository? |
+| XIII | Language and Attribution | Are code/commits in English, documentation/prompts/text in pt-BR or English, and references resolved? |
+| XIV | Composed or It Is Not Shipped | Who constructs this in production, and where? |

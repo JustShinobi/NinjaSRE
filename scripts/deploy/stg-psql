@@ -1,0 +1,8 @@
+#!/bin/sh
+# Read the staging connection string from the process that holds it, each time,
+# and hand the statement on standard input to psql. Nothing is written down: the
+# URL never reaches a file, an argument list, or this script's own history.
+# Extra arguments are forwarded, so a caller can ask for unaligned output.
+U=$(kubectl exec -n k3s-stg-ninjasre deploy/app -- printenv NINJASRE_DATABASE_URL 2>/dev/null | tr -d '\r' | sed 's/+asyncpg//; s/+psycopg//')
+[ -n "$U" ] || { echo "could not read the connection string from the running process" >&2; exit 3; }
+exec psql -X -q -v ON_ERROR_STOP=1 "$@" "$U"

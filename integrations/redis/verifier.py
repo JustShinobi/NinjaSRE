@@ -16,6 +16,7 @@ from typing import Final
 
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
+from integrations._verification.diagnostics import refusal_detail
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -126,7 +127,7 @@ class RedisVerifier:
         except IntegrationError as error:
             return Connectivity(
                 reachable=False,
-                detail=_ADVICE.get(error.reason, str(error)),
+                detail=refusal_detail(error, _ADVICE),
                 status_code=error.status_code,
             )
         return Connectivity(

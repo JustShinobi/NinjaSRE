@@ -225,3 +225,30 @@ class TestRoutingLeavesTheCanonicalRuntimeAlone:
 
         with pytest.raises(Exception, match="canonical"):
             require_canonical_runtime(Experimental(), context="the scenario benchmark")  # type: ignore[arg-type]
+
+
+class TestOneResolutionRule:
+    """The router resolves through the same function the deployment calls.
+
+    FR-017 asks for a model resolvable per task class through the config
+    service, and this class was the faithful implementation of it — while
+    `resolve_binding` grew up beside it as what everything actually called.
+    Two resolvers for one fact is one too many, and the second one was the
+    dangerous kind: it carried its own default pair, so it could not know that
+    an unnamed role follows the investigator, and wiring it in as it stood
+    would have reintroduced the split-provider failure by another door.
+    """
+
+    def test_the_router_inherits_the_investigator_like_everything_else(self) -> None:
+        from core.llm.factory import publish_configured_bindings, reset_configured_bindings
+
+        reset_configured_bindings()
+        publish_configured_bindings({MODEL_ROLE_INVESTIGATOR: (PROVIDER_OLLAMA, "qwen2.5:7b")})
+        try:
+            binding = TaskRouter().binding_for(TaskClass.EXTRACTION)
+            assert (binding.provider_id, binding.model_id) == (PROVIDER_OLLAMA, "qwen2.5:7b")
+            assert not binding.configured, (
+                "following the investigator is not a choice for this task"
+            )
+        finally:
+            reset_configured_bindings()

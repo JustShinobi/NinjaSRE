@@ -21,14 +21,21 @@ import os
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.first_run import LOCAL_ADMIN_SETUP_COMMAND
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.runtime import runtime_composed
 from gateway.http.state import GatewayState
-from gateway.http.verifications import integration_health
+from gateway.http.verifications import integration_health, recorded_checks
 from integrations._catalogue.discovery import catalogue
-from integrations._catalogue.entry import HealthStatus
-from platform.startup.bootstrap import establish_durable_credential, read_credential
+from platform.identity.enrolment import identity_provider_is_active, local_sign_in_is_open
+from platform.identity.errors import LocalEnrolmentBlockedBySso, LocalSignInAlreadyOpen
+from platform.persistence.ports.verification_ledger import VerificationSubject
+from platform.startup.bootstrap import (
+    establish_durable_credential,
+    organisation_id,
+    read_credential,
+)
 from platform.startup.checklist import build_checklist
 from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
 from platform.startup.diagnostics import last_failure, support_bundle
@@ -92,6 +99,14 @@ class DurableCredentialRequest(BaseModel):
     user_id: str
     email: str
     display_name: str
+    #: The passphrase this administrator will sign in with afterwards.
+    #:
+    #: It arrives in the body while the bootstrap credential deliberately
+    #: does not, and the asymmetry is the point: the bootstrap credential is
+    #: read from the host because presenting it in a request would let a
+    #: caller name somebody else's. This one is the caller's own, being set
+    #: for the first time, and there is nowhere else it could come from.
+    password: str = Field(min_length=1)
     name: str = "first administrator"
 
 
@@ -130,16 +145,27 @@ async def checklist(
     the recorded checks found, so "verified" means something answered rather than
     that a credential is present — and it means that on the next request too,
     which is the whole reason the answer is written down.
+
+    The provider's own readiness is read the same way, from the same ledger,
+    by the same helper `/v1/providers` already reads it with — this is the
+    fix for the checklist and the listing disagreeing about the same
+    provider: one document, read twice rather than derived twice.
     """
-    ledger = await integration_health(state.gateway, auth.scope)
+    integration_checks = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.INTEGRATION
+    )
+    provider_checks = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.MODEL_PROVIDER
+    )
+    ledger = await integration_health(state.gateway, auth.scope, held=integration_checks)
     entries = catalogue(health=ledger)
     declared = tuple(entry.name for entry in entries)
-    reached = tuple(entry.name for entry in entries if entry.health is HealthStatus.HEALTHY)
     built = await build_checklist(
         state.gateway,
         organisation_id=auth.scope.org_id,
         integrations=declared,
-        verified_integrations=reached,
+        provider_checks=provider_checks,
+        integration_checks=integration_checks,
         runtime_composed=runtime_composed(state),
     )
     record = built.to_record()
@@ -233,7 +259,9 @@ async def durable_credential(
     Reads the bootstrap credential from the host file rather than from the
     request: the caller has already proved they hold it by getting this far, and
     accepting it in a body would be a second way in — one where a caller could
-    name somebody else's credential to revoke.
+    name somebody else's credential to revoke. The passphrase is the opposite
+    case: it is the caller's own, chosen for the first time, and the request
+    body is the only place it could come from.
     """
     bootstrap = read_credential()
     if bootstrap is None:
@@ -241,15 +269,19 @@ async def durable_credential(
             "there is no bootstrap credential on this host to exchange. It has already "
             "been used, or this deployment was brought up before that was recorded."
         )
-    issued = await establish_durable_credential(
-        state.gateway,
-        state.tokens,
-        bootstrap=bootstrap,
-        user_id=body.user_id,
-        email=body.email,
-        display_name=body.display_name,
-        name=body.name,
-    )
+    try:
+        issued = await establish_durable_credential(
+            state.gateway,
+            state.tokens,
+            bootstrap=bootstrap,
+            user_id=body.user_id,
+            email=body.email,
+            display_name=body.display_name,
+            password=body.password,
+            name=body.name,
+        )
+    except (LocalSignInAlreadyOpen, LocalEnrolmentBlockedBySso) as refused:
+        raise bad_request(str(refused)) from refused
     return DurableCredentialView(**issued.to_record())
 
 
@@ -281,6 +313,51 @@ async def disable_demo(state: GatewayState = Depends(get_state)) -> DemoRemovalV
         removed=report.removed,
         counts=dict(report.counts),
     )
+
+
+class LocalAdministratorAvailabilityView(BaseModel):
+    """The one fact the sign-in and first-run screens need before anybody is signed in.
+
+    Ternary, and nothing else deployment-specific: no name, no version, no
+    organisation, no count of anything. ``state`` is one of ``"unclaimed"``
+    (no local administrator and no identity provider — the CLI's own
+    command is the way in), ``"administered"`` (a local administrator
+    already exists, whether from the environment or a deliberate
+    enrolment), or ``"identity_provider"`` (this deployment's identity
+    provider is its way in).
+
+    ``command`` carries the CLI invitation exactly when it is relevant —
+    ``state == "unclaimed"`` — and is empty otherwise. It is a fixed
+    constant, the same string on every deployment, read from the one place
+    that also writes it into the boot announcement: naming nothing about
+    *this* deployment is what keeps it inside FR-076's boundary despite
+    being served unauthenticated.
+    """
+
+    state: str
+    command: str = ""
+
+
+@router.get("/local-administrator", response_model=LocalAdministratorAvailabilityView)
+async def local_administrator_availability(
+    state: GatewayState = Depends(get_state),
+) -> LocalAdministratorAvailabilityView:
+    """Return the ternary fact the sign-in and first-run screens read.
+
+    Public by declaration: it is what tells an unauthenticated visitor
+    whether there is a way in at all, and revealing that is the whole point
+    of the route — see ``LocalAdministratorAvailabilityView`` for what it
+    deliberately does not also reveal.
+    """
+    org_id = organisation_id()
+    if await identity_provider_is_active(state.gateway, org_id=org_id):
+        return LocalAdministratorAvailabilityView(state="identity_provider")
+    administered = (
+        state.local_sign_in is not None and state.local_sign_in.account is not None
+    ) or await local_sign_in_is_open(state.gateway, org_id=org_id)
+    if administered:
+        return LocalAdministratorAvailabilityView(state="administered")
+    return LocalAdministratorAvailabilityView(state="unclaimed", command=LOCAL_ADMIN_SETUP_COMMAND)
 
 
 __all__ = ["router"]

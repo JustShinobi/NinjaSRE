@@ -400,7 +400,7 @@
         "references": [
           {
             "recorded_at": "2026-08-07T12:00:00+00:00",
-            "reference_id": "inc-alert-0002",
+            "reference_id": "alert:alertmanager:ct-102@2026-08-07T12:00:00+00:00",
             "reference_kind": "incident",
             "summary": ""
           }

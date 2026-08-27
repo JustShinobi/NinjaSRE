@@ -176,8 +176,8 @@ class LocalSignIn:
         something a caller, or a stopwatch, can tell apart from the outside.
 
         The refusal is one exception with one message for every way of being
-        wrong — a wrong name, a wrong passphrase, no local account configured
-        at all, or a principal that exists but has no stored password. The
+        wrong — a wrong name, a wrong passphrase, no local sign-in enabled at
+        all, or a principal that exists but has no stored password. The
         *audit* distinguishes the broad outcomes, because the operator reading
         it afterwards is on our side and the person at the form is not
         necessarily.
@@ -187,18 +187,22 @@ class LocalSignIn:
         """
         scope = TenantScope(org_id=org_id)
 
-        if self.account is None:
-            # The door is this field being set at all, deployment-wide — every
-            # request to a deployment that never configured it takes this same
-            # branch, so refusing here without comparing anything reveals
-            # nothing about which credential was tried. A principal created
-            # through the identity route opens no door of its own: creating one
-            # must not turn a deployment that only has an identity provider
-            # into a deployment with a second entrance.
-            await self._record(scope, username, outcome="no local account is configured")
+        # The door is this field being set, deployment-wide — *or* a
+        # deliberate opening somebody registered while this process was
+        # already up, without a restart. Read unconditionally, before either
+        # branch below, so the shape of a refusal never depends on which of
+        # the two (if either) is why this deployment is open: a name that
+        # exists and a name that does not must cost exactly the same,
+        # whichever mechanism opened the door. A principal created through
+        # the identity route opens neither of these on its own: creating one
+        # must not turn a deployment that only has an identity provider into
+        # a deployment with a second entrance.
+        door_open = self.account is not None or await self._local_sign_in_is_open(scope)
+        if not door_open:
+            await self._record(scope, username, outcome="no local sign-in is enabled")
             raise LocalSignInRejected
 
-        account_matches = self.account.verify(username, password)
+        account_matches = self.account is not None and self.account.verify(username, password)
         created_principal_id = await self._resolve_created_principal(scope, username, password)
 
         if account_matches:
@@ -235,6 +239,16 @@ class LocalSignIn:
         return issued
 
     # --- The pieces ---------------------------------------------------------------
+
+    async def _local_sign_in_is_open(self, scope: TenantScope) -> bool:
+        """Return whether this deployment registered an opening.
+
+        One indexed read of a single-row table, made unconditionally rather
+        than short-circuited by anything the caller supplied — a passphrase
+        never enters this decision.
+        """
+        async with self.gateway.begin(scope) as uow:
+            return await uow.identity.local_sign_in_opening() is not None
 
     async def _resolve_created_principal(
         self, scope: TenantScope, username: str, password: str

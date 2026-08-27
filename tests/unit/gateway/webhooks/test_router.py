@@ -302,6 +302,7 @@ async def test_a_resolution_with_no_matching_investigation_is_recorded_standalon
     assert response.json()["incident_id"] is None
 
 
+@pytest.mark.load
 async def test_a_1000_event_storm_is_bounded_with_a_complete_shed_record(
     webhook_app: tuple[AsyncClient, GatewayState],
 ) -> None:

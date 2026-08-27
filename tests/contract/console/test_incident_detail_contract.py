@@ -56,7 +56,7 @@ from platform.persistence.ports.incident_store import (
     TimelineKind,
     timeline_key,
 )
-from platform.persistence.ports.run_trace_store import AgentRun, TurnRecord
+from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
 from platform.persistence.ports.transaction import TenantScope
 from tests.unit.gateway.http.conftest import (
     ORG,
@@ -291,6 +291,61 @@ async def test_the_response_carries_the_investigations_step_count_duration_and_c
         assert field_name in investigation, (
             f"investigation summary is missing {field_name!r}; has {sorted(investigation)}"
         )
+
+
+async def test_the_summary_says_whether_the_run_is_still_going(
+    deployment: Deployment,
+) -> None:
+    """The run's own status, so no screen has to infer it from what is missing.
+
+    The console decided "still running" by looking for a delivery step in the
+    incident's timeline and finding none. A completed run that delivered
+    nowhere therefore read as running for as long as the incident existed —
+    and was drawn beside a state chip saying the incident had been resolved
+    two hours earlier. Two chips, one header, opposite claims.
+
+    A run id attached with no trace row behind it yet is the one case that
+    answers nothing, and it answers with the empty string rather than a
+    plausible word: the screen has to be able to say "not known" there, and it
+    cannot if this route has already guessed on its behalf.
+    """
+    started = datetime.now(UTC)
+    incident_id = await _incident_with_a_traced_run(
+        deployment,
+        run_id="run-status",
+        started_at=started,
+        finished_at=started + timedelta(seconds=5),
+        turns=(TurnRecord(turn_id="turn-1", run_id="run-status", index=1),),
+    )
+
+    body = await _detail(deployment, incident_id)
+
+    investigation = body["investigation"]
+    assert "status" in investigation, (
+        f"investigation summary cannot say whether the run is over; has {sorted(investigation)}"
+    )
+    assert investigation["status"] == RunStatus.RUNNING.value, (
+        f"the summary did not report the run's own status: {investigation}"
+    )
+
+
+async def test_a_run_with_no_trace_row_reports_no_status_rather_than_a_guess(
+    deployment: Deployment,
+) -> None:
+    """An attached run id whose trace has not appeared yet says nothing.
+
+    This is the moment right after ``attach_run``, and the honest answer is
+    that nobody knows where the run got to. Reporting "completed" would age
+    into a lie the moment the run finished; reporting "running" would be a
+    claim about a process this route cannot see.
+    """
+    incident_id = await _investigated_incident(deployment)
+
+    body = await _detail(deployment, incident_id)
+
+    assert body["investigation"]["status"] == "", (
+        f"a run with no trace row was given a status anyway: {body['investigation']}"
+    )
 
 
 # --- Claim: an incident nothing has ever investigated has no summary --------------

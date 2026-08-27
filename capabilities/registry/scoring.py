@@ -33,6 +33,7 @@ from config.constants.capabilities import (
     SCORE_EFFECTIVENESS_MAX,
     SCORE_MINIMUM_TERM_LENGTH,
     SCORE_STOP_WORDS,
+    SCORE_SUBJECT_SOURCE_MATCH,
     SCORE_TAG_OVERLAP_MAX,
     SCORE_TAG_OVERLAP_PER_TAG,
     SCORE_USE_CASE_SIMILARITY_MAX,
@@ -65,6 +66,16 @@ class Incident:
     tags: tuple[str, ...] = ()
     domain: str = ""
     planned_capabilities: tuple[str, ...] = ()
+    #: The systems that hold what this incident is about, as the estate names
+    #: them — ``proxmox`` for a node swept from Proxmox, and so on. Alert
+    #: resolution has already matched the alert onto a resource by the time
+    #: capabilities are ranked, so this costs no lookup here.
+    #:
+    #: Separate from ``alert_source`` because they answer different questions.
+    #: One says which system is broken and the other says which system said so,
+    #: and a deployment that routes every alert through one receiver has the
+    #: same ``alert_source`` on every incident it will ever have.
+    subject_sources: tuple[str, ...] = ()
 
     def terms(self) -> frozenset[str]:
         """Return the meaningful words in the summary, for lexical overlap."""
@@ -86,13 +97,23 @@ class ScoredCapability:
         return self.score < 0.0
 
 
-def _terms(text: str) -> frozenset[str]:
-    """Return the words in ``text`` worth matching on."""
+def terms(text: str) -> frozenset[str]:
+    """Return the words in ``text`` worth matching on.
+
+    Public because per-turn re-ranking has to ask of a run's observations the
+    same question this module asks of an incident summary — is this vendor, is
+    this tag, named in here — and two tokenisers would be two answers to it.
+    """
     return frozenset(
         word
         for word in _WORD.findall(text.lower())
         if len(word) >= SCORE_MINIMUM_TERM_LENGTH and word not in SCORE_STOP_WORDS
     )
+
+
+#: The name this module uses internally. One implementation, two spellings, so
+#: making it public did not touch a single call site below.
+_terms = terms
 
 
 def _declared_alert_sources(metadata: CapabilityMetadata) -> frozenset[str]:
@@ -105,6 +126,32 @@ def _declared_alert_sources(metadata: CapabilityMetadata) -> frozenset[str]:
         return frozenset(metadata.applies_when.alert_sources)
     if isinstance(metadata, ToolMetadata):
         return frozenset({metadata.evidence_source})
+    return frozenset()
+
+
+def _declared_subject_sources(metadata: CapabilityMetadata) -> frozenset[str]:
+    """Return the systems ``metadata`` says it is *about*, whichever kind it is.
+
+    A tool names one outright: the system its evidence comes from is the system
+    it can say anything about. A skill names none — a methodology has no
+    evidence source — so what it declares instead is read: the situations its
+    author said it applies to, which is where a Proxmox methodology writes
+    ``proxmox``.
+
+    Distinct from ``_declared_alert_sources`` even though a tool answers both
+    from the same field. The two questions differ whenever the system that
+    reported a failure is not the system that has it, which is the ordinary
+    case: one Alertmanager reports on an estate of many vendors.
+    """
+    if isinstance(metadata, ToolMetadata):
+        source = metadata.evidence_source.strip().lower()
+        return frozenset({source}) if source else frozenset()
+    if isinstance(metadata, SkillMetadata):
+        return frozenset(
+            tag.strip().lower()
+            for tag in (*metadata.tags, *metadata.applies_when.tags)
+            if tag.strip()
+        )
     return frozenset()
 
 
@@ -141,6 +188,19 @@ def score_capability(
     provider = effectiveness if effectiveness is not None else NeutralEffectiveness()
     score = 0.0
     rationale: list[str] = []
+
+    # The vendor holding the broken thing, before the vendor that reported it.
+    # Both terms can fire on one capability — an Alertmanager tool on an
+    # Alertmanager-hosted subject is relevant twice over — and that is the
+    # correct arithmetic rather than a double count to guard against.
+    subjects = {source.strip().lower() for source in incident.subject_sources if source.strip()}
+    about = _declared_subject_sources(metadata) & subjects
+    if about:
+        score += SCORE_SUBJECT_SOURCE_MATCH
+        rationale.append(
+            f"the incident's subject is held by {', '.join(sorted(about))} "
+            f"(+{SCORE_SUBJECT_SOURCE_MATCH:g})"
+        )
 
     alert_source = incident.alert_source.strip().lower()
     if alert_source and alert_source in {
@@ -223,4 +283,5 @@ __all__ = [
     "ScoredCapability",
     "rank",
     "score_capability",
+    "terms",
 ]

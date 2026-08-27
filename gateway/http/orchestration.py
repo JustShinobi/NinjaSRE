@@ -18,6 +18,7 @@ from gateway.http.state import GatewayState
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
+from platform.runs.headline import headline_for, report_body, resource_from_labels
 from platform.runs.recorder import RunRecorder
 
 
@@ -62,6 +63,27 @@ async def start_investigation(
     """
     team_node_id = scope.team_node_id or ""
     async with state.gateway.begin(scope) as uow:
+        if not team_node_id:
+            # A local sign-in issues a token that stands for the person across
+            # the whole organisation rather than for one team of it, so an
+            # operator starting an investigation from the console arrives here
+            # with no team at all. Nothing downstream could tell that apart
+            # from "this run belongs to nobody", and the one mechanism that
+            # acts on it — episodic memory — correctly refuses to write an
+            # episode it cannot scope, because an unscoped episode is one
+            # every team can retrieve. The result was fifty finished
+            # investigations, an empty corpus, and a screen saying none had
+            # ended.
+            #
+            # The root is the honest answer rather than a guess: it is the one
+            # node a deployment with any configuration at all is certain to
+            # have, and it is the same node the console falls back to when
+            # nothing more specific is named. It also cannot hide a run from
+            # anybody — an organisation-wide caller sees every run whatever
+            # team it carries (`routes/tenancy.py`), and a team-scoped caller
+            # could never see an unstamped one in the first place. So this
+            # only ever reveals a run to the team it actually belongs to.
+            team_node_id = (await uow.config.root()).node_id
         recorder = RunRecorder(
             store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
         )
@@ -72,13 +94,28 @@ async def start_investigation(
             alert_id=alert_id,
             metadata={RUN_METADATA_TEAM: team_node_id},
         )
-        if incident_id and credential_name:
-            await IncidentLifecycle(store=uow.incidents).record_alert_received(
-                incident_id,
-                labels=alert_labels or {},
-                credential_name=credential_name,
-                now=_utc_now(),
-            )
+        if incident_id:
+            # Attached in the same transaction that reserves the run's
+            # identity, so "this run exists" and "this incident points at it"
+            # become true together. Attaching afterwards leaves a window in
+            # which the incident is under investigation and nothing can tell:
+            # a second alert on the same subject looks for a live run to join,
+            # finds none, and starts its own. The burst that motivated the
+            # joining rule arrived three deliveries inside eighty-two
+            # milliseconds, which is well inside a window like that.
+            #
+            # Idempotent in the run, so the caller that also attaches — the
+            # webhook router, which does it to record the objective on the
+            # timeline — is not a second link.
+            lifecycle = IncidentLifecycle(store=uow.incidents)
+            await lifecycle.attach_run(incident_id, run.run_id, objective=objective, now=_utc_now())
+            if credential_name:
+                await lifecycle.record_alert_received(
+                    incident_id,
+                    labels=alert_labels or {},
+                    credential_name=credential_name,
+                    now=_utc_now(),
+                )
 
     task = asyncio.create_task(
         _drive(
@@ -89,6 +126,7 @@ async def start_investigation(
                 objective=objective,
                 team_node_id=team_node_id,
                 principal_id=principal_id,
+                org_id=scope.org_id,
                 alert_source=alert_source,
                 context=dict(context or {}),
                 incident_id=incident_id,
@@ -120,11 +158,26 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
         status = RunStatus.FAILED
         summary = f"{type(error).__name__}: {error}"
     finally:
+        # Extracted from what the model wrote when it followed the delivery
+        # prompt's instruction; synthesised from the run's own subject —
+        # never from ``summary`` — when it did not.
+        headline = headline_for(
+            summary,
+            alert_name=request.alert_labels.get("alertname", ""),
+            resource=resource_from_labels(request.alert_labels),
+            objective=request.objective,
+        )
+        # The marker line is spent by the extraction above, so it does not
+        # travel on into the document. Leaving it there gave every report a
+        # last paragraph repeating the heading the page already carried.
+        summary = report_body(summary)
         async with state.gateway.begin(scope) as uow:
             recorder = RunRecorder(
                 store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
             )
-            await recorder.complete_run(request.run_id, status=status, summary=summary)
+            await recorder.complete_run(
+                request.run_id, status=status, summary=summary, headline=headline
+            )
 
 
 __all__ = ["start_investigation"]

@@ -15,8 +15,6 @@ assertion standing in for all three:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import pytest
 
 from capabilities.registry.catalogue import Registry
@@ -25,8 +23,10 @@ from config.constants.investigation import (
     MAX_INVESTIGATION_LOOPS,
     RUN_WALL_CLOCK_SECONDS,
 )
+from core.agent.handoff import HumanHandoff
+from core.agent.interaction.registry import InteractionRegistry
 from core.agent.react_loop import CANONICAL_RUNTIME_NAME, ReActLoop
-from core.agent.runtime_port import RunResult, RunStatus
+from core.agent.runtime_port import RunRequest, RunResult, RunStatus
 from core.agent.session import Session
 from gateway.http.services import InvestigationStart
 from gateway.runtime.investigator import (
@@ -35,15 +35,6 @@ from gateway.runtime.investigator import (
     ReActInvestigationRunner,
     _LiveRun,
 )
-from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
-from platform.persistence.fakes import FakePersistence
-from platform.persistence.ports import (
-    IncidentOrigin,
-    IncidentSubject,
-    PersistenceGateway,
-    TenantScope,
-    TimelineKind,
-)
 from tests.unit.gateway.runtime.conftest import ScriptedLLM, failed_turn, fixture_tool, text_turn
 
 pytestmark = pytest.mark.unit
@@ -51,6 +42,11 @@ pytestmark = pytest.mark.unit
 
 def _registry(*names: str) -> Registry:
     return Registry(tools={name: fixture_tool(name) for name in names})
+
+
+def _desk(request: InvestigationStart) -> HumanHandoff:
+    """Return the question desk one investigation is composed with."""
+    return HumanHandoff(registry=InteractionRegistry(run_id=request.run_id), run_id=request.run_id)
 
 
 def _request(run_id: str = "run-1") -> InvestigationStart:
@@ -63,6 +59,43 @@ def _request(run_id: str = "run-1") -> InvestigationStart:
     )
 
 
+class _RecordingRuntime:
+    """The loop, replaced by something that keeps the request it was driven with.
+
+    A served investigation runs the six stages, and the fourth of them builds
+    the request the loop is given. That request is no longer a value this
+    runner hands out, so the only honest place to read it is where it arrives.
+    """
+
+    name = CANONICAL_RUNTIME_NAME
+    is_canonical = True
+
+    def __init__(self) -> None:
+        self.requests: list[RunRequest] = []
+
+    async def run(self, request: RunRequest) -> RunResult:
+        self.requests.append(request)
+        return RunResult(
+            session=_session(request.session_id), status=RunStatus.COMPLETED, answer="done"
+        )
+
+    async def cancel(self, session_id: str) -> None: ...
+
+
+async def _requested(monkeypatch: pytest.MonkeyPatch, request: InvestigationStart) -> RunRequest:
+    """Return the request the gathering stage built while serving ``request``."""
+    runtime = _RecordingRuntime()
+    runner = ReActInvestigationRunner(
+        llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
+    )
+    monkeypatch.setattr(ReActInvestigationRunner, "_build_runtime", lambda *_a, **_k: runtime)
+
+    await runner.investigate(request)
+
+    assert runtime.requests, "the gathering stage never drove the runtime"
+    return runtime.requests[0]
+
+
 # -- T016: the composed runtime is the canonical loop, and its bounds hold ----
 
 
@@ -73,7 +106,7 @@ class TestComposesTheCanonicalLoop:
             registry=_registry("fixture_probe"),
         )
 
-        built = runner._build_runtime(_request(), messages=None)  # type: ignore[arg-type]
+        built = runner._build_runtime(_request(), messages=None, tools=())  # type: ignore[arg-type]
 
         assert isinstance(built, ReActLoop)
         assert built.is_canonical is True
@@ -90,12 +123,14 @@ class TestComposesTheCanonicalLoop:
             llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
         )
 
-        first = runner._build_runtime(_request("run-a"), messages=None)  # type: ignore[arg-type]
-        second = runner._build_runtime(_request("run-b"), messages=None)  # type: ignore[arg-type]
+        first = runner._build_runtime(_request("run-a"), messages=None, tools=())  # type: ignore[arg-type]
+        second = runner._build_runtime(_request("run-b"), messages=None, tools=())  # type: ignore[arg-type]
 
         assert first is not second
 
-    def test_the_tool_schema_ceiling_is_the_named_constant_not_merely_respected(self) -> None:
+    async def test_the_tool_schema_ceiling_is_the_named_constant_not_merely_respected(
+        self,
+    ) -> None:
         """The composed object is capped at exactly ``MAX_AGENT_TOOL_SCHEMAS``.
 
         The registry here declares more than the ceiling on purpose, so a
@@ -107,9 +142,9 @@ class TestComposesTheCanonicalLoop:
             llm=ScriptedLLM([text_turn("x")]), registry=_registry(*names)
         )
 
-        selected = runner._select_tools(_request())
+        selected = await runner._select_tools(_request(), handoff=_desk(_request()))
 
-        assert len(selected) == MAX_AGENT_TOOL_SCHEMAS
+        assert len(selected.tools) == MAX_AGENT_TOOL_SCHEMAS
 
     def test_the_loops_own_guard_is_what_the_cap_relies_on(self) -> None:
         """The ceiling is a real refusal on ``ReActLoop`` itself, not a convention.
@@ -125,19 +160,51 @@ class TestComposesTheCanonicalLoop:
         with pytest.raises(ValueError, match="tool schemas"):
             ReActLoop(llm=ScriptedLLM([text_turn("x")]), tools=too_many)
 
-    def test_the_run_request_carries_the_iteration_and_wall_clock_ceilings(self) -> None:
-        """The composed request asks for the full ceiling, never a private smaller one."""
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+    async def test_the_run_request_carries_the_iteration_and_wall_clock_ceilings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The request asks for the full ceiling, never a private smaller one.
 
-        built = runner._request_of(_request())
+        Read off the request the gathering stage actually built, rather than
+        off a method of this runner. The runner used to compose that request
+        itself; now the stage that drives the loop composes it, and asserting
+        against anything else would be asserting about a value no run uses.
+        """
+        built = await _requested(monkeypatch, _request())
 
         assert built.max_iterations == MAX_INVESTIGATION_LOOPS
         assert built.wall_clock_seconds == RUN_WALL_CLOCK_SECONDS
 
-    def test_the_run_request_carries_this_runs_own_identity(self) -> None:
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+    async def test_the_run_request_tells_the_agent_that_proposing_is_part_of_the_job(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A write in the toolset is useless to a model told only to investigate.
 
-        built = runner._request_of(_request("run-xyz"))
+        The loop falls back to ``DEFAULT_RUNTIME_SYSTEM_PROMPT`` when a request
+        carries none, and that prompt exists — by its own docstring — for a
+        test, a sub-agent, or a one-off question. It frames the job as find
+        out, read, say what it means, stop as soon as the evidence supports an
+        answer. It never mentions that a remediation capability in the toolset
+        becomes a proposal for a human rather than an effect.
+
+        Measured against a live deployment twice: an investigation was offered
+        ``proxmox_start_guest``, declared its own evidence sufficient with
+        nothing missing and nothing preventing the guest from running, and
+        stopped without calling it. It did what it was told.
+
+        The prompt now reaches the loop through the gathering stage rather than
+        from a request this runner built, so it is read off the run — which is
+        the only place that can show it survived the journey.
+        """
+        built = await _requested(monkeypatch, _request())
+
+        assert built.system_prompt, "the serving path must not fall back to the loop's own framing"
+        assert "propose" in built.system_prompt.lower()
+
+    async def test_the_run_request_carries_this_runs_own_identity(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        built = await _requested(monkeypatch, _request("run-xyz"))
 
         assert built.session_id == "run-xyz"
 
@@ -199,10 +266,20 @@ class TestInvestigate:
         stubbed outcome rather than asserting behaviour no fixture can coax
         out of the canonical loop.
         """
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+        # One capability rather than none: a run whose catalogue narrows to
+        # nothing now ends before a runtime is built at all, with the answer
+        # that names what to connect, so an empty registry would never reach
+        # the outcome this test is about.
+        runner = ReActInvestigationRunner(
+            llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
+        )
 
         class _FailingLoop:
             is_canonical = True
+            # Named, because the stage that drives it records which runtime
+            # produced the run's numbers — a published number has to be
+            # attributable to the runtime that made it.
+            name = "failing-double"
 
             async def run(self, request: object) -> RunResult:
                 return RunResult(
@@ -324,133 +401,50 @@ class TestInteractionsAreHonestlyAbsent:
             )
 
 
-# -- A real run records receipt, when given somewhere to write it ------------
+# -- A run this runner drives never writes an incident receipt itself -------
+#
+# The runner used to hold an optional ``incidents`` collaborator and write a
+# receipt through it before the loop's first turn — a second path to the same
+# write ``gateway.http.orchestration.start_investigation`` already makes,
+# inside the transaction that reserves the run's identity. That path is gone,
+# not disabled: the constructor no longer accepts an ``incidents`` argument at
+# all, so a caller cannot wire the second writer back in by passing one.
 
 
-@pytest.fixture
-async def gateway() -> PersistenceGateway:
-    store = FakePersistence()
-    async with store.begin_system() as system:
-        await system.orgs.create_organisation("acme", "Acme")
-    return store
+class TestTheRunnerNeverWritesAnIncidentReceiptItself:
+    def test_the_constructor_no_longer_accepts_an_incidents_collaborator(self) -> None:
+        import inspect
 
+        parameters = inspect.signature(ReActInvestigationRunner).parameters
 
-def _epoch() -> datetime:
-    return datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+        assert "incidents" not in parameters, (
+            "ReActInvestigationRunner accepts 'incidents' again — that is the second "
+            "receipt writer this feature removed, and it must not come back as an "
+            "optional argument nobody has to pass."
+        )
 
-
-def _a_raise() -> IncidentRaise:
-    return IncidentRaise(
-        correlation_key="alert:instance-down:host-1",
-        title="InstanceDown",
-        summary="host-1 stopped responding to scrapes",
-        origin=IncidentOrigin.ALERT,
-        origin_id="alertmanager",
-        severity="critical",
-        subjects=(IncidentSubject(resource_id="host-1", detail="down"),),
-    )
-
-
-class TestRecordsReceiptWhenComposedWithAnIncidentLifecycle:
-    """Receipt recording, wired into a real ``investigate()`` call rather than proven in isolation.
-
-    ``ReActInvestigationRunner.incidents`` and ``InvestigationStart``'s
-    ``incident_id``/``alert_labels``/``credential_name`` are all optional —
-    every test above this class, none of which sets any of them, keeps
-    passing unchanged (proven by running this whole file, not asserted
-    here). This class is the proof that when they *are* given, a real run —
-    a real ``ReActLoop``, stubbed only at the model boundary, exactly like
-    every other test in this file — writes a real receipt entry onto the
-    named incident's own timeline.
-    """
-
-    async def test_a_run_started_with_an_incident_records_its_receipt(
-        self, gateway: PersistenceGateway
-    ) -> None:
-        async with gateway.begin(TenantScope(org_id="acme")) as uow:
-            lifecycle = IncidentLifecycle(store=uow.incidents)
-            incident = await lifecycle.raise_incident(_a_raise(), now=_epoch())
-
-            runner = ReActInvestigationRunner(
-                llm=ScriptedLLM([text_turn("no evidence gathered")]),
-                registry=_registry("fixture_probe"),
-                incidents=lifecycle,
-            )
-            request = InvestigationStart(
-                run_id="run-1",
-                objective="disk on host-1 is at 98%",
-                team_node_id="platform",
-                principal_id="operator-1",
-                alert_source="prometheus",
-                incident_id=incident.incident_id,
-                alert_labels={"alertname": "InstanceDown", "severity": "critical"},
-                credential_name="delivery token am-cluster",
-            )
-
-            await runner.investigate(request)
-
-            history = await lifecycle.timeline(incident.incident_id)
-
-        receipts = [item for item in history if item.kind is TimelineKind.ALERT_RECEIVED]
-        assert len(receipts) == 1
-        assert "am-cluster" in receipts[0].cause
-        assert "alertname=InstanceDown" in receipts[0].detail
-
-    async def test_without_a_credential_name_nothing_is_recorded_and_the_run_still_completes(
-        self, gateway: PersistenceGateway
-    ) -> None:
-        """An operator-triggered investigation has no delivery to name.
-
-        A silent no-op rather than a refusal: ``record_alert_received``
-        itself requires a credential name (``record_alert_received``'s own guard), and an
-        investigation with nothing to name there must still complete.
-        """
-        async with gateway.begin(TenantScope(org_id="acme")) as uow:
-            lifecycle = IncidentLifecycle(store=uow.incidents)
-            incident = await lifecycle.raise_incident(_a_raise(), now=_epoch())
-
-            runner = ReActInvestigationRunner(
-                llm=ScriptedLLM([text_turn("no evidence gathered")]),
-                registry=_registry("fixture_probe"),
-                incidents=lifecycle,
-            )
-            request = InvestigationStart(
-                run_id="run-1",
-                objective="disk on host-1 is at 98%",
-                team_node_id="platform",
-                principal_id="operator-1",
-                incident_id=incident.incident_id,
-                # alert_labels and credential_name are left at their defaults.
-            )
-
-            summary = await runner.investigate(request)
-
-            history = await lifecycle.timeline(incident.incident_id)
-
-        assert summary == "no evidence gathered"
-        assert not any(item.kind is TimelineKind.ALERT_RECEIVED for item in history)
-
-    async def test_without_an_incidents_collaborator_composed_nothing_is_recorded(self) -> None:
-        """Today's actual composition: no persistence handle, so no recording — and no error.
-
-        ``gateway.runtime.factory.build_investigator`` does not compose
-        ``incidents`` yet (see this feature's report); this is the honest
-        characterisation of what that means for a real run today.
-        """
+    async def test_a_completed_run_never_touches_any_incident_lifecycle(self) -> None:
+        """The behavioural half of the same claim: nothing about running an
+        investigation reaches for an incident store, because the runner holds
+        no reference to one at all."""
         runner = ReActInvestigationRunner(
             llm=ScriptedLLM([text_turn("no evidence gathered")]),
             registry=_registry("fixture_probe"),
         )
-        request = InvestigationStart(
-            run_id="run-1",
-            objective="disk on host-1 is at 98%",
-            team_node_id="platform",
-            principal_id="operator-1",
-            incident_id="inc-1",
-            alert_labels={"alertname": "InstanceDown"},
-            credential_name="delivery token am-cluster",
+
+        summary = await runner.investigate(
+            InvestigationStart(
+                run_id="run-1",
+                objective="disk on host-1 is at 98%",
+                team_node_id="platform",
+                principal_id="operator-1",
+                incident_id="inc-1",
+                alert_labels={"alertname": "InstanceDown"},
+                credential_name="delivery token am-cluster",
+            )
         )
 
-        summary = await runner.investigate(request)  # must not raise despite no `incidents`
-
         assert summary == "no evidence gathered"
+        assert not hasattr(runner, "incidents")
+        assert await runner.queue_message("run-1", "late message") is False
+        assert "run-1" not in runner._live

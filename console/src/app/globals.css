@@ -46,10 +46,38 @@
   /*
    * Spacing, as an explicit scale rather than a multiplier.
    *
-   * Declaring the seven steps and no base is what makes `p-5` a real utility
-   * and `p-9` no utility at all — an off-scale value produces no CSS, which is
-   * a stronger guarantee than a lint rule and arrives earlier.
+   * Declaring the seven steps is not enough on its own, and this comment used
+   * to claim it was. `@theme inline` *adds* names; it never clears what
+   * Tailwind's own theme declared, so its base of a quarter of a rem survived
+   * underneath and `p-9`, `max-h-96`, `h-44` and `w-0.5` all compiled happily
+   * to that base times their number. The scale was documented as closed and
+   * was open, and the lint rule — which did not cover heights or widths at
+   * all — was the only thing holding it.
+   *
+   * `--spacing: initial` is what actually closes it. With no base there is
+   * nothing to multiply, so an off-scale step produces no CSS at all: a
+   * stronger guarantee than a lint rule and one that arrives earlier, which is
+   * what the claim was always supposed to mean.
+   *
+   * The two values here are values rather than `var()`s because both are
+   * removals rather than measurements. `--container-*` goes for the same reason
+   * a step off the scale does: it is a second set of lengths nobody in this
+   * design declared, reachable as `max-w-md`, and a width off the scale is off
+   * the scale whichever namespace it arrived in.
    */
+  --spacing: initial;
+  --container-*: initial;
+  /*
+   * Zero, which is the removal of a step rather than an eighth one.
+   *
+   * Closing the base takes `inset-0`, `min-w-0` and `p-0` with it — Tailwind
+   * resolves zero through the same scale as every other step. Those are not
+   * off-scale values; `min-w-0` is how a flex child is allowed to shrink and
+   * `inset-0` is how an overlay pins to its edges. A scale that could not say
+   * "none" would be worked around with an arbitrary value, which is worse than
+   * the thing it was protecting.
+   */
+  --spacing-0: 0px;
   --spacing-1: var(--space-1);
   --spacing-2: var(--space-2);
   --spacing-3: var(--space-3);
@@ -180,6 +208,73 @@
  * pretends to be. They are utilities so that the shell names them rather than
  * writing the numbers.
  */
+/*
+ * How wide a list column is, by what it holds.
+ *
+ * Utilities rather than inline widths, for the reason the shell's two
+ * measurements are: a component names the column's content and the width
+ * follows from the scale, instead of every screen writing a number that drifts
+ * from the next screen's.
+ */
+@utility w-column-word {
+  width: var(--column-word);
+}
+
+@utility w-column-badge {
+  width: var(--column-badge);
+}
+
+@utility w-column-identifier {
+  width: var(--column-identifier);
+}
+
+@utility w-column-instant {
+  width: var(--column-instant);
+}
+
+@utility w-column-measure {
+  width: var(--column-measure);
+}
+
+/*
+ * How tall a scrolling region gets, and how wide one column of content gets.
+ *
+ * Utilities rather than steps, because the spacing scale genuinely has nothing
+ * this size: its largest step is a gutter between sections and these are
+ * measured from how much content is worth showing at once. Before the scale
+ * was closed they were written as `max-h-96`, `max-h-64`, `h-44` and
+ * `max-w-md` — utilities that resolved through Tailwind's own base, which this
+ * design never declared and which the documentation insisted was absent.
+ */
+@utility max-h-scroll-pane {
+  max-height: var(--scroll-pane);
+}
+
+@utility max-h-scroll-entry {
+  max-height: var(--scroll-entry);
+}
+
+@utility h-scroll-slot {
+  height: var(--scroll-slot);
+}
+
+@utility max-w-reading {
+  max-width: var(--width-reading);
+}
+
+/*
+ * A stroke drawn as an element rather than as a border.
+ *
+ * A mark positioned along a ruler is absolutely placed, so it has a width
+ * instead of a border — but it is still a stroke, and it names the same token
+ * a border of that weight would. The first spacing step is wider than the
+ * emphasis stroke, so there is no step to round this to that would not
+ * thicken the mark.
+ */
+@utility w-stroke-emphasis {
+  width: var(--stroke-3);
+}
+
 @utility w-sidebar {
   width: var(--shell-sidebar);
 }
@@ -237,6 +332,44 @@
 }
 
 /*
+ * A mark that says the thing behind it is still running.
+ *
+ * The ring expands out of the dot and fades, on the toast duration doubled —
+ * slow enough to read as breathing rather than as blinking, which is what an
+ * alarm does. It carries no meaning of its own: the word beside it says
+ * whether the guardian is active, and this only says the page is describing
+ * something live rather than something recorded.
+ *
+ * The reduced-motion block above already removes it, by removal rather than by
+ * shortening, so there is nothing further to declare here.
+ */
+@utility pulse-live {
+  position: relative;
+}
+
+@utility pulse-live-ring {
+  position: absolute;
+  inset: 0;
+  /* Inherited rather than written: the mark this sits inside is already a
+     circle, and a second radius here would be a value nobody could change in
+     one place. */
+  border-radius: inherit;
+  background: currentColor;
+  animation: ninjasre-pulse var(--dur-pulse) ease-out infinite;
+}
+
+@keyframes ninjasre-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+/*
  * The one shape a border-radius cannot make.
  *
  * The triangle is the warning status, and it has to be a shape rather than a
@@ -255,4 +388,34 @@
  */
 @theme inline {
   --container-page: var(--width-page);
+}
+
+/*
+ * A disclosure that opens with the console's own chevron.
+ *
+ * `<details>` ships with the browser's triangle, which is the one glyph on
+ * these screens that no stylesheet here chose: it is a different shape, a
+ * different weight and a different colour on every platform, and it appeared
+ * seven times across Knowledge, The agent and Settings. The marker goes, and
+ * the summary draws a chevron from the same icon set as everything else —
+ * rotated by the element's own open state rather than by any script.
+ */
+@utility disclosure {
+  & > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  & > summary [data-disclosure-chevron] {
+    transition: transform var(--dur-hover) ease;
+  }
+
+  &[open] > summary [data-disclosure-chevron] {
+    transform: rotate(90deg);
+  }
 }

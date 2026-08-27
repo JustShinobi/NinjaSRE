@@ -44,6 +44,20 @@ FIRST_RUN_ROUTES: Final[tuple[Route, ...]] = (
     # one.
     Route(method="POST", path="/v1/setup/demo", permission=Permission.ORG_MANAGE),
     Route(method="DELETE", path="/v1/setup/demo", permission=Permission.ORG_MANAGE),
+    # --- Whether there is a way in --------------------------------------------
+    # Public by declaration: it is what the sign-in and first-run screens read
+    # before anybody is signed in, and it answers with a ternary state and
+    # nothing else — no deployment name, no version, no organisation, no
+    # count of anything.
+    Route(
+        method="GET",
+        path="/v1/setup/local-administrator",
+        public_because=(
+            "an unauthenticated visitor is exactly who needs to know whether "
+            "there is a way in; the response carries a three-value state and "
+            "nothing that identifies this deployment"
+        ),
+    ),
 )
 
 __all__ = ["FIRST_RUN_ROUTES"]

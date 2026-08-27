@@ -95,6 +95,14 @@ class IntegrationProfile:
     regions: RegionMap
     permissions: tuple[RequiredPermission, ...] = ()
     pagination: tuple[EndpointPagination, ...] = ()
+    #: One sentence naming where an operator obtains this vendor's credential —
+    #: the same fact the console's guided first run and this vendor's own
+    #: catalogue panel both show, read from this one declaration rather than
+    #: each carrying a copy that could disagree with the other. Blank is
+    #: tolerated at this layer, the same way `CredentialField.min_scope` and
+    #: `.guide_url` tolerate it: a phrase nobody has confidently written yet
+    #: is a blank line on both screens, never an invented one on either.
+    where_to_get_it: str = ""
     #: Where a default install of this vendor listens, for the ones an operator
     #: runs themselves. Nought for a hosted API, and the difference matters: a
     #: container somebody called ``datadog`` is not a Datadog endpoint, so a

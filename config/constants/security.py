@@ -73,11 +73,16 @@ GOOGLE_QUOTA_PROJECT_HEADER: Final = "x-goog-user-project"
 
 CREDENTIAL_PROXY_TIMEOUT_SECONDS: Final[float] = 30.0
 
-#: The proxy's internal API. Two paths and nothing else: one that forwards a
-#: request and one that reports health. There is deliberately no path that
-#: returns a credential, because FR-010 says no configuration may enable one.
+#: The proxy's internal API. Three paths and nothing else: one that forwards a
+#: request, one that reports health, and one that asks the proxy to re-read what
+#: it trusts. There is deliberately no path that returns a credential, because
+#: FR-010 says no configuration may enable one, and the third path carries no
+#: body and answers with nothing but whether it ran: it moves no credential and
+#: decides nothing a configuration read would not already decide on its own
+#: next cycle, it only asks for that cycle sooner than the timer would.
 PROXY_FORWARD_PATH: Final = "/internal/forward"
 PROXY_HEALTH_PATH: Final = "/internal/health"
+PROXY_TRUST_REFRESH_PATH: Final = "/internal/trust-refresh"
 
 #: Per-tenant ceiling, counted over a fixed window. A tenant that exceeds it is
 #: refused rather than queued: a queue turns a runaway loop into latency
@@ -103,6 +108,13 @@ CREDENTIAL_EXPIRY_RETRY_ATTEMPTS: Final[int] = 1
 CREDENTIAL_PROXY_OVERHEAD_BUDGET_SECONDS: Final[float] = 0.005
 
 #: What a resolution is called in the audit trail (FR-019).
+#: Accepting a certificate for an address: which anchor, for which endpoints,
+#: by whom. Named here rather than written at the call site for the reason every
+#: other action is: an action spelled by hand is one the audit query does not
+#: find, and this is a query somebody runs precisely when it matters.
+INTEGRATION_TRUST_AUDIT_ACTION: Final = "integration.trust"
+INTEGRATION_TRUST_AUDIT_RESOURCE_KIND: Final = "integration"
+
 CREDENTIAL_RESOLUTION_AUDIT_ACTION: Final = "credential.resolve"
 CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND: Final = "integration"
 
@@ -546,6 +558,13 @@ PERMISSION_AUDIT_ACTION_DENIED: Final = "permission.denied"
 #: apart, and a reviewer asking "who was created" needs a query narrower than
 #: "who was granted anything".
 PRINCIPAL_AUDIT_ACTION_CREATE: Final = "principal.create"
+#: Enrolling a local administrator — deliberately its own class rather than
+#: ``PRINCIPAL_AUDIT_ACTION_CREATE``: the CLI's own path never touches
+#: ``POST /identity/principals`` at all, and a reviewer asking "who became an
+#: administrator, and when" needs a query that does not also return every
+#: ordinary local password somebody else created.
+LOCAL_ADMIN_AUDIT_ACTION_ENROLLED: Final = "local_admin.enrolled"
+LOCAL_ADMIN_AUDIT_ACTION_ROTATED: Final = "local_admin.rotated"
 IMPERSONATION_AUDIT_ACTION_START: Final = "impersonation.start"
 IMPERSONATION_AUDIT_ACTION_END: Final = "impersonation.end"
 BREAK_GLASS_AUDIT_ACTION: Final = "break_glass.open"
@@ -801,6 +820,10 @@ REMEDIATION_AUDIT_RESOURCE_KIND: Final = "remediation_action"
 #: The keys a remediation payload carries through the approval store. The
 #: reviewer's diff is rendered from ``steps`` and ``rollback``; the rest is what
 #: makes the decision an informed one rather than a yes/no on a tool name.
+#: The run that proposed a change, inside its payload. Read back when the
+#: approval row is written, so a surface can find the approval by the run
+#: the incident already knows — the only handle any screen has on it.
+APPROVAL_PAYLOAD_RUN: Final = "run_id"
 REMEDIATION_PAYLOAD_STEPS: Final = "steps"
 REMEDIATION_PAYLOAD_ROLLBACK: Final = "rollback"
 REMEDIATION_PAYLOAD_BLAST_RADIUS: Final = "blast_radius"
@@ -866,6 +889,8 @@ __all__ = [
     "CREDENTIAL_PROXY_TIMEOUT_SECONDS",
     "CREDENTIAL_REFRESH_MARGIN_SECONDS",
     "CREDENTIAL_RESOLUTION_AUDIT_ACTION",
+    "INTEGRATION_TRUST_AUDIT_ACTION",
+    "INTEGRATION_TRUST_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_VERSION_SEPARATOR",
     "DEFAULT_GATED_SIDE_EFFECT_LEVELS",
@@ -902,6 +927,8 @@ __all__ = [
     "LOCAL_ACCOUNT_SESSION_SECONDS",
     "LOCAL_ACCOUNT_USERNAME",
     "LOCAL_ACCOUNT_USERNAME_ENV",
+    "LOCAL_ADMIN_AUDIT_ACTION_ENROLLED",
+    "LOCAL_ADMIN_AUDIT_ACTION_ROTATED",
     "MASKING_BUDGET_SECONDS_PER_MEGABYTE",
     "MASKING_ENABLED_BY_DEFAULT",
     "MASKING_POLICY_LEVELS",
@@ -954,6 +981,7 @@ __all__ = [
     "PRODUCTION_ENVIRONMENT",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
+    "PROXY_TRUST_REFRESH_PATH",
     "REDACTION_PLACEHOLDER",
     "REMEDIATION_APPROVAL_EXPIRY_SECONDS",
     "REMEDIATION_AUDIT_ACTION_AUTONOMOUS",
@@ -961,12 +989,13 @@ __all__ = [
     "REMEDIATION_AUDIT_ACTION_WAIVER",
     "REMEDIATION_AUDIT_RESOURCE_KIND",
     "REMEDIATION_BLAST_RADIUS_DEPTH",
-    "REMEDIATION_PAYLOAD_ARGUMENTS",
     "REMEDIATION_PAYLOAD_BLAST_RADIUS",
     "REMEDIATION_PAYLOAD_CAPABILITY",
     "REMEDIATION_PAYLOAD_ENVIRONMENT",
     "REMEDIATION_PAYLOAD_EVIDENCE",
     "REMEDIATION_PAYLOAD_ROLLBACK",
+    "REMEDIATION_PAYLOAD_ARGUMENTS",
+    "APPROVAL_PAYLOAD_RUN",
     "REMEDIATION_PAYLOAD_STEPS",
     "REMEDIATION_PAYLOAD_WAIVER",
     "REMEDIATION_ROLLBACK_WINDOW_SECONDS",

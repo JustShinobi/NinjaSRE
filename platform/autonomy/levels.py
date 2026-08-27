@@ -47,6 +47,19 @@ class AutonomyLevel(StrEnum):
         """Return whether this level can execute anything at all."""
         return self is not AutonomyLevel.PROPOSE_ONLY
 
+    @property
+    def label(self) -> str:
+        """Return this level's name as a person writes it.
+
+        The value is the deployment's own spelling — ``propose_only`` — which
+        is the right thing in a configuration file, in an audit field and in a
+        comparison, and the wrong thing in the middle of a sentence written for
+        somebody to read. It was appearing verbatim in one: the resolution
+        reason, whose own docstring says it explains the resolution *to a
+        person*, printed "so it resolves to propose_only:".
+        """
+        return self.value.replace("_", "-")
+
     def describe(self) -> str:
         """Return the sentence an operator reads beside this level."""
         return _DESCRIPTIONS[self]

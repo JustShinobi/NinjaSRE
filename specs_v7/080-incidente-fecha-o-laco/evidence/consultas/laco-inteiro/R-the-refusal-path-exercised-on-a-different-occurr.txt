@@ -1,0 +1,53 @@
+# R — the refusal path, exercised on a different occurrence
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## rejections — a rejection was recorded with its reason, and a reason is not optional
+## before the wave: no row
+
+SELECT approval_id,
+       action,
+       state,
+       decided_by,
+       decided_at,
+       reason
+FROM approvals
+WHERE org_id = 'default'
+  AND state = 'rejected'
+ORDER BY decided_at DESC;
+
+--- output ---
+ approval_id | action | state | decided_by | decided_at | reason 
+-------------+--------+-------+------------+------------+--------
+(0 rows)
+
+
+--- end of output ---
+
+
+## both-decisions-in-the-audit — the approval and the rejection both appear, with author, action, subject and result
+## before the wave: no row
+
+-- Fifty rows is an evening's worth, and small enough to read. Both decisions
+-- are in here, and finding them is the reader's job rather than a filter's.
+SELECT occurred_at,
+       actor_kind,
+       actor_id,
+       action,
+       resource_kind,
+       resource_id,
+       outcome
+FROM audit_events
+WHERE org_id = 'default'
+  AND resource_kind IN ('approval_request', 'remediation_action')
+ORDER BY occurred_at DESC
+LIMIT 50;
+
+--- output ---
+ occurred_at | actor_kind | actor_id | action | resource_kind | resource_id | outcome 
+-------------+------------+----------+--------+---------------+-------------+---------
+(0 rows)
+
+
+--- end of output ---
+

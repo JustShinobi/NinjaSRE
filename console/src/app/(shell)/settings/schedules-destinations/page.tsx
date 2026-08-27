@@ -5,6 +5,9 @@ import { settingsPageMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { SchedulesDestinationsScreen } from '@/surfaces/settings/schedules-destinations';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 const ID = 'settings-schedules-destinations';
 
 export function generateMetadata(): Promise<Metadata> {

@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
-import { readSetupState, setupCause } from '../emptiness';
+import { extractionCause, firstCause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel, type PanelEmpty } from '../panel';
@@ -73,6 +74,15 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   ]);
 
   const records = list(dataOf(episodes), 'episodes');
+
+  // Read only when there is an empty corpus to explain. On every other
+  // rendering of this tab the answer changes nothing on the screen, and a
+  // read whose result is discarded is a read the deployment served for
+  // nobody.
+  const finished =
+    episodes.status === 'ready' && records.length === 0
+      ? await finishedInvestigations(init)
+      : 0;
   const components = [
     ...new Set(records.flatMap((record) => list(record, 'components').map(String))),
   ].sort();
@@ -120,14 +130,29 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   // The corpus itself, not the current filter: choosing an outcome nothing
   // matches is a normal empty panel, not the deployment-wide story below.
   const corpusEmpty = episodes.status === 'ready' && records.length === 0;
-  const cause = setupCause(locale, setup);
+
+  // Most specific first, and the extraction cause is the more specific of the
+  // two: a deployment whose investigations have finished is past the setup
+  // step this screen would otherwise blame, so "finish setting up" would be
+  // advice for something already done.
+  const cause = firstCause(
+    extractionCause(locale, finished),
+    setupCause(locale, setup, INVESTIGATION_STEP),
+  );
 
   // The mechanism for both stays — an episode comes from an investigation that
   // ended, a strategy from episodes that agree — and, when the setup is why
   // neither has happened yet, one more sentence closes the chain with a link
   // to the place that finishes it.
   const cycleBody = [
-    message(locale, 'memory.episodes.empty.body'),
+    message(
+      locale,
+      // The mechanism keeps its "and none has been written yet" only when
+      // nothing follows it. Where a cause does, that clause is the paragraph
+      // asserting an absence and then immediately counting the runs behind
+      // it — two sentences for one fact, in two different moods.
+      cause === null ? 'memory.episodes.empty.body' : 'memory.episodes.empty.mechanism',
+    ),
     message(locale, 'memory.strategies.empty.body'),
     ...(cause === null ? [] : [cause.body]),
   ].join(' ');
@@ -225,4 +250,24 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
       )}
     </>
   );
+}
+
+/**
+ * How many investigations this deployment has actually concluded.
+ *
+ * Completed, not settled. A cancelled or failed run reached no conclusion for
+ * an episode to be extracted from, so counting one would have the screen
+ * blaming the corpus for a gap that was never going to be filled — the same
+ * false causality `setupCause` exists to stop asserting, in a smaller place.
+ *
+ * A read that fails resolves to nought, which leaves the screen's own words
+ * in place. That is the safe direction: a console that could not count the
+ * runs must not start telling people their extraction is broken.
+ */
+async function finishedInvestigations(init: RequestInit): Promise<number> {
+  const runs = await panelRead('/v1/runs', () => read('/v1/runs', init));
+  if (runs.status !== 'ready') return 0;
+  return list(dataOf(runs), 'runs').filter(
+    (record) => text(record, 'status') === 'completed',
+  ).length;
 }

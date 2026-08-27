@@ -3,307 +3,747 @@
 Work this deployment has shown it needs, written down where the next person
 looking at it will find it.
 
----
-
-## A deployment should produce its own first administrator
-
-**What happens today.** A fresh deployment comes up with no way in. The console
-serves its sign-in form, the form asks for a name and a passphrase, and it
-refuses every combination — including the right one, because there is no right
-one. `LocalAccount.from_environment` returns `None` unless
-`NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH` is already set, and nothing in the
-deployment path sets it.
-
-Getting in for the first time currently means: read the source to learn the
-variable exists, find `platform.identity.local_accounts.hash_local_password`,
-run it against a passphrase somebody chooses, put the result in a Secret by
-hand, and wire that Secret into two Deployments. Staging needed exactly that
-before anybody could open it, and none of those steps is discoverable from the
-screen that refuses you.
-
-**Why it is not simply a missing default.** The current behaviour is
-deliberate, and the reasoning in `local_accounts.py` is sound: a way in that
-nobody asked for is a way in, a deployment with an identity provider should not
-acquire a second door by installing a release, and the passphrase this project
-ships with is refused outside a declared demonstration so that a default
-documented as "change this" cannot reach production. Any fix has to keep all
-three of those true. "Ship a default admin password" is not the answer.
-
-**What other applications do**, and what is worth taking from each:
-
-- **A first-run screen.** The deployment comes up with no account and the first
-  visitor is shown a form that creates one, which then stops being reachable.
-  GitLab, Grafana on first boot, Sonarr and most self-hosted software work this
-  way. It needs the window to close for good — a "create the first admin" route
-  that stays open is an open door — and it needs to survive several replicas
-  racing for it.
-- **A token printed once at boot.** The deployment writes a single-use
-  credential to its own log or a file, and the operator reads it out and
-  exchanges it. Jupyter, Portainer and Argo CD do this. Most of the machinery
-  is already here: `bring_up` issues a bootstrap credential, writes it to the
-  host, and `POST /v1/setup/durable-credential` exchanges it for a durable one.
-  What is missing is that the exchange produces an API token rather than
-  something the console's sign-in form accepts, so an operator ends up holding
-  a credential the screen in front of them cannot use.
-- **A command the operator runs.** `django-admin createsuperuser`, and the same
-  shape in Rails and Laravel. The CLI is already in every image, so this may be
-  the smallest honest step: `ninjasre setup admin --username …`, prompting for
-  the passphrase without echoing it, hashing it and storing it — which also
-  gives an answer for rotating it and for a second administrator.
-
-**Worth deciding along the way.** The exchange path and the sign-in form
-currently end in different places, and that is the seam this falls through: one
-produces a bearer token, the other wants a name and a passphrase. Whatever is
-built should make those one flow, so that "I have a credential" and "I can sign
-in" stop being separate facts.
-
-**How it should be judged.** A person who has just deployed this, and has read
-nothing, can sign in. Nothing they had to do was learned by reading source.
-Whatever door it opens is closed behind them, and a deployment that already has
-an identity provider gains no second one.
+Everything here is either something that was found while building the current
+release and left open, or something an operator has to do to their own
+infrastructure that nobody has done yet. An item leaves this file when there is
+evidence it is closed — a screen, a query, or an observed behaviour — and not
+before.
 
 ---
 
-## The screen has room the packages have not filled
+## A team's credential and an investigation's credential resolve differently
 
-The larger half of this entry is done: a self-hosted vendor now declares an
-address, the write splits by field kind, the three that ship no authentication
-are `credential_optional`, the panel says which way the traffic goes, and "Test
-again" reaches the operator's own instance and reports what it said. What is
-left is the guidance around the fields.
+**What happens today.** An operator connects an integration under their team,
+tests it, and sees it verified against the real vendor. Every investigation then
+reports that same integration unavailable.
 
-`CredentialFieldView` serves `label`, `min_scope` and `guide_url`, and the
-console renders a minimum-permission hint and a step-by-step link from the last
-two. Every field now has a label. Twenty-eight of forty have no `min_scope` and
-twenty-nine no `guide_url`, so for most fields both renderings are still dead.
-`IntegrationPanel` never passes `whereToGetIt`, which the first-run screen does
-pass, so the same string is reachable on one screen and not the other. Each
-package carries a `docs.md` answering most of what an operator asks, and no
-route serves it.
+The two resolutions are in the tree and they disagree by construction. The deep
+verify runs as the caller's team: `gateway/http/routes/integrations.py` passes
+the authenticated principal's team into the verifier, which uses it and falls
+back to the bound one only when it is blank. Vendor tools run under the handle
+`gateway/http/integration_access.py` binds at boot, and that handle is
+organisation-wide, always — the composition root says so in its own docstring,
+with a reason: a tool called by an investigation acts for the deployment, and a
+credential written by a team-less token went to the organisation-wide handle.
 
-None of this stops an integration working. All of it is the difference between
-a field somebody can fill in and a field somebody has to research.
+**Why it is not simply a parameter.** Both sides have a defensible reading. A
+team testing its own credential should test *its own* credential, or the test
+proves nothing about what that team configured. An investigation triggered by an
+alert has no team to act for until somebody decides that alerts belong to teams.
+Making them agree means choosing which of those two is the product's answer, and
+the choice reaches the credential grammar, the proxy, and what a team-scoped
+credential is for at all.
 
-**How it should be judged.** An operator who has never seen the vendor's console
-can tell, from this screen, what to create there and what to tick — without
-opening a browser tab to find out.
-
----
-
-## Four seams between what is configured and what runs
-
-Found while tracing the integration flow. Each is larger than the catalogue
-work above and none of them is a copy problem.
-
-- **The production investigator does not narrow tools by configured
-  integrations.** `gateway/runtime/investigator.py` says so in its own
-  docstring: a capability the deployment holds no credential for is still
-  offered, and reports itself unavailable when called. The ranker scores against
-  what the alert says, not against what the team connected.
-- **`TeamCatalogueResolver` is never instantiated.** It is the only resolver
-  that reads a team's configured integrations. Its sole mentions are a docstring
-  example, a re-export, and an `__all__` entry.
-- **The six-stage pipeline has no production caller.** `build_pipeline` is
-  invoked only from tests and harnesses; the serving path builds a `ReActLoop`
-  directly. `ResolveIntegrationsStage` — including the well-built
-  zero-integration outcome that names which integration to connect and how many
-  capabilities it would unlock — never runs for a real alert.
-- **The investigator's model key comes from the environment, not the vault.**
-  `get_llm()` resolves through the environment-backed stand-in, while the
-  console's verify path reads the vault first. An operator who pastes a key into
-  first-run and sees it verified has verified a key the investigator will not
-  use.
+**How it should be judged.** An operator stores a credential, sees it verified,
+and an investigation that needs that vendor uses it. Or the screen that showed it
+verified says plainly that the credential is scoped to a team and that
+investigations do not run as one — but the two facts stop contradicting each
+other silently.
 
 ---
 
-## A vendor with a self-signed certificate cannot be connected
+## Lists in the deployment answer without asking the product
 
-**What happens today.** Proxmox is pointed at, its API token is stored, the
-catalogue reports it configured — and every call fails with *"Neither the
-credential proxy nor any configured Proxmox node answered"*. The reason is one
-line up from there: the proxy will not accept the certificate. Proxmox ships a
-self-signed one and generates a new one on install, which is not an unusual
-deployment. It is the default one.
+**What happens today.** Loading the incident list and the run list in the
+deployed console produces **no request at all** to the service that holds them.
+The service logs its own requests and there are none. Screens render, links are
+drawn from data that is not the current data, and a field added to the API
+appears as an empty column on a page that never asked for it.
 
-**The mechanism exists and is not wired.** `integrations/proxmox/certificates.py`
-has `CertificateTrust` with three ways to say what this deployment accepts — a
-pinned fingerprint, a supplied PEM, and an explicit `unverified(reason=…,
-accepted_by=…)` that makes accepting one a recorded decision rather than a flag.
-`integrations/proxmox/docs.md` documents all three. No schema field offers any
-of them, no configuration path carries one, and `ProxmoxClient` takes
-`DEFAULT_TRUST` because nothing ever passes anything else.
+**What has been ruled out, by measurement rather than by reasoning.** Against a
+production build served locally, every way of reaching those lists — first
+visit, hard reload, soft navigation, soft navigation to a route already visited
+in the same session — produces a real request to the backing, every time. The
+build marks every one of those routes as rendered on demand, and there is now a
+check that fails the build if one is prerendered. The application's own response
+carries `Cache-Control: private, no-cache, no-store, max-age=0,
+must-revalidate`, which is as strict as the header gets.
 
-**Why it is not one more schema field.** The client is not what opens the
-connection. Every vendor call goes through the credential proxy, and the TLS
-handshake happens on its egress side — so a trust decision expressed on the
-client reaches nothing. Whatever carries it has to reach `platform/credentials/proxy`,
-which is the one place in this codebase where a deliberate weakening of
-certificate verification would live. That makes it a change to the security
-boundary, and it deserves to be designed as one: who may accept an unverified
-certificate, whether the acceptance is per vendor or per address, and what the
-audit trail records when somebody does.
+**Why it is not obviously the application.** Everything the application controls
+already refuses caching, and the behaviour does not reproduce without whatever
+sits in front of it. The strongest remaining hypothesis is an edge layer — a
+reverse proxy or a CDN in front of the console — answering from its own store
+and ignoring the header. That is untested: nobody has yet compared the headers
+the pod returns directly with the headers the public address returns.
 
-**How it should be judged.** An operator with an ordinary Proxmox install
-connects it, and either the deployment trusts the certificate they gave it or it
-refuses with a sentence naming the certificate — never with "no node answered",
-which sends them to check a network that is fine.
+**How it should be judged.** `curl -I` against the public address and against
+the pod return the same caching headers, and an incident created a second ago
+appears in the deployed list within one reload.
 
 ---
 
-## The alert router had no way to reach this deployment, twice over
+## The scenario corpus does not exercise the path that serves
 
-**What happened.** Adding a webhook receiver to Alertmanager did not make the
-inbound loop work, and the two reasons are worth writing down because neither
-shows up as a failure anywhere an operator would look.
+**What happens today.** The scenario corpus runs against a harness that builds
+its own loop and its own catalogue. It never calls the tool selection the
+serving investigator performs, never passes through the composition root, and
+never touches the remediation desk. So a change that breaks how a real
+deployment selects tools can leave the corpus at a perfect score.
 
-The apply that renders the Alertmanager configuration asked Infisical for the
-NinjaSRE listener token, and that key had no arm in the mapping the fetch
-switches on — so every apply died naming a secret it had just been told to
-fetch. It is fixed, but the shape recurs: a resolver and a mapping in two places
-that have to agree, with no check that they do.
+This was measured while wiring the two decision gates: the corpus stayed at five
+of five before and after a change that altered what a real turn is offered. The
+number that moved was a different one — the marked suite inside the full
+verification — because a scenario written as an ordinary test is not in the
+corpus by construction.
 
-Then the router could not resolve the name it was given. The container's
-configured nameserver had stopped existing; every `.lan.kyo.ninja` name returned
-nothing, and the receiver posted to a host that did not resolve. The
-receiver that has worked for years next to it uses a bare IP, which is why the
-gap was invisible.
+**Why it is not a matter of adding a scenario.** The corpus and the serving path
+are two different loops, deliberately: the harness exists to be cheap and
+reproducible, and giving it the serving investigator means giving it a
+composition root, a persistence handle and a credential proxy. The honest fix is
+an option — let the harness drive the serving investigator when asked — and that
+is instrument work with its own design.
 
-**What is still true.** The other two monitoring containers point at the same
-dead resolver. They work because everything reaches them by address. The first
-one that is given a name will fail the same way.
-
----
-
-## Two seams the deep verify opened rather than closed
-
-**A team's credential verifies green and is invisible to an investigation.**
-The deep verify now resolves as the team of the caller, which is what makes a
-team-scoped credential test correctly. Vendor *tools* still run under the
-organisation-wide binding `compose_integration_access` sets. So an operator can
-connect an integration under their team, see it verified against the real
-vendor, and have every investigation report that same integration unavailable.
-The two should resolve the same way, and deciding which way is the work.
-
-**A credential against a plain-HTTP address is now refused, visibly.**
-`refuse_credential_in_clear` has always refused to send a credential over an
-unencrypted connection; until an operator could enter an address, nothing
-reached it. Now they can, and pointing a vendor at `http://…` with a token
-stored is met with a refusal. That is the correct behaviour and the message is
-the vendor-call one rather than a sentence about the scheme. It should say what
-happened and what to do: use the TLS address, or store no credential.
+**How it should be judged.** Cutting a wire in the serving composition makes a
+corpus run fail, rather than leaving it at five of five.
 
 ---
 
-## A deployment cannot hold two service accounts
+## A gate whose body raises does not block the call
 
-Creating a second principal with no email address fails with a raw
-`asyncpg.exceptions.UniqueViolationError` on `ix_users_email`: the folded-email
-index treats two empty strings as a collision. `User` declares `email` as an
-ordinary string with no hint that empty is reserved, and the first service
-account a deployment creates takes it. Nothing in the type, the port or the
-message says so — the operator gets a Postgres constraint name.
+**What happens today.** The decision gates are registered as hooks that run
+before a tool call. A hook that raises is logged as a failed hook and the call
+proceeds. So a gate that throws — on an unreadable posture, on a store that is
+briefly unavailable, on a bug — fails **open**.
 
----
+The net underneath is real and is what makes this survivable: every remediation
+capability's body refuses a direct call outright, so a write that got past the
+gate still reaches a refusal instead of the vendor. That refusal is the reason
+the capability bodies must never be softened.
 
-## The Infisical operator in the cluster cannot authenticate
+**Why it is not a one-line change.** Making a raising hook block the call
+changes the behaviour of every hook in the loop, including the ones whose
+failure genuinely should not stop an investigation — a recorder that cannot
+write a turn should not cancel the run. What is wanted is a hook that can
+declare itself load-bearing, and a loop that treats those differently.
 
-Every `InfisicalSecret` in the cluster is failing to sync, and has been:
-
-> authentication failed for strategy [KUBERNETES_AUTH_MACHINE_IDENTITY] …
-> Failed to communicate with Kubernetes API server at
-> https://k3s-api.lan.kyo.ninja:6443: canceled
-
-Secrets already materialised survive, because the managed Kubernetes secret is
-owned rather than re-created, so nothing looks broken until something needs a
-new one or a rotated one. Not this project's defect, but it is the reason a
-credential for this deployment is written into its own vault by hand rather than
-delivered by the operator that exists for exactly that.
+**How it should be judged.** A gate that raises stops the call it was guarding,
+and a recorder that raises does not stop the investigation.
 
 ---
 
-## An investigation that ran leaves the run detail empty
+## A recorded remediation does not name the approval that authorised it
 
-Now that investigations reach a model and finish, the next thing visible is that
-almost nothing about them is written down in the shape the console reads. One
-completed run against staging produced a full root-cause document naming three
-reads it had made — `prometheus_active_alerts`, a resource lookup, a knowledge
-lookup — and left:
+**What happens today.** When an approved change executes, the approval's
+identifier is written into the audit trail and carried on the execution record.
+The row in the remediation ledger — the one a later proposal reads to ask "has
+anything worked on this before" — has no field for it. It records that the
+action was not autonomous, which is a different and weaker statement than naming
+the decision that authorised it.
 
-```
-trace_events | tool_calls | turns | evidence
-          39 |          0 |     0 |        0
-```
+**Why it is not simply a column.** Adding it is a change to the persistence
+model and a migration, and it is worth doing at the same time as deciding what
+else that row should carry — the incident, the plan, and the approval are all
+facts a reviewer wants in one place, and two of the three are there.
 
-So the narrative survives in the run's summary and the events survive in the
-trace, and the three tables the run-detail screen is built on hold nothing. An
-operator opening a finished investigation sees a conclusion with no working.
-
-`start_investigation`'s own docstring points at the seam: the receipt and the
-reasoning are written by "a runner composed with somewhere to record reasoning
-through (`gateway/runtime`)", and it warns that only one of two places should
-be wired at a time. Which suggests neither currently is — the same shape as the
-deep verifier, where every piece existed and nothing composed them.
-
-**How it should be judged.** A run that made four tool calls shows four tool
-calls, with what each returned, and the evidence they produced — from the store,
-after a reload, not from the process that happened to run it.
+**How it should be judged.** Reading one row of the remediation ledger answers
+"who authorised this" without joining to the audit trail.
 
 ---
 
-## The half of the product that acts is not composed
+## Nothing reads the signal at the moment of a change — closed 2026-08-26
 
-**What happens today.** An investigation reaches a conclusion and stops there.
-Not because acting was decided against — ADR 0006 decided *for* it, and every
-piece it named exists — but because nothing in any composition root builds the
-gate that would carry an action out.
+**Closed, with the evidence this file asks for.** `_UnreadSignals` is gone: the
+verification sweep reads the declared signals through the unit of work it
+already holds (`signals=uow.signals`), which is the re-entrancy the entry below
+worried about and which turned out to be answerable there rather than needing a
+live metrics source in the composition root.
 
-The capabilities are registered and real. Of eighty, forty-four are `read` and
-twelve `read_sensitive`; the other twenty-four write — fifteen reversibly, six
-irreversibly, three destructively — and twenty-four declare `requires_approval`
-with a reason and a rollback plan beside it.
+Observed rather than argued: the one obligation this deployment had, written
+2026-08-26 00:53 and stuck since, moved on its own at 10:06:53 —
+`awaiting_verification → verified`, verdict recorded, attempts 3. That first
+verdict is `inconclusive` and correctly so: its "before" was written by the old
+empty read-back, so there is nothing to compare against. Actions taken after
+this carry a real "before".
 
-**The refusal is in the right place, and it works.** Each remediation
-capability's function body is a deliberate stub:
+The original entry, kept because it explains why the shape is what it is:
 
-> A remediation capability is not callable directly. It runs through the
-> remediation gate, which records the approval and the rollback plan before
-> anything changes, and refuses when neither exists.
-
-Returned as `PERMISSION_DENIED` rather than `APPROVAL_REQUIRED`, because in a
-composition with no approval desk nobody is being asked. That is fail-closed:
-the refusal is the default rather than a check somebody could forget to write,
-which is why an unfinished acting path is safe rather than dangerous.
-
-**What is missing is the wire.** `RemediationGate`
-(`platform/remediation/gating.py`) and `AutonomyGate`
-(`platform/autonomy/decision.py`) both exist. The console's approval and
-proposal routes exist and are permissioned. Search the tree for either gate
-being constructed and every hit is a test, a contract test, or the mock data
-plane. The same shape as the deep verifier before it was composed: everything
-written, nothing wired.
-
-**Two smaller things fall out of it.** The investigator's tool selection ranks
-by relevance to the alert and does not filter by side-effect level, so a model
-can be handed a remediation capability inside its schema budget, spend a call on
-it, and get the refusal — a wasted turn and a confusing transcript. And the
-composition raises no interactions at all (`pending_interactions` returns
-nothing, `answer_interaction` refuses), so even a gate that were wired would
-have nowhere to put the question.
-
-**How it should be judged.** An operator who has turned acting on sees a
-proposed change with its rollback plan, approves it, and watches it run and be
-recorded — and an operator who has not turned it on sees the investigation
-propose the change and stop, with the reason being their policy rather than an
-absent composition.
+> Every executed remediation writes an obligation to check later whether it
+> worked. The obligation is written with its "before" values empty, because
+> nothing on the execution path reads a live signal. The composer passes a
+> reader that declares it has none and logs that fact once per action, so the
+> gap is visible rather than silent — but the verification that runs later has
+> nothing to compare against.
+>
+> **Why it is not a small fix.** The obligation recorder asks for the reading
+> from inside the unit of work it already holds. An implementation over the
+> persistence gateway therefore re-enters an open transaction: against the
+> in-memory persistence that is a deadlock, measured, and against a real
+> database it is a second connection taken while the first is held.
 
 ---
 
-## The model gateway needs a key that exists nowhere
+## Four capabilities above sensitive reading have no remediation components
 
-`OLLAMA_BASE_URL` now points at the gateway that is actually there, and the
-route restricted to this cluster's nodes reaches it. It answers 401: the gateway
-requires an API key, and it requires one from its own host as well, so there is
-no source-address exemption to lean on. No such key is in the vault, and the
-deployment beside this one that uses the same gateway does not carry one either.
-Somebody has to issue one in the gateway's own console and store it; until then
-the only model provider this deployment can use is the one with a key.
+**What happens today.** `alertmanager_acknowledge_incident`, `propose_knowledge`,
+`pushover_post_message` and `telegram_post_message` declare an effect level
+above sensitive reading and live outside the remediation package, so no
+components are registered for them. A deployment that composes the remediation
+desk therefore stops offering them to a turn — the filter is doing exactly what
+it should, and the visible result is that the agent loses its notification and
+knowledge-proposal capabilities.
+
+**Why it is not a filter to loosen.** The filter's rule is the right one: a
+capability the deployment cannot read, plan, apply and verify spends a schema
+slot on a certain refusal. The question is which of two things is true of these
+four — that they are writes and should have components, or that their declared
+level is higher than what they actually do and should come down.
+
+**How it should be judged.** A deployment with the desk composed still offers
+whatever notification capability its operator expects, and no capability is
+offered that would only refuse.
+
+---
+
+## Certificate trust can only be declared through the API
+
+**What happens today.** A deployment can pin a fingerprint, supply a PEM, or
+record an explicit accepted-unverified decision, and the refusal that happens
+when none of those matches now reaches the screen with both fingerprints in it —
+the observed one and the expected one. What has no screen is the declaration
+itself: it is a `PUT` against the integration's trust endpoint, so an operator
+reads the sentence telling them exactly what is wrong and has no field to fix it
+in.
+
+**Why it is not a text input.** The insecure form is reached by writing down
+*why*, not by ticking a box, and the write is gated on a permission separate
+from ordinary integration management. A form has to carry that distinction, and
+the trust decision has to survive the next time somebody saves the address.
+
+**How it should be judged.** An operator who is shown "this node presented a
+certificate this deployment does not trust" can act on it from the same screen.
+
+---
+
+## A sub-agent's work is not traced as its own
+
+**What happens today.** An investigation that delegates to a sub-agent keeps the
+parent's trace free of the child's turns, which is the property that stops one
+run's transcript absorbing another's. What does not exist is a trace for the
+child. Whatever it did is not readable anywhere.
+
+**Why it is not a matter of passing the recorder down.** A child run needs its
+own identity, its own lifecycle, and a relationship to the parent that the read
+path understands — otherwise the console shows two unrelated runs and nothing
+says one produced the other.
+
+**How it should be judged.** Opening a run that delegated shows what the
+delegate did, as its own transcript, reachable from the parent.
+
+---
+
+## A resumed run does not write its outcome back to the trace
+
+**What happens today.** Resuming a suspended run continues the work, and the
+outcome of the resumed portion is not written back into the run's trace. The
+module says so in its own docstring, so it is known rather than hidden, and a
+reader of the trace sees a run that stopped.
+
+**How it should be judged.** A run that was suspended and resumed reads, after
+the fact, as one run that finished.
+
+---
+
+## One of three monitoring containers points at a resolver that no longer exists
+
+**What happens today.** Checked from inside each of the three: the deployment's
+own domain resolves from the Alertmanager container and from the Gatus
+container, both against the address that preserves the caller's source IP. It
+does not resolve from the Prometheus container. Which one matters more than the
+count — Alertmanager is what delivers the webhook, and it resolves, which is
+why delivery keeps working in spite of the third container's gap.
+
+**Why it stays here.** It is not code in this repository. It is a change to a
+container an operator owns, and nothing today asks Prometheus to reach this
+deployment by name — it scrapes exporters and evaluates rules — so the gap costs
+nothing until the day somebody points a receiver at this deployment from
+Prometheus's own configuration, and it costs that day an afternoon instead of
+five minutes.
+
+**How it should be judged.** A name in this deployment's domain resolves from
+inside all three containers, not two.
+
+---
+
+## The managed-secret operator in the cluster cannot authenticate
+
+**What happens today.** The operator that synchronises secrets into the cluster
+fails to authenticate, so the secrets it should manage are written by hand
+instead. A hand-written secret works and then rots: it is not rotated with the
+others, and nothing notices when the source of truth moves on.
+
+**Why it stays here.** It is the operator's own cluster configuration, not this
+product. What this product needs is a decision recorded either way — the
+operator authenticates again, or living with hand-written secrets is a choice
+somebody made on purpose.
+
+**How it should be judged.** A managed secret resource reports itself
+synchronising, or a written decision says which secrets are maintained by hand
+and why.
+
+---
+
+## One model gateway has no key, so its provider never verifies
+
+**What happens today.** A provider that reaches a self-hosted model gateway
+cannot be verified, because no key has ever been issued for that gateway and
+none is stored. The deployment runs on a different provider, so nothing is
+broken — but the screen shows a provider that has never been checked, which is a
+different claim from one that does not work, and neither is actionable until the
+key exists.
+
+**How it should be judged.** The provider shows as verified in the console,
+having reached the gateway with a key the vault holds.
+
+---
+
+## An alert-raised incident's title is the alert's own name, not a sentence
+
+**What happens today.** An incident opened from a detector shows the detector's
+bare name as its title — `RestoreDrillStale`, `ProxmoxGuestStopped` — never a
+sentence, in every incident this deployment has raised. This is not an
+accident of rendering: the title is set to `detector.name` at the moment the
+incident is raised, and the choice is a deliberate, documented one — a title
+that has to stay readable for an incident naming one resource has to stay
+readable for the same incident naming fifty, and a name is what does that.
+
+The gap is not that no sentence exists. The investigation attached to the same
+incident writes one, correctly, every time — "The weekly restore drill cron
+jobs on node pve02 exceeded their maximum scheduled execution window without
+completing successfully" sits one screen away from the incident whose title
+still reads `RestoreDrillStale`. The product produces the sentence this wave
+exists to surface everywhere an identifier used to be, and then does not carry
+it up to the one field a list of incidents is read by.
+
+**Why it is not simply reading the investigation's headline back.** An
+incident can outlive several investigations — this deployment watched one
+incident absorb the same alert seven times over six and a half hours, each
+delivery producing its own investigation — and a title sourced from "the last
+investigation's headline" would rewrite itself out from under an operator
+mid-read, and would be blank for the entire window between an incident opening
+and its first investigation concluding. The detector's name is stable for the
+whole of an incident's life for a reason; a sentence would need its own
+lifecycle to be that reliable, not a straight substitution.
+
+**How it should be judged.** An incident's title, read at any point in its
+life including before an investigation concludes, is a sentence a person can
+act on without opening anything else — not the identifier a detector happens
+to be named.
+
+---
+
+## An incident can be recorded against the host that scraped it
+
+**What happens today.** The header under an incident's title shows the host of
+the resource the incident's first subject resolves to
+(`console/src/surfaces/screens/incident-detail.tsx`: the resource is fetched by
+the incident's own `subjects[0]`, and its `kind`/`display_name` become the
+"node" text). For an alert whose own metric is scraped by the resource it is
+about — a node's own `node-exporter` — that resolution lands correctly, because
+the two coincide. For an alert whose metric was scraped by one exporter on
+behalf of every guest in the cluster — Proxmox's own guest-power metric, read
+from `pve-exporter`, which runs on one node and describes all of them — the
+same resolution lands on the exporter's own host, not on the guest the alert is
+actually about. A guest stopped on `pve01`, reported through an exporter
+running on `pve02`, opens an incident whose header reads `node pve02`, three
+lines above the alert's own labels correctly saying `node=pve01` — and the
+investigation attached to the same incident, on the very next screen, also
+says `pve01`, correctly. The product has the right answer in two other places
+on the same incident and puts the wrong one in the header a person reads first.
+
+**Where the defect actually is, read from the database rather than the screen.**
+The header is not misreading a label. The subject the incident *stores* is the
+wrong resource. Asked directly what the incident points at, the record answers:
+
+    resource_id   res-47555daca81efa67dacce16fb42c898e
+    kind          node
+    native_id     node/HAL9000/pve02
+    display_name  pve02
+
+for an incident about a stopped guest on a different node. The correlation that
+opened it recorded how it matched — by address, against the label naming the
+scraping instance — and that address belongs to the exporter's host. Every
+screen downstream is rendering that stored subject faithfully. **The fix belongs
+to the correlation at intake, not to the header component**, and an entry that
+sends someone to the header sends them to the one place where nothing is wrong.
+
+*Two earlier readings of this were wrong and are recorded as wrong, because the
+sequence is itself worth knowing. The first blamed a guest's stored identity for
+carrying a literal `unknown` where its node should be — but a guest's identity
+is `kind/cluster/creation-discriminator/vmid` by explicit design
+(`integrations/proxmox/identity.py`), the node is deliberately excluded so that
+a migration does not restart a guest's history, and `unknown` is the fallback
+for a missing creation timestamp. The second blamed the header's own resolution.
+Only reading the stored row settled it.*
+
+**Why it is not simply reading a different label.** The header cannot switch to
+"whichever label looks like a node" without knowing, per alert source, which
+label names the scraping exporter and which (if any) names the actual subject —
+that knowledge is exactly what a per-source correlation rule is for, and a
+guest-level alert sourced from a cluster-wide exporter needs a rule that
+resolves to the guest, not to whatever host happened to answer the scrape.
+
+**How it should be judged.** An incident opened from an alert whose exporter is
+not local to its subject **stores** the subject the alert is about, and every
+screen that reads that stored subject then agrees with the alert's own labels
+and with the investigation — which today are the two places that already have
+it right.
+
+---
+
+## A run's cost is reported two different ways on two different screens
+
+**What happens today.** The same completed run shows `Not recorded` for its
+cost on the incident's own panel, and a real per-turn dollar-and-token
+breakdown on the run's own detail screen. Both describe the same run, read
+moments apart.
+
+**How it should be judged.** The incident panel and the run's own screen agree
+on whether a run's cost was recorded, and when it was, on what it was.
+
+---
+
+## A deployment has been watched acting on its own diagnosis once, and stopped short of the last three steps
+
+**What happens today.** A container that was both disposable and covered by an
+alert rule was stopped by hand, once, in a combined window with an operator
+present. The alert fired on its own within the rule's `for` window; the webhook
+accepted an authenticated delivery; an incident opened; an investigation ran and
+recorded its turns, its calls, and what each call returned — including two
+honest, verbatim upstream failures rather than an invented negative; the report
+rendered as a sentence naming the correct host; and the incident closed itself
+when the underlying condition cleared, recording that a human restarted the
+container rather than claiming the product had. All of that is read back from
+storage, not from the process that produced it.
+
+What did not happen is the last three steps: propose, approve, execute. Not
+because nothing was watched, and not because the approval machinery is missing —
+the gate, the audit trail, and the decision-recording order are all composed and
+reachable, and the hypervisor token carries power-management rights, checked
+against the vendor's own access log and ACLs rather than assumed.
+
+**The capability that would have fixed it exists, and was cut from the offer by
+the language the alert was written in.** The catalogue holds twenty-four
+capabilities above read level, twenty of them remediation, and one of them starts
+a stopped guest. The turn was offered forty tools out of sixty candidates. The
+selector orders candidates by term overlap between the incident's own summary and
+each capability's declared use cases — and those use cases are written in
+English, while the alert's description was written in the operator's language.
+Scored with the product's own scorer, one sentence, two languages:
+
+    "…estava em execucao no no pve01 e parou."   start-guest  0.0000  →  63rd, cut
+    "…was running on node pve01 and has stopped." start-guest  0.7407  →  13th, offered
+
+One variable. The deployment was offered seven ways to stop, shut down, suspend,
+reboot, resume, migrate and relocate a guest, and not the one that starts it, in
+an incident about a guest that had stopped. **The agent was right not to propose
+anything — it had nothing to propose with.**
+
+When every candidate scores zero, the tie breaks by name, so which forty tools a
+turn receives comes down to alphabetical position. The product does not refuse
+and does not warn: it hands over forty tools chosen by the alphabet and proceeds
+as though it had chosen them.
+
+*An earlier reading of this said the catalogue held three capabilities above read
+level, all notifications, and that nothing anywhere could act on infrastructure.
+That was wrong, and it was wrong twice before the instrumentation that this same
+work produced made the real answer reachable: the run's own record now states
+`ranked 60, offered 40, cut by the ceiling 20` and names each candidate with its
+score.*
+
+**Why it is not just a matter of trying again.** Trying the same window again
+with the alert unchanged reproduces the same outcome, because the outcome follows
+from how candidates are scored rather than from what happened that night. The
+alert's own description has since been rewritten in English, which is enough to
+put the starting capability back inside the offer — so the window is worth
+running again. But that is a workaround applied to one alert, not a fix: the next
+alert somebody writes in their own language scores every capability at zero
+again, silently.
+
+**How it should be judged.** The same shape of run — a disposable, alerted
+resource stopped by hand, diagnosed correctly — produces a proposal with a
+rollback plan, waiting on `/decisions`; a person approves it; the resource
+comes back through the gate rather than by hand; and the outcome, the episode,
+and the incident's own timeline all say so.
+
+---
+
+## Which tools a turn is offered depends on the language its incident was written in
+
+**What happens today.** Before each turn, the deployment narrows the catalogue
+to what the team has connected and what it can carry, ranks what survives, and
+cuts at a ceiling. The ranking scores each candidate partly by how many terms
+its declared use cases share with the incident's own summary. Those use cases
+are written in English throughout the catalogue, the tokeniser keeps runs of
+`[a-z0-9_]+`, and the stop-word list it filters against is twenty-six English
+words. An incident summarised in any other language shares no terms with
+anything, so **every candidate scores zero on that component at once**.
+
+A tie at zero is broken by name. So a deployment whose alerts are written in the
+operator's own language does not get a slightly worse ranking — it gets the
+alphabet, and the forty tools a turn receives are the first forty by name. This
+is not a hypothetical: it happened on the first attempt, to the operator of this
+deployment, writing an alert in the language they speak.
+
+**Why it is not simply translating the summary.** Translating on the way in
+would put a machine translation between the operator's words and the record of
+what the agent was told, which is the opposite of what a transcript is for. And
+scoring is not the only thing that reads the summary. The narrower question —
+should overlap be measured on something language-independent, or should the
+scorer refuse to rank when it can find no signal at all rather than falling
+through to alphabetical order — is a design decision, not a patch.
+
+**What makes it hard to notice.** The product does not refuse, does not warn,
+and does not score differently from a legitimate tie. It hands over forty tools
+and proceeds as though it had chosen them. Nothing in the code says the
+selection is language-dependent — not a docstring, not a constant, not a test.
+The record that finally showed it (`ranked 60, offered 40, cut by the ceiling
+20`, with each candidate's score) exists only because a separate piece of work
+added it while trying to answer why a particular investigation had proposed
+nothing.
+
+**How it should be judged.** An incident written in a language the catalogue was
+not authored in either ranks capabilities on a signal that survives the language
+difference, or says out loud that it could not rank them — and in no case
+silently substitutes alphabetical order for a decision.
+
+---
+
+## No observation an investigation records is ever marked as cited
+
+**What happens today.** Investigations write observations to the evidence store,
+from real sources — logs, metrics, hypervisor configuration and events, change
+history, the alert itself, and the agent's own reasoning. Each row carries a flag
+saying whether the finished report actually cited it. Across every row in this
+deployment, that flag is false. Not mostly false: false without exception.
+
+Two readings are possible and the data does not separate them. Either nothing
+ever writes the flag, in which case the column is decoration; or reports
+genuinely cite nothing they recorded, in which case the evidence trail and the
+conclusion are unconnected. Both are worth knowing and they have different
+fixes.
+
+**The second number that comes with it.** Of the runs that recorded turns, only a
+small minority recorded any observation at all — including the one run this
+deployment has been watched closing a loop with, which recorded five turns, four
+tool calls, and zero observations. So "which evidence supported this conclusion"
+is a question the store usually cannot answer, separately from the flag.
+
+**Why it is not a one-line fix.** Marking a row cited requires knowing which
+observation a sentence in the report came from, and that link is not currently
+carried anywhere between the reasoning that produced the sentence and the row
+that was written. Deciding where it is carried is the work.
+
+**How it should be judged.** A finished investigation names the observations its
+conclusion rests on, those rows are marked as cited, and a run that cites nothing
+is visibly a run that cited nothing rather than indistinguishable from every
+other run.
+
+---
+
+## The interface rules can pass against a page that is not the application
+
+**What happens today.** A suite of transversal rules sweeps the product's main
+screens and asserts things like "no screen prints a raw report as text". Run
+against a live deployment, its session can end mid-run. When that happens the
+browser lands on the sign-in page, and the rules keep running: a rule looking for
+raw markdown finds none, because there is no screen there at all, and **reports a
+pass**.
+
+It was caught by accident, from file sizes: five captures of five different
+routes, all exactly the same number of bytes, against a hundred-and-seventy
+kilobytes to two-and-a-half megabytes on a healthy run. Four rules had passed
+while photographing a login form. A rerun in the same conditions was green
+throughout, so nothing about the product was wrong — but nothing about the run
+said which of the two it had been either.
+
+**Why it matters more than an ordinary flake.** These rules are the scoreboard
+that says whether the interface still obeys the product's own conventions. A
+flake that fails is noise. A flake that *passes* removes the only thing standing
+between a regression and a release, and does it silently.
+
+**How it should be judged.** A sweep that is not looking at a signed-in
+application fails, loudly, naming what it found instead — and no rule in the
+suite can report a pass from a page it was never meant to be on.
+
+---
+
+## The gate that checks routes are dynamic cannot tell whether they declare it
+
+**What happens today.** Every screen route under the console shell must reach
+the deployment on each request rather than be served from a page baked at build
+time, and a gate exists to enforce that. It reads the build's own output and
+fails if any shell route was pre-rendered.
+
+It passes today, and it would pass just as green if every route stopped
+declaring anything at all. The property is held up by three independent
+mechanisms — a declaration on the shared layout, a prop that thirty-four of the
+thirty-six pages happen to take, and an unconditional cookie read in the layout's
+authentication — and any one of them alone is enough to make the build dynamic.
+Cutting the first and rebuilding was measured: still green, with no declaration
+anywhere under the shell.
+
+**Why that is worth an entry rather than a shrug.** The gate was written against
+a specific failure — a layout whose dynamism silently stops applying to a child
+segment — and that is exactly the failure it cannot see, because it inspects the
+result rather than the declaration. The routes now each declare their own
+dynamism, which is the right fix and the durable one; but nothing stops the next
+refactor from removing thirty-six declarations without a single test going red.
+
+**Why it is not simply grepping for the declaration.** A grep would pass on a
+declaration inside a comment, and would fail on a route that is legitimately
+dynamic by another declared means. Deciding what counts as a per-file
+declaration, and which routes are required to carry one, is the work — and the
+answer has to survive the framework changing how it infers dynamism.
+
+**How it should be judged.** Removing the per-route declaration from one shell
+route turns the gate red, naming that route, whether or not the build happens to
+come out dynamic anyway.
+
+---
+
+## A credential refused for travelling in clear text is explained as a host problem
+
+**What happens today.** The credential proxy refuses to send a stored secret
+over an unencrypted connection, and the refusal carries a sentence of its own
+saying so and offering both ways out — use TLS, or make the call without the
+credential. That sentence never reaches the operator.
+
+Every vendor's verifier keeps a table of advice per failure reason, and both
+refusals — a host outside the declared allow-list, and a credential that would
+cross in clear — are classified alike, deliberately: by every fact the proxy
+checks, the second *is* an egress refusal. The tables were written when the
+allow-list case was the only one that classification covered, so the panel now
+answers a scheme problem with
+
+    The proxy refused the call before it left: this host is not in the
+    integration's declared allow-list.
+
+The host is in the allow-list. The operator is sent to check the one thing that
+is correct, and told nothing about the `http://` that actually stopped the call.
+Fifteen vendors carry the same table and the same sentence.
+
+**How it was found.** By writing the acceptance test that had been marked done
+but never written — pointing a vendor at `http://` over the compose backing and
+reading the panel. Two claims were on trial: the state chip, which turned out
+correct and unchanged; and the sentence, which turned out to be somebody else's.
+
+**Why it is not a one-line edit.** The two causes are indistinguishable by
+classification *on purpose*, so telling them apart in the advice table means
+either giving the clear-text refusal its own reason — which changes a shared
+enumeration and every consumer of it — or dropping the per-vendor advice for
+this class and falling back to the refusal's own sentence, which is already
+complete for both cases. The second is smaller and probably right, but it
+removes vendor-specific wording an operator may be relying on, across fifteen
+packages at once. That is a product decision, not a cleanup.
+
+**How it should be judged.** A credential refused for the scheme it would travel
+over says so on the screen, names the scheme, and offers the same two ways out
+the refusal already carries — and a credential refused for its host still says
+that instead.
+
+---
+
+## An alert-raised investigation belongs to no team, so it can remember nothing
+
+**What happens today.** Episodic memory is composed per investigation and scoped
+to the run's team, because `MemoryRetriever` refuses an unscoped one by
+construction — "an unscoped search is one that can return another team's
+incidents". Every investigation this deployment has ever run carries no team:
+`team_node_id` is empty on 512 runs of 512, with principal `alert-router`. So
+the composition declines, logs `memory.run_unscoped`, and `episodes` stays at
+zero however well the read and write halves work.
+
+The mechanism carries a team the whole way — `WebhookSourceConfig.team_node_id`
+into the tenant scope into the run's metadata, with a routing rule able to
+override it. Nothing is missing in the code. What was missing is a team: this
+deployment had exactly one configuration node, `default`, of kind
+`organisation`, and no node of kind `team` at all.
+
+**What has been done.** A team now exists: `default/platform`, under `default`.
+
+**What is left, and why it is not one more API call.** The team a run acts for
+comes from the delivery token, and the router says why: *"The token decides the
+team… this credential lives in an alert router's configuration file, outside
+anything this deployment rotates."* So the remaining steps are to issue a
+delivery token scoped to that team and to replace the secret in Alertmanager's
+own configuration — the second of which is the operator's alerting, not this
+product's. The console's machine-tokens screen offers the alert-delivery scope
+and **no team selector**, so the front door cannot do it either; the API accepts
+`node_id` on token issuance.
+
+**How it should be judged.** An alert-raised investigation carries a team, and
+the investigation after it recalls the episode the first one left.
+
+---
+
+## A recorded remediation says which signal it promised, not which condition it was about
+
+**What happens today.** Verification obligations carry `condition_key` empty.
+The sweep settles them by reading the declared signals, which works, but the row
+cannot say what condition the change was meant to clear — only which signal was
+watched.
+
+**Why it is not a field to fill in.** The executor does not know the condition:
+it receives an action, a target and a rollback plan, and the condition lives
+with whatever raised the incident. Deciding where it enters — carried on the
+action from the proposal, looked up from the incident at settle time, or
+recorded by the gate that approved it — is a product decision about what a
+remediation record is *for*, not a plumbing gap.
+
+**How it should be judged.** A settled outcome names the condition it was about,
+and an operator reading it can tell "the guest is running again" from "the alert
+that asked for this has cleared".
+
+---
+
+## The lexical term of capability ranking is English-only
+
+**What happens today.** `_terms` filters against twenty-six English stop words
+and keeps runs of `[a-z0-9_]+`, so an incident summarised in another language
+scores zero on the use-case overlap component for every candidate at once.
+
+**What changed, and what did not.** The consequence used to be the alphabet: a
+tie at zero broke by name, and the forty tools a turn received were the first
+forty by name. That is no longer the case — ranking now scores the vendor that
+holds the incident's subject, its domain and its tags, all of which are
+language-independent, so a non-English incident still ranks on what it is about.
+Measured: an alert whose text is Portuguese offered the Proxmox reads for a
+Proxmox subject at 48–51 points against a lexical component worth at most 20.
+
+The lexical component itself is still English-only, and it is still the term
+that distinguishes between capabilities of one vendor. It is a narrower problem
+than it was, not a solved one.
+
+**How it should be judged.** Two incidents describing one failure in two
+languages are offered the same capabilities in the same order.
+
+---
+
+## Thirty-six visual baselines are drifted, and the design is being reworked
+
+**What happens today.** `make console-visual` is red for thirty-six screens,
+drifted by the sentence-case sidebar labels. `make verify` contains that suite,
+so it is red too.
+
+**Deliberately not swept in.** The design is being reformulated, so accepting
+these now would freeze as "reviewed" a design that is still moving. Two
+baselines *were* accepted in the same period and are not drift:
+`integrations-panel-1440-light`, because the capture harness stopped cutting a
+panel that scrolls inside itself, and `run-detail-live-1440-light`, because the
+transcript card stopped contradicting itself.
+
+**How it should be judged.** When the design settles, the drifted baselines are
+re-accepted in one reviewed commit, and `make console-visual` is green again.
+
+---
+
+## Sixteen browser tests fail on the branch, in screens this work did not touch
+
+**What happens today.** The `behaviour` suite fails sixteen times across
+incident-detail, the transversal rules, and budgets. Measured with a control
+run: the same sixteen before and after the work of 2026-08-26, so they predate
+it and belong to whatever changed those screens.
+
+**How it should be judged.** The suite is green, or each remaining failure has
+an entry of its own here saying what it is waiting on.
+

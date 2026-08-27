@@ -95,7 +95,12 @@ class RecordingApplier:
     state: dict[str, Any] | None = field(default_factory=lambda: {"level": "standard"})
     applied: list[PendingChange] = field(default_factory=list)
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+    async def read(
+        self,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,  # noqa: ARG002 — named by its target
+    ) -> Mapping[str, Any] | None:
         """Return the target's current value, or ``None`` if it is gone."""
         return self.state
 

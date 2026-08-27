@@ -1,0 +1,54 @@
+# E3 — the incident opens legible, over a subject the estate resolves
+# collected at 2026-08-24T09:11:29.568611+00:00
+# parameters: org=default run=0c9c0d5ce453458d9e115af98763ade4 incident=inc_d4b0bf515a6a7e1e approval=(none) resource=(none)
+
+## incident — the incident exists, is addressable, and is named by a title rather than an id
+## before the wave: every alert incident's detail was unrecoverable
+
+SELECT public_id,
+       title,
+       state,
+       severity,
+       origin,
+       origin_id,
+       opened_at,
+       closed_at,
+       subjects,
+       run_ids,
+       actions
+FROM incidents
+WHERE org_id = 'default'
+  AND (incident_id = 'inc_d4b0bf515a6a7e1e' OR public_id = 'inc_d4b0bf515a6a7e1e');
+
+--- output ---
+      public_id       |       title       |     state     | severity | origin |  origin_id   |           opened_at           | closed_at |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 subjects                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                 run_ids                                                                                                 | actions 
+----------------------+-------------------+---------------+----------+--------+--------------+-------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------
+ inc_d4b0bf515a6a7e1e | RestoreDrillStale | investigating | critical | alert  | alertmanager | 2026-08-24 03:38:53.498037+00 |           | {"subjects": [{"detail": "the alert is about 192.168.68.159, and no resource in this estate reports that address. Either it was never swept, or something outside this estate is being watched by a receiver pointed here", "evidence": {"zone": "", "alert": "RestoreDrillStale", "group": "{}/{severity=\"critical\"}:{alertname=\"RestoreDrillStale\", service=\"node-exporter\", severity=\"critical\"}", "target": "192.168.68.159", "reference": "http://prometheus:9090/graph?g0.expr=cron_watchdog_stale_state%7Bcron_job%3D~%22weekly-restore-drill-.%2A%22%7D+%3D%3D+1&g0.tab=1", "target_label": "instance"}, "observed_at": null, "resource_id": "unresolved-target:192.168.68.159", "absent_since": null}, {"detail": "Restore drill sem execucao recente", "evidence": {"alert": "RestoreDrillStale", "group": "{}/{severity=\"critical\"}:{alertname=\"RestoreDrillStale\", service=\"node-exporter\", severity=\"critical\"}", "reference": "http://prometheus:9090/graph?g0.expr=cron_watchdog_stale_state%7Bcron_job%3D~%22weekly-restore-drill-.%2A%22%7D+%3D%3D+1&g0.tab=1"}, "observed_at": null, "resource_id": "node-exporter", "absent_since": null}, {"detail": "Restore drill sem execucao recente", "evidence": {"alert": "RestoreDrillStale", "group": "{}/{severity=\"critical\"}:{alertname=\"RestoreDrillStale\", service=\"node-exporter\", severity=\"critical\"}", "reference": "http://prometheus:9090/graph?g0.expr=cron_watchdog_stale_state%7Bcron_job%3D~%22weekly-restore-drill-.%2A%22%7D+%3D%3D+1&g0.tab=1"}, "observed_at": null, "resource_id": "HAL9000", "absent_since": null}, {"detail": "Restore drill sem execucao recente", "evidence": {"alert": "RestoreDrillStale", "group": "{}/{severity=\"critical\"}:{alertname=\"RestoreDrillStale\", service=\"node-exporter\", severity=\"critical\"}", "reference": "http://prometheus:9090/graph?g0.expr=cron_watchdog_stale_state%7Bcron_job%3D~%22weekly-restore-drill-.%2A%22%7D+%3D%3D+1&g0.tab=1"}, "observed_at": null, "resource_id": "192.168.68.159:9100", "absent_since": null}, {"detail": "Restore drill sem execucao recente", "evidence": {"alert": "RestoreDrillStale", "group": "{}/{severity=\"critical\"}:{alertname=\"RestoreDrillStale\", service=\"node-exporter\", severity=\"critical\"}", "reference": "http://prometheus:9090/graph?g0.expr=cron_watchdog_stale_state%7Bcron_job%3D~%22weekly-restore-drill-.%2A%22%7D+%3D%3D+1&g0.tab=1"}, "observed_at": null, "resource_id": "pve02", "absent_since": null}]} | {d5366b070c5048698e21ded5768ed08f,3e8cb04ce1834745a1e6f0fb64a004c4,8c6101375db04b739f1c28d9f9ea9ceb,9ee3192fc2ba4c8d8a4fa8784b3d4468,26955cd50d624e8498285da55aa0f18a,0c9c0d5ce453458d9e115af98763ade4} | {}
+(1 row)
+
+
+--- end of output ---
+
+
+## estate — the estate holds real resources rather than being empty
+## before the wave: 0 — the estate was empty and every incident showed an unplaced zone
+
+SELECT count(*) AS present_resources
+FROM estate_resources
+WHERE org_id = 'default'
+  AND absent_since IS NULL;
+
+--- output ---
+ present_resources 
+-------------------
+                 0
+(1 row)
+
+
+--- end of output ---
+
+
+## subject — the resource the incident points at is one the estate actually holds
+## before the wave: no row — nothing to point at
+## NOT COLLECTED: this query needs --resource, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+

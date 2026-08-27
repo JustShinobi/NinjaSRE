@@ -144,7 +144,7 @@
             "display_name": "Alertmanager",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://larch.example.invalid/docs/alerting/latest/alertmanager/",
                 "help": "Where your Alertmanager answers, scheme and port included — http://aspen.example.invalid Nobody packaging this knows where yours is, so until it is declared every call goes to the documented placeholder.",
                 "label": "Alertmanager address",
                 "min_scope": "",
@@ -153,7 +153,7 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://larch.example.invalid/docs/guides/basic-auth/",
                 "help": "Only if something in front of Alertmanager asks for one. Alertmanager ships no authentication of its own, so an install reached directly needs nothing here.",
                 "label": "Bearer token",
                 "min_scope": "whatever your reverse proxy or ingress accepts",
@@ -193,7 +193,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "What Prometheus Alertmanager is currently holding: which alerts are firing, how they are grouped, and which are silenced rather than resolved."
+            "summary": "What Prometheus Alertmanager is currently holding: which alerts are firing, how they are grouped, and which are silenced rather than resolved.",
+            "where_to_get_it": "Alertmanager ships no authentication of its own; the token here, if any, is whatever your reverse proxy or ingress in front of it accepts."
           },
           {
             "capabilities": [
@@ -205,7 +206,7 @@
             "display_name": "Argo CD",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://walnut.example.invalid/en/stable/developer-guide/api-docs/",
                 "help": "Where your Argo CD API answers — https://delta.example.invalid The same address the web UI is served at; the API lives under /api/v1 on it.",
                 "label": "Argo CD address",
                 "min_scope": "",
@@ -254,7 +255,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "What Argo CD has actually applied: which applications are synced and healthy, and the ones that are not."
+            "summary": "What Argo CD has actually applied: which applications are synced and healthy, and the ones that are not.",
+            "where_to_get_it": "Generate a project-scoped API token from Argo CD's own UI, under Settings → Accounts, or run `argocd account generate-token`."
           },
           {
             "capabilities": [
@@ -266,7 +268,7 @@
             "display_name": "GitHub",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://crag.example.invalid/en/enterprise-server@latest/admin/overview/about-github-enterprise-server",
                 "help": "Only for GitHub Enterprise Server — https://osprey.example.invalid/api/v3. Leave empty for github.com.",
                 "label": "Enterprise Server address",
                 "min_scope": "",
@@ -284,7 +286,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://crag.example.invalid/en/organizations/collaborating-with-groups-in-organizations/about-organizations",
                 "help": "Default organisation or user the repositories belong to",
                 "label": "Default owner",
                 "min_scope": "",
@@ -325,7 +327,8 @@
               "github.com",
               "enterprise"
             ],
-            "summary": "What landed in a repository and when: the commits on its default branch and the pull requests recently merged into it."
+            "summary": "What landed in a repository and when: the commits on its default branch and the pull requests recently merged into it.",
+            "where_to_get_it": "Generate a fine-grained personal access token from GitHub's own Developer settings, scoped to Contents and Pull requests read access."
           },
           {
             "capabilities": [
@@ -367,7 +370,8 @@
             "regions": [
               "global"
             ],
-            "summary": "Google Gemini, declared so a provider key stored in the vault is reachable through the credential proxy rather than only through the process environment."
+            "summary": "Google Gemini, declared so a provider key stored in the vault is reachable through the credential proxy rather than only through the process environment.",
+            "where_to_get_it": "Create an API key in Google AI Studio, in the project you want billed for the calls this deployment makes."
           },
           {
             "capabilities": [
@@ -379,7 +383,7 @@
             "display_name": "Grafana",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://quarry.example.invalid/docs/grafana/latest/setup-grafana/",
                 "help": "Where your Grafana answers, scheme and port included — http://fjord.example.invalid The same address you sign in at.",
                 "label": "Grafana address",
                 "min_scope": "",
@@ -397,7 +401,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://quarry.example.invalid/docs/grafana/latest/administration/organization-management/",
                 "help": "Grafana organisation id, when the stack has more than one",
                 "label": "Organisation ID",
                 "min_scope": "",
@@ -436,7 +440,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "What Grafana knows about a stack: which dashboards and folders exist, and the annotation timeline of deploys, alert state changes, and anything else a human marked."
+            "summary": "What Grafana knows about a stack: which dashboards and folders exist, and the annotation timeline of deploys, alert state changes, and anything else a human marked.",
+            "where_to_get_it": "Create a service account token from Grafana's own Administration → Service accounts screen, with the Viewer role."
           },
           {
             "capabilities": [
@@ -448,7 +453,7 @@
             "display_name": "Hermes",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "/v1/integrations/hermes/docs",
                 "help": "Where your Hermes answers, scheme and port included.",
                 "label": "Hermes address",
                 "min_scope": "",
@@ -457,7 +462,7 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "/v1/integrations/hermes/docs",
                 "help": "Hermes access token for the workspace holding this stream",
                 "label": "Access token",
                 "min_scope": "logs:read",
@@ -466,7 +471,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "/v1/integrations/hermes/docs",
                 "help": "Default stream to read",
                 "label": "Default stream",
                 "min_scope": "",
@@ -506,7 +511,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "Hermes log tailing and classification: what a stream is currently emitting, grouped by the class its own model assigned."
+            "summary": "Hermes log tailing and classification: what a stream is currently emitting, grouped by the class its own model assigned.",
+            "where_to_get_it": "Hermes is this deployment's own log tailer; issue an access token from its own console under Access tokens."
           },
           {
             "capabilities": [
@@ -518,7 +524,7 @@
             "display_name": "Kubernetes",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://obsidian.example.invalid/docs/tasks/access-application-cluster/access-cluster/",
                 "help": "Where the API server answers — https://basalt.example.invalid Leave empty when NinjaSRE runs inside the cluster it is watching: the in-cluster address is the one thing that is the same everywhere, and it is always permitted.",
                 "label": "API server address",
                 "min_scope": "",
@@ -536,7 +542,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://obsidian.example.invalid/docs/tasks/access-application-cluster/access-cluster/",
                 "help": "Name of the cluster this token authenticates against.",
                 "label": "Cluster name",
                 "min_scope": "",
@@ -545,7 +551,7 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://obsidian.example.invalid/docs/concepts/overview/working-with-objects/namespaces/",
                 "help": "Default namespace for namespaced reads.",
                 "label": "Default namespace",
                 "min_scope": "",
@@ -592,7 +598,8 @@
             "regions": [
               "in-cluster"
             ],
-            "summary": "Workload events and rollout history from a cluster's API server, at whichever endpoints the operator declared."
+            "summary": "Workload events and rollout history from a cluster's API server, at whichever endpoints the operator declared.",
+            "where_to_get_it": "Create a service account and bind it to a role granting get/list on events, deployments, and replica sets, then read out its token."
           },
           {
             "capabilities": [
@@ -604,7 +611,7 @@
             "display_name": "Grafana Loki",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://quarry.example.invalid/docs/loki/latest/get-started/",
                 "help": "Where your Loki answers, scheme and port included — http://linen.example.invalid For Grafana Cloud this is the address on your stack's details page, not the Grafana one.",
                 "label": "Loki address",
                 "min_scope": "",
@@ -613,7 +620,7 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://quarry.example.invalid/docs/grafana-cloud/account-management/authentication-and-permissions/access-policies/",
                 "help": "A Loki bearer token, or a Grafana Cloud access policy token. Leave empty for a self-hosted Loki that is not behind an auth proxy.",
                 "label": "Bearer token",
                 "min_scope": "logs:read",
@@ -662,7 +669,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "Log search over Loki's label index and LogQL, with the shape of a query counted before any line of it is read."
+            "summary": "Log search over Loki's label index and LogQL, with the shape of a query counted before any line of it is read.",
+            "where_to_get_it": "For Grafana Cloud, create an access policy token scoped to logs:read; a self-hosted Loki behind no auth proxy needs nothing here."
           },
           {
             "capabilities": [
@@ -674,7 +682,7 @@
             "display_name": "OpenObserve",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://cedar.example.invalid/docs/",
                 "help": "Where your OpenObserve answers, scheme and port included — http://yarrow.example.invalid",
                 "label": "OpenObserve address",
                 "min_scope": "",
@@ -683,16 +691,16 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://cedar.example.invalid/docs/",
                 "help": "OpenObserve user email",
                 "label": "Email",
-                "min_scope": "",
+                "min_scope": "streams:read",
                 "name": "username",
                 "required": true,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://cedar.example.invalid/docs/",
                 "help": "That user's password or token",
                 "label": "Password or token",
                 "min_scope": "streams:read",
@@ -701,7 +709,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://cedar.example.invalid/docs/",
                 "help": "OpenObserve organisation",
                 "label": "Organisation",
                 "min_scope": "",
@@ -741,7 +749,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "SQL search over OpenObserve streams, counted by field before any record is read, for the estates that chose it for its storage cost."
+            "summary": "SQL search over OpenObserve streams, counted by field before any record is read, for the estates that chose it for its storage cost.",
+            "where_to_get_it": "OpenObserve → Settings → Users issues the email and password pair; the organisation name is shown on that same screen."
           },
           {
             "capabilities": [
@@ -754,7 +763,7 @@
             "display_name": "Prometheus",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://larch.example.invalid/docs/prometheus/latest/querying/api/",
                 "help": "Where your Prometheus answers, scheme and port included — http://oakum.example.invalid Nobody packaging this knows where yours is, so until it is declared every query goes to the documented placeholder.",
                 "label": "Prometheus address",
                 "min_scope": "",
@@ -763,7 +772,7 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://larch.example.invalid/docs/guides/basic-auth/",
                 "help": "Only if something in front of Prometheus asks for one. Prometheus ships no authentication of its own, so an install reached directly needs nothing here.",
                 "label": "Bearer token",
                 "min_scope": "whatever your reverse proxy or ingress accepts",
@@ -802,7 +811,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it."
+            "summary": "PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it.",
+            "where_to_get_it": "Prometheus ships no authentication of its own; the token here, if any, is whatever your reverse proxy, ingress, or Grafana Cloud access policy in front of it accepts."
           },
           {
             "capabilities": [
@@ -832,7 +842,7 @@
             "display_name": "Proxmox VE",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/",
                 "help": "Where a node of your cluster answers, port included — https://moss.example.invalid Any node will do: the API answers cluster-wide questions from whichever one is asked.",
                 "label": "Proxmox node address",
                 "min_scope": "",
@@ -850,7 +860,7 @@
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "Login name with its realm, such as ninjasre@pve. Only for deployments that cannot issue an API token.",
                 "label": "Login name",
                 "min_scope": "",
@@ -859,28 +869,28 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "Password for the ticket login. Exchanged for a two-hour ticket on the proxy side and never read here.",
                 "label": "Password",
-                "min_scope": "",
+                "min_scope": "Sys.Audit on /, VM.Audit on /vms and Datastore.Audit on /storage — granted together by the PVEAuditor role on /, for the login name this password authenticates",
                 "name": "password",
                 "required": false,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "The short-lived ticket the proxy exchanged the password for. Written by the refresher, never by an operator.",
                 "label": "Session ticket",
-                "min_scope": "",
+                "min_scope": "the same access as the login (username and password) that was exchanged for it — session material the proxy writes, never a scope an operator sets",
                 "name": "ticket",
                 "required": false,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://umber.example.invalid/pve-docs/chapter-pveum.html",
                 "help": "The CSRF prevention token that accompanies a ticket. Written by the refresher, never by an operator.",
                 "label": "CSRF token",
-                "min_scope": "",
+                "min_scope": "the same as the ticket it accompanies — session material, not an operator-set scope",
                 "name": "csrf_token",
                 "required": false,
                 "secret": true
@@ -924,7 +934,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication, at whichever addresses the operator declared."
+            "summary": "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication, at whichever addresses the operator declared.",
+            "where_to_get_it": "Generate an API token from Proxmox's own Datacenter → Permissions → API Tokens, with the PVEAuditor role — or, where a token cannot be issued, authenticate with a login that holds it."
           },
           {
             "capabilities": [
@@ -939,7 +950,7 @@
                 "guide_url": "https://marble.example.invalid/apps/build",
                 "help": "Pushover application API token",
                 "label": "Application token",
-                "min_scope": "",
+                "min_scope": "this token does not carry scope — treat it as full access",
                 "name": "token",
                 "required": true,
                 "secret": true
@@ -948,7 +959,7 @@
                 "guide_url": "https://marble.example.invalid/",
                 "help": "Pushover user or group key",
                 "label": "User or group key",
-                "min_scope": "",
+                "min_scope": "this token does not carry scope — treat it as full access",
                 "name": "user_key",
                 "required": true,
                 "secret": true
@@ -984,7 +995,8 @@
             "regions": [
               "global"
             ],
-            "summary": "Pushover as a last-resort notification path: which delivery groups exist, and a finding pushed to a responder's device."
+            "summary": "Pushover as a last-resort notification path: which delivery groups exist, and a finding pushed to a responder's device.",
+            "where_to_get_it": "Create an application at pushover.net → Your Applications for the API token, and copy the user or group key from your own Pushover account page."
           },
           {
             "capabilities": [
@@ -999,13 +1011,13 @@
                 "guide_url": "https://bramble.example.invalid/docs/latest/operate/rc/api/get-started/",
                 "help": "Redis Cloud account key",
                 "label": "Account key",
-                "min_scope": "",
+                "min_scope": "this token does not carry scope — treat it as full access",
                 "name": "api_key",
                 "required": true,
                 "secret": true
               },
               {
-                "guide_url": "",
+                "guide_url": "https://bramble.example.invalid/docs/latest/operate/rc/api/get-started/",
                 "help": "Redis Cloud user secret key",
                 "label": "Secret key",
                 "min_scope": "subscriptions:read",
@@ -1052,7 +1064,8 @@
               "resource_kind": "container",
               "resource_label": ""
             },
-            "summary": "The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer."
+            "summary": "The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer.",
+            "where_to_get_it": "Redis Cloud → Access Management → API Keys issues the account key and its paired secret key together."
           },
           {
             "capabilities": [
@@ -1064,7 +1077,7 @@
             "display_name": "SigNoz",
             "fields": [
               {
-                "guide_url": "",
+                "guide_url": "https://ember.example.invalid/docs/",
                 "help": "Where your SigNoz query service answers, scheme and port included — http://heather.example.invalid The address the UI is served at, not the OTLP collector's.",
                 "label": "SigNoz address",
                 "min_scope": "",
@@ -1073,10 +1086,10 @@
                 "secret": false
               },
               {
-                "guide_url": "",
+                "guide_url": "https://ember.example.invalid/docs/",
                 "help": "SigNoz API key for the workspace holding this service's telemetry",
                 "label": "API key",
-                "min_scope": "",
+                "min_scope": "this token does not carry scope — treat it as full access",
                 "name": "api_key",
                 "required": true,
                 "secret": true
@@ -1113,7 +1126,8 @@
             "regions": [
               "self-hosted"
             ],
-            "summary": "SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration."
+            "summary": "SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration.",
+            "where_to_get_it": "SigNoz → Settings → API keys issues a workspace API key; self-hosted SigNoz is reached at the address its query service answers on."
           },
           {
             "capabilities": [
@@ -1128,7 +1142,7 @@
                 "guide_url": "https://beryl.example.invalid/bots",
                 "help": "Telegram bot token, as BotFather issued it",
                 "label": "Bot token",
-                "min_scope": "",
+                "min_scope": "this token does not carry scope — treat it as full access",
                 "name": "token",
                 "required": true,
                 "secret": true
@@ -1164,7 +1178,8 @@
             "regions": [
               "global"
             ],
-            "summary": "A Telegram chat used as an alerting channel: what has arrived recently, and a finding delivered into it."
+            "summary": "A Telegram chat used as an alerting channel: what has arrived recently, and a finding delivered into it.",
+            "where_to_get_it": "Message @BotFather on Telegram and use /mybots → API Token to read out the bot token it issued."
           }
         ],
         "known_gaps": [

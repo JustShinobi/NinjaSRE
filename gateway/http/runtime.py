@@ -61,7 +61,12 @@ def recompose_investigator(state: Any, *, environ: Mapping[str, str] | None = No
 
     if isinstance(state.investigator, UnconfiguredInvestigator):
         return
-    state.investigator = investigator_of(dict(environ if environ is not None else os.environ))
+    state.investigator = investigator_of(
+        dict(environ if environ is not None else os.environ),
+        store=state.gateway,
+        guardrails=state.guardrails,
+        broker=state.broker,
+    )
 
 
 __all__ = ["recompose_investigator", "runtime_composed"]

@@ -47,6 +47,28 @@ MAX_TRACE_PAYLOAD_DEPTH: Final[int] = 12
 #: marker records how many were dropped.
 MAX_TRACE_SEQUENCE_ITEMS: Final[int] = 200
 
+# --- What a replay serves of those payloads ----------------------------------
+#
+# The bounds above are per *stored row*. A replay serves every call of a run in
+# one response, so the same ceiling multiplied by a run's call count is a
+# multi-megabyte page: forty calls at the trace bound is 2.6 MB. The three
+# below are the reading bounds, an eighth of the writing ones, and they exist
+# so a reader gets enough to state what a call found without the raw vendor
+# body coming with it. The whole recorded body stays in the trace and is
+# reachable per call; it is the summary view that is bounded.
+
+#: Largest JSON one replayed call's result may carry. A forty-call run's replay
+#: stays around 320 KiB at this ceiling, which is a page rather than a download.
+MAX_REPLAY_RESULT_BYTES: Final[int] = 8_192
+
+#: Longest single string kept inside a replayed result. A timeline row is a
+#: sentence; a result that carried a log file is not what it renders.
+MAX_REPLAY_RESULT_STRING_LENGTH: Final[int] = 1_024
+
+#: Most entries kept from one sequence inside a replayed result. Enough for the
+#: handful a reader is shown, far short of the thousand-row table behind it.
+MAX_REPLAY_RESULT_ITEMS: Final[int] = 25
+
 # --- What a run record carries beside its own columns ------------------------
 
 #: Keys inside a run's metadata. They are named here rather than written at each
@@ -64,12 +86,62 @@ RUN_METADATA_INTERRUPTION: Final[str] = "interruption_reason"
 #: reviewer reads to see *why* those capabilities were offered, which is the
 #: half of a decision the call list alone does not record.
 TURN_PAYLOAD_RATIONALE: Final[str] = "selection_rationale"
+
+#: What the model itself said on this turn. Separate from the key above and not
+#: a synonym for it: one is the deployment's deterministic note about which
+#: capabilities were on offer, the other is the agent's own reasoning. A
+#: transcript that carries only the first can describe what an investigation was
+#: given and never what it thought.
+TURN_PAYLOAD_MODEL_RATIONALE: Final[str] = "model_rationale"
 TURN_PAYLOAD_CAPABILITIES: Final[str] = "offered_capabilities"
+
+#: Which of the six stages a turn happened inside. Written by the recording
+#: hook from the stage the pipeline had open at the moment the turn ended, and
+#: absent — never one of the six — on a turn driven outside the pipeline.
+TURN_PAYLOAD_STAGE: Final[str] = "stage"
 TURN_USAGE_MODEL: Final[str] = "model"
 TURN_USAGE_PROMPT_TOKENS: Final[str] = "prompt_tokens"
+
+# --- Headline -----------------------------------------------------------------
+
+#: The literal line prefix the delivery prompt asks the model for, and the one
+#: the extraction that reads its answer looks for. One constant, so a prompt
+#: edit and the parser reading its output cannot drift apart from each other.
+HEADLINE_MARKER: Final[str] = "Headline:"
+
+#: Longest a headline may be once normalised. Long enough for a real sentence,
+#: short enough to sit in a title, a list column, and a push notification
+#: without wrapping. A longer candidate is cut at the nearest word boundary at
+#: or before this length.
+MAX_HEADLINE_LENGTH: Final[int] = 140
 TURN_USAGE_COMPLETION_TOKENS: Final[str] = "completion_tokens"
 TURN_USAGE_COST: Final[str] = "cost"
 TURN_USAGE_DURATION_MS: Final[str] = "duration_ms"
+
+# --- What a stage says about itself -------------------------------------------
+#
+# Two hops, one vocabulary. The pipeline puts these on the ``stage_end`` event's
+# detail, which is a string-to-string mapping; the recording hook reads them
+# there and writes them into a stage's trace-event payload, where the numbers
+# are numbers again. Naming both ends here is what keeps the writer and the
+# reader from drifting into two spellings of the same fact.
+
+#: The one line a stage wrote about what it established, from the slice that
+#: stage owns. Empty when the stage established nothing worth a sentence — a
+#: stage is never given a line it did not earn.
+STAGE_DETAIL_FINDING: Final[str] = "finding"
+STAGE_DETAIL_PROMPT_TOKENS: Final[str] = "prompt_tokens"
+STAGE_DETAIL_COMPLETION_TOKENS: Final[str] = "completion_tokens"
+
+#: Model calls this stage made. The number that makes a stage which produced no
+#: loop turn legible: intake and diagnosis each call a model once and turn
+#: nothing, so "no turns" and "did nothing" are told apart by this.
+STAGE_DETAIL_LLM_CALLS: Final[str] = "llm_calls"
+
+#: Keys inside a stage's own trace-event payload.
+STAGE_EVENT_NAME: Final[str] = "stage"
+STAGE_EVENT_DURATION_MS: Final[str] = "duration_ms"
+STAGE_EVENT_FAILED: Final[str] = "failed"
 
 #: What started a run. A scheduled run and an interactive one differ in this
 #: and in their principal, and in nothing else — which is what lets one history
@@ -147,9 +219,14 @@ DEFAULT_RUN_HISTORY_PAGE_SIZE: Final[int] = 50
 __all__ = [
     "DEFAULT_RUN_HISTORY_PAGE_SIZE",
     "DEFAULT_SCHEDULE_TIMEZONE",
+    "HEADLINE_MARKER",
     "MAX_CRON_LOOKAHEAD_DAYS",
+    "MAX_HEADLINE_LENGTH",
     "MAX_MISFIRE_CATCH_UP_RUNS",
     "MAX_STREAM_BUFFER_EVENTS",
+    "MAX_REPLAY_RESULT_BYTES",
+    "MAX_REPLAY_RESULT_ITEMS",
+    "MAX_REPLAY_RESULT_STRING_LENGTH",
     "MAX_TRACE_PAYLOAD_BYTES",
     "MAX_TRACE_PAYLOAD_DEPTH",
     "MAX_TRACE_SEQUENCE_ITEMS",
@@ -162,6 +239,13 @@ __all__ = [
     "RUN_METADATA_SUBAGENT",
     "RUN_METADATA_TEAM",
     "SCHEDULE_PREVIEW_FIRING_COUNT",
+    "STAGE_DETAIL_COMPLETION_TOKENS",
+    "STAGE_DETAIL_FINDING",
+    "STAGE_DETAIL_LLM_CALLS",
+    "STAGE_DETAIL_PROMPT_TOKENS",
+    "STAGE_EVENT_DURATION_MS",
+    "STAGE_EVENT_FAILED",
+    "STAGE_EVENT_NAME",
     "SCHEDULER_GLOBAL_CONCURRENCY",
     "SCHEDULER_HEARTBEAT_SECONDS",
     "SCHEDULER_MISFIRE_GRACE_SECONDS",
@@ -174,7 +258,9 @@ __all__ = [
     "TRUNCATION_MARKER_KEY",
     "TRUNCATION_SUFFIX",
     "TURN_PAYLOAD_CAPABILITIES",
+    "TURN_PAYLOAD_MODEL_RATIONALE",
     "TURN_PAYLOAD_RATIONALE",
+    "TURN_PAYLOAD_STAGE",
     "TURN_USAGE_COMPLETION_TOKENS",
     "TURN_USAGE_COST",
     "TURN_USAGE_DURATION_MS",

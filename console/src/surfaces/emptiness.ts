@@ -1,6 +1,6 @@
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
-import { outstanding, readSetup, type DeploymentSetup } from './first-run/plan';
+import { readSetup, type DeploymentSetup } from './first-run/plan';
 import type { PanelEmpty } from './panel';
 import { authorised, dataOf, field, optionalRead, read } from './read';
 
@@ -36,18 +36,27 @@ export interface Cause {
 }
 
 /**
- * The cause an unfinished setup puts on every screen downstream of it.
+ * The cause an unfinished setup puts on the one screen that names its own
+ * dependency, or ``null`` once that specific step is done.
  *
- * ``null`` once the checklist is complete. Downstream is most of the console:
- * incidents come from detectors, the graph and the episodes come from
- * investigations, and none of those can happen before the deployment can
- * investigate at all.
+ * ``dependsOn`` is a checklist step name — the one the calling screen is
+ * actually downstream of, never "however many steps are still outstanding
+ * somewhere". A deployment with three steps left elsewhere and this one done
+ * is a deployment this screen has nothing to blame the setup for: the count
+ * used to say so anyway, which is the false causality this function exists
+ * to stop asserting. `null` when the deployment does not declare a step by
+ * that name at all — an unknown dependency is a caller's defect, not a
+ * reason to guess at a sentence.
  */
-export function setupCause(locale: Locale, setup: DeploymentSetup): Cause | null {
-  const left = outstanding(setup);
-  if (left === 0) return null;
+export function setupCause(
+  locale: Locale,
+  setup: DeploymentSetup,
+  dependsOn: string,
+): Cause | null {
+  const step = setup.steps.find((entry) => entry.name === dependsOn);
+  if (step === undefined || step.state === 'done') return null;
   return {
-    body: message(locale, 'empty.cause.setup', { count: String(left) }),
+    body: message(locale, 'empty.cause.setup', { step: step.title ?? '' }),
     actionLabel: message(locale, 'empty.cause.setup.action'),
     href: resolveCta({ route: '/first-run' }).href,
   };
@@ -67,6 +76,40 @@ export function watchingCause(locale: Locale, live: number): Cause | null {
     body: message(locale, 'empty.cause.watching'),
     actionLabel: message(locale, 'empty.cause.watching.action'),
     href: resolveCta({ route: '/signals', query: { tab: 'observation' } }).href,
+  };
+}
+
+/**
+ * The cause an empty corpus has when the chain above it plainly ran.
+ *
+ * The episodes panel explains its own mechanism — an episode is written when
+ * an investigation ends, and none has been written yet — and on a deployment
+ * with finished investigations behind it the second half of that is simply
+ * untrue. The two situations it collapses are opposite: a deployment that has
+ * not investigated anything yet is waiting, and a deployment that has
+ * investigated fifty things and written nothing down is losing every one of
+ * them. Rendered identically, the first is what a reader assumes, so the
+ * failure is invisible for as long as nobody counts the runs by hand.
+ *
+ * ``finished`` is investigations that *completed*, not investigations that
+ * stopped. A cancelled or failed run has no conclusion to extract an episode
+ * from, so counting one here would blame the corpus for a gap nothing was
+ * ever going to fill.
+ *
+ * What this deliberately does not say is why. Extraction records its own
+ * reason — the model call it makes, and the failure it came back with — and no
+ * endpoint serves it, so the console cannot read one. It has two facts, the
+ * count and the corpus, and it says exactly what those two support: the runs
+ * ended, nothing came out of them, and the step between the two is a model
+ * call configured per role. Naming a provider error the console has not seen
+ * would be the same invention in the other direction.
+ */
+export function extractionCause(locale: Locale, finished: number): Cause | null {
+  if (finished <= 0) return null;
+  return {
+    body: message(locale, 'empty.cause.extraction', { finished: String(finished) }),
+    actionLabel: message(locale, 'empty.cause.extraction.action'),
+    href: resolveCta({ route: '/settings/models-providers' }).href,
   };
 }
 

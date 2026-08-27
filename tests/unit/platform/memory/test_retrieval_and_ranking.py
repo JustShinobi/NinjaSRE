@@ -24,7 +24,13 @@ from config.constants.memory import DEFAULT_MEMORY_RECALL_RESULTS, MAX_MEMORY_RE
 from config.constants.persistence import EPISODE_VECTOR_NAMESPACE, MAX_VECTOR_TOP_K
 from platform.memory.embeddings.local import LocalEmbedder
 from platform.memory.embeddings.port import embed_one
-from platform.memory.models import Component, MemoryEpisode, RecallQuery, ScoredEpisode
+from platform.memory.models import (
+    Component,
+    IssueType,
+    MemoryEpisode,
+    RecallQuery,
+    ScoredEpisode,
+)
 from platform.memory.policy import MemoryPolicy
 from platform.memory.ranking import component_overlap, rank, recency, score_episode
 from platform.memory.retrieval import MemoryRetriever, RecallLedger, bounded_limit, candidate_count
@@ -124,6 +130,22 @@ def test_component_overlap_is_measured_against_what_the_query_named() -> None:
     assert component_overlap(wanted, (*broad, *wanted)) == 1.0
     assert component_overlap(wanted, broad) == 0.0
     assert component_overlap((), wanted) == 0.0
+
+
+def test_a_component_named_under_a_different_type_scores_partial_credit() -> None:
+    """``container:lxc/122`` and ``guest:lxc/122`` are the same box, differently filed.
+
+    Both spellings are in the corpus, written by two runs about one incident.
+    Scoring them zero says they are unrelated, which is false; scoring them one
+    says the two runs agreed, which is also false. A query that named no type at
+    all asserted nothing to disagree with and scores full credit.
+    """
+    guest = (Component(type="guest", name="lxc/122"),)
+
+    assert component_overlap((Component(type="container", name="lxc/122"),), guest) == 0.5
+    assert component_overlap((Component(type="", name="lxc/122"),), guest) == 1.0
+    assert component_overlap((Component(type="guest", name="lxc/122"),), guest) == 1.0
+    assert component_overlap((Component(type="guest", name="lxc/999"),), guest) == 0.0
 
 
 def test_recency_halves_at_the_half_life_and_never_reaches_zero() -> None:
@@ -324,10 +346,17 @@ async def test_a_store_that_is_broken_is_not_an_empty_corpus(
     assert found.reason
 
 
-async def test_a_component_filter_excludes_episodes_that_did_not_touch_it(
+async def test_a_named_component_promotes_its_episodes_without_hiding_the_rest(
     gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
 ) -> None:
-    """A filter, not a hint: a caller that names a component means it."""
+    """A signal, not a filter: naming a component orders the results.
+
+    Both episodes are about the same symptom and the query text matches them
+    equally. The one on the named component leads, and the other one is still
+    there — because "the agent thinks the failing workload is search-api" is a
+    belief formed from partial evidence, and a belief must not be able to delete
+    the episode that would have corrected it.
+    """
     await seed(
         gateway,
         scope,
@@ -340,13 +369,19 @@ async def test_a_component_filter_excludes_episodes_that_did_not_touch_it(
         RecallQuery(text="restarting with exit code 137", component="search-api")
     )
 
-    assert found.correlation_ids == ("search",)
+    assert found.correlation_ids == ("search", "payments")
 
 
-async def test_an_issue_type_filter_is_applied_inside_the_index(
+async def test_a_named_issue_type_promotes_its_episodes_without_hiding_the_rest(
     gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
 ) -> None:
-    """The cheap filter runs before any row is loaded."""
+    """The classification orders the results too, and excludes nothing.
+
+    This is the exclusion that was measured costing an investigation its
+    precedent. The index no longer filters on the issue type at all: the team is
+    a boundary and belongs in the filter, and everything the agent asserted about
+    the incident is a preference and belongs in the ranker.
+    """
     await seed(
         gateway,
         scope,
@@ -359,7 +394,234 @@ async def test_an_issue_type_filter_is_applied_inside_the_index(
         RecallQuery(text="payments-api", issue_type="certificate_expiry")
     )
 
-    assert found.correlation_ids == ("certs",)
+    assert found.correlation_ids == ("certs", "oom")
+
+
+# -- vocabulary drift ---------------------------------------------------------
+
+
+def shutdown_episode(scope: TenantScope) -> MemoryEpisode:
+    """Return the episode the live deployment actually wrote.
+
+    Verbatim from the incident this section exists for: the extractor's own
+    words for the failure, and the four components the run had looked at.
+    """
+    return MemoryEpisode(
+        correlation_id="lxc-122-shutdown",
+        org_id=scope.org_id,
+        team_node_id=scope.team_node_id or "",
+        issue_type="manual_shutdown",
+        issue_description="lxc/122 stopped after a vzshutdown issued by root@pam",
+        components=tuple(
+            Component.parse(label)
+            for label in ("service:redis", "container:lxc/122", "node:pve01", "cluster:HAL9000")
+        ),
+        capabilities_used=("proxmox_guest_status", "proxmox_task_log"),
+        resolved=True,
+        root_cause="an operator ran vzshutdown against the container",
+        summary=(
+            "The container stopped because somebody shut it down. The task log names "
+            "root@pam and the guest never restarted."
+        ),
+        effectiveness_score=0.8,
+        occurred_at=at(-1),
+    )
+
+
+async def test_an_episode_is_found_by_a_recall_that_words_it_differently(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """The measured defect: two vocabularies for one incident, forty-four seconds apart.
+
+    An investigation concluded and wrote the episode above. The next
+    investigation into the same incident searched with the alert's own words —
+    ``ProxmoxGuestStopped`` on ``pve-exporter`` — and got nothing back, because
+    both of those were filters and neither matched. Neither vocabulary is wrong.
+    They were invented by different callers at different moments, and nothing
+    made them agree.
+
+    Ranking is what makes the disagreement survivable: naming a component or an
+    issue type says which episodes are *preferred*, never which ones exist.
+    """
+    await seed(gateway, scope, embedder, shutdown_episode(scope))
+
+    found = await retriever(gateway, scope, embedder).search(
+        RecallQuery(
+            text="ProxmoxGuestStopped lxc 122 vzshutdown root@pam",
+            component="pve-exporter",
+            issue_type="ProxmoxGuestStopped",
+        )
+    )
+
+    assert found.correlation_ids == ("lxc-122-shutdown",)
+
+
+async def test_the_named_component_and_issue_type_order_the_results(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """Preference, not exclusion — the episode that matches both leads.
+
+    The point of demoting the two filters to signals is that they still decide
+    what the agent reads *first*. An episode sharing neither the component nor
+    the classification comes back last rather than not at all.
+    """
+    await seed(
+        gateway,
+        scope,
+        embedder,
+        episode("both", scope, issue_type="oom_kill", components=("service:payments-api",)),
+        episode("neither", scope, issue_type="certificate_expiry", components=("service:tls",)),
+    )
+
+    found = await retriever(gateway, scope, embedder).search(
+        RecallQuery(
+            text="payments-api restarting with exit code 137",
+            component="payments-api",
+            issue_type="oom_kill",
+        )
+    )
+
+    assert found.correlation_ids == ("both", "neither")
+
+
+async def test_the_signature_half_runs_even_when_the_recall_carries_filters(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """Exact fingerprint matching depends on no vocabulary, so it always runs.
+
+    The episode is written with an embedding that has nothing in common with the
+    query text, so the similarity half cannot reach it. It has fired before under
+    exactly this fingerprint, and that is a fact rather than an estimate — it
+    leads the results, and it is flagged as an exact match so a reader can tell
+    which half found it.
+    """
+    fingerprinted = MemoryEpisode(
+        correlation_id="fired-before",
+        org_id=scope.org_id,
+        team_node_id=scope.team_node_id or "",
+        issue_type="oom_kill",
+        issue_description="zzzz",
+        components=(Component(type="service", name="payments-api"),),
+        resolved=True,
+        summary="zzzz",
+        occurred_at=at(-1),
+    )
+    await seed(
+        gateway,
+        scope,
+        embedder,
+        fingerprinted,
+        episode("closer", scope, components=("service:payments-api-worker",)),
+    )
+
+    found = await retriever(gateway, scope, embedder).search(
+        RecallQuery(
+            text="something with no words in common at all",
+            component="service:payments-api",
+            issue_type="oom_kill",
+        )
+    )
+
+    assert found.correlation_ids[0] == "fired-before"
+    assert found.episodes[0].exact_match is True
+    assert found.episodes[1].exact_match is False
+
+
+async def test_a_signature_match_leads_even_when_the_ranked_search_disagrees(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """When the two halves disagree the fingerprint wins, and both are returned.
+
+    The other episode is the better textual match and would outrank the
+    fingerprinted one on every term of the formula. It still comes second: a
+    signature is what "this exact alert has fired before" means, and an
+    embedding is a guess about what an incident resembles.
+    """
+    fingerprinted = MemoryEpisode(
+        correlation_id="same-fingerprint",
+        org_id=scope.org_id,
+        team_node_id=scope.team_node_id or "",
+        issue_type="oom_kill",
+        issue_description="qqqq",
+        components=(Component(type="service", name="payments-api"),),
+        resolved=False,
+        summary="qqqq",
+        effectiveness_score=0.0,
+        occurred_at=at(-400),
+    )
+    await seed(
+        gateway,
+        scope,
+        embedder,
+        fingerprinted,
+        episode(
+            "better-on-every-term",
+            scope,
+            components=("service:payments-api-worker",),
+            effectiveness=1.0,
+            age_days=0.0,
+        ),
+    )
+
+    found = await retriever(gateway, scope, embedder).search(
+        RecallQuery(
+            text="payments-api restarting with exit code 137",
+            component="service:payments-api",
+            issue_type="oom_kill",
+        )
+    )
+
+    assert found.correlation_ids == ("same-fingerprint", "better-on-every-term")
+
+
+async def test_a_recall_that_described_nothing_promotes_nothing_as_exact(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """Two runs that each failed to classify anything have not matched each other.
+
+    An episode whose extraction produced neither a classification nor a component
+    is fingerprinted over the ``other`` bucket and an empty component list — and
+    so would a search that named neither. Letting those meet would give exact-match
+    precedence to every unclassifiable episode in the corpus, on every search that
+    happened not to carry a filter.
+    """
+    unclassified = MemoryEpisode(
+        correlation_id="nobody-could-say",
+        org_id=scope.org_id,
+        team_node_id=scope.team_node_id or "",
+        issue_type=IssueType.OTHER.value,
+        summary="Something went wrong on the cluster and the run could not say what.",
+        occurred_at=at(-1),
+    )
+    await seed(gateway, scope, embedder, unclassified, episode("classified", scope))
+
+    found = await retriever(gateway, scope, embedder).search(
+        RecallQuery(text="payments-api restarting with exit code 137")
+    )
+
+    assert RecallQuery(text="anything").signature() == ""
+    assert not any(entry.exact_match for entry in found.episodes)
+
+
+async def test_the_ledger_records_the_words_the_agent_used_and_the_bucket(
+    gateway: PersistenceGateway, scope: TenantScope, embedder: LocalEmbedder
+) -> None:
+    """The trace has to answer why an episode matched, so it holds both.
+
+    Recording only the canonical bucket would hide what the agent actually
+    searched for; recording only the agent's words would hide why an episode
+    classified differently still came back.
+    """
+    ledger = RecallLedger()
+    await seed(gateway, scope, embedder, shutdown_episode(scope))
+
+    await retriever(gateway, scope, embedder, ledger=ledger).search(
+        RecallQuery(text="lxc 122 stopped", issue_type="ProxmoxGuestStopped")
+    )
+
+    record = ledger.records[0].to_record()
+    assert record["issue_type"] == "ProxmoxGuestStopped"
+    assert record["canonical_issue_type"] == IssueType.WORKLOAD_STOPPED.value
 
 
 # -- isolation ----------------------------------------------------------------

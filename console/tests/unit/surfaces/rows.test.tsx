@@ -160,3 +160,37 @@ describe('what a row and a header are', () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * The column names survive the scroll that the windowing makes necessary.
+ *
+ * The list windows its rows, so it has to be its own scroll region — that part
+ * is not a defect, it is the only way ninety-seven resources render without
+ * ninety-seven rows in the document. What was a defect is that the headings
+ * scrolled away with the rows: an operator forty rows into an estate was
+ * reading six unlabelled columns, and the only way back to the labels was to
+ * scroll a region they had to find first.
+ *
+ * Sticky on the cells rather than on `<thead>`, which browsers still disagree
+ * about, and opaque rather than transparent — a translucent heading with rows
+ * sliding under it is harder to read than no heading at all.
+ */
+describe('the heading inside a windowed list', () => {
+  it('stays put while the rows scroll under it', () => {
+    render(
+      <RowList
+        path="/runs"
+        state={DEFAULT_VIEW_STATE}
+        filters={[]}
+        labels={LABELS}
+        columns={COLUMNS}
+        rows={rows(200)}
+      />,
+    );
+    for (const heading of screen.getAllByRole('columnheader')) {
+      expect(heading.className).toContain('sticky');
+      expect(heading.className).toContain('top-0');
+      expect(heading.className).toContain('bg-raised');
+    }
+  });
+});

@@ -322,6 +322,16 @@ export const DURATIONS = {
   hover: 120,
   overlay: 160,
   toast: 200,
+  /**
+   * A mark that says the thing behind it is happening now.
+   *
+   * An order of magnitude slower than every other step, and deliberately so:
+   * the other four are a response to something a person just did, and this one
+   * is not a response at all. At the toast's two hundred milliseconds it reads
+   * as an alarm blinking; at this it reads as breathing, which is the whole
+   * difference between "look at me" and "I am still here".
+   */
+  pulse: 2400,
 } as const;
 
 /** One step of the type scale. */
@@ -335,8 +345,16 @@ export interface TypeStep {
 /**
  * The type scale.
  *
- * `micro` tracks outwards because uppercase at eleven pixels closes up, and the
- * headings track inwards because large type at default tracking reads loose.
+ * `micro` is the label step: column headers, section headings, the words above
+ * a group of navigation entries. It used to be eleven pixels of capitals
+ * tracked out to 0.06em, which is a decade-old administrative-console idiom
+ * and a measurable cost — a reader recognises a word by its silhouette, and
+ * capitals flatten every word to the same rectangle. Twelve pixels, sentence
+ * case, no tracking: the label reads as a label because it is smaller and
+ * quieter than what it labels, not because it is shouting.
+ *
+ * The headings still track inwards, because large type at default tracking
+ * reads loose.
  */
 export const TYPE_STEPS: Readonly<Record<string, TypeStep>> = {
   display: { size: 34, line: 1.15, weight: 680, tracking: '-0.03em' },
@@ -346,7 +364,7 @@ export const TYPE_STEPS: Readonly<Record<string, TypeStep>> = {
   body: { size: 14, line: 1.5, weight: 400, tracking: '0em' },
   small: { size: 13, line: 1.5, weight: 400, tracking: '0em' },
   meta: { size: 12, line: 1.45, weight: 400, tracking: '0em' },
-  micro: { size: 11, line: 1.4, weight: 650, tracking: '0.06em' },
+  micro: { size: 12, line: 1.4, weight: 600, tracking: '0em' },
 };
 
 export type TypeName = keyof typeof TYPE_STEPS;
@@ -399,6 +417,48 @@ export const FONT_STACKS = {
 export const CONTENT_WIDTH = 1360;
 
 /**
+ * How wide one centred column of content gets before it stops being one.
+ *
+ * `CONTENT_WIDTH` caps the page; this caps a single stack inside it — a setup
+ * checklist, a short form — where the surrounding panel is much wider than the
+ * thing being read. Roughly sixty characters at the small step, which is where
+ * a list stops scanning as a column and starts reading as a paragraph.
+ *
+ * Not on the spacing scale, for the reason `SHELL` is not: it is a measurement
+ * taken from the type, not a multiple of a step.
+ */
+export const READING_WIDTH = 448;
+
+/**
+ * How tall a scrolling region is allowed to get, by which region it is.
+ *
+ * These exist because the spacing scale has nothing to say about them and
+ * should not. Its largest step is 48px — a gap between sections — and a scroll
+ * ceiling is two orders of that: it is measured from how much content is worth
+ * showing before the reader would rather scroll than scan, which is a decision
+ * about the content and not a multiple of a gutter.
+ *
+ * They were literals before the scale was closed: `max-h-96`, `max-h-64` and
+ * `h-44` compiled through Tailwind's own `--spacing` base, which this design
+ * never declared and every check believed was absent. Named here, they are
+ * three numbers a reviewer can compare instead of three numbers scattered
+ * across four screens.
+ */
+export const SCROLL_HEIGHTS = {
+  /** A panel's own scrolling region: a rules list, a rendered prompt. */
+  pane: 384,
+  /** A scroller nested inside one entry: a single transcript event's note. */
+  entry: 256,
+  /**
+   * A region pinned to one height so its siblings never move.
+   *
+   * The tutorial's body, where the point is not the ceiling but the constancy:
+   * Back and Next must be at the same pixel on slide one and on slide five.
+   */
+  slot: 176,
+} as const;
+
+/**
  * The application shell's two fixed measurements.
  *
  * Neither is on the spacing scale and neither should be. A sidebar is as wide as
@@ -411,6 +471,40 @@ export const SHELL = {
   sidebar: 236,
   topbar: 52,
 } as const;
+
+/**
+ * How wide a list column is, by what it holds.
+ *
+ * A table of rows lays out fixed, so a column with no declared width takes an
+ * equal share of whatever is going. On a Full HD screen that gave a status
+ * badge and a duration four hundred pixels each and clipped the one column
+ * that says what the row is about — so every row on the screen read
+ * "Proxmox node pve01 backup synchron…" and the reader had to open each one to
+ * tell them apart.
+ *
+ * Named by content rather than by number, and measured from the widest thing
+ * each actually holds: a status badge, a timestamp phrased as "29 minutes
+ * ago", a short opaque identifier. The column carrying the row's subject
+ * declares nothing and takes the rest, which is the whole point of the scale.
+ *
+ * Not on the spacing scale, for the reason `SHELL` is not: a column is as wide
+ * as its content, which is a measurement rather than a step.
+ */
+export const COLUMN_WIDTHS = {
+  /** A severity or trigger word: "critical", "Alert". */
+  word: 112,
+  /** A status badge with its shape and its label: "COMPLETED". */
+  badge: 144,
+  /** A short opaque identifier, monospaced: "#8711ce98". */
+  identifier: 144,
+  /** A relative instant: "29 minutes ago". */
+  instant: 160,
+  /** A number and its unit, right-aligned: "18s", "36,842". */
+  measure: 112,
+} as const;
+
+/** Which content a column holds, and therefore how wide it is. */
+export type ColumnWidth = keyof typeof COLUMN_WIDTHS;
 
 /**
  * The width below which the sidebar becomes a drawer.

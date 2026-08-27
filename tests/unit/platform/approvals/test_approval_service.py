@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 
 from config.constants.security import PENDING_CHANGE_EXPIRY_HOURS
-from platform.approvals.errors import ChangeNotFound
+from platform.approvals.errors import ChangeExpired, ChangeNotFound
 from platform.approvals.models import ChangeState, ChangeType, fingerprint_of
 from platform.approvals.policy import SecurityPolicy
 from platform.approvals.service import RESTORE_CAPABILITY, ApprovalService
@@ -225,6 +225,33 @@ async def test_an_expired_change_cannot_be_decided(
     await service.expire_due()
 
     with pytest.raises(ChangeAlreadyDecided):
+        await service.decide(change.change_id, **as_reviewer(), approve=True)
+
+
+async def test_a_lapsed_change_is_refused_even_when_no_sweep_has_relabelled_it(
+    queue_change: Callable[..., Any],
+    service: ApprovalService,
+    as_reviewer: Callable[..., dict[str, Any]],
+    clock: Any,
+) -> None:
+    """The label is a cache of the clock, and the sweep that writes it may not run.
+
+    The test above advances the clock *and* calls ``expire_due``. This one only
+    advances the clock, which is the deployment that has no sweep scheduled —
+    and that is not a hypothetical. Staging on 2026-08-25 had exactly two
+    scheduled jobs, neither of them an expiry sweep, so every lapsed change sat
+    ``pending`` and answerable indefinitely.
+
+    A remediation proposed at 23:48 with a fifteen-minute window was approved at
+    00:53 and carried out: the guest was started fifty minutes after the reading
+    that said it was safe to start stopped being current. The window exists to
+    stop precisely that, and a window enforced only by a sweep is a window a
+    deployment can be missing.
+    """
+    change = await queue_change()
+    clock.advance(days=30)
+
+    with pytest.raises(ChangeExpired):
         await service.decide(change.change_id, **as_reviewer(), approve=True)
 
 

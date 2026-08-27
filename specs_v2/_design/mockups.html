@@ -1,0 +1,617 @@
+<meta charset="utf-8">
+<title>NinjaSRE Console — Design Mockups</title>
+<style>
+:root{
+  --surface:#ffffff; --sunken:#f5f7f8; --raised:#ffffff;
+  --text:#11161c; --muted:#59626d;
+  --accent:#0f6f5c; --on-accent:#ffffff;
+  --border:#d5dade; --border-strong:#78828d;
+  --success:#136c46; --warning:#8a5a00; --danger:#a11b21; --info:#0a5ea8;
+  --on-danger:#ffffff;
+  --success-bg:#e8f5ee; --warning-bg:#fdf4e3; --danger-bg:#fdecec; --info-bg:#eaf2fb; --accent-bg:#e7f3f0;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r1:4px; --r2:6px; --r3:10px; --r4:14px;
+  --f0:11px; --f1:12px; --f2:13px; --f3:14px; --f4:16px; --f5:20px; --f6:26px; --f7:34px;
+  --sh1:0 1px 2px rgba(17,22,28,.06); --sh2:0 2px 8px rgba(17,22,28,.08);
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+:root:not([data-theme=light]) { }
+@media (prefers-color-scheme: dark){ :root:not([data-theme=light]){
+  --surface:#0d1117; --sunken:#0a0e13; --raised:#161c24;
+  --text:#e9eef4; --muted:#9aa5b1;
+  --accent:#4fd6b0; --on-accent:#06231c;
+  --border:#242c36; --border-strong:#8b96a3;
+  --success:#5fd996; --warning:#e8b463; --danger:#f28b8b; --info:#77b6f5;
+  --on-danger:#2b0b0c;
+  --success-bg:#0f2a1e; --warning-bg:#2c2110; --danger-bg:#2e1416; --info-bg:#0f2237; --accent-bg:#0e2b25;
+  --sh1:0 1px 2px rgba(0,0,0,.4); --sh2:0 2px 10px rgba(0,0,0,.5);
+}}
+[data-theme=dark]{
+  --surface:#0d1117; --sunken:#0a0e13; --raised:#161c24;
+  --text:#e9eef4; --muted:#9aa5b1;
+  --accent:#4fd6b0; --on-accent:#06231c;
+  --border:#242c36; --border-strong:#8b96a3;
+  --success:#5fd996; --warning:#e8b463; --danger:#f28b8b; --info:#77b6f5;
+  --on-danger:#2b0b0c;
+  --success-bg:#0f2a1e; --warning-bg:#2c2110; --danger-bg:#2e1416; --info-bg:#0f2237; --accent-bg:#0e2b25;
+  --sh1:0 1px 2px rgba(0,0,0,.4); --sh2:0 2px 10px rgba(0,0,0,.5);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--sunken);color:var(--text);
+  font:var(--f3)/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:-.01em}
+a{color:var(--accent)}
+svg{display:block;flex:none}
+
+/* ---------- mockup page scaffolding (not part of the product) ---------- */
+.doc{max-width:1360px;margin:0 auto;padding:var(--s6) var(--s5) var(--s7)}
+.doc>h2{font-size:var(--f6);margin:var(--s7) 0 var(--s2)}
+.doc>h2:first-child{margin-top:0}
+.doc>p.note{color:var(--muted);font-size:var(--f2);margin:0 0 var(--s4);max-width:74ch}
+.frame{border:1px solid var(--border);border-radius:var(--r4);overflow:hidden;
+  background:var(--surface);box-shadow:var(--sh2)}
+.caption{font-size:var(--f1);color:var(--muted);margin:var(--s2) 0 0;font-family:var(--mono)}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:760px;background:var(--sunken)}
+.side{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:var(--s2);padding:var(--s4);border-bottom:1px solid var(--border)}
+.brand b{font-size:var(--f4);letter-spacing:-.02em}
+.brand .mark{width:26px;height:26px;border-radius:var(--r2);background:var(--accent);
+  color:var(--on-accent);display:grid;place-items:center;font-size:var(--f1);font-weight:800}
+.navgroup{padding:var(--s3) var(--s2) var(--s1)}
+.navgroup>span{display:block;padding:0 var(--s2) var(--s1);font-size:var(--f0);
+  text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:650}
+.nav a{display:flex;align-items:center;gap:10px;padding:7px var(--s2);margin:1px var(--s1);
+  border-radius:var(--r2);color:var(--text);text-decoration:none;font-size:var(--f3)}
+.nav a .ct{margin-left:auto;font-size:var(--f0);font-weight:700;padding:1px 6px;border-radius:999px;
+  background:var(--danger-bg);color:var(--danger)}
+.nav a[aria-current]{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.nav a:not([aria-current]):hover{background:var(--sunken)}
+.sidefoot{margin-top:auto;padding:var(--s3);border-top:1px solid var(--border);
+  font-size:var(--f1);color:var(--muted);display:flex;align-items:center;gap:var(--s2)}
+.dot{width:7px;height:7px;border-radius:99px;background:var(--success);flex:none}
+
+.topbar{display:flex;align-items:center;gap:var(--s3);padding:0 var(--s5);height:52px;
+  background:var(--surface);border-bottom:1px solid var(--border)}
+.search{flex:1;max-width:420px;display:flex;align-items:center;gap:var(--s2);
+  border:1px solid var(--border);border-radius:var(--r2);padding:5px var(--s3);
+  color:var(--muted);font-size:var(--f2);background:var(--sunken)}
+.search kbd{margin-left:auto;font:600 var(--f0)/1 var(--mono);border:1px solid var(--border);
+  border-radius:var(--r1);padding:3px 5px;color:var(--muted)}
+.tbtn{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text);border-radius:var(--r2);padding:5px 10px;font:inherit;font-size:var(--f2);cursor:pointer}
+.tbtn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.avatar{width:26px;height:26px;border-radius:99px;background:var(--info-bg);color:var(--info);
+  display:grid;place-items:center;font-size:var(--f1);font-weight:700}
+
+.main{padding:var(--s5);overflow:auto}
+.phead{display:flex;align-items:flex-start;gap:var(--s3);margin-bottom:var(--s5)}
+.phead .ico{width:38px;height:38px;border-radius:var(--r3);background:var(--accent-bg);color:var(--accent);
+  display:grid;place-items:center;flex:none}
+.phead h1{font-size:var(--f6)}
+.phead p{margin:2px 0 0;color:var(--muted);font-size:var(--f2)}
+.phead .acts{margin-left:auto;display:flex;gap:var(--s2)}
+
+/* ---------- primitives ---------- */
+.card{background:var(--raised);border:1px solid var(--border);border-radius:var(--r3);box-shadow:var(--sh1)}
+.card>header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--border)}
+.card>header h3{font-size:var(--f3)}
+.card>header .side-act{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
+.card .body{padding:var(--s4)}
+.grid{display:grid;gap:var(--s4)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g21{grid-template-columns:2fr 1fr}
+.mb4{margin-bottom:var(--s4)} .mb5{margin-bottom:var(--s5)}
+
+.tile{background:var(--raised);border:1px solid var(--border);border-radius:var(--r3);
+  padding:var(--s4);box-shadow:var(--sh1)}
+.tile .lbl{font-size:var(--f1);color:var(--muted);display:flex;align-items:center;gap:6px}
+.tile .val{font-size:var(--f7);font-weight:680;letter-spacing:-.03em;line-height:1.15;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.tile .sub{font-size:var(--f1);color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+.tile .sub.up{color:var(--success)} .tile .sub.down{color:var(--danger)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:var(--f0);font-weight:700;
+  letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:var(--r1);
+  border:1px solid transparent;white-space:nowrap}
+.b-danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+.b-warn{background:var(--warning-bg);color:var(--warning);border-color:var(--warning)}
+.b-ok{background:var(--success-bg);color:var(--success);border-color:var(--success)}
+.b-info{background:var(--info-bg);color:var(--info);border-color:var(--info)}
+.b-mute{background:var(--sunken);color:var(--muted);border-color:var(--border-strong)}
+.sdot{width:8px;height:8px;border-radius:99px;flex:none}
+.sq{width:8px;height:8px;flex:none}                     /* shape carries meaning too */
+.tri{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;flex:none}
+
+table{width:100%;border-collapse:collapse;font-size:var(--f2)}
+th{text-align:left;font-size:var(--f0);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);font-weight:650;padding:0 var(--s3) var(--s2);border-bottom:1px solid var(--border)}
+td{padding:9px var(--s3);border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.mono{font-family:var(--mono);font-size:var(--f1)}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+
+.meter{height:6px;border-radius:99px;background:var(--sunken);overflow:hidden;
+  border:1px solid var(--border);min-width:90px}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter i.warn{background:var(--warning)} .meter i.dang{background:var(--danger)}
+
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:var(--s3);padding:var(--s3) var(--s4);border-bottom:1px solid var(--border)}
+.feed li:last-child{border-bottom:none}
+.feed .fi{width:28px;height:28px;border-radius:var(--r2);display:grid;place-items:center;flex:none;
+  background:var(--sunken);color:var(--muted)}
+.feed .fi.ok{background:var(--success-bg);color:var(--success)}
+.feed .fi.bad{background:var(--danger-bg);color:var(--danger)}
+.feed .fi.warn{background:var(--warning-bg);color:var(--warning)}
+.feed .ft{font-size:var(--f2)} .feed .fm{font-size:var(--f1);color:var(--muted);margin-top:1px}
+
+.attn{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--border);text-decoration:none;color:inherit}
+.attn:last-child{border-bottom:none}
+.attn:hover{background:var(--sunken)}
+.attn .who{font-size:var(--f2);font-weight:600}
+.attn .why{font-size:var(--f1);color:var(--muted)}
+.attn .go{margin-left:auto;color:var(--muted)}
+
+.empty{padding:var(--s7) var(--s5);text-align:center}
+.empty .ei{width:44px;height:44px;border-radius:var(--r3);background:var(--sunken);color:var(--muted);
+  display:grid;place-items:center;margin:0 auto var(--s3)}
+.empty h4{font-size:var(--f3);margin-bottom:var(--s1)}
+.empty p{margin:0 auto var(--s4);color:var(--muted);font-size:var(--f2);max-width:44ch}
+
+/* transcript */
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:19px;top:10px;bottom:10px;width:1px;background:var(--border)}
+.tl li{position:relative;display:flex;gap:var(--s3);padding:var(--s3) 0}
+.tl .ti{width:38px;flex:none;display:grid;place-items:center;z-index:1}
+.tl .ti span{width:26px;height:26px;border-radius:var(--r2);display:grid;place-items:center;
+  background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.tl .ti span.acc{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.tl .ti span.ok{background:var(--success-bg);border-color:var(--success);color:var(--success)}
+.tl .ti span.bad{background:var(--danger-bg);border-color:var(--danger);color:var(--danger)}
+.tl .tb{flex:1;min-width:0}
+.tl .th{display:flex;align-items:center;gap:var(--s2);font-size:var(--f1);color:var(--muted)}
+.tl .th b{color:var(--text);font-size:var(--f2);font-weight:650}
+.tl .tc{margin-top:5px;font-size:var(--f2)}
+.tl pre{margin:6px 0 0;background:var(--sunken);border:1px solid var(--border);border-radius:var(--r2);
+  padding:var(--s3);font:var(--f1)/1.55 var(--mono);overflow:auto;white-space:pre-wrap}
+.trunc{display:flex;align-items:center;gap:6px;font-size:var(--f1);color:var(--muted);margin-top:5px}
+
+.prop{border:1px solid var(--border-strong);border-radius:var(--r3);background:var(--raised)}
+.prop.hi{border-color:var(--danger)}
+.prop>header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);
+  border-bottom:1px solid var(--border)}
+.kv{display:grid;grid-template-columns:132px 1fr;gap:6px var(--s3);font-size:var(--f2);padding:var(--s4)}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.acts{display:flex;gap:var(--s2);align-items:center;padding:var(--s3) var(--s4);
+  border-top:1px solid var(--border);background:var(--sunken)}
+.acts .sp{margin-left:auto;font-size:var(--f1);color:var(--muted)}
+button{font:inherit}
+.btn{border:1px solid var(--border-strong);background:var(--surface);color:var(--text);
+  border-radius:var(--r2);padding:6px 12px;font-size:var(--f2);cursor:pointer}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.d{background:var(--danger);border-color:var(--danger);color:var(--on-danger);font-weight:600}
+.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--muted);padding:5px 11px;font-size:var(--f2);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.seg button+button{border-left:1px solid var(--border)}
+
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:var(--s3)}
+.sw div{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;font-size:var(--f0)}
+.sw .chip{height:52px;display:grid;place-items:center;font-weight:700;font-size:var(--f1)}
+.sw .meta{padding:6px var(--s2);background:var(--raised)}
+.sw .meta b{display:block;font-size:var(--f1)}
+.sw .meta span{font-family:var(--mono);color:var(--muted)}
+
+.scale{display:flex;flex-direction:column;gap:6px}
+.scale div{display:flex;align-items:baseline;gap:var(--s3)}
+.scale code{font-family:var(--mono);font-size:var(--f1);color:var(--muted);width:104px;flex:none}
+.bar{display:flex;align-items:center;gap:var(--s3);font-size:var(--f1);color:var(--muted)}
+.bar i{display:block;height:14px;background:var(--accent-bg);border-left:2px solid var(--accent)}
+.banner{display:flex;align-items:center;gap:var(--s2);padding:8px var(--s5);font-size:var(--f2);
+  background:var(--warning-bg);color:var(--warning);border-bottom:1px solid var(--warning);font-weight:600}
+.hero{border:1px solid var(--border);border-radius:var(--r3);background:var(--accent-bg);padding:var(--s5);
+  display:flex;gap:var(--s5);align-items:center}
+.hero h2{font-size:var(--f5);margin-bottom:4px}
+.hero p{margin:0;color:var(--muted);font-size:var(--f2);max-width:62ch}
+</style>
+
+<div class="doc">
+
+<h2>1 — Colour tokens</h2>
+<p class="note">Colour is declared by role, never by hue. Every pair below is computed against WCAG 2.1 AA
+from the token table itself. Body text needs 4.5:1; control boundaries need 3:1. Both themes define the
+same token names with different values, so a screen written against tokens works in both by construction.</p>
+<div class="frame"><div style="padding:var(--s5)">
+  <div class="sw">
+    <div><div class="chip" style="background:var(--surface);color:var(--text);border-bottom:1px solid var(--border)">Aa</div><div class="meta"><b>text / surface</b><span>18.18:1</span></div></div>
+    <div><div class="chip" style="background:var(--surface);color:var(--muted);border-bottom:1px solid var(--border)">Aa</div><div class="meta"><b>muted / surface</b><span>6.19:1</span></div></div>
+    <div><div class="chip" style="background:var(--accent);color:var(--on-accent)">Aa</div><div class="meta"><b>on-accent / accent</b><span>6.09:1</span></div></div>
+    <div><div class="chip" style="background:var(--surface);color:var(--success);border-bottom:1px solid var(--border)">Aa</div><div class="meta"><b>success / surface</b><span>6.44:1</span></div></div>
+    <div><div class="chip" style="background:var(--surface);color:var(--warning);border-bottom:1px solid var(--border)">Aa</div><div class="meta"><b>warning / surface</b><span>5.93:1</span></div></div>
+    <div><div class="chip" style="background:var(--danger);color:var(--on-danger)">Aa</div><div class="meta"><b>on-danger / danger</b><span>7.79:1</span></div></div>
+    <div><div class="chip" style="background:var(--surface);color:var(--info);border-bottom:1px solid var(--border)">Aa</div><div class="meta"><b>info / surface</b><span>6.60:1</span></div></div>
+    <div><div class="chip" style="background:var(--surface);color:var(--border-strong);border-bottom:1px solid var(--border)">━━</div><div class="meta"><b>border-strong</b><span>3.91:1</span></div></div>
+  </div>
+  <p class="note" style="margin:var(--s4) 0 0">Status never rides on colour alone. Each state also carries a
+  label and a shape — filled circle, hollow circle, square, triangle — so it survives a viewer who cannot
+  separate the hues.</p>
+  <div style="display:flex;gap:var(--s4);margin-top:var(--s3);flex-wrap:wrap;align-items:center">
+    <span class="badge b-ok"><i class="sdot" style="background:var(--success)"></i>healthy</span>
+    <span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>degraded</span>
+    <span class="badge b-danger"><i class="sq" style="background:var(--danger)"></i>unhealthy</span>
+    <span class="badge b-mute"><i class="sdot" style="border:1.5px solid var(--muted)"></i>unknown</span>
+    <span class="badge b-mute"><i class="sdot" style="background:var(--muted);opacity:.5"></i>stale</span>
+    <span class="badge b-info"><i class="sq" style="background:var(--info);transform:rotate(45deg)"></i>maintenance</span>
+  </div>
+</div></div>
+<p class="caption">032 · FR-001, FR-002, FR-011, FR-012 · SC-001, SC-003</p>
+
+<h2>2 — Type and spacing scales</h2>
+<p class="note">Closed sets. A lint rule rejects any value not on a scale, which is the only mechanism that
+keeps a design system from decaying into suggestions.</p>
+<div class="frame"><div style="padding:var(--s5);display:grid;grid-template-columns:1fr 1fr;gap:var(--s6)">
+  <div class="scale">
+    <div><code>display 34/1.15</code><span style="font-size:34px;font-weight:680;letter-spacing:-.03em">91.7%</span></div>
+    <div><code>title 26/1.25</code><span style="font-size:26px;font-weight:650;letter-spacing:-.01em">Cluster HAL9000</span></div>
+    <div><code>section 20/1.3</code><span style="font-size:20px;font-weight:650">Estate overview</span></div>
+    <div><code>strong 16/1.45</code><span style="font-size:16px;font-weight:600">Quorum margin is zero</span></div>
+    <div><code>body 14/1.5</code><span style="font-size:14px">Losing either node makes /etc/pve read-only.</span></div>
+    <div><code>small 13/1.5</code><span style="font-size:13px">pve02 · 4 minutes ago</span></div>
+    <div><code>meta 12/1.45</code><span style="font-size:12px;color:var(--muted)">local-lvm · thin pool</span></div>
+    <div><code>micro 11/1.4</code><span style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Risk class</span></div>
+  </div>
+  <div>
+    <div class="scale">
+      <div class="bar"><code>s1 4</code><i style="width:4px"></i></div>
+      <div class="bar"><code>s2 8</code><i style="width:8px"></i></div>
+      <div class="bar"><code>s3 12</code><i style="width:12px"></i></div>
+      <div class="bar"><code>s4 16</code><i style="width:16px"></i>card padding</div>
+      <div class="bar"><code>s5 24</code><i style="width:24px"></i>page gutter, grid gap</div>
+      <div class="bar"><code>s6 32</code><i style="width:32px"></i>section break</div>
+      <div class="bar"><code>s7 48</code><i style="width:48px"></i>empty-state block</div>
+    </div>
+    <div class="scale" style="margin-top:var(--s5)">
+      <div><code>r1 4</code> badge, kbd &nbsp;<code>r2 6</code> control, input</div>
+      <div><code>r3 10</code> card, tile &nbsp;<code>r4 14</code> panel, drawer</div>
+      <div><code>dur 120ms</code> hover &nbsp;<code>160ms</code> drawer &nbsp;<code>0ms</code> reduced-motion</div>
+    </div>
+  </div>
+</div></div>
+<p class="caption">032 · FR-003, FR-014 · NFR-003</p>
+
+<h2>3 — Dashboard</h2>
+<p class="note">The landing screen answers four questions above the fold: what needs a human now, what is
+running, what happened recently, and how the estate is. Every figure carries a period, a comparison and a
+drill-down — a figure with no drill-down may not be shown.</p>
+<div class="frame"><div class="shell">
+  <nav class="side">
+    <div class="brand"><span class="mark">N</span><b>NinjaSRE</b></div>
+    <div class="navgroup"><span>Operate</span><div class="nav">
+      <a href="#" aria-current="page"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4l2 2"/><circle cx="12" cy="13" r="8"/><path d="M9 2h6"/></svg>Incidents<span class="ct">3</span></a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Runs</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>Approvals<span class="ct">2</span></a>
+    </div></div>
+    <div class="navgroup"><span>Estate</span><div class="nav">
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>Resources</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M10 13l-3.5 3.5M14 13l3.5 3.5"/></svg>Topology</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 3 0 1018 0 9 3 0 10-18 0"/><path d="M3 12v6c0 1.7 4 3 9 3s9-1.3 9-3v-6M3 6c0 1.7 4 3 9 3s9-1.3 9-3-4-3-9-3-9 1.3-9 3z"/></svg>Detectors</a>
+    </div></div>
+    <div class="navgroup"><span>Learn</span><div class="nav">
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 00-4 4c-1.7.6-3 2.2-3 4a4 4 0 002 3.5V17a3 3 0 003 3h4a3 3 0 003-3v-2.5A4 4 0 0019 11c0-1.8-1.3-3.4-3-4a4 4 0 00-4-4z"/></svg>Memory</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5v14a1 1 0 001 1h15M4 5h13a3 3 0 010 6H4"/></svg>Knowledge</a>
+    </div></div>
+    <div class="navgroup"><span>Govern</span><div class="nav">
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 4.5-3.2 8.4-8 9.5-4.8-1.1-8-5-8-9.5V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>Autonomy</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Configuration</a>
+      <a href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2h-3"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 11h8M8 15h5"/></svg>Audit</a>
+    </div></div>
+    <div class="sidefoot"><i class="dot"></i>Guardian active · propose-only</div>
+  </nav>
+  <div style="display:flex;flex-direction:column;min-width:0">
+    <div class="topbar">
+      <div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Search resources, runs, incidents<kbd>⌘K</kbd></div>
+      <div style="margin-left:auto;display:flex;gap:var(--s2);align-items:center">
+        <button class="tbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></button>
+        <button class="tbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 7-3 9h18c0-2-3-2-3-9z"/></svg>5</button>
+        <button class="tbtn primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Investigate</button>
+        <span class="avatar">EF</span>
+      </div>
+    </div>
+    <div class="main">
+      <div class="phead">
+        <span class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+        <div><h1>Cluster HAL9000</h1><p>2 nodes · 84 guests · Proxmox VE 9.2.6 · last swept 41s ago</p></div>
+        <div class="acts"><div class="seg"><button aria-pressed="true">24h</button><button>7d</button><button>30d</button></div></div>
+      </div>
+
+      <div class="card mb4" style="border-color:var(--danger)">
+        <header style="background:var(--danger-bg)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.4 17.5A2 2 0 004.1 20.5h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+          <h3 style="color:var(--danger)">3 items need you</h3>
+          <span class="side-act badge b-mute">oldest 2h 14m</span>
+        </header>
+        <a class="attn" href="#"><span class="badge b-danger"><i class="sq" style="background:var(--danger)"></i>critical</span>
+          <span><span class="who">Quorum margin is zero — a single node loss makes /etc/pve read-only</span>
+          <span class="why">cluster/HAL9000 · corosync-qdevice.service failed on pve01 · no two_node, no wait_for_all</span></span>
+          <span class="go">→</span></a>
+        <a class="attn" href="#"><span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>approval</span>
+          <span><span class="who">Reclaim 41 GiB on local-lvm (pve02) — 3 items proposed</span>
+          <span class="why">awaiting decision · risk class 4 of 5 · one item is a recovery point</span></span>
+          <span class="go">→</span></a>
+        <a class="attn" href="#"><span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>approval</span>
+          <span><span class="who">Restart CT115 adguard — thin volume at 94.96%</span>
+          <span class="why">awaiting decision · risk class 2 of 5 · rollback available</span></span>
+          <span class="go">→</span></a>
+      </div>
+
+      <div class="grid g4 mb4">
+        <div class="tile"><div class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 3 0 1018 0 9 3 0 10-18 0M3 12v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>Resources watched</div>
+          <div class="val">92</div><div class="sub">2 nodes · 82 CT · 2 VM · 6 datastores</div></div>
+        <div class="tile"><div class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Healthy</div>
+          <div class="val" style="color:var(--success)">85</div><div class="sub down">↓ 4 since yesterday</div></div>
+        <div class="tile"><div class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>Degraded / unhealthy</div>
+          <div class="val" style="color:var(--danger)">7</div><div class="sub">5 storage · 1 cluster · 1 guest</div></div>
+        <div class="tile"><div class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Mean time to detect</div>
+          <div class="val">3m 48s</div><div class="sub up">↑ 22% faster than last week</div></div>
+      </div>
+
+      <div class="grid g21">
+        <div class="card">
+          <header><h3>Recent activity</h3><span class="side-act"><button class="tbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg>Refresh</button></span></header>
+          <ul class="feed">
+            <li><span class="fi bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+              <div><div class="ft">Incident opened — quorum margin zero on HAL9000</div><div class="fm">detector <span class="mono">pve.quorum.margin</span> · 4m ago · 21:36</div></div></li>
+            <li><span class="fi ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <div><div class="ft">Remediation verified — CT142 lock cleared, guest manageable</div><div class="fm">effective · lock held 46m by dead task UPID:pve02:…:vzdump · 2h ago</div></div></li>
+            <li><span class="fi warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.4 17.5A2 2 0 004.1 20.5h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
+              <div><div class="ft">Recurring problem raised — CT115 adguard filled 4× in 30 days</div><div class="fm">autonomous repetition suppressed · needs a change, not a restart · 5h ago</div></div></li>
+            <li><span class="fi bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+              <div><div class="ft">Backup coverage gap — 24 guests on pve01 covered by no job</div><div class="fm">job <span class="mono">backup-7d831311</span> is disabled · 8h ago</div></div></li>
+            <li><span class="fi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span>
+              <div><div class="ft">Estate swept — 92 resources, 0 new, 0 absent</div><div class="fm">proxmox discovery · 41s ago</div></div></li>
+            <li><span class="fi warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 16h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+              <div><div class="ft">Kernel 7.0.14-9 installed but never booted on both nodes</div><div class="fm">installed ≠ tested · next unplanned reboot is the first real boot · 1d ago</div></div></li>
+          </ul>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--s4)">
+          <div class="card"><header><h3>Estate health</h3></header><div class="body" style="display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;align-items:center;gap:var(--s3);font-size:var(--f2)"><span style="width:104px">TeraChad</span><span class="meter" style="flex:1"><i class="dang" style="width:96%"></i></span><b class="num" style="width:38px">96%</b></div>
+            <div style="display:flex;align-items:center;gap:var(--s3);font-size:var(--f2)"><span style="width:104px">GigaChad</span><span class="meter" style="flex:1"><i class="dang" style="width:93%"></i></span><b class="num" style="width:38px">93%</b></div>
+            <div style="display:flex;align-items:center;gap:var(--s3);font-size:var(--f2)"><span style="width:104px">local-lvm pve02</span><span class="meter" style="flex:1"><i class="warn" style="width:84%"></i></span><b class="num" style="width:38px">84%</b></div>
+            <div style="display:flex;align-items:center;gap:var(--s3);font-size:var(--f2)"><span style="width:104px">root pve02</span><span class="meter" style="flex:1"><i class="warn" style="width:80%"></i></span><b class="num" style="width:38px">80%</b></div>
+            <div style="display:flex;align-items:center;gap:var(--s3);font-size:var(--f2)"><span style="width:104px">leslie</span><span class="meter" style="flex:1"><i style="width:77%"></i></span><b class="num" style="width:38px">77%</b></div>
+          </div></div>
+          <div class="card"><header><h3>Guardian</h3></header><div class="body" style="font-size:var(--f2);display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;justify-content:space-between"><span class="muted" style="color:var(--muted)">Posture</span><span class="badge b-info">propose only</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Detectors live</span><b>31 of 34</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Freeze window</span><b>07:00–08:30</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Heartbeat</span><span style="color:var(--success)">sent 58s ago</span></div>
+            <button class="btn" style="margin-top:var(--s2);width:100%">Review recommended posture</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<p class="caption">033 · FR-010 to FR-014 &nbsp;|&nbsp; 034 · FR-001 to FR-004 · SC-001</p>
+
+<h2>4 — Incident detail with proposal</h2>
+<p class="note">The proposal card is the most consequential surface in the product. It always shows target,
+current state, proposed change, blast radius, risk class, rollback plan and the resolved autonomy level with
+the rule that produced it — before anything is done.</p>
+<div class="frame"><div style="background:var(--sunken);padding:var(--s5)">
+  <div class="phead">
+    <span class="ico" style="background:var(--danger-bg);color:var(--danger)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.4 17.5A2 2 0 004.1 20.5h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
+    <div><h1>Datastore local-lvm on pve02 at 84%, trending full in 9 days</h1>
+      <p><span class="badge b-danger" style="margin-right:8px"><i class="sq" style="background:var(--danger)"></i>investigating</span>
+      INC-2026-0814 · opened 21:12 · detector <span class="mono">pve.storage.trend</span> · 1 subject</p></div>
+    <div class="acts"><button class="btn">Suppress</button><button class="btn">Close</button></div>
+  </div>
+  <div class="grid g21">
+    <div style="display:flex;flex-direction:column;gap:var(--s4)">
+      <div class="prop hi">
+        <header><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M12 3l8 4v5c0 4.5-3.2 8.4-8 9.5-4.8-1.1-8-5-8-9.5V7l8-4z"/></svg>
+          <h3>Proposed action — awaiting your decision</h3>
+          <span class="side-act badge b-danger">risk 4 / 5</span></header>
+        <dl class="kv">
+          <dt>Target</dt><dd><span class="mono">pve02 / local-lvm</span> — thin pool <span class="mono">pve/data</span></dd>
+          <dt>Current state</dt><dd>84.46% data, 3.35% metadata · 54.4 GiB free of 349.9 GiB</dd>
+          <dt>Proposed change</dt><dd>Delete 3 explicitly named items, reclaiming <b>41.2 GiB</b></dd>
+          <dt>What each protects</dt><dd>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
+              <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-ok">safe</span><span><span class="mono">vm-9098-disk-0</span> — 24.1 GiB · orphaned volume, no guest owns it since 2026-07-30</span></div>
+              <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-ok">safe</span><span><span class="mono">vzdump-lxc-121-2026_07_02.tar.zst</span> — 11.7 GiB · superseded, 4 newer backups exist</span></div>
+              <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-danger">recovery point</span><span><span class="mono">snap_vm-123-disk-0_vzdump</span> — 5.4 GiB · <b>only snapshot of CT123 dockge predating the 2026-07-27 MTU change</b></span></div>
+            </div></dd>
+          <dt>Blast radius</dt><dd>7 running guests share this pool · none stop · deleting the snapshot removes the only pre-change rollback for CT123</dd>
+          <dt>Rollback plan</dt><dd><span style="color:var(--danger)">None for the snapshot — deletion is irreversible.</span> The orphaned volume and the superseded backup have no rollback either, but no recovery depends on them.</dd>
+          <dt>Verification</dt><dd>Re-read <span class="mono">pve.storage.usage{storage=local-lvm,node=pve02}</span> after 120 s; expect ≤ 73%</dd>
+          <dt>Autonomy</dt><dd><b>propose_only</b> — resolved from rule <span class="mono">kind:datastore → propose_only</span>, most specific of 4 considered.<br>
+            <span style="color:var(--muted)">Even at <span class="mono">act_and_report</span> this would still ask: an item with no rollback plan requires approval at every level.</span></dd>
+        </dl>
+        <div class="acts">
+          <button class="btn d">Approve all 3 · irreversible</button>
+          <button class="btn p">Approve the 2 safe items only</button>
+          <button class="btn">Reject</button>
+          <span class="sp">A reason is required to reject</span>
+        </div>
+      </div>
+      <div class="card"><header><h3>Investigation transcript</h3><span class="side-act"><span class="badge b-ok"><i class="sdot" style="background:var(--success)"></i>live</span><span class="badge b-mute">14 events</span></span></header>
+        <div class="body"><ul class="tl">
+          <li><span class="ti"><span class="acc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></span>
+            <div class="tb"><div class="th"><b>Objective</b> · 21:12:04</div>
+              <div class="tc">local-lvm on pve02 crossed 84% and is trending to full within 9 days. Establish why it is growing and what can be reclaimed.</div></div></li>
+          <li><span class="ti"><span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span></span>
+            <div class="tb"><div class="th"><b>proxmox_storage_pressure</b><span class="badge b-mute">read</span><span class="mono">1.24s</span></div>
+              <pre>{"storage":"local-lvm","node":"pve02","type":"lvmthin",
+ "data_percent":84.46,"metadata_percent":3.35,
+ "largest":[{"vol":"vm-129-disk-0","gib":300.0,"used_pct":1.90},
+            {"vol":"vm-161-disk-0","gib":100.0,"used_pct":76.88},
+            {"vol":"vm-142-disk-0","gib":64.0,"used_pct":74.21}]}</pre>
+              <div class="trunc"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>result bounded to 3 of 19 volumes, ranked by size · show full payload</div></div></li>
+          <li><span class="ti"><span class="ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 00-4 4c-1.7.6-3 2.2-3 4a4 4 0 002 3.5V17a3 3 0 003 3h4a3 3 0 003-3v-2.5A4 4 0 0019 11c0-1.8-1.3-3.4-3-4a4 4 0 00-4-4z"/></svg></span></span>
+            <div class="tb"><div class="th"><b>Recalled 2 similar episodes</b> · memory · 21:12:11</div>
+              <div class="tc">2026-04-05 <i>cluster unknown during backup window</i> — same pool, filled by an unpruned spool. Remediation "delete oldest backups" was <b>ineffective</b> then; the growth source was the job's <span class="mono">keep-last=2</span> not applying to a disabled job.</div></div></li>
+          <li><span class="ti"><span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span></span>
+            <div class="tb"><div class="th"><b>proxmox_reclaimable_space</b><span class="badge b-mute">read</span><span class="mono">2.05s</span></div>
+              <div class="tc">3 candidates, 41.2 GiB total. Every entry carries what it protects — one is the only pre-2026-07-27 snapshot of CT123.</div></div></li>
+          <li><span class="ti"><span class="bad"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 4.5-3.2 8.4-8 9.5-4.8-1.1-8-5-8-9.5V7l8-4z"/></svg></span></span>
+            <div class="tb"><div class="th"><b>Guardrail — action withheld</b> · 21:13:02</div>
+              <div class="tc">Reclamation proposed. Autonomy resolved to <span class="mono">propose_only</span>; one item has no rollback plan, which requires approval at every level. Nothing executed.</div></div></li>
+        </ul></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:var(--s4)">
+      <div class="card"><header><h3>Subject</h3></header><div class="body" style="font-size:var(--f2);display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Resource</span><span class="mono">local-lvm@pve02</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Kind</span><span>datastore · lvmthin</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Health</span><span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>degraded</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Last seen</span><span>41s ago</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Dependents</span><span>7 running guests</span></div>
+      </div></div>
+      <div class="card"><header><h3>Why degraded</h3></header><div class="body" style="font-size:var(--f2)">
+        <div style="color:var(--muted);margin-bottom:6px">Derived from 3 signals — not a provider string.</div>
+        <table><tr><td><span class="mono">data_percent</span></td><td class="num"><b>84.46</b></td><td class="num" style="color:var(--muted)">&gt; 80</td></tr>
+        <tr><td><span class="mono">metadata_percent</span></td><td class="num">3.35</td><td class="num" style="color:var(--muted)">&lt; 70 ok</td></tr>
+        <tr><td><span class="mono">days_to_full</span></td><td class="num"><b>9.1</b></td><td class="num" style="color:var(--muted)">&lt; 14</td></tr></table>
+        <div style="color:var(--muted);margin-top:8px;font-size:var(--f1)">Raw provider status <span class="mono">available</span> retained.</div>
+      </div></div>
+      <div class="card"><header><h3>Effectiveness here</h3></header><div class="body" style="font-size:var(--f2)">
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>reclaim_storage</span><span class="badge b-danger">1 of 3 effective</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>prune_backups</span><span class="badge b-ok">4 of 4 effective</span></div>
+        <div style="color:var(--muted);font-size:var(--f1);margin-top:6px">On this resource, over 12 months.</div>
+      </div></div>
+    </div>
+  </div>
+</div></div>
+<p class="caption">034 · FR-005 to FR-010 &nbsp;|&nbsp; 039 · FR-008, FR-023 &nbsp;|&nbsp; 040 · FR-015 &nbsp;|&nbsp; 045 · FR-018</p>
+
+<h2>5 — Estate</h2>
+<p class="note">Every list is filterable with the state in the URL, virtualised rather than truncated, and
+every health state is explainable by clicking it.</p>
+<div class="frame"><div style="background:var(--sunken);padding:var(--s5)">
+  <div class="phead"><span class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/></svg></span>
+    <div><h1>Resources</h1><p>92 watched · 85 healthy · 5 degraded · 2 unhealthy · 0 absent</p></div>
+    <div class="acts"><button class="btn">Export</button><button class="btn p">Sweep now</button></div></div>
+  <div class="card"><header>
+      <div class="seg"><button aria-pressed="true">All 92</button><button>Problems 7</button><button>Guests 84</button><button>Storage 6</button><button>Nodes 2</button></div>
+      <span class="side-act"><span class="badge b-mute">sorted by health</span></span></header>
+    <div style="padding:0 var(--s2) var(--s2)"><table>
+      <tr><th style="width:26px"></th><th>Resource</th><th>Kind</th><th>Parent</th><th>Health</th><th>Utilisation</th><th>Last seen</th></tr>
+      <tr><td><i class="sq" style="background:var(--danger);display:block"></i></td><td><b>HAL9000</b></td><td>cluster</td><td>—</td>
+        <td><span class="badge b-danger">unhealthy</span></td><td style="color:var(--muted)">quorum margin 0</td><td class="mono">41s</td></tr>
+      <tr><td><i class="sq" style="background:var(--danger);display:block"></i></td><td><b>TeraChad</b></td><td>datastore</td><td>pve01, pve02</td>
+        <td><span class="badge b-danger">unhealthy</span></td><td><span style="display:flex;gap:8px;align-items:center"><span class="meter"><i class="dang" style="width:96%"></i></span><b class="num">96%</b></span></td><td class="mono">41s</td></tr>
+      <tr><td><i class="tri" style="border-bottom:9px solid var(--warning);display:block"></i></td><td><b>GigaChad</b></td><td>datastore</td><td>pve01, pve02</td>
+        <td><span class="badge b-warn">degraded</span></td><td><span style="display:flex;gap:8px;align-items:center"><span class="meter"><i class="dang" style="width:93%"></i></span><b class="num">93%</b></span></td><td class="mono">41s</td></tr>
+      <tr><td><i class="tri" style="border-bottom:9px solid var(--warning);display:block"></i></td><td><b>local-lvm</b></td><td>datastore</td><td>pve02</td>
+        <td><span class="badge b-warn">degraded</span></td><td><span style="display:flex;gap:8px;align-items:center"><span class="meter"><i class="warn" style="width:84%"></i></span><b class="num">84%</b></span></td><td class="mono">41s</td></tr>
+      <tr><td><i class="tri" style="border-bottom:9px solid var(--warning);display:block"></i></td><td><b>CT100 plex</b></td><td>container</td><td>pve02</td>
+        <td><span class="badge b-warn">degraded</span></td><td><span style="display:flex;gap:8px;align-items:center"><span class="meter"><i class="dang" style="width:99.6%"></i></span><b class="num">99.6%</b></span></td><td class="mono">41s</td></tr>
+      <tr><td><i class="sdot" style="background:var(--success);display:block"></i></td><td><b>pve01</b></td><td>node</td><td>HAL9000</td>
+        <td><span class="badge b-ok">healthy</span></td><td style="color:var(--muted)">cpu 63% · mem 58%</td><td class="mono">41s</td></tr>
+      <tr><td><i class="sdot" style="background:var(--success);display:block"></i></td><td><b>pve02</b></td><td>node</td><td>HAL9000</td>
+        <td><span class="badge b-ok">healthy</span></td><td style="color:var(--muted)">cpu 9% · mem 51%</td><td class="mono">41s</td></tr>
+      <tr><td><i class="sdot" style="background:var(--muted);opacity:.5;display:block"></i></td><td><b>media-nfs-pve01</b></td><td>datastore</td><td>pve01</td>
+        <td><span class="badge b-mute">stale</span></td><td style="color:var(--muted)">provider reports unknown</td><td class="mono">41s</td></tr>
+    </table></div></div>
+</div></div>
+<p class="caption">034 · FR-024 to FR-026 &nbsp;|&nbsp; 037 · FR-012 to FR-019 · SC-005</p>
+
+<h2>6 — Autonomy policy</h2>
+<p class="note">Three levels, resolvable at seven scopes. Four bounds that no level overrides. Every change
+is previewed against recorded history before it applies — an abstract policy becomes a concrete list of what
+would now happen unattended.</p>
+<div class="frame"><div style="background:var(--sunken);padding:var(--s5)">
+  <div class="phead"><span class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 4.5-3.2 8.4-8 9.5-4.8-1.1-8-5-8-9.5V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg></span>
+    <div><h1>Autonomy</h1><p>Deployment default: <b>propose only</b> · 6 scoped rules · kill switch disarmed</p></div>
+    <div class="acts"><button class="btn">Dry run</button><button class="btn d">Engage kill switch</button></div></div>
+  <div class="grid g21">
+    <div class="card"><header><h3>Rules — most specific wins</h3><span class="side-act"><button class="tbtn primary">Add rule</button></span></header>
+      <div style="padding:0 var(--s2) var(--s2)"><table>
+        <tr><th>Scope</th><th>Matches</th><th>Level</th><th>Risk bound</th><th>Applies to</th></tr>
+        <tr><td><span class="badge b-mute">deployment</span></td><td class="mono">*</td><td><span class="badge b-info">propose only</span></td><td style="color:var(--muted)">—</td><td class="num">92</td></tr>
+        <tr><td><span class="badge b-mute">capability</span></td><td class="mono">proxmox_unlock_guest</td><td><span class="badge b-ok">act and report</span></td><td>≤ 1</td><td class="num">84</td></tr>
+        <tr><td><span class="badge b-mute">capability</span></td><td class="mono">proxmox_retry_backup</td><td><span class="badge b-ok">act and report</span></td><td>≤ 2</td><td class="num">10</td></tr>
+        <tr><td><span class="badge b-mute">label</span></td><td class="mono">env=lab</td><td><span class="badge b-warn">act on low risk</span></td><td>≤ 2</td><td class="num">18</td></tr>
+        <tr><td><span class="badge b-mute">kind</span></td><td class="mono">datastore</td><td><span class="badge b-info">propose only</span></td><td style="color:var(--muted)">—</td><td class="num">6</td></tr>
+        <tr><td><span class="badge b-mute">resource</span></td><td class="mono">CT129 alpine-postgresql</td><td><span class="badge b-info">propose only</span></td><td style="color:var(--muted)">—</td><td class="num">1</td></tr>
+      </table></div>
+      <div class="acts" style="border-top:1px solid var(--border)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+        <span style="font-size:var(--f2)">Absence of a rule resolves to <b>propose only</b>. There is no permissive default.</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:var(--s4)">
+      <div class="card" style="border-color:var(--border-strong)"><header><h3>Bounds no level overrides</h3></header>
+        <div class="body" style="font-size:var(--f2);display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px"><span class="badge b-mute">1</span><span><b>Kill switch</b> — disarmed. Refuses everything when engaged; no configuration can override it.</span></div>
+          <div style="display:flex;gap:8px"><span class="badge b-mute">2</span><span><b>Freeze windows</b> — 07:00–08:30 <span class="mono">America/Sao_Paulo</span>, backup window on both nodes.</span></div>
+          <div style="display:flex;gap:8px"><span class="badge b-mute">3</span><span><b>Action budget</b> — 3 per resource per 24 h. Spent budget downgrades to approval.</span></div>
+          <div style="display:flex;gap:8px"><span class="badge b-mute">4</span><span><b>No rollback plan</b> — requires approval at every level, always.</span></div>
+        </div></div>
+      <div class="card" style="border-color:var(--accent)"><header style="background:var(--accent-bg)"><h3 style="color:var(--accent)">Preview before applying</h3></header>
+        <div class="body" style="font-size:var(--f2)">
+          <div style="margin-bottom:8px">Applying <b>recommended preset</b> against the last 30 days:</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-ok">11</span><span>actions would have run unattended — 9 unlocks, 2 backup retries</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-warn">4</span><span>would still have asked — all storage reclamation</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span class="badge b-mute">0</span><span>would have been refused by a bound</span></div>
+          </div>
+          <button class="btn p" style="width:100%;margin-top:var(--s3)">Apply recommended preset</button>
+        </div></div>
+    </div>
+  </div>
+</div></div>
+<p class="caption">039 · FR-001 to FR-019 · SC-001, SC-002, SC-010</p>
+
+<h2>7 — Empty, loading and error states</h2>
+<p class="note">Every data-bearing region declares all three. This is the highest-leverage requirement in the
+whole console: the first live run of the previous console showed eight empty tables, and a fresh deployment
+that looks broken is indistinguishable from one that is.</p>
+<div class="frame"><div style="background:var(--sunken);padding:var(--s5);display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4)">
+  <div class="card"><header><h3>Incidents</h3></header><div class="empty">
+    <span class="ei"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span>
+    <h4>No open incidents</h4><p>31 detectors are watching 92 resources. The last incident closed 2 days ago.</p>
+    <button class="btn">View closed incidents</button></div></div>
+  <div class="card"><header><h3>Estate</h3></header><div class="empty">
+    <span class="ei"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+    <h4>No resources yet</h4><p>Connect an infrastructure source and the estate populates itself within a minute. Nothing here is entered by hand.</p>
+    <button class="btn p">Connect Proxmox</button></div></div>
+  <div class="card"><header><h3>Metrics</h3><span class="side-act badge b-danger">panel failed</span></header><div class="empty">
+    <span class="ei" style="background:var(--danger-bg);color:var(--danger)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+    <h4>Could not reach Prometheus</h4><p><span class="mono">prometheus.lan.kyo.ninja</span> refused the connection. The rest of this page is unaffected.</p>
+    <button class="btn">Retry this panel</button></div></div>
+</div></div>
+<p class="caption">032 · FR-010 &nbsp;|&nbsp; 034 · FR-024 · SC-001, SC-006</p>
+
+<h2>8 — Dark theme</h2>
+<p class="note">Same token names, different values, identical geometry. A pixel diff between themes differs
+in colour only — never in position or size.</p>
+<div class="frame" data-theme="dark"><div style="background:var(--sunken);padding:var(--s5)">
+  <div class="phead"><span class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/></svg></span>
+    <div><h1>Cluster HAL9000</h1><p>2 nodes · 84 guests · last swept 41s ago</p></div></div>
+  <div class="grid g4 mb4">
+    <div class="tile"><div class="lbl">Resources watched</div><div class="val">92</div><div class="sub">2 nodes · 82 CT · 2 VM</div></div>
+    <div class="tile"><div class="lbl">Healthy</div><div class="val" style="color:var(--success)">85</div><div class="sub down">↓ 4 since yesterday</div></div>
+    <div class="tile"><div class="lbl">Degraded</div><div class="val" style="color:var(--danger)">7</div><div class="sub">5 storage · 1 cluster · 1 guest</div></div>
+    <div class="tile"><div class="lbl">Mean time to detect</div><div class="val">3m 48s</div><div class="sub up">↑ 22% faster</div></div>
+  </div>
+  <div class="card"><header><h3>Attention</h3><span class="side-act badge b-danger">3</span></header>
+    <a class="attn" href="#"><span class="badge b-danger"><i class="sq" style="background:var(--danger)"></i>critical</span>
+      <span><span class="who">Quorum margin is zero</span><span class="why">corosync-qdevice.service failed on pve01</span></span><span class="go">→</span></a>
+    <a class="attn" href="#"><span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>approval</span>
+      <span><span class="who">Reclaim 41 GiB on local-lvm (pve02)</span><span class="why">one item is a recovery point</span></span><span class="go">→</span></a>
+    <a class="attn" href="#"><span class="badge b-warn"><i class="tri" style="border-bottom:9px solid var(--warning)"></i>approval</span>
+      <span><span class="who">Restart CT115 adguard</span><span class="why">thin volume at 94.96% · rollback available</span></span><span class="go">→</span></a>
+  </div>
+</div></div>
+<p class="caption">032 · FR-002, FR-004 · SC-006</p>
+
+</div>

@@ -22,6 +22,9 @@ from gateway.http.routes.tenancy import visible
 from gateway.http.state import GatewayState
 from gateway.http.streaming.subscription import event_source, parse_cursor
 from platform.persistence.ports.run_trace_store import AgentRun
+from platform.runs.evidence import assessment_from_calls
+from platform.runs.headline import synthesize_headline
+from platform.runs.replay import touched_resources_of
 
 router = APIRouter(prefix="/v1/investigations", tags=["investigations"])
 
@@ -38,7 +41,42 @@ class InvestigationSummary(BaseModel):
     status: str
     started_at: str | None = None
     finished_at: str | None = None
+    #: One sentence naming the run — stored, or synthesised from the run's
+    #: own record when none was ever stored. Never empty for a run that
+    #: exists.
+    headline: str = ""
+    #: The document the model wrote, in full, unaltered. What ``summary``
+    #: held alone before this feature.
+    report: str = ""
+    #: Superseded by ``headline`` and ``report`` above, which this field now
+    #: duplicates by serving the same text as ``report`` — kept only until
+    #: the console reads the two new fields instead.
     summary: str | None = None
+    #: The incident this run belongs to, or the empty string when it
+    #: belongs to none — populated on a single-run read only (``GET
+    #: /v1/investigations/{run_id}`` and ``GET /v1/runs/{run_id}``), never on
+    #: a list, and distinguishable from a failed read by the response having
+    #: succeeded at all.
+    incident_id: str = ""
+    #: Resources this run's own calls touched, derived from what was
+    #: recorded — never from the alert's declared subjects. Populated on the
+    #: same single-run reads as ``incident_id``.
+    touched_resources: list[str] = Field(default_factory=list)
+    #: Whether this run completed an assessment of its own evidence. False is
+    #: "it never said", never "it said nothing was backed" — a surface that
+    #: read the two counts without this would give a silent run the same
+    #: chip as a run that found nothing missing.
+    evidence_assessed: bool = False
+    #: How many pieces of evidence the run named as supporting its conclusion,
+    #: and how many it named as still missing. Counted from the run's own
+    #: ``assess_evidence_sufficiency`` call rather than scored here.
+    evidence_backed: int = 0
+    evidence_missing: int = 0
+    #: What the run named, in its own words. Populated on a single-run read
+    #: only, for the same reason ``touched_resources`` is: a list needs the
+    #: counts above, and only a reader who opened one run wants the sentences.
+    evidence_supporting_names: list[str] = Field(default_factory=list)
+    evidence_missing_names: list[str] = Field(default_factory=list)
 
 
 class InvestigationList(BaseModel):
@@ -49,14 +87,55 @@ class QueueMessageRequest(BaseModel):
     text: str = Field(min_length=1)
 
 
+def _fallback_objective(run: AgentRun) -> str:
+    """Return a description of ``run``'s own subject, for a headline synthesised
+    from a run this feature never got to write one for.
+
+    Deliberately not richer than this: the alert's name and the resource it
+    named live on the request that started the run, not on the stored row,
+    and inventing them here would mean guessing. ``alert_id`` and ``trigger``
+    are what actually persisted.
+    """
+    if run.alert_id:
+        return f"investigation triggered by {run.alert_id}"
+    return f"{run.trigger} investigation" if run.trigger else ""
+
+
 def summary_of(run: AgentRun) -> InvestigationSummary:
+    headline = run.headline or synthesize_headline(objective=_fallback_objective(run))
     return InvestigationSummary(
         run_id=run.run_id,
         trigger=run.trigger,
         status=run.status.value,
         started_at=run.started_at.isoformat() if run.started_at else None,
         finished_at=run.finished_at.isoformat() if run.finished_at else None,
+        headline=headline,
+        report=run.summary or "",
         summary=run.summary,
+    )
+
+
+async def linked_summary(run: AgentRun, uow: Any) -> InvestigationSummary:
+    """Return ``run``'s summary, plus its incident and the resources it touched.
+
+    The extra two lookups a single-run read pays for and a list never does:
+    the incident by a direct, indexed lookup — never a paginated scan — and
+    the resources from what this run's own calls were actually made with,
+    never from an alert's declared subjects.
+    """
+    incident = await uow.incidents.find_by_run(run.run_id)
+    calls = await uow.run_traces.tool_calls_for_run(run.run_id)
+    assessment = assessment_from_calls(calls)
+    return summary_of(run).model_copy(
+        update={
+            "incident_id": incident.incident_id if incident is not None else "",
+            "touched_resources": list(touched_resources_of(calls)),
+            "evidence_assessed": assessment.assessed,
+            "evidence_backed": assessment.backed,
+            "evidence_missing": assessment.missing,
+            "evidence_supporting_names": list(assessment.supporting),
+            "evidence_missing_names": list(assessment.missing_evidence),
+        }
     )
 
 
@@ -104,9 +183,9 @@ async def get_investigation(
     """Return one investigation, or 404 if it does not exist or is another team's."""
     async with state.gateway.begin(auth.scope) as uow:
         run = await uow.run_traces.get_run(run_id)
-    if run is None or not visible(run, auth):
-        raise not_found(f"no investigation {run_id!r}")
-    return summary_of(run)
+        if run is None or not visible(run, auth):
+            raise not_found(f"no investigation {run_id!r}")
+        return await linked_summary(run, uow)
 
 
 @router.post("/{run_id}/cancel", response_model=InvestigationSummary)

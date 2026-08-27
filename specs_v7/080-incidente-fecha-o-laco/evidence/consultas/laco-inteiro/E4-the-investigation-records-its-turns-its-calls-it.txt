@@ -1,0 +1,132 @@
+# E4 — the investigation records its turns, its calls, its evidence and its cost
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## turns — the run recorded turns, read back from the store rather than the process
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS run_turns
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d';
+
+--- output ---
+ run_turns 
+-----------
+         5
+(1 row)
+
+
+--- end of output ---
+
+
+## tool-calls — the run recorded the capability calls it made
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS tool_calls
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d';
+
+--- output ---
+ tool_calls 
+------------
+          4
+(1 row)
+
+
+--- end of output ---
+
+
+## evidence — the run recorded the observations it cited
+## before the wave: 0, across 37 completed runs
+
+SELECT count(*) AS evidence_rows
+FROM evidence
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d';
+
+--- output ---
+ evidence_rows 
+---------------
+             0
+(1 row)
+
+
+--- end of output ---
+
+
+## trace-events — the run's own log exists beside the counts above
+## before the wave: 73 for the whole instance, across 37 completed runs
+
+SELECT count(*) AS trace_events
+FROM trace_events
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d';
+
+--- output ---
+ trace_events 
+--------------
+           13
+(1 row)
+
+
+--- end of output ---
+
+
+## cost-per-turn — cost is recorded turn by turn, and an unpriced turn is empty rather than nought
+## before the wave: no turn was recorded at all, so no cost could be
+
+-- An unpriced turn carries an empty usage document rather than a zero.
+-- The difference is the whole point of reading this turn by turn.
+SELECT "index",
+       started_at,
+       finished_at,
+       usage
+FROM run_turns
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d'
+ORDER BY "index";
+
+--- output ---
+ index |          started_at           |          finished_at          |                                                  usage                                                  
+-------+-------------------------------+-------------------------------+---------------------------------------------------------------------------------------------------------
+     1 | 2026-08-24 10:29:45.404553+00 | 2026-08-24 10:29:48.938895+00 | {"model": "gemini-flash-latest", "duration_ms": 3534, "prompt_tokens": 5099, "completion_tokens": 12}
+     2 | 2026-08-24 10:29:48.990965+00 | 2026-08-24 10:29:52.840551+00 | {"model": "gemini-flash-latest", "duration_ms": 3849, "prompt_tokens": 9108, "completion_tokens": 37}
+     3 | 2026-08-24 10:29:52.877337+00 | 2026-08-24 10:29:56.84738+00  | {"model": "gemini-flash-latest", "duration_ms": 3970, "prompt_tokens": 9433, "completion_tokens": 27}
+     4 | 2026-08-24 10:29:56.878923+00 | 2026-08-24 10:30:00.853448+00 | {"model": "gemini-flash-latest", "duration_ms": 3974, "prompt_tokens": 9765, "completion_tokens": 265}
+     5 | 2026-08-24 10:30:00.908571+00 | 2026-08-24 10:30:08.141107+00 | {"model": "gemini-flash-latest", "duration_ms": 7232, "prompt_tokens": 10638, "completion_tokens": 362}
+(5 rows)
+
+
+--- end of output ---
+
+
+## what-each-call-returned — each call carries what it returned, in the order it was recorded
+## before the wave: no row
+
+-- Ordered by the sequence the recorder assigned, not by time. Two calls in one
+-- concurrent batch routinely share a microsecond.
+SELECT recorded_seq,
+       tool_name,
+       status,
+       started_at,
+       finished_at,
+       error
+FROM tool_calls
+WHERE org_id = 'default'
+  AND run_id = 'd393d5d0916c404b854337a270fa825d'
+ORDER BY recorded_seq;
+
+--- output ---
+ recorded_seq |          tool_name          |  status   | started_at | finished_at |                                                                                                                     error                                                                                                                     
+--------------+-----------------------------+-----------+------------+-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+            0 | prometheus_active_alerts    | succeeded |            |             | 
+            1 | proxmox_guest_tasks         | failed    |            |             | proxmox answered 501 to GET https://192.168.68.159:8006/api2/json/nodes/pve01/lxc/122/status/tasks: {"data":null,"message":"Method 'GET /nodes/pve01/lxc/122/status/tasks' not implemented"}
+            2 | changes_in_window           | failed    |            |             | No change source is configured for this deployment, so whether anything changed before this incident is unknown rather than answered. Point the platform at the repository that applies this cluster's state, or at the git host it lives on.
+            3 | assess_evidence_sufficiency | succeeded |            |             | 
+(4 rows)
+
+
+--- end of output ---
+

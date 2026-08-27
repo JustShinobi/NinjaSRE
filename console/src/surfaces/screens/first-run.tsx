@@ -35,6 +35,7 @@ import {
 } from '../first-run/plan';
 import { VerifyStep, type VerifiableThing } from '../first-run/verify';
 import { withSetupReturn } from '../first-run/return-banner';
+import { NoAdministratorNotice } from '../no-administrator-notice';
 import {
   authorised,
   dataOf,
@@ -42,6 +43,7 @@ import {
   field,
   flag,
   list,
+  localAdministratorAvailability,
   optionalRead,
   panelRead,
   read,
@@ -169,26 +171,34 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   // for a session that names none.
   const node = await viewerNode(viewer, init);
 
-  const [checklist, providers, integrations, schemas, effective] = await Promise.all([
-    panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
-    panelRead('/v1/providers', () => read('/v1/providers', init)),
-    panelRead('/v1/integrations', () => read('/v1/integrations', init)),
-    // Both of these answer 404 at a node that carries nothing of its own, which
-    // is the ordinary state of the deployment this screen exists for.
-    optionalRead('/v1/config/{node_id}/integration-schemas', () =>
-      node === ''
-        ? Promise.resolve({})
-        : read('/v1/config/{node_id}/integration-schemas', {
-            ...init,
-            params: { node_id: node },
-          }),
-    ),
-    optionalRead('/v1/config/{node_id}', () =>
-      node === ''
-        ? Promise.resolve({})
-        : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
-    ),
-  ]);
+  const [checklist, providers, integrations, schemas, effective, availability] =
+    await Promise.all([
+      panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
+      panelRead('/v1/providers', () => read('/v1/providers', init)),
+      panelRead('/v1/integrations', () => read('/v1/integrations', init)),
+      // Both of these answer 404 at a node that carries nothing of its own, which
+      // is the ordinary state of the deployment this screen exists for.
+      optionalRead('/v1/config/{node_id}/integration-schemas', () =>
+        node === ''
+          ? Promise.resolve({})
+          : read('/v1/config/{node_id}/integration-schemas', {
+              ...init,
+              params: { node_id: node },
+            }),
+      ),
+      optionalRead('/v1/config/{node_id}', () =>
+        node === ''
+          ? Promise.resolve({})
+          : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+      ),
+      // Same read the sign-in form makes, and the same reason: whether this
+      // deployment has an owner yet. A viewer who reached first-run at all is
+      // already signed in, through the environment account or an identity
+      // provider — but "signed in" and "this deployment has a *local*
+      // administrator" are different facts, and this screen owes the second
+      // one the same notice sign-in gives, from the same key (FR-077).
+      localAdministratorAvailability(),
+    ]);
 
   const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
   const requested = search.get('step');
@@ -297,6 +307,10 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
         (entry) => entry.name === name && entry.readiness !== 'absent',
       ),
       suggested: suggestionOf(record),
+      // The same declaration the integration panel reads for this vendor —
+      // never a copy, so the two screens that ask for a credential cannot
+      // drift apart on where it comes from.
+      whereToGetIt: text(record, 'where_to_get_it'),
     };
   });
 
@@ -407,6 +421,16 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   return (
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
+
+      {availability.command ? (
+        <NoAdministratorNotice
+          command={availability.command}
+          labels={{
+            title: message(locale, 'noAdministrator.title'),
+            body: message(locale, 'noAdministrator.body'),
+          }}
+        />
+      ) : null}
 
       {/* Position, step name and what is left, on the one line: the position
           is which of the seven wizard screens this is; the pending count

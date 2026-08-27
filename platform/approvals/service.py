@@ -61,6 +61,7 @@ from platform.approvals.diff.summarise import DiffSummary, summarise
 from platform.approvals.errors import (
     ChangeAlreadyDecided,
     ChangeConflicted,
+    ChangeExpired,
     ChangeNotFound,
     ReviewerNotPermitted,
     SelfApprovalForbidden,
@@ -126,8 +127,19 @@ class ChangeApplier(Protocol):
     nothing, and the difference decides whether a conflict can be recovered.
     """
 
-    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
-        """Return the target's current value, or ``None`` if it is gone."""
+    async def read(
+        self, target: ChangeTarget, *, proposed: Mapping[str, Any] | None = None
+    ) -> Mapping[str, Any] | None:
+        """Return the target's current value, or ``None`` if it is gone.
+
+        ``proposed`` is the change being queued, for an applier whose target
+        cannot be named by a string. A configuration path names a field and a
+        knowledge document names itself, so three of the four appliers ignore
+        it. A hypervisor guest is addressed by a node, a number and a kind, and
+        an applier handed only ``name@environment`` has to guess two of the
+        three — which is how a conflict check ends up raising inside the call
+        that creates the approval.
+        """
 
     async def apply(self, change: PendingChange) -> None:
         """Apply ``change``'s proposed value to its target."""
@@ -217,7 +229,7 @@ class ApprovalService:
         self.policy.check_settings(proposed)
 
         at = self.clock()
-        current = await self._read(change_type, target)
+        current = await self._read(change_type, target, proposed=proposed)
         change = PendingChange.queued(
             change_id=self.identifiers(),
             change_type=change_type,
@@ -321,6 +333,7 @@ class ApprovalService:
         """
         change = await self.get(change_id)
         self._require_undecided(change)
+        self._require_unexpired(change)
         self._require_permitted(change, approver, permissions, context)
 
         if not approve:
@@ -351,7 +364,7 @@ class ApprovalService:
             )
 
         require_transition(change, ChangeState.PENDING)
-        observed = await self._read(change.change_type, change.target)
+        observed = await self._read(change.change_type, change.target, proposed=change.proposed)
         rereviewed = change.rereviewed(against=observed, at=self.clock())
         return await self._amend(rereviewed)
 
@@ -388,6 +401,25 @@ class ApprovalService:
                 change.state.value,
                 change.decision.decided_by if change.decision else None,
             )
+
+    def _require_unexpired(self, change: PendingChange) -> None:
+        """Raise unless ``change``'s answering window is still open.
+
+        Asked of the clock rather than of the stored state. A lapsed change is
+        relabelled ``expired`` by ``expire_due``, and a deployment that has not
+        scheduled that sweep would otherwise leave every lapsed change
+        answerable for ever — which is not hypothetical: it is how a
+        remediation proposed with a fifteen-minute window came to be approved
+        and carried out fifty minutes after the reading behind it stopped being
+        current.
+
+        Refused before the permission check, because "this window closed" is
+        true for everyone and telling a reviewer they lack a permission would
+        send them to ask for one that would not have helped.
+        """
+        now = self.clock()
+        if change.has_expired(now):
+            raise ChangeExpired(change.change_id, change.expires_at.isoformat(), now.isoformat())
 
     def _require_permitted(
         self,
@@ -430,7 +462,7 @@ class ApprovalService:
         self, change: PendingChange, context: AuditContext | None
     ) -> None:
         """Mark ``change`` conflicted and raise if the target has moved."""
-        observed = await self._read(change.change_type, change.target)
+        observed = await self._read(change.change_type, change.target, proposed=change.proposed)
         if observed is None:
             await self._conflict(
                 change,
@@ -651,10 +683,14 @@ class ApprovalService:
     # --- Collaborators -------------------------------------------------------
 
     async def _read(
-        self, change_type: ChangeType, target: ChangeTarget
+        self,
+        change_type: ChangeType,
+        target: ChangeTarget,
+        *,
+        proposed: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any] | None:
         """Return what the target currently holds, through its own applier."""
-        return await self.appliers[change_type].read(target)
+        return await self.appliers[change_type].read(target, proposed=proposed)
 
     async def _tree_and_grants(self) -> tuple[Hierarchy | None, tuple[Grant, ...]]:
         """Return this tenant's tree and every grant in it, for routing.

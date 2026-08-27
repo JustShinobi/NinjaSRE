@@ -219,9 +219,59 @@ describe('resources: one health vocabulary', () => {
     });
     await resources();
 
-    const summary = screen.getByText(/watched/i);
-    expect(summary).toHaveTextContent('2 degraded');
-    expect(summary).not.toHaveTextContent('4 degraded');
+    const strip = screen.getByTestId('count-strip');
+    // "degraded" is the breakdown's own degraded, never `problems` — which
+    // folds degraded and unhealthy together and is what left this header
+    // unable to be added up against the badges below it.
+    const degraded = within(strip)
+      .getAllByTestId('count-part')
+      .find((part) => /degraded/i.test(part.textContent));
+    expect(degraded).toHaveTextContent('2');
+    expect(degraded).not.toHaveTextContent('4');
+  });
+
+  /**
+   * The parts reach the whole, whatever states the deployment is in.
+   *
+   * The header shipped "97 watched · 76 healthy · 0 degraded · 13 unhealthy"
+   * for a fortnight: three parts totalling 89, with the missing eight visible
+   * in the table two hundred pixels below. Generated from the breakdown rather
+   * than from a sentence with four holes, so a state nobody anticipated gets a
+   * cell instead of vanishing.
+   */
+  it('adds up, including the states the old sentence had no room for', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      summary: {
+        total: 97,
+        by_health: { healthy: 76, unhealthy: 13, unknown: 8 },
+        problems: 13,
+        captured_at: '2026-08-07T12:00:00Z',
+      },
+    });
+    await resources();
+
+    const strip = screen.getByTestId('count-strip');
+    expect(strip).toHaveAttribute('data-balanced', 'true');
+    expect(within(strip).getByTestId('count-total')).toHaveTextContent('97');
+    expect(strip).toHaveTextContent(/unknown/i);
+  });
+
+  it('says what it cannot account for rather than quietly dropping it', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      summary: {
+        total: 97,
+        by_health: { healthy: 76, unhealthy: 13 },
+        problems: 13,
+        captured_at: '2026-08-07T12:00:00Z',
+      },
+    });
+    await resources();
+
+    const strip = screen.getByTestId('count-strip');
+    expect(strip).toHaveAttribute('data-balanced', 'false');
+    expect(within(strip).getByTestId('count-shortfall')).toHaveTextContent('8');
   });
 });
 
@@ -274,7 +324,11 @@ describe('resources: unexplained jargon gets a tooltip and a way to fix it', () 
   });
 
   it('explains "Unplaced" and links to where a zone is declared', async () => {
-    serve({ resources: [{ ...ALPHA, attributes: { criticality: 'critical' } }] });
+    // A mixed estate: bravo is in a zone, alpha is not. The odd one out is the
+    // finding, so it keeps its cell, its explanation and its way to fix it.
+    serve({
+      resources: [{ ...ALPHA, attributes: { criticality: 'critical' } }, BRAVO],
+    });
     await resources();
 
     const column = columnIndex('Zone');
@@ -285,13 +339,55 @@ describe('resources: unexplained jargon gets a tooltip and a way to fix it', () 
   });
 
   it('explains "Ungraded" and links to where a criticality is declared', async () => {
-    serve({ resources: [{ ...ALPHA, attributes: { zone: 'dmz' } }] });
+    serve({ resources: [{ ...ALPHA, attributes: { zone: 'dmz' } }, BRAVO] });
     await resources();
 
     const column = columnIndex('Criticality');
     const link = within(cellAt(resourceRow('r-alpha'), column)).getByRole('link');
     expect(link).toHaveTextContent(/ungraded/i);
     expect(link).toHaveAttribute('href', '/configuration');
+  });
+
+  /**
+   * When *nothing* is placed or graded, the column stops being a finding.
+   *
+   * Ninety-seven rows reading "Unplaced" and ninety-seven reading "Ungraded"
+   * were two columns and roughly six hundred pixels carrying one word each, on
+   * the screen that most needs to tell one row from another. That is a fact
+   * about the deployment rather than about ninety-seven resources: it is said
+   * once, above the table, with the same link the cells were carrying.
+   */
+  it('drops both columns when nothing in the estate is placed or graded', async () => {
+    serve({
+      resources: [
+        { ...ALPHA, attributes: {} },
+        { ...BRAVO, attributes: {} },
+      ],
+    });
+    await resources();
+
+    expect(screen.queryByRole('columnheader', { name: /zone/i })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: /criticality/i })).toBeNull();
+
+    const note = screen.getByTestId('estate-ungraded');
+    expect(note).toHaveTextContent(/placed in a zone or graded/i);
+    expect(within(note).getByRole('link')).toHaveAttribute('href', '/configuration');
+  });
+
+  it('drops only the column that carries nothing', async () => {
+    serve({
+      resources: [
+        { ...ALPHA, attributes: { zone: 'dmz' } },
+        { ...BRAVO, attributes: { zone: 'dmz' } },
+      ],
+    });
+    await resources();
+
+    expect(screen.getByRole('columnheader', { name: /zone/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /criticality/i })).toBeNull();
+    expect(screen.getByTestId('estate-ungraded')).toHaveTextContent(
+      /graded for criticality/i,
+    );
   });
 
   it('leaves a declared zone and criticality as plain values, with no link', async () => {
@@ -392,5 +488,42 @@ describe('resources: the way back to the wizard', () => {
     await resources({ return: 'setup' });
 
     expect(screen.queryByTestId('setup-return-banner')).toBeNull();
+  });
+});
+
+/**
+ * The estate counts absent resources and then leaves them out of its total.
+ *
+ * `summarise` counts an absent resource into `by_health` and `continue`s before
+ * adding it to `total`, deliberately: "watched" means what this estate
+ * currently has rather than what it once had. Folded in with the rest, the parts
+ * overshoot the whole by exactly the number of absent ones — 75 + 5 + 8 + 13
+ * against a total of 96 on the staging estate — and a header that adds up to
+ * more than itself is the same fault as one that adds up to less.
+ */
+describe('resources: what is watched, and what is merely remembered', () => {
+  it('keeps absent beside the total rather than inside it', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      summary: {
+        total: 96,
+        by_health: { healthy: 75, absent: 5, unknown: 8, unhealthy: 13 },
+        problems: 13,
+        captured_at: '2026-08-07T12:00:00Z',
+      },
+    });
+    await resources();
+
+    const strip = screen.getByTestId('count-strip');
+    expect(strip).toHaveAttribute('data-balanced', 'true');
+
+    const parts = within(strip)
+      .getAllByTestId('count-part')
+      .map((part) => part.textContent);
+    expect(parts.some((part) => /absent/i.test(part))).toBe(false);
+
+    const aside = within(strip).getByTestId('count-aside');
+    expect(aside).toHaveTextContent('5');
+    expect(aside).toHaveTextContent(/absent/i);
   });
 });

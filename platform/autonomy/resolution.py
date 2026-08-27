@@ -239,7 +239,7 @@ def _reason(
     if rule is None:
         return (
             f"No rule covers {action.capability} on {subject.resource_id}, so it resolves to "
-            f"{level.value}: {level.describe()}{simulated}"
+            f"{level.label}: {level.describe()}{simulated}"
         )
     across = (
         f" It is the least permissive of the {subjects} resources this action targets."
@@ -247,7 +247,7 @@ def _reason(
         else ""
     )
     return (
-        f"{action.capability} on {subject.resource_id} resolves to {level.value} because "
+        f"{action.capability} on {subject.resource_id} resolves to {level.label} because "
         f"{rule.describe()} is the most specific rule that applies.{across}{simulated}"
     )
 

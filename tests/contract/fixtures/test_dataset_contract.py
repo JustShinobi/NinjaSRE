@@ -97,6 +97,43 @@ def test_every_fixture_validates_against_the_api_document(scenario: str) -> None
     assert not failures, "\n".join(failures)
 
 
+def test_incident_views_carry_an_origin_scoped_correlation_key() -> None:
+    """Every incident response preserves the domain key that raised it."""
+    failures: list[str] = []
+    for scenario in FIXTURE_SCENARIO_NAMES:
+        for record in scenarios.load(scenario).all_records():
+            if record.slug == "incidents":
+                body = record.body if isinstance(record.body, dict) else {}
+                candidates = body.get("incidents", [])
+            elif record.slug == "incident-detail":
+                body = record.body if isinstance(record.body, dict) else {}
+                candidates = [body.get("incident")]
+            else:
+                continue
+            for incident in candidates if isinstance(candidates, list) else []:
+                if not isinstance(incident, dict):
+                    continue
+                correlation_key = incident.get("correlation_key", "")
+                origin = str(incident.get("origin", ""))
+                detector = str(incident.get("detector", ""))
+                expected_prefix = {
+                    "detector": f"detector:{detector}",
+                    "alert": f"alert:{detector}:",
+                }.get(origin, "")
+                if not isinstance(correlation_key, str) or not correlation_key:
+                    failures.append(f"{scenario}/{record.slug}: correlation_key is empty")
+                elif expected_prefix and (
+                    correlation_key != expected_prefix
+                    if origin == "detector"
+                    else not correlation_key.startswith(expected_prefix)
+                ):
+                    failures.append(
+                        f"{scenario}/{record.slug}: {origin} incident has "
+                        f"correlation_key {correlation_key!r}, expected {expected_prefix!r}"
+                    )
+    assert not failures, "\n".join(failures)
+
+
 def test_every_principal_kind_is_one_the_backend_actually_declares() -> None:
     """``kind`` is a plain ``str`` on the wire, so schema validation alone never
     catches a value the real ``PrincipalKind`` enum does not have — the gap that

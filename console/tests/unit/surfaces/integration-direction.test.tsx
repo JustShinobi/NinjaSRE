@@ -63,6 +63,26 @@ const LABELS: IntegrationPanelLabels = {
   intakeTitle: 'Where to send alerts',
   intakeBody: 'The one step that happens outside this deployment.',
   intakeAction: 'Point your alert router at it',
+  docsHeading: 'Package documentation',
+  docsToggle: 'Read the package documentation',
+  docsUnreadable: "This vendor's own documentation could not be read.",
+  trust: {
+    heading: 'Certificate trust',
+    intro: 'What this deployment accepts from the certificate this address presents.',
+    fingerprintsLabel: 'Pinned fingerprints',
+    fingerprintsHelp: 'One SHA-256 fingerprint per line.',
+    certificateLabel: 'Certificate authority (PEM)',
+    certificateHelp: 'The authority the cluster minted for itself.',
+    submit: 'Declare trust',
+    sending: 'Declaring…',
+    saved: 'Declared. Testing the connection now.',
+    refused: 'The deployment refused it:',
+    unreachable: 'The deployment could not be reached.',
+    unverifiedHeading: 'Accept without verifying',
+    unverifiedReasonLabel: 'Why',
+    unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
+  },
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -73,6 +93,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     summary: 'What is firing, grouped and silenced.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'endpoint',
@@ -86,6 +107,9 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     discoveredAddress: '',
     direction: 'outbound',
     intakePath: '',
+    whereToGetIt: '',
+    docsMarkdown: '',
+    docsReadable: true,
     ...overrides,
   };
 }

@@ -16,6 +16,7 @@
  */
 
 import {
+  COLUMN_WIDTHS,
   BORDER_WIDTHS,
   colour,
   CONTENT_WIDTH,
@@ -24,6 +25,8 @@ import {
   DURATIONS,
   FONT_STACKS,
   RADII,
+  READING_WIDTH,
+  SCROLL_HEIGHTS,
   SHADOWS,
   SHELL,
   SPACING,
@@ -77,7 +80,14 @@ function scaleDeclarations(): readonly string[] {
   for (const [name, value] of Object.entries(SHELL)) {
     lines.push(declaration(`shell-${name}`, `${String(value)}px`));
   }
+  for (const [name, value] of Object.entries(COLUMN_WIDTHS)) {
+    lines.push(declaration(`column-${name}`, `${String(value)}px`));
+  }
+  for (const [name, value] of Object.entries(SCROLL_HEIGHTS)) {
+    lines.push(declaration(`scroll-${name}`, `${String(value)}px`));
+  }
   lines.push(declaration('width-page', `${String(CONTENT_WIDTH)}px`));
+  lines.push(declaration('width-reading', `${String(READING_WIDTH)}px`));
   lines.push(declaration('family-sans', FONT_STACKS.sans));
   lines.push(declaration('family-mono', FONT_STACKS.mono));
   return lines;

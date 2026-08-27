@@ -187,6 +187,14 @@ class GatewayState:
     #: never engaged by the time anything reads it, and the window this control
     #: exists to close is measured in the seconds that matter.
     kill_switch: KillSwitch = field(default_factory=KillSwitch)
+    #: What this deployment carries a write through: the gate, the request
+    #: builder, the plan factory and the executor, composed once. ``None`` is
+    #: the default and is a working deployment — it proposes nothing above
+    #: ``read_sensitive``, no write is offered to a turn, and an approval that
+    #: is granted is recorded and carried no further. What it means is that
+    #: this deployment cannot act, which is a different fact from having
+    #: decided not to, and the composer's own log line names the piece missing.
+    remediation: Any = None
     webhook_dedup: DeduplicationIndex = field(default_factory=DeduplicationIndex)
     webhook_idempotency: IdempotencyIndex = field(default_factory=IdempotencyIndex)
     webhook_shedder: LoadShedder = field(default_factory=LoadShedder)

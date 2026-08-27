@@ -51,17 +51,27 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
 from config.constants.console import (
     CONSOLE_E2E_MOCK_PORT,
     CONSOLE_E2E_PORT,
+    CONSOLE_SESSION_COOKIE,
+    CONSOLE_STAGING_SAFE_TAG,
+    DEFAULT_STAGING_URL,
     NINJASRE_CONSOLE_API_URL_ENV,
+    NINJASRE_CONSOLE_BACKING_URL_ENV,
     NINJASRE_CONSOLE_BASE_URL_ENV,
     NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV,
+    NINJASRE_STAGING_CREDENTIAL_ENV,
+    NINJASRE_STAGING_EVIDENCE_DIR_ENV,
+    NINJASRE_STAGING_URL_ENV,
+    NINJASRE_STAGING_USERNAME_ENV,
 )
 from config.constants.first_run import NINJASRE_ORGANISATION_ENV
 from config.constants.fixtures import (
@@ -344,11 +354,16 @@ def _bootstrap_secret(base: Sequence[str]) -> str:
 
 #: Who the browser harness identifies as, exchanging the bootstrap credential
 #: for a durable one. Not a real operator — a fixed identity this harness owns,
-#: same as any other automated caller of the first-run route.
+#: same as any other automated caller of the first-run route. The password is
+#: thrown away with the rest of the stack at the end of the same run: the
+#: browser signs in with the durable secret this exchange returns, never with
+#: this name and password through the sign-in form, so the value carries no
+#: meaning beyond satisfying the route's own requirement that one be chosen.
 _HARNESS_PRINCIPAL: Final = {
     "user_id": "console-e2e",
     "email": "console-e2e@ninjasre.invalid",
     "display_name": "Console end-to-end harness",
+    "password": "console-e2e-harness-passphrase",
 }
 
 
@@ -510,6 +525,8 @@ def playwright(
     base_url: str,
     *,
     credential: str | None = None,
+    backing_url: str | None = None,
+    evidence_dir: Path | None = None,
     extra: Sequence[str] = (),
 ) -> int:
     """Run one Playwright project against ``base_url`` and return its exit status.
@@ -517,11 +534,36 @@ def playwright(
     ``credential``, when given, is what ``console/tests/e2e/session.ts`` signs
     into the browser instead of the mock-plane value it otherwise falls back
     to — see ``NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV``.
+
+    ``backing_url``, when given, is exported under
+    ``NINJASRE_CONSOLE_BACKING_URL_ENV`` — the address a spec asks directly,
+    never through the console, whether a page load actually reached the
+    backing. Left unset for a backing that cannot answer that question, so a
+    spec that reads it fails by naming the missing variable rather than by
+    reading a stale address a previous run left behind.
+
+    ``evidence_dir``, when given, is exported under
+    ``NINJASRE_STAGING_EVIDENCE_DIR_ENV`` — the one variable
+    ``transversal-rules.spec.ts``'s own capture hook reads. Not a Playwright
+    CLI flag: ``--output`` names Playwright's own artifact directory, which
+    the capture hook never looks at, and passing the path only that way was
+    the defect this parameter exists to close — a caller who named a
+    directory got a Playwright `.last-run.json` in it and zero captures,
+    silently.
     """
     env = environment(toolchain)
     env[NINJASRE_CONSOLE_BASE_URL_ENV] = base_url
     if credential is not None:
         env[NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV] = credential
+    if backing_url is not None:
+        env[NINJASRE_CONSOLE_BACKING_URL_ENV] = backing_url
+    if evidence_dir is not None:
+        # Absolute, always. The browser runs with the console package as its
+        # working directory, so a relative path the caller meant against the
+        # repository root lands one directory down instead — and silently,
+        # because writing a capture somewhere is not an error. The caller then
+        # reads an empty directory and concludes nothing was captured.
+        env[NINJASRE_STAGING_EVIDENCE_DIR_ENV] = str(Path(evidence_dir).resolve())
     finished = subprocess.run(
         [
             str(toolchain.node),
@@ -561,7 +603,13 @@ def run(
 
     mock_port, console_port = ports(CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT)
     backing_context = compose_stack() if backing == "compose" else mock_plane(scenario, mock_port)
+    # Only the mock plane answers `/__mockplane__/requests`; a spec that asked
+    # a real gateway for it would get an ordinary 404 rather than a count, so
+    # the address is handed over only where the question has an answer.
+    backing_url = None
     with backing_context as target, console(toolchain, target.api_url, console_port) as base_url:
+        if backing != "compose":
+            backing_url = target.api_url
         # Named, because under concurrency these are not the pinned ports and a
         # reader of the log should not have to guess which console was driven.
         print(f"driving the console at {base_url} against {target.api_url}", flush=True)
@@ -569,10 +617,163 @@ def run(
             if repeat > 1:
                 print(f"--- run {attempt} of {repeat} ---", flush=True)
             status = playwright(
-                toolchain, project, base_url, credential=target.credential, extra=extra
+                toolchain,
+                project,
+                base_url,
+                credential=target.credential,
+                backing_url=backing_url,
+                extra=extra,
             )
             if status != 0:
                 return status
+    return 0
+
+
+def _optional_path(env_name: str) -> Path | None:
+    """Return the path `env_name` names, or `None` when it is unset or empty."""
+    raw = os.environ.get(env_name, "")
+    return Path(raw) if raw != "" else None
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Stop at the first redirect rather than following it.
+
+    The exchange below wants the ``Set-Cookie`` the sign-in route's own 303
+    carries, not whatever ``/runs`` answers once the redirect is followed —
+    urllib treats an unfollowed 3xx as an ``HTTPError``, which is where the
+    caller reads it back from.
+    """
+
+    def redirect_request(
+        self,
+        _req: object,
+        _fp: object,
+        _code: int,
+        _msg: str,
+        _headers: object,
+        _newurl: str,
+    ) -> None:
+        """Never follow. Returning ``None`` is how urllib is told to stop here."""
+        return None
+
+
+def _staging_credential(url: str, username: str, password: str) -> str:
+    """Exchange an operator's username and password for a session token.
+
+    Calls the exact route a person's own sign-in does, ``POST /api/session``
+    on the console itself — never a shortcut invented for this harness, and
+    never the gateway directly: the gateway behind a real deployment is not
+    reachable from outside the console's own host, so the console's route is
+    the one door in. The password is spent here and goes no further; only the
+    token this returns is ever handed to a browser.
+
+    Raises:
+        HarnessError: the sign-in was refused, or answered with no
+            recognisable session cookie.
+    """
+    body = urllib.parse.urlencode(
+        {"username": username, "password": password, "returnTo": "/runs"}
+    ).encode("ascii")
+    request = urllib.request.Request(
+        f"{url}/api/session",
+        data=body,
+        method="POST",
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        response = opener.open(request, timeout=10)
+        cookies = response.headers.get_all("Set-Cookie") or []
+    except urllib.error.HTTPError as error:
+        if error.code not in (302, 303):
+            detail = error.read().decode("utf-8", "replace")
+            raise HarnessError(f"signing in to {url} failed: {error.code} {detail}") from error
+        cookies = error.headers.get_all("Set-Cookie") or []
+    except urllib.error.URLError as error:
+        raise HarnessError(f"signing in to {url} failed: {error}") from error
+
+    for cookie in cookies:
+        if not cookie.startswith(f"{CONSOLE_SESSION_COOKIE}="):
+            continue
+        value = cookie.split(";", 1)[0].split("=", 1)[1]
+        token = urllib.parse.unquote(value)
+        if token == "":
+            raise HarnessError(
+                f"signing in to {url} was refused: the session cookie carried no token"
+            )
+        return token
+    raise HarnessError(f"signing in to {url} did not answer with a session cookie")
+
+
+def run_staging(
+    *,
+    project: str = "behaviour",
+    evidence_dir: Path | None = None,
+    repeat: int = 1,
+    extra: Sequence[str] = (),
+) -> int:
+    """Point the browser suite straight at an already-running deployment.
+
+    No data plane, no local console, no build — the address is one this
+    process never brings up and never tears down. The operator's username and
+    credential come from the environment, never from a parameter a caller
+    could pass on a command line; the credential is a password, exchanged
+    here for a session token before anything reaches a browser, and only that
+    token — never the password — is handed to Playwright, through the same
+    environment variable ``playwright()`` already reads for the ``compose``
+    backing.
+
+    Only the tests declared safe for a shared, live environment ever run:
+    the tag's own grep is added to every invocation, whatever else the caller
+    asked to run, which is what keeps a test named explicitly from running
+    here without the tag.
+
+    Raises:
+        HarnessError: the credential is missing, or the sign-in exchange
+            failed.
+        ToolchainError: the toolchain or the browser could not be
+            provisioned.
+    """
+    username = os.environ.get(NINJASRE_STAGING_USERNAME_ENV, "")
+    if username == "":
+        raise HarnessError(
+            f"{NINJASRE_STAGING_USERNAME_ENV} is not set; the staging backing needs an "
+            "operator account to sign in as"
+        )
+    password = os.environ.get(NINJASRE_STAGING_CREDENTIAL_ENV, "")
+    if password == "":
+        raise HarnessError(
+            f"{NINJASRE_STAGING_CREDENTIAL_ENV} is not set; the staging backing needs an "
+            "operator credential to sign in with"
+        )
+    url = os.environ.get(NINJASRE_STAGING_URL_ENV) or DEFAULT_STAGING_URL
+    resolved_evidence_dir = evidence_dir or _optional_path(NINJASRE_STAGING_EVIDENCE_DIR_ENV)
+
+    toolchain = resolve()
+    ensure_browsers(toolchain)
+    token = _staging_credential(url, username, password)
+
+    # Named, and nothing else: the address is the whole of what this line may
+    # say. The username identifies an account, not a secret, and stays out of
+    # it anyway — there is nothing this backing needs to say about a person.
+    print(f"driving the browser suite against {url}", flush=True)
+
+    tag_filter = f"--grep={CONSOLE_STAGING_SAFE_TAG}"
+    staging_extra = [tag_filter, *extra]
+
+    for attempt in range(1, repeat + 1):
+        if repeat > 1:
+            print(f"--- run {attempt} of {repeat} ---", flush=True)
+        status = playwright(
+            toolchain,
+            project,
+            url,
+            credential=token,
+            evidence_dir=resolved_evidence_dir,
+            extra=staging_extra,
+        )
+        if status != 0:
+            return status
     return 0
 
 

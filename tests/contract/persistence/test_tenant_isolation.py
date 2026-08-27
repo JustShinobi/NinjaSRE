@@ -71,6 +71,7 @@ from platform.persistence.ports import (
     VerificationRecord,
     VerificationSubject,
 )
+from platform.persistence.ports.incident_store import public_incident_id
 from platform.persistence.ports.signal_store import signal_key
 
 pytestmark = pytest.mark.contract
@@ -218,6 +219,7 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
         state=IncidentState.OPEN,
         opened_at=at(),
         subjects=(IncidentSubject(resource_id="res-1", detail="95.65% full"),),
+        public_id=public_incident_id("inc-1"),
     )
     await uow.incidents.upsert(incident)
     await uow.incidents.append(

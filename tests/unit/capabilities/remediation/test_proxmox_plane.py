@@ -321,7 +321,7 @@ async def test_unlocking_a_guest_whose_holder_is_alive_is_refused() -> None:
     """A lock cleared while its holder runs gives one guest two writers."""
     plane, transport = a_plane(
         responses={
-            f"/nodes/{PRIMARY}/qemu/9000/status/tasks": [
+            f"/nodes/{PRIMARY}/tasks": [
                 {
                     "upid": "UPID:pve01:0000C300:05120000:68943B10:vzdump:9000:root@pam:",
                     "type": "vzdump",
@@ -347,7 +347,7 @@ async def test_unlocking_a_guest_whose_holder_is_dead_clears_the_lock() -> None:
     """The primary story, end to end: a backup died and left the guest unmanageable."""
     plane, transport = a_plane(
         responses={
-            f"/nodes/{PRIMARY}/qemu/9000/status/tasks": [
+            f"/nodes/{PRIMARY}/tasks": [
                 {
                     "upid": "UPID:pve01:0000C300:05120000:68943B10:vzdump:9000:root@pam:",
                     "type": "vzdump",

@@ -35,13 +35,15 @@ missing, which is the same class of false negative this route exists to remove.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from integrations._base import access
 from integrations._base.transport import RequestContext
 from integrations._catalogue.discovery import catalogue
 from integrations._verification.framework import VerificationRunner, runner_for
+from platform.config_service.schema.integrations import CertificateTrustSettings
+from platform.credentials.proxy.trust import DEFAULT_TRUST
 from platform.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -49,6 +51,37 @@ logger = get_logger(__name__)
 #: What the proxy is told is asking, so a forwarded verification call is
 #: attributable in the audit trail rather than appearing as an anonymous read.
 VERIFY_CAPABILITY = "integration.verify"
+
+#: The key the trust line is served under. A report that answered "the
+#: credential works" without saying what the endpoint was checked against reads
+#: identically for a pinned cluster and for one reached with verification off,
+#: and that difference is the one an audit review is looking for.
+TRUST_FIELD = "certificate_trust"
+
+
+def trust_line_for(name: str, entries: Iterable[Mapping[str, Any]]) -> str:
+    """Return the one line describing how ``name``'s endpoint is verified.
+
+    The vocabulary's own sentence rather than a second wording, so this report
+    and any other screen describing the same declaration cannot disagree about
+    it. A declaration that does not parse reports the default rather than
+    raising: this is a diagnostic, and a diagnostic that fails on a bad document
+    is one nobody can use to find out that the document is bad.
+    """
+    for entry in entries:
+        if str(entry.get("name", "")) != name:
+            continue
+        declared = entry.get("trust")
+        if not isinstance(declared, Mapping):
+            break
+        try:
+            return CertificateTrustSettings.model_validate(dict(declared)).declaration().describe()
+        except ValueError as refused:
+            logger.warning(
+                "integrations.trust_declaration_unreadable", integration=name, error=str(refused)
+            )
+            break
+    return DEFAULT_TRUST.describe()
 
 
 def compose_deep_verifier(state: Any) -> None:
@@ -84,10 +117,29 @@ def compose_deep_verifier(state: Any) -> None:
             # catalogue, and the route says so in different words from the ones
             # it uses for a deployment that composed nothing.
             return None
-        return report.to_record()
+        record = dict(report.to_record())
+        record[TRUST_FIELD] = trust_line_for(name, await _configured_entries(state, bound.org_id))
+        return record
 
     state.deep_verifier = verify
     logger.info("integrations.deep_verify_composed", integrations=list(runner.names()))
 
 
-__all__ = ["VERIFY_CAPABILITY", "compose_deep_verifier"]
+async def _configured_entries(state: Any, org_id: str) -> tuple[Mapping[str, Any], ...]:
+    """Return the active integration entries, or none if the tree will not answer.
+
+    Read per call rather than captured, for the reason the binding above is:
+    a declaration an operator has just written must be what the button reports,
+    not what was true when the process started. A read that fails costs the
+    report one line and never the report.
+    """
+    from gateway.http.discovery_sources import _active_integrations
+
+    try:
+        return await _active_integrations(state, org_id)
+    except Exception as unreadable:  # noqa: BLE001 — a diagnostic must still answer
+        logger.warning("integrations.trust_unreadable", error=str(unreadable))
+        return ()
+
+
+__all__ = ["TRUST_FIELD", "VERIFY_CAPABILITY", "compose_deep_verifier", "trust_line_for"]

@@ -199,6 +199,7 @@ class MemoryLifecycle:
             org_id=self.scope.org_id,
             team_node_id=self.scope.team_node_id or "",
             issue_type=scanned.issue_type,
+            issue_label=scanned.issue_label,
             issue_description=scanned.issue_description,
             severity=scanned.severity,
             components=scanned.components,

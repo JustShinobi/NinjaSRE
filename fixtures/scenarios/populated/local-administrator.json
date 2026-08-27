@@ -1,0 +1,22 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "command": "",
+        "state": "administered"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "local-administrator",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "local-administrator"
+}

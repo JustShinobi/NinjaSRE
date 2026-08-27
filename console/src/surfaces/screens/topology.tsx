@@ -5,6 +5,7 @@ import { formatNumber } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { DependencyGraph, NEIGHBOUR_BOUND, type GraphNode } from '../graph';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
@@ -105,7 +106,7 @@ export async function TopologyTab(context: SurfaceContext): Promise<ReactNode> {
   // Investigations feed the graph and cannot run before the setup they need
   // is finished, so an unfinished checklist — not "nothing has been observed
   // yet" — is why this deployment's neighbourhood is blank.
-  const cause = setupCause(locale, setup);
+  const cause = setupCause(locale, setup, INVESTIGATION_STEP);
   const emptyState = emptyBecause(
     {
       heading: message(locale, 'topology.empty.heading'),

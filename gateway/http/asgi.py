@@ -36,11 +36,15 @@ from core.agent.interaction.models import Interaction
 from gateway.http.app import create_app
 from gateway.http.services import InvestigationRunner, InvestigationStart
 from gateway.http.state import GatewayState
+from gateway.runtime.investigator import ReActInvestigationRunner
+from platform.guardrails.engine import GuardrailEngine
 from platform.identity.audit.recorder import AuditRecorder
 from platform.identity.local_accounts import LocalAccount, LocalSignIn
 from platform.identity.tokens import TokenService
 from platform.observability.logging import get_logger
+from platform.persistence.ports.transaction import PersistenceGateway
 from platform.persistence.postgres.gateway import PostgresPersistence
+from platform.runs.stream import RunEventBroker
 from platform.startup.errors import ConfigurationInvalid
 from platform.startup.profiles import resolve_topology
 from platform.startup.validation import validate
@@ -122,7 +126,7 @@ class UnconfiguredInvestigator:
         """Refuse, naming what is missing. Nothing was taken over to hand back."""
         raise InvestigatorNotConfigured
 
-    async def queue_message(self, run_id: str, text: str) -> None:
+    async def queue_message(self, run_id: str, text: str) -> bool:
         """Refuse, naming what is missing. There is no run to deliver a message on."""
         raise InvestigatorNotConfigured
 
@@ -165,7 +169,13 @@ class Deployment:
     store: PostgresPersistence
 
 
-def investigator_of(source: Mapping[str, str]) -> InvestigationRunner:
+def investigator_of(
+    source: Mapping[str, str],
+    *,
+    store: PersistenceGateway,
+    guardrails: GuardrailEngine,
+    broker: RunEventBroker,
+) -> InvestigationRunner:
     """Return the runner this deployment's configuration names, or the stand-in.
 
     A reference that is set but will not load does not stop the process from
@@ -175,17 +185,31 @@ def investigator_of(source: Mapping[str, str]) -> InvestigationRunner:
     while somebody fixes it, exactly as for an unset reference. Only
     ``validate(source)`` above this, in ``build_deployment``, is allowed to
     refuse to boot at all.
+
+    This is the single point that attaches recording to the runner a factory
+    handed back: a runner that can record has to open its own units of work
+    per turn, which needs the persistence gateway, the guardrail engine, and
+    the event broker this deployment already built — none of which a
+    no-argument factory reference could hold. Both of this function's
+    callers (``build_deployment`` and ``gateway.http.runtime.
+    recompose_investigator``) already have all three, so passing them here is
+    what keeps the attach happening exactly once, in exactly one place.
     """
     reference = source.get(NINJASRE_INVESTIGATOR_ENV, "").strip()
     if not reference:
-        return UnconfiguredInvestigator()
-    try:
-        return load_investigator(reference)
-    except ConfigurationInvalid as error:
-        _LOGGER.warning(
-            "deployment.investigator_unavailable", reference=reference, error=str(error)
-        )
-        return UnconfiguredInvestigator()
+        runner: InvestigationRunner = UnconfiguredInvestigator()
+    else:
+        try:
+            runner = load_investigator(reference)
+        except ConfigurationInvalid as error:
+            _LOGGER.warning(
+                "deployment.investigator_unavailable", reference=reference, error=str(error)
+            )
+            runner = UnconfiguredInvestigator()
+
+    if isinstance(runner, ReActInvestigationRunner):
+        runner.attach_recording(gateway=store, guardrails=guardrails, broker=broker)
+    return runner
 
 
 def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
@@ -207,7 +231,15 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
 
     store = PostgresPersistence.from_url(source[NINJASRE_DATABASE_URL_ENV])
 
-    investigator: InvestigationRunner = investigator_of(source)
+    # Built once, here, and handed to both the investigator (so a runner that
+    # can record writes through the same guardrails and publishes on the same
+    # broker as everything else in this deployment) and to ``GatewayState``
+    # itself below — never two separate instances that would quietly disagree.
+    guardrails = GuardrailEngine()
+    broker = RunEventBroker()
+    investigator: InvestigationRunner = investigator_of(
+        source, store=store, guardrails=guardrails, broker=broker
+    )
 
     # Without a recorder, `TokenService._audit` is a no-op — every issuance,
     # revocation and rejection stays out of the audit trail regardless of what
@@ -227,6 +259,8 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
             gateway=store,
             tokens=tokens,
             investigator=investigator,
+            guardrails=guardrails,
+            broker=broker,
             local_sign_in=LocalSignIn(
                 gateway=store,
                 tokens=tokens,

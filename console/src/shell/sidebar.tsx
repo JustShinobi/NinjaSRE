@@ -1,7 +1,9 @@
 'use client';
 
-import NextLink from 'next/link';
+import NextLink, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { isActive, navSelection, type NavState } from './nav-selection';
 import type { ReactNode } from 'react';
 
 import { StatusDot } from '@/components/status';
@@ -74,6 +76,58 @@ export interface SidebarProps {
   readonly onNavigate?: () => void;
 }
 
+/**
+ * The area a navigation is currently heading to, shared by every entry.
+ *
+ * `useLinkStatus` answers only for the link it is called inside, which is
+ * enough to light the pressed entry but not enough to take the light off the
+ * one being left — and two lit entries is the frame disagreeing with itself.
+ * So each entry publishes its own pending state here and every entry reads
+ * the result.
+ */
+const Arriving = createContext<{
+  readonly area: string;
+  readonly setArea: (area: string) => void;
+}>({ area: '', setArea: () => undefined });
+
+/**
+ * The body of one entry, which is where `useLinkStatus` can be asked.
+ *
+ * The hook reports on the nearest enclosing link, so it has to be a child of
+ * it rather than the component rendering it.
+ */
+function NavEntry({
+  area,
+  state,
+  children,
+}: {
+  readonly area: string;
+  readonly state: NavState;
+  readonly children: ReactNode;
+}): ReactNode {
+  const { pending } = useLinkStatus();
+  const { setArea } = useContext(Arriving);
+
+  useEffect(() => {
+    if (pending) setArea(area);
+  }, [pending, area, setArea]);
+
+  return (
+    <>
+      {children}
+      {state === 'arriving' ? (
+        <span
+          data-testid="nav-arriving"
+          aria-hidden="true"
+          className="ml-auto size-2 rounded-full bg-accent pulse-live"
+        >
+          <span className="pulse-live-ring" />
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 function isCurrent(area: Area, current: string): boolean {
   if (area.path === '/') {
     return current === '/';
@@ -90,69 +144,92 @@ export function SidebarNav({
   onNavigate,
 }: Omit<SidebarProps, 'guardian'>): ReactNode {
   const current = usePathname();
+  // Cleared whenever the path actually changes: the trip is over, and an area
+  // left marked as arriving would keep its pending mark on the page it had
+  // already reached.
+  const [arriving, setArriving] = useState('');
+  const groups = groupsFor(viewer, { checklistComplete });
+  const here =
+    groups.flatMap((group) => group.areas).find((area) => isCurrent(area, current))
+      ?.id ?? '';
+  // Cleared during render rather than in an effect: the trip is over the
+  // moment the path changes, and an entry still marked as arriving would carry
+  // its pending mark on the page it had already reached. React's own way of
+  // adjusting state when an input changes — an effect here would render the
+  // stale mark once before removing it.
+  const [seen, setSeen] = useState(current);
+  if (seen !== current) {
+    setSeen(current);
+    setArriving('');
+  }
   return (
-    <div className="flex-1 overflow-y-auto py-1">
-      {groupsFor(viewer, { checklistComplete }).map((group) => (
-        <div key={group.group} className="px-2 pt-3 pb-1">
-          <p className="px-2 pb-1 text-micro uppercase text-muted">
-            {message(locale, `nav.group.${group.group}`)}
-          </p>
-          <ul>
-            {group.areas.map((area) => {
-              const Icon = area.icon;
-              const current_ = isCurrent(area, current);
-              const count = counts[area.id];
-              return (
-                <li key={area.id}>
-                  <NextLink
-                    href={area.path}
-                    // The router's own link, so moving between areas is a
-                    // segment fetch rather than a document load: the frame the
-                    // viewer is looking at is not rebuilt, and the scroll
-                    // position of the list they came from survives the trip.
-                    //
-                    // Prefetch is off rather than defaulted on: every area
-                    // here is a dynamic Server Component that reads live,
-                    // authenticated data on render, so a default prefetch
-                    // would mean every one of the eighteen areas re-runs its
-                    // API reads on every single navigation, not just the one
-                    // the viewer opened — a stampede the gateway's session
-                    // handling was not built to absorb.
-                    prefetch={false}
-                    data-testid="nav-entry"
-                    data-area={area.id}
-                    aria-current={current_ ? 'page' : undefined}
-                    {...(onNavigate === undefined ? {} : { onClick: onNavigate })}
-                    className={cx(
-                      'flex items-center gap-2 mx-1 px-2 py-1 rounded-2 text-body motion-hover',
-                      current_
-                        ? 'bg-accent-bg text-accent font-semibold'
-                        : 'text-text hover:bg-hover',
-                    )}
-                  >
-                    <Icon size="nav" />
-                    <span className="truncate">{message(locale, area.label)}</span>
-                    {count === undefined || count === 0 ? null : (
-                      <span
-                        data-testid="nav-count"
-                        className="ml-auto rounded-full bg-danger-bg text-danger px-1 text-micro"
-                        aria-label={message(
-                          locale,
-                          COUNT_LABEL[area.id] ?? 'nav.pending',
-                          { count },
+    <Arriving.Provider value={{ area: arriving, setArea: setArriving }}>
+      <div className="flex-1 overflow-y-auto py-1">
+        {groups.map((group) => (
+          <div key={group.group} className="px-2 pt-3 pb-1">
+            <p className="px-2 pb-1 text-micro text-muted">
+              {message(locale, `nav.group.${group.group}`)}
+            </p>
+            <ul>
+              {group.areas.map((area) => {
+                const Icon = area.icon;
+                const state = navSelection(area.id, here, arriving);
+                const count = counts[area.id];
+                return (
+                  <li key={area.id}>
+                    <NextLink
+                      href={area.path}
+                      // The router's own link, so moving between areas is a
+                      // segment fetch rather than a document load: the frame the
+                      // viewer is looking at is not rebuilt, and the scroll
+                      // position of the list they came from survives the trip.
+                      //
+                      // Prefetch is off rather than defaulted on: every area
+                      // here is a dynamic Server Component that reads live,
+                      // authenticated data on render, so a default prefetch
+                      // would mean every one of the eighteen areas re-runs its
+                      // API reads on every single navigation, not just the one
+                      // the viewer opened — a stampede the gateway's session
+                      // handling was not built to absorb.
+                      prefetch={false}
+                      data-testid="nav-entry"
+                      data-area={area.id}
+                      aria-current={state === 'selected' ? 'page' : undefined}
+                      data-nav-state={state}
+                      {...(onNavigate === undefined ? {} : { onClick: onNavigate })}
+                      className={cx(
+                        'flex items-center gap-2 mx-1 px-2 py-1 rounded-2 text-body motion-hover',
+                        isActive(state)
+                          ? 'bg-accent-bg text-accent font-semibold'
+                          : 'text-text hover:bg-hover',
+                      )}
+                    >
+                      <NavEntry area={area.id} state={state}>
+                        <Icon size="nav" />
+                        <span className="truncate">{message(locale, area.label)}</span>
+                        {count === undefined || count === 0 ? null : (
+                          <span
+                            data-testid="nav-count"
+                            className="ml-auto rounded-full bg-danger-bg text-danger px-1 text-micro"
+                            aria-label={message(
+                              locale,
+                              COUNT_LABEL[area.id] ?? 'nav.pending',
+                              { count },
+                            )}
+                          >
+                            {count}
+                          </span>
                         )}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </NextLink>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </div>
+                      </NavEntry>
+                    </NextLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Arriving.Provider>
   );
 }
 

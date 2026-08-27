@@ -50,7 +50,7 @@ from config.prompts.strategy import (
 )
 from core.capability.metadata import EvidenceSource, EvidenceType
 from core.capability.result import Evidence
-from platform.memory.models import ScoredEpisode
+from platform.memory.models import MemoryEpisode, ScoredEpisode
 from platform.memory.retrieval import RecallResult
 from platform.memory.strategy.models import Strategy
 
@@ -71,7 +71,7 @@ def describe(found: ScoredEpisode, *, rank: int) -> str:
     return MEMORY_RECALL_EPISODE.format(
         rank=rank,
         outcome=OUTCOME_RESOLVED if episode.resolved else OUTCOME_UNRESOLVED,
-        issue_type=episode.issue_type or "unclassified",
+        issue_type=_classification(episode),
         issue_description=episode.issue_description or episode.title or "not recorded",
         occurred=episode.occurred_at.isoformat() if episode.occurred_at else "not recorded",
         components=", ".join(episode.component_labels) or "none recorded",
@@ -79,6 +79,17 @@ def describe(found: ScoredEpisode, *, rank: int) -> str:
         capabilities=", ".join(episode.capabilities_used) or "none recorded",
         summary=episode.summary or "no summary recorded",
     )
+
+
+def _classification(episode: MemoryEpisode) -> str:
+    """Return the failure class as the model is shown it: the bucket, then the words.
+
+    Both, when they differ. The bucket is what made this episode findable and the
+    words are what the run that wrote it actually saw, and showing only the first
+    would render every unclassifiable incident as the word ``other``.
+    """
+    bucket = episode.issue_type or "unclassified"
+    return f"{bucket} ({episode.issue_label})" if episode.issue_label else bucket
 
 
 def describe_strategy(strategy: Strategy) -> str:
@@ -230,6 +241,7 @@ def shape(result: RecallResult) -> dict[str, Any]:
         "query": result.query.text,
         "component": result.query.component,
         "issue_type": result.query.issue_type,
+        "canonical_issue_type": result.query.canonical_issue_type().value,
         "count": len(result.episodes),
         "strategy_count": len(result.strategies),
         "text": render(result),
@@ -238,6 +250,7 @@ def shape(result: RecallResult) -> dict[str, Any]:
             {
                 "correlation_id": found.correlation_id,
                 "issue_type": found.episode.issue_type,
+                "issue_label": found.episode.issue_label,
                 "issue_description": found.episode.issue_description,
                 "resolved": found.episode.resolved,
                 "resolved_means": OUTCOME_RESOLVED,
@@ -250,6 +263,7 @@ def shape(result: RecallResult) -> dict[str, Any]:
                     found.episode.occurred_at.isoformat() if found.episode.occurred_at else None
                 ),
                 "score": found.score,
+                "exact_match": found.exact_match,
                 "ranking_terms": found.terms(),
             }
             for found in result.episodes

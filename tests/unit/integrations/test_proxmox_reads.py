@@ -358,12 +358,28 @@ async def test_a_guest_agent_that_answers_is_distinguishable_from_one_that_does_
     assert "agent" in absent.unavailable_reason.lower()
 
 
-async def test_a_guests_own_task_history_is_readable() -> None:
-    client, _ = client_for()
+async def test_a_guests_own_task_history_is_read_from_the_node_task_log() -> None:
+    """A guest has no task endpoint of its own, so the node's log, filtered, is it.
+
+    Proxmox has never served ``/nodes/{node}/{kind}/{vmid}/status/tasks``; asked
+    for it, a live hypervisor answers ``No 'get' handler defined``. The reading
+    that replaced it is the node task log narrowed to one guest, which is where
+    Proxmox actually keeps the answer.
+
+    The assertion is on the path as well as the records, because the recording
+    this suite reads from was keyed by the same wrong path the client asked for.
+    A fixture that agrees with the mistake makes an empty tuple look like a
+    guest with no history, and that is what let this survive: it cost two
+    capabilities their turn on a real incident before anything went red.
+    """
+    client, transport = client_for()
 
     tasks = await client.guest_tasks(SECONDARY, 100, kind="lxc")
 
-    assert tasks == ()
+    assert [task.vmid for task in tasks] == [100]
+    assert tasks[0].task_type == "vzdump"
+    assert any(path.startswith(f"/nodes/{SECONDARY}/tasks") for path in transport.seen)
+    assert not any("status/tasks" in path for path in transport.seen)
 
 
 # --- Phase 5: backups ---------------------------------------------------------

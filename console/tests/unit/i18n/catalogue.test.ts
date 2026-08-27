@@ -99,3 +99,38 @@ describe('the message catalogue', () => {
     expect(Object.keys(CATALOGUES).sort()).toEqual([...LOCALES].sort());
   });
 });
+
+/**
+ * The console writes one English, not two.
+ *
+ * Settings' subnav said "Organization" while the Grants rows 300px below it
+ * said "Whole organisation", in the same viewport, on the same screen. Nobody
+ * decides that in a review; it arrives one string at a time. So the rule is
+ * enforced where the strings are rather than argued about where they are read.
+ *
+ * British spelling, because nine of the ten uses already were.
+ */
+describe('the catalogue spells one English', () => {
+  const AMERICAN =
+    /\b\w*(?:organiz|customiz|recogniz|authoriz|summariz|normaliz|synchroniz|serializ|analyz|behavior)\w*/i;
+
+  /**
+   * Prose only. A protocol's own field name is not a spelling choice this
+   * console gets to make — OpenID calls it `authorization_endpoint`, and a
+   * catalogue that anglicised it would be naming a key that does not exist.
+   * So a quoted span and anything carrying an underscore are left alone.
+   */
+  function prose(value: string): string {
+    return value
+      .replace(/'[^']*'/g, ' ')
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/\b\w*_\w*\b/g, ' ');
+  }
+
+  it('carries no American spelling of a word it also writes in British', () => {
+    const offenders = Object.entries(EN)
+      .filter(([, value]) => typeof value === 'string' && AMERICAN.test(prose(value)))
+      .map(([key, value]) => `${key}: ${value as string}`);
+    expect(offenders).toEqual([]);
+  });
+});

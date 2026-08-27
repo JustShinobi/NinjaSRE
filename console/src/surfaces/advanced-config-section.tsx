@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { message, type Locale } from '@/i18n/messages';
+import { ChevronRightIcon } from '@/design/icons';
 import { EffectiveFieldsTable } from '@/design/resolution-preview';
 import { editableFields } from './editable';
 import { effectiveRows } from './effective-fields';
@@ -173,9 +174,17 @@ export function AdvancedConfigSection({
     <details
       id={anchorId}
       data-testid={anchorId}
-      className="edge border-border rounded-2 px-3 py-2"
+      className="disclosure edge border-border rounded-2 px-3 py-2"
     >
-      <summary className="cursor-pointer select-none text-strong">{title}</summary>
+      <summary className="flex items-center gap-2 text-strong">
+        {/* Drawn rather than inherited. The browser's own triangle is a
+            different shape, weight and colour on every platform, and it was
+            the one glyph on these screens no stylesheet here had chosen. */}
+        <span data-disclosure-chevron className="flex text-muted">
+          <ChevronRightIcon size="inline" />
+        </span>
+        {title}
+      </summary>
       <div className="pt-3 flex flex-col gap-4">
         <EffectiveFieldsTable
           rows={rows}

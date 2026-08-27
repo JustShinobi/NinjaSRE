@@ -62,6 +62,19 @@ export interface ReadOptions extends RequestInit {
  * request to `/v1/runs/%7Brun_id%7D` comes back 404, which reads on a screen as
  * "there is no such run" — the one message that would send somebody looking in
  * exactly the wrong place.
+ *
+ * **Encodes exactly once, and does not decode.** The invariant this console
+ * holds a dynamic route to: a router-owned parameter is decoded exactly
+ * once, at the edge (`routeParam`, `src/shell/route-params.ts`), before it
+ * reaches any page logic — including the call that lands here. `bind` is
+ * the other half: it assumes what it receives is already literal and encodes
+ * it once, on the way out. `bind` does not decode first, because it is also
+ * called with values that never came from a route parameter at all — a
+ * `resource_id` assembled in code, a value read out of a response body —
+ * and decoding here would corrupt any one of those that legitimately
+ * contains a `%`. Encode-once-here and decode-once-at-the-edge only add up
+ * to "the gateway receives what the operator typed" when neither side ever
+ * does the other's job.
  */
 function bind(path: string, params: Readonly<Record<string, string>>): string {
   return path

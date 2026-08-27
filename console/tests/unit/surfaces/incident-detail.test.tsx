@@ -193,7 +193,15 @@ describe('an incident whose investigation is still running', () => {
           },
         ],
         actions: [],
-        investigation: { step_count: 1, duration_ms: 5000, cost: 0.5 },
+        // The run says it is still going. The screen used to infer that
+        // from the absence of a delivery step, which made every run that
+        // finished without delivering read as running for ever.
+        investigation: {
+          step_count: 1,
+          duration_ms: 5000,
+          cost: 0.5,
+          status: 'running',
+        },
       },
       '/v1/estate/resources/cedar': {
         resource: {
@@ -315,7 +323,12 @@ describe('what the proposed-action card is allowed to claim', () => {
         observations: [],
         timeline: timelineOf(kinds),
         actions: [],
-        investigation: { step_count: kinds.length, duration_ms: 5000, cost: 0.5 },
+        investigation: {
+          step_count: kinds.length,
+          duration_ms: 5000,
+          cost: 0.5,
+          status: 'completed',
+        },
       },
       '/v1/estate/resources/birch': {
         resource: {
@@ -377,5 +390,191 @@ describe('what the proposed-action card is allowed to claim', () => {
     expect(screen.queryByTestId('proposed-action')).not.toBeInTheDocument();
     expect(screen.queryByTestId('decision-control')).not.toBeInTheDocument();
     expect(screen.getByText('Nothing proposed yet')).toBeInTheDocument();
+  });
+});
+
+describe('a detail read that failed', () => {
+  beforeEach(() => {
+    // No `/v1/incidents/...` entry at all: `serve()` answers 404 for it,
+    // exactly the shape a double-encoded or otherwise unresolvable
+    // identifier produces against a real gateway.
+    serve({ '/auth/me': PRINCIPAL });
+  });
+
+  it('says it could not read the incident, names no identifier, and the investigation chip says Unknown rather than asserting an absent investigation', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    const heading = screen.getByTestId('incident-title');
+    expect(heading).toHaveTextContent('This incident could not be read');
+    expect(heading).not.toHaveTextContent('inc-unreadable-01');
+
+    // Both chips render: the incident's own state, and the investigation
+    // chip — which now says Unknown rather than being absent, and rather
+    // than asserting "No investigation" from a read that never answered.
+    const chips = screen.getAllByTestId('incident-chip');
+    expect(chips).toHaveLength(2);
+    const investigationChip = chips[1];
+    expect(investigationChip).toHaveTextContent('Unknown');
+    expect(investigationChip).not.toHaveTextContent('No investigation');
+    // The dependency that failed, named in the tooltip.
+    expect(investigationChip?.getAttribute('title')).toMatch(/incident/i);
+
+    const panels = screen.getAllByTestId('panel');
+    expect(panels).toHaveLength(3);
+    // Investigation and Evidence trail depend on the same failed read;
+    // Proposed action does not (it has nothing to attach to without a run,
+    // which a failed read also never named), so it renders empty rather
+    // than errored.
+    const states = panels.map((panel) => panel.getAttribute('data-state'));
+    expect(states.filter((state) => state === 'error')).toHaveLength(2);
+    expect(states.filter((state) => state === 'empty')).toHaveLength(1);
+  });
+
+  it('the incident state chip says Unknown rather than asserting Open on a failed read', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    const chips = screen.getAllByTestId('incident-chip');
+    const stateChip = chips[0];
+    expect(stateChip).toHaveTextContent('Unknown');
+    expect(stateChip).not.toHaveTextContent('Open');
+    // The dependency that failed, named in the tooltip — the same technique
+    // the investigation chip beside it already uses.
+    expect(stateChip?.getAttribute('title')).toMatch(/incident/i);
+  });
+
+  it('renders no subtitle at all, rather than the same fallback word on more than one of its five slots', async () => {
+    await renderIncident('inc-unreadable-01');
+
+    expect(screen.queryByTestId('incident-subtitle')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-rule')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('subtitle-host')).not.toBeInTheDocument();
+  });
+
+  it('shows the deployment’s own name in the document title instead of the identifier', async () => {
+    // `generateMetadata` lives in the route file, not the screen, and reads
+    // through the same `incidentDetailFor` — proved directly here rather
+    // than through `IncidentDetailScreen`, which never calls it.
+    const { incidentDetailFor } = await import('@/surfaces/screens/incident-detail');
+    const PageModule = await import('@/app/(shell)/incidents/[incidentId]/page');
+
+    await expect(
+      incidentDetailFor('a-token', 'inc-unreadable-01'),
+    ).rejects.toBeInstanceOf(Error);
+
+    const metadata = await PageModule.generateMetadata({
+      params: Promise.resolve({ incidentId: 'inc-unreadable-02' }),
+    });
+
+    expect(metadata.title).toBe('HAL9000');
+    expect(metadata.title).not.toContain('inc-unreadable-02');
+  });
+});
+
+describe("the incident route file's own generateMetadata", () => {
+  it('names the incident when the read succeeds', async () => {
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-named-01': {
+        incident: { incident_id: 'inc-named-01', title: 'cedar is down' },
+        subjects: [],
+        observations: [],
+        timeline: [],
+        actions: [],
+        investigation: null,
+      },
+    });
+    const PageModule = await import('@/app/(shell)/incidents/[incidentId]/page');
+
+    const metadata = await PageModule.generateMetadata({
+      params: Promise.resolve({ incidentId: 'inc-named-01' }),
+    });
+
+    expect(metadata.title).toBe('cedar is down · HAL9000');
+  });
+});
+
+describe('an incident whose investigation has stopped', () => {
+  it('shows the finished chip because the run says it completed', async () => {
+    // Not because a report_delivered entry landed. That was the old rule and
+    // it is the reason a completed run that delivered nowhere read as running
+    // for the rest of the incident's life, beside a chip saying the incident
+    // had been resolved. Delivery is one thing an investigation may do; the
+    // run's status is the fact about whether it is over.
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-finished-01': {
+        incident: {
+          incident_id: 'inc-finished-01',
+          title: 'backup job re-enabled',
+          summary: 'the disabled backup job was found and re-enabled',
+          state: 'resolved',
+          severity: 'high',
+          origin: 'detector',
+          detector: 'backup-job-disabled',
+          subjects: [],
+          opened_at: '2026-08-07T06:00:00+00:00',
+          closed_at: null,
+          run_id: 'run-finished-1',
+        },
+        subjects: [],
+        observations: [],
+        timeline: [
+          {
+            at: '2026-08-07T06:00:05+00:00',
+            kind: 'report_delivered',
+            actor: 'system:observation',
+            cause: 'report delivered',
+            detail: '#incidents',
+          },
+        ],
+        actions: [],
+        investigation: {
+          step_count: 1,
+          duration_ms: 3000,
+          cost: 0.2,
+          status: 'completed',
+        },
+      },
+    });
+
+    await renderIncident('inc-finished-01');
+
+    const chips = screen.getAllByTestId('incident-chip');
+    expect(chips[1]).toHaveTextContent('Investigation finished');
+  });
+
+  it('says the state is unknown when a run is attached and unseen', async () => {
+    // The moment right after attaching: an incident naming a run whose trace
+    // row has not appeared. Neither "running" nor "finished" is a thing this
+    // screen knows, and drawing either would be a claim about a process
+    // nothing here has looked at.
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-unseen-01': {
+        incident: {
+          incident_id: 'inc-unseen-01',
+          title: 'a probe failed',
+          summary: 'the blackbox probe has failed',
+          state: 'investigating',
+          severity: 'high',
+          origin: 'detector',
+          detector: 'blackbox',
+          subjects: [],
+          opened_at: '2026-08-07T06:00:00+00:00',
+          closed_at: null,
+          run_id: 'run-unseen-1',
+        },
+        subjects: [],
+        observations: [],
+        timeline: [],
+        actions: [],
+        investigation: { step_count: 0, duration_ms: null, cost: null, status: '' },
+      },
+    });
+
+    await renderIncident('inc-unseen-01');
+
+    const chips = screen.getAllByTestId('incident-chip');
+    expect(chips[1]).toHaveTextContent('Unknown');
   });
 });

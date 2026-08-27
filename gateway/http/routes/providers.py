@@ -33,7 +33,6 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
-from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from core.llm.catalogue import ListingUnavailable, ModelOffering, catalogue_for, listing_for
 from core.llm.catalogue.cache import ModelCatalogueCache
 from core.llm.credentials import (
@@ -51,6 +50,7 @@ from core.llm.onboarding import (
 )
 from core.llm.registry import ModelRegistry, default_registry
 from core.llm.verification import ModelVerdict, verify_model
+from gateway.http.credential_handles import resolve_credential_handle
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.state import GatewayState
@@ -66,6 +66,7 @@ from platform.persistence.ports.verification_ledger import (
     VerificationRecord,
     VerificationSubject,
 )
+from platform.startup.checklist import readiness_of
 
 router = APIRouter(prefix="/v1/providers", tags=["providers"])
 
@@ -108,6 +109,11 @@ class ProviderView(BaseModel):
     local: bool
     configured: bool
     verified: bool
+    #: The same four-word vocabulary the setup checklist reports for this
+    #: provider, derived from the same verification record — never a second
+    #: opinion computed from `configured`/`verified` alone, which cannot
+    #: distinguish "nobody has checked" from "the last check failed".
+    readiness: str
     default_model: str
     detail: str = ""
 
@@ -241,6 +247,21 @@ def _onboarding(provider_id: str) -> ProviderOnboarding:
         ) from unknown
 
 
+async def _team_of(state: GatewayState, auth: AuthenticatedRequest, provider_id: str = "") -> str:
+    """Return the credential-handle team this request writes and reads under.
+
+    The caller's own team, through the same path ``routes/integrations.py``
+    resolves it by — a verification asks as the team it already knows, never
+    a search. ``provider_id`` is empty for the one caller here that checks
+    every supported provider at once rather than a single one; the fast path
+    this takes does not use it either way.
+    """
+    resolved = await resolve_credential_handle(
+        state.gateway, auth.scope, integration=provider_id, preferred_team=auth.team_node_id
+    )
+    return resolved.team_id
+
+
 async def _configured(state: GatewayState, auth: AuthenticatedRequest) -> frozenset[str]:
     """Return which providers this team has a usable credential for.
 
@@ -255,11 +276,7 @@ async def _configured(state: GatewayState, auth: AuthenticatedRequest) -> frozen
     report = await health.report(
         auth.scope,
         integrations=SUPPORTED_PROVIDERS,
-        # An organisation-scoped token has no team, and a handle needs one. The
-        # same fallback the credential routes make, for the same reason: the
-        # vault spells the organisation-wide owner as a literal, and a caller
-        # with no team of its own is precisely who that owner exists for.
-        team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+        team_id=await _team_of(state, auth),
     )
     return frozenset(entry.integration for entry in report.entries if entry.state.usable)
 
@@ -284,6 +301,7 @@ def _view(
         local=onboarding.local,
         configured=configured,
         verified=checked is not None and checked.verified,
+        readiness=readiness_of(configured=configured, checked=checked),
         default_model=onboarding.default_model,
         detail=_detail(configured=configured, checked=checked),
     )
@@ -513,7 +531,7 @@ async def list_models(
         ApiProblem: no supported provider answers to ``provider_id`` (404).
     """
     onboarding = _onboarding(provider_id)
-    team_id = auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
+    team_id = await _team_of(state, auth, provider_id)
     credentials = await provider_credentials(
         _vault_resolver(state),
         auth.scope,
@@ -552,6 +570,7 @@ async def verify_provider(
     """
     onboarding = _onboarding(provider_id)
     configured = await _configured_model(state, auth, provider_id)
+    team_id = await _team_of(state, auth, provider_id)
     verify = state.model_verifier
     verdict = await (
         verify(provider_id, configured)
@@ -563,10 +582,10 @@ async def verify_provider(
             credentials=await provider_credentials(
                 _vault_resolver(state),
                 auth.scope,
-                team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+                team_id=team_id,
                 provider_id=provider_id,
             ),
-            team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+            team_id=team_id,
         )
     )
     await record_check(
@@ -577,7 +596,7 @@ async def verify_provider(
         passed=verdict.satisfied,
         detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
         checked_by=auth.principal_id,
-        team_node_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+        team_node_id=team_id,
         model_id=verdict.model_id,
     )
     return ProviderVerificationView(

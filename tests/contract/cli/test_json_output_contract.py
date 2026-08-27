@@ -185,6 +185,11 @@ HOST_SIDE = {
     "setup.bundle",
     "setup.load-demo",
     "setup.remove-demo",
+    # Needs a real gateway to enrol an administrator against, and an
+    # interactive terminal it deliberately refuses to fake its way past —
+    # exercised the same way the rest of this set is, in
+    # tests/unit/surfaces/cli/commands/test_setup.py.
+    "setup.admin",
 }
 
 

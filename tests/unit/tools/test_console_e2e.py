@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import contextlib
 import socket
-from collections.abc import Iterator
+import subprocess
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ import pytest
 from config.constants.console import CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT
 from tools import console_e2e
 from tools.console_e2e import ports
+from tools.console_toolchain import Toolchain
 
 pytestmark = pytest.mark.unit
 
@@ -137,3 +139,420 @@ def test_the_compose_backing_builds_the_images_it_is_about_to_run() -> None:
     # machine that cannot reach the download.
     assert "_SOURCE_SERVICES" in built, built.strip()
     assert console_e2e._SOURCE_SERVICES == ("app", "console", "proxy")
+
+
+# --- The staging backing: brings nothing up, refuses loudly -----------------
+#
+# `run_staging` does not exist yet when these land — that is the point.
+# The refusals have to be proved red before the backing works at all, so a
+# refusal that silently stopped refusing would fail one of these rather than
+# being noticed by a person three weeks later.
+
+
+def test_the_staging_backing_refuses_without_a_credential_and_never_provisions_anything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing credential is a named refusal before a browser is touched.
+
+    `resolve` and `ensure_browsers` are replaced with a function that fails
+    the test if it is ever called — proving the credential is checked before
+    either has a chance to run, rather than a run that downloads a browser
+    and a toolchain only to fail on a sign-in fifteen seconds later.
+    """
+    from config.constants.console import (
+        NINJASRE_STAGING_CREDENTIAL_ENV,
+        NINJASRE_STAGING_USERNAME_ENV,
+    )
+
+    monkeypatch.delenv(NINJASRE_STAGING_CREDENTIAL_ENV, raising=False)
+    monkeypatch.setenv(NINJASRE_STAGING_USERNAME_ENV, "operator")
+
+    def _must_not_run(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("a browser was provisioned before the credential was checked")
+
+    monkeypatch.setattr(console_e2e, "resolve", _must_not_run)
+    monkeypatch.setattr(console_e2e, "ensure_browsers", _must_not_run)
+
+    with pytest.raises(console_e2e.HarnessError, match=NINJASRE_STAGING_CREDENTIAL_ENV):
+        console_e2e.run_staging()
+
+
+def test_the_staging_backing_refuses_without_a_username_and_never_provisions_anything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The username is checked by the same rule, before a browser is touched."""
+    from config.constants.console import (
+        NINJASRE_STAGING_CREDENTIAL_ENV,
+        NINJASRE_STAGING_USERNAME_ENV,
+    )
+
+    monkeypatch.delenv(NINJASRE_STAGING_USERNAME_ENV, raising=False)
+    monkeypatch.setenv(NINJASRE_STAGING_CREDENTIAL_ENV, "does-not-matter")
+
+    def _must_not_run(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("a browser was provisioned before the credential was checked")
+
+    monkeypatch.setattr(console_e2e, "resolve", _must_not_run)
+    monkeypatch.setattr(console_e2e, "ensure_browsers", _must_not_run)
+
+    with pytest.raises(console_e2e.HarnessError, match=NINJASRE_STAGING_USERNAME_ENV):
+        console_e2e.run_staging()
+
+
+def test_the_staging_backing_starts_no_data_plane_no_local_console_and_builds_nothing() -> None:
+    """`run_staging` never calls any of the three bring-up paths the other backings use.
+
+    Asserted against the function's own source, the same way
+    `test_the_compose_backing_builds_the_images_it_is_about_to_run` proves
+    what a backing does without spending a real run on it: this backing's
+    whole reason to exist is that it starts nothing, and a source that never
+    names `mock_plane`, `compose_stack`, or the local `console` server proves
+    that structurally rather than by hoping a live run happens to agree.
+    """
+    source = Path(console_e2e.__file__).read_text(encoding="utf-8")
+    start = source.index("def run_staging(")
+    end = source.index("\ndef ", start)
+    body = source[start:end]
+
+    for forbidden in ("mock_plane(", "compose_stack(", "console(toolchain"):
+        assert forbidden not in body, (
+            f"run_staging calls {forbidden!r}, which brings something up — "
+            "the staging backing must point at what is already running"
+        )
+
+
+def test_the_staging_backing_always_selects_only_the_tests_marked_safe_for_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The safe-for-staging tag is applied to every staging run, never optional.
+
+    The claim this proves — a test not marked safe does not run against this
+    backing even when it is named explicitly — holds only if the grep filter
+    is unconditional. Proved here against the constructed Playwright
+    arguments, with `playwright()` itself replaced so no browser is actually
+    launched.
+    """
+    from config.constants.console import (
+        CONSOLE_STAGING_SAFE_TAG,
+        NINJASRE_STAGING_CREDENTIAL_ENV,
+        NINJASRE_STAGING_USERNAME_ENV,
+    )
+
+    monkeypatch.setenv(NINJASRE_STAGING_USERNAME_ENV, "operator")
+    monkeypatch.setenv(NINJASRE_STAGING_CREDENTIAL_ENV, "does-not-matter")
+    monkeypatch.setattr(console_e2e, "resolve", lambda *_a, **_k: object())
+    monkeypatch.setattr(console_e2e, "ensure_browsers", lambda *_a, **_k: None)
+    monkeypatch.setattr(console_e2e, "_staging_credential", lambda *_a, **_k: "tok-exchanged")
+
+    captured: dict[str, object] = {}
+
+    def _fake_playwright(
+        _toolchain: object,
+        _project: str,
+        _base_url: str,
+        *,
+        credential: str | None = None,
+        evidence_dir: Path | None = None,
+        extra: Sequence[str] = (),
+    ) -> int:
+        captured["extra"] = tuple(extra)
+        captured["credential"] = credential
+        captured["evidence_dir"] = evidence_dir
+        return 0
+
+    monkeypatch.setattr(console_e2e, "playwright", _fake_playwright)
+
+    # Named explicitly, the way a caller who wants "just this one" would ask —
+    # the tag filter has to govern this just the same.
+    status = console_e2e.run_staging(extra=["tests/e2e/some-other.spec.ts"])
+
+    assert status == 0
+    extra = captured["extra"]
+    assert isinstance(extra, tuple)
+    assert any(CONSOLE_STAGING_SAFE_TAG in part for part in extra), (
+        f"no grep for {CONSOLE_STAGING_SAFE_TAG!r} in the constructed arguments: {extra!r}"
+    )
+    # The password never reaches this point: what `playwright()` was handed
+    # is the exchanged token from the stubbed `_staging_credential`.
+    assert captured["credential"] == "tok-exchanged"
+
+
+# --- Regression: `--evidence-dir` has to reach the subprocess's own environment,
+# not just the Playwright `--output` flag -----------------------------------
+#
+# `NINJASRE_STAGING_EVIDENCE_DIR` set directly in the environment produced ten
+# captures; `--evidence-dir` on the command line produced zero, silently, exit
+# 0 — the same failure shape any marker with two spellings has: it selects
+# zero tests and reports success, which is the worst result available. Here
+# it was zero captures reporting success. The cause: `run_staging` only ever
+# threaded the resolved directory into `--output=`, which is Playwright's own
+# artifact directory — unrelated to `process.env.NINJASRE_STAGING_EVIDENCE_DIR`,
+# the one thing `transversal-rules.spec.ts`'s `afterEach` actually reads.
+
+
+def test_playwright_puts_the_evidence_directory_in_the_subprocess_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`playwright(..., evidence_dir=...)` exports the same-named variable.
+
+    Proved against the constructed ``subprocess.run`` call directly — the
+    only place that decides what the Playwright process actually sees —
+    rather than against a stub of ``playwright()`` itself, which is what let
+    the gap between ``--output`` and the environment variable go unnoticed:
+    every existing test stubbed `playwright()` and never looked inside it.
+    """
+    from config.constants.console import NINJASRE_STAGING_EVIDENCE_DIR_ENV
+
+    captured: dict[str, object] = {}
+
+    def _fake_run(
+        _command: object,
+        *,
+        cwd: object = None,
+        env: dict[str, str] | None = None,
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        captured["env"] = dict(env) if env is not None else {}
+        return subprocess.CompletedProcess(args=[], returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    toolchain = Toolchain(
+        node=Path("/usr/bin/node"), npm=Path("/usr/bin/npm"), pnpm=Path("/usr/bin/pnpm")
+    )
+
+    console_e2e.playwright(
+        toolchain,
+        "behaviour",
+        "https://stg.example",
+        evidence_dir=Path("/tmp/evidence-example"),
+    )
+
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env.get(NINJASRE_STAGING_EVIDENCE_DIR_ENV) == "/tmp/evidence-example", (
+        f"{NINJASRE_STAGING_EVIDENCE_DIR_ENV} did not reach the subprocess environment: "
+        f"{env.get(NINJASRE_STAGING_EVIDENCE_DIR_ENV)!r}"
+    )
+
+
+def test_playwright_puts_the_backing_url_in_the_subprocess_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`playwright(..., backing_url=...)` exports the same-named variable.
+
+    Without it, a spec has no way to ask the backing whether a page load
+    actually reached it: the console proxies every request server-side, so
+    that traffic is invisible from the browser otherwise.
+    """
+    from config.constants.console import NINJASRE_CONSOLE_BACKING_URL_ENV
+
+    captured: dict[str, object] = {}
+
+    def _fake_run(
+        _command: object,
+        *,
+        cwd: object = None,
+        env: dict[str, str] | None = None,
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        captured["env"] = dict(env) if env is not None else {}
+        return subprocess.CompletedProcess(args=[], returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    toolchain = Toolchain(
+        node=Path("/usr/bin/node"), npm=Path("/usr/bin/npm"), pnpm=Path("/usr/bin/pnpm")
+    )
+
+    console_e2e.playwright(
+        toolchain,
+        "behaviour",
+        "http://127.0.0.1:8423",
+        backing_url="http://127.0.0.1:8999",
+    )
+
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env.get(NINJASRE_CONSOLE_BACKING_URL_ENV) == "http://127.0.0.1:8999"
+
+
+def test_playwright_leaves_the_backing_url_unset_when_none_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Against `compose` or `staging`, nothing exports this variable.
+
+    Those backings do not answer the mock's request-counting question, and an
+    unset variable is how a spec that reads it tells the two situations apart
+    rather than reading a stale address from a previous run's environment.
+    """
+    from config.constants.console import NINJASRE_CONSOLE_BACKING_URL_ENV
+
+    captured: dict[str, object] = {}
+
+    def _fake_run(
+        _command: object,
+        *,
+        cwd: object = None,
+        env: dict[str, str] | None = None,
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        captured["env"] = dict(env) if env is not None else {}
+        return subprocess.CompletedProcess(args=[], returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    toolchain = Toolchain(
+        node=Path("/usr/bin/node"), npm=Path("/usr/bin/npm"), pnpm=Path("/usr/bin/pnpm")
+    )
+
+    console_e2e.playwright(toolchain, "behaviour", "http://127.0.0.1:8423")
+
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert NINJASRE_CONSOLE_BACKING_URL_ENV not in env
+
+
+def test_run_passes_the_mock_backings_own_address_to_playwright(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Against the `mock` backing, `run()` tells `playwright()` where it answers.
+
+    Stubbed at every bring-up boundary — toolchain resolution, browser
+    provisioning, the mock plane, the local console server — so this proves
+    the wiring inside `run()` without spending a real process on it.
+    """
+    toolchain = Toolchain(
+        node=Path("/usr/bin/node"), npm=Path("/usr/bin/npm"), pnpm=Path("/usr/bin/pnpm")
+    )
+    monkeypatch.setattr(console_e2e, "resolve", lambda: toolchain)
+    monkeypatch.setattr(console_e2e, "ensure_browsers", lambda _toolchain: None)
+
+    @contextlib.contextmanager
+    def _fake_mock_plane(_scenario: str, _port: int) -> Iterator[console_e2e.Backing]:
+        yield console_e2e.Backing(api_url="http://127.0.0.1:9999")
+
+    @contextlib.contextmanager
+    def _fake_console(_toolchain: object, _api_url: str, _port: int) -> Iterator[str]:
+        yield "http://127.0.0.1:8888"
+
+    monkeypatch.setattr(console_e2e, "mock_plane", _fake_mock_plane)
+    monkeypatch.setattr(console_e2e, "console", _fake_console)
+
+    captured: dict[str, object] = {}
+
+    def _fake_playwright(
+        _toolchain: object,
+        _project: str,
+        _base_url: str,
+        *,
+        credential: str | None = None,
+        backing_url: str | None = None,
+        extra: Sequence[str] = (),
+    ) -> int:
+        captured["backing_url"] = backing_url
+        return 0
+
+    monkeypatch.setattr(console_e2e, "playwright", _fake_playwright)
+
+    status = console_e2e.run(backing="mock")
+
+    assert status == 0
+    assert captured["backing_url"] == "http://127.0.0.1:9999"
+
+
+def test_run_passes_no_backing_url_for_the_compose_backing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Against `compose`, `run()` does not claim an address the backing cannot answer for.
+
+    The compose backing is a real gateway with no request-counting control
+    route, so exporting its address under this variable would make a spec
+    that reads it fail confusingly instead of the harness saying plainly that
+    this backing does not support the claim.
+    """
+    toolchain = Toolchain(
+        node=Path("/usr/bin/node"), npm=Path("/usr/bin/npm"), pnpm=Path("/usr/bin/pnpm")
+    )
+    monkeypatch.setattr(console_e2e, "resolve", lambda: toolchain)
+    monkeypatch.setattr(console_e2e, "ensure_browsers", lambda _toolchain: None)
+
+    @contextlib.contextmanager
+    def _fake_compose_stack() -> Iterator[console_e2e.Backing]:
+        yield console_e2e.Backing(api_url="http://127.0.0.1:8420", credential="tok")
+
+    @contextlib.contextmanager
+    def _fake_console(_toolchain: object, _api_url: str, _port: int) -> Iterator[str]:
+        yield "http://127.0.0.1:8888"
+
+    monkeypatch.setattr(console_e2e, "compose_stack", _fake_compose_stack)
+    monkeypatch.setattr(console_e2e, "console", _fake_console)
+
+    captured: dict[str, object] = {}
+
+    def _fake_playwright(
+        _toolchain: object,
+        _project: str,
+        _base_url: str,
+        *,
+        credential: str | None = None,
+        backing_url: str | None = None,
+        extra: Sequence[str] = (),
+    ) -> int:
+        captured["backing_url"] = backing_url
+        return 0
+
+    monkeypatch.setattr(console_e2e, "playwright", _fake_playwright)
+
+    status = console_e2e.run(backing="compose")
+
+    assert status == 0
+    assert captured["backing_url"] is None
+
+
+def test_run_staging_threads_the_resolved_evidence_directory_into_playwright(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The directory `run_staging` resolves is the one `playwright()` receives.
+
+    Whether it came from the `evidence_dir` parameter (the CLI's
+    `--evidence-dir`) or the environment fallback, `run_staging` must hand it
+    to `playwright()` by the same keyword `playwright()` actually exports —
+    not fold it into `extra` as a Playwright CLI flag, which is what reached
+    `--output` and nothing else.
+    """
+    from config.constants.console import (
+        NINJASRE_STAGING_CREDENTIAL_ENV,
+        NINJASRE_STAGING_USERNAME_ENV,
+    )
+
+    monkeypatch.setenv(NINJASRE_STAGING_USERNAME_ENV, "operator")
+    monkeypatch.setenv(NINJASRE_STAGING_CREDENTIAL_ENV, "does-not-matter")
+    monkeypatch.setattr(console_e2e, "resolve", lambda *_a, **_k: object())
+    monkeypatch.setattr(console_e2e, "ensure_browsers", lambda *_a, **_k: None)
+    monkeypatch.setattr(console_e2e, "_staging_credential", lambda *_a, **_k: "tok-exchanged")
+
+    captured: dict[str, object] = {}
+
+    def _fake_playwright(
+        _toolchain: object,
+        _project: str,
+        _base_url: str,
+        *,
+        credential: str | None = None,
+        extra: Sequence[str] = (),
+        evidence_dir: Path | None = None,
+    ) -> int:
+        captured["extra"] = tuple(extra)
+        captured["evidence_dir"] = evidence_dir
+        return 0
+
+    monkeypatch.setattr(console_e2e, "playwright", _fake_playwright)
+
+    status = console_e2e.run_staging(evidence_dir=Path("/tmp/evidence-example"))
+
+    assert status == 0
+    assert captured["evidence_dir"] == Path("/tmp/evidence-example")
+    extra = captured["extra"]
+    assert isinstance(extra, tuple)
+    assert not any("--output" in part for part in extra), (
+        f"--output does nothing for evidence capture and only disguises the "
+        f"gap by depositing .last-run.json where a capture is expected: {extra!r}"
+    )

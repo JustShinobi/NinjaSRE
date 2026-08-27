@@ -1,35 +1,55 @@
 import type { ReactNode } from 'react';
 
-import { formatDuration, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { readFailure } from '../failures';
 import { FilterBar } from '../filters';
-import { panelLabels, rowLabels } from '../labels';
+import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
   dataOf,
   dependencyOf,
+  field,
   list,
+  number,
   panelRead,
   read,
   stateOf,
   text,
+  valueOf,
 } from '../read';
-import { RowList, type ListRow } from '../rows';
+import {
+  RunCard,
+  namedEvidence,
+  stagesFrom,
+  turnsFrom,
+  type RunCardBody,
+  type RunCardEpisode,
+  type RunCardHead,
+} from '../run-card';
+import { evidenceOf } from '../run-evidence';
+import { subjectOf } from '../run-subject';
 import { triggerLabel } from '../run-trigger';
-import { readViewState, type FilterName } from '../url-state';
+import { hrefFor, readViewState, withSelection, type FilterName } from '../url-state';
 
 /**
- * Every run this deployment has recorded, filterable, sortable and shareable.
+ * Every run this deployment has recorded, and one of them open in place.
  *
- * The filters are in the address rather than in component state, the sort is a
- * link rather than a click handler, and the list is windowed — so ten thousand
- * runs cost what ten do, and the view somebody is looking at is a view they can
- * send.
+ * The list was a table of six columns whose rows navigated away. Two things
+ * were wrong with that and both are fixed here. A table's columns are the same
+ * width for every row, so the column carrying what a run was *about* — the only
+ * one anybody scans — was the one that got clipped; a card gives the subject
+ * the line and demotes the identifier to the metadata it is. And a row that
+ * navigates throws the list away, which is exactly what somebody comparing
+ * several runs of one subject cannot afford.
+ *
+ * The open row is in the address, so it survives a reload, can be sent, and is
+ * rendered on the server. Only the open run is read in full: the list read is
+ * one request whatever the page holds, and the detail, the replay, the open
+ * questions and the episode it left in the corpus are four more for the one
+ * run somebody actually asked for.
  */
 
 /** The filters this screen declares, in the order the address writes them. */
@@ -43,18 +63,12 @@ function durationOf(record: unknown): number {
   return Math.max(0, (finished - started) / 1000);
 }
 
-/** `value`, or the sentence that says nothing was recorded. */
-function orNone(value: string, none: string): string {
-  return value === '' ? none : value;
-}
-
 export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, RUN_FILTERS);
+  const init = authorised(credential);
 
-  const runs = await panelRead('/v1/runs', () =>
-    read('/v1/runs', authorised(credential)),
-  );
+  const runs = await panelRead('/v1/runs', () => read('/v1/runs', init));
   const records = list(dataOf(runs), 'runs');
 
   const statuses = [...new Set(records.map((record) => text(record, 'status')))].sort();
@@ -68,53 +82,59 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
     ),
   );
 
-  const sorted = [...filtered].sort((left, right) => {
-    const column = state.sort === '' ? 'started_at' : state.sort;
-    const order =
-      column === 'duration'
-        ? durationOf(left) - durationOf(right)
-        : text(left, column).localeCompare(text(right, column));
-    // Newest first by default: a run list opened cold is a list somebody is
-    // looking at because something just happened.
-    return state.sort === '' ? -order : state.descending ? -order : order;
-  });
+  // Newest first, always. A run list opened cold is a list somebody is looking
+  // at because something just happened, and the sort control the table carried
+  // sorted by fields — status, trigger — nobody ever wanted ordered by.
+  const sorted = [...filtered].sort(
+    (left, right) =>
+      Date.parse(text(right, 'started_at')) - Date.parse(text(left, 'started_at')),
+  );
 
-  const none = message(locale, 'surface.none');
-  const rows: readonly ListRow[] = sorted.map((record) => {
+  // The open run, if the address names one that is actually on this page. A
+  // selection that survived a filter change names a run the reader can no
+  // longer see, and reading it would render a body under no card.
+  const openId =
+    state.selection !== null &&
+    sorted.some((record) => text(record, 'run_id') === state.selection)
+      ? state.selection
+      : null;
+
+  const body = openId === null ? undefined : await openBody(openId, init);
+
+  const cards = sorted.map((record) => {
     const id = text(record, 'run_id');
-    const subject = orNone(readFailure(text(record, 'summary'), locale).title, none);
-    const trigger = text(record, 'trigger');
-    const seconds = durationOf(record);
-    return {
-      id,
-      href: `/runs/${id}`,
-      cells: [
-        // The identity of an investigation is its subject, not the 32-character
-        // hex the deployment happened to assign it. A run that failed because
-        // nothing is configured used to fill this cell with the deployment's own
-        // exception, repeated on every row it happened to; the deployment's
-        // words are still on the run itself, behind the translation.
-        {
-          kind: 'text',
-          text: subject,
-          title: subject,
-        },
-        { kind: 'status', text: text(record, 'status') },
-        { kind: 'text', text: triggerLabel(locale, trigger) },
-        // The id, demoted to metadata. Short enough to be a label rather than a
-        // block of hex nobody can hold in their head, and it is still what
-        // somebody pastes into a support channel.
-        { kind: 'identifier', text: id.slice(0, 8) },
-        {
-          kind: 'muted',
-          text: timestamp(locale, text(record, 'started_at'), now, zone).relative,
-        },
-        {
-          kind: 'numeric',
-          text: seconds === 0 ? none : formatDuration(locale, seconds),
-        },
-      ],
+    const subject = subjectOf(record, locale);
+    const open = id === openId;
+    const head: RunCardHead = {
+      runId: id,
+      subject: subject.text,
+      subjectFull: subject.full,
+      status: text(record, 'status'),
+      trigger: text(record, 'trigger'),
+      startedAt: text(record, 'started_at'),
+      seconds: durationOf(record),
+      evidence: evidenceOf({
+        evidence_assessed: field(record, 'evidence_assessed'),
+        evidence_backed: field(record, 'evidence_backed'),
+        evidence_missing: field(record, 'evidence_missing'),
+      }),
     };
+    return (
+      <RunCard
+        key={id}
+        locale={locale}
+        now={now}
+        zone={zone}
+        head={head}
+        open={open}
+        toggleHref={hrefFor(
+          '/runs',
+          withSelection(state, open ? null : id),
+          RUN_FILTERS,
+        )}
+        {...(open && body !== undefined ? { body } : {})}
+      />
+    );
   });
 
   const filtering = Object.keys(state.filters).length > 0;
@@ -147,7 +167,9 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
 
       <Panel
         title={message(locale, 'runs.list.title')}
-        state={stateOf(runs, rows.length === 0)}
+        titleHidden
+        bare
+        state={stateOf(runs, cards.length === 0)}
         dependency={dependencyOf(runs)}
         labels={panelLabels(locale, message(locale, 'runs.list.title'))}
         empty={
@@ -165,55 +187,120 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
                 href: '/',
               }
         }
-        action={
-          <span className="text-meta text-muted">
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-meta text-muted">
             {message(locale, 'surface.showing', {
-              shown: String(rows.length),
+              shown: String(cards.length),
               total: String(records.length),
             })}
-          </span>
-        }
-      >
-        <RowList
-          path="/runs"
-          state={state}
-          filters={RUN_FILTERS}
-          labels={rowLabels(locale, message(locale, 'runs.list.caption'))}
-          columns={[
-            // Not sortable: the underlying field is the deployment's raw
-            // summary, and sorting by it would order rows by exception text
-            // rather than by the translated subject this column actually shows.
-            { key: 'summary', header: message(locale, 'runs.column.subject') },
-            {
-              key: 'status',
-              header: message(locale, 'runs.column.status'),
-              sortable: true,
-            },
-            {
-              key: 'trigger',
-              header: message(locale, 'runs.column.trigger'),
-              sortable: true,
-            },
-            {
-              key: 'run_id',
-              header: message(locale, 'runs.column.run'),
-              sortable: true,
-            },
-            {
-              key: 'started_at',
-              header: message(locale, 'runs.column.started'),
-              sortable: true,
-            },
-            {
-              key: 'duration',
-              header: message(locale, 'runs.column.duration'),
-              numeric: true,
-              sortable: true,
-            },
-          ]}
-          rows={rows}
-        />
+          </p>
+          {cards}
+        </div>
       </Panel>
     </>
   );
+}
+
+/**
+ * Everything the open card draws, read for that one run.
+ *
+ * Four reads rather than one, and each fails on its own: a replay the
+ * deployment could not rebuild leaves the report and the questions on the
+ * screen, which is a better card than an error where a card was.
+ *
+ * The corpus is asked by run rather than searched and filtered here. The
+ * endpoint is addressed that way precisely so a screen holding a run id does
+ * not have to page a corpus to find the one episode it wants — filtering in
+ * the caller is the same read at the wrong layer, fine at fifty episodes and
+ * wrong at the size that makes a corpus worth keeping.
+ */
+async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> {
+  const bound = { ...init, params: { run_id: runId } };
+  const [detail, replay, interactions, remembered] = await Promise.all([
+    panelRead('/v1/runs/{run_id}', () => read('/v1/runs/{run_id}', bound)),
+    panelRead('/v1/runs/{run_id}/replay', () =>
+      read('/v1/runs/{run_id}/replay', bound),
+    ),
+    panelRead('/v1/investigations/{run_id}/interactions', () =>
+      read('/v1/investigations/{run_id}/interactions', bound),
+    ),
+    panelRead('/v1/memory/episode', () =>
+      read('/v1/memory/episode', {
+        ...init,
+        query: `?run_id=${encodeURIComponent(runId)}`,
+      }),
+    ),
+  ]);
+
+  const run = dataOf(detail);
+  const replayed = dataOf(replay);
+  const turns = turnsFrom(replayed);
+  const assessment = namedEvidence(run);
+
+  // Split by kind rather than lumped, because the two ask for different
+  // things. An approval is an action the run stopped at and a person can
+  // settle by pressing a button; a question wants prose back. The card offers
+  // a control for the first and prints the second.
+  const open = list(dataOf(interactions), 'interactions').filter(
+    (record) => field(record, 'is_open') !== false,
+  );
+
+  const waiting = open
+    .filter((record) => text(record, 'kind') !== 'approval')
+    .map((record) => text(record, 'question') || text(record, 'text'))
+    .filter((question) => question !== '');
+
+  const decisions = open
+    .filter((record) => text(record, 'kind') === 'approval')
+    .map((record) => ({
+      interactionId: text(record, 'interaction_id'),
+      text: text(record, 'question') || text(record, 'text'),
+    }))
+    .filter((decision) => decision.interactionId !== '' && decision.text !== '');
+
+  return {
+    report: text(run, 'report').trim(),
+    headline: text(run, 'headline').trim(),
+    touchedResources: list(run, 'touched_resources').map(String),
+    incidentId: text(run, 'incident_id'),
+    tokens: number(replayed, 'total_tokens'),
+    // Priced only when every turn carried a price. A total that silently
+    // treated an unpriced turn as nothing would be a floor drawn as a total.
+    priced: turns.length > 0 && number(replayed, 'unpriced_turns') === 0,
+    turns,
+    stages: stagesFrom(replayed),
+    calls: turns.reduce((total, turn) => total + turn.calls.length, 0),
+    // Read, not computed. This was `calls * 2 + 1` per turn, which is a guess
+    // at the recorder's shape rather than a count of what it wrote — and it
+    // could not see the events no turn produces, which is every stage boundary,
+    // every guardrail action and every delivery. The trace knows how many
+    // entries its own log holds, so the trace is asked.
+    events: number(replayed, 'total_events'),
+    waiting,
+    decisions,
+    supporting: assessment.supporting,
+    missing: assessment.missing,
+    episode: valueOf(remembered, episodeOf(dataOf(remembered))),
+  };
+}
+
+/**
+ * The episode in a `/v1/memory/episode` body, or nothing when it carries none.
+ *
+ * `null` is the deployment's own answer for a run that wrote no episode — a
+ * conclusion too short to learn from, or a run that failed before reaching
+ * one — and it is answered as a body rather than as a 404 so that this reads
+ * as an ordinary sentence rather than as a refusal. Wrapped in `valueOf` by
+ * the caller, so a read that never came back stays distinguishable from this.
+ */
+function episodeOf(body: unknown): RunCardEpisode | null {
+  const found = field(body, 'episode');
+  if (found === null || found === undefined) return null;
+  return {
+    title: text(found, 'title'),
+    summary: text(found, 'summary'),
+    outcome: text(found, 'outcome'),
+    components: list(found, 'components').map(String),
+  };
 }

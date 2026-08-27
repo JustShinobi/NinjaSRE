@@ -1,11 +1,13 @@
 'use client';
 
+import NextLink from 'next/link';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 import { ProgressBar } from '@/components/feedback';
 import { Badge } from '@/components/status';
 import { cx } from '@/design/cx';
+import type { ColumnWidth } from '@/design/tokens';
 import { ROW_HEIGHT, windowFor } from './window';
 import { hrefFor, withSort, type FilterName, type ViewState } from './url-state';
 
@@ -77,6 +79,18 @@ export interface RowColumn {
   /** Whether this column can be sorted by. A column that cannot says nothing. */
   readonly sortable?: boolean;
   readonly numeric?: boolean;
+  /**
+   * Which of the declared column widths this column takes, by what it holds.
+   * Omitted for the column that carries the row's subject, which then takes
+   * whatever is left.
+   *
+   * The table lays out fixed, so without this every column gets an equal
+   * share of the width. On a Full HD screen that gave a status badge and a
+   * duration four hundred pixels each and truncated the one column that says
+   * what the row is about — the reader's only way of telling two rows apart,
+   * clipped to make room for eight characters of "COMPLETED".
+   */
+  readonly width?: ColumnWidth;
 }
 
 /**
@@ -117,6 +131,22 @@ export interface RowListProps {
   readonly height?: number;
 }
 
+/**
+ * The utility each declared column width is reached by.
+ *
+ * Written out rather than composed from the name, because the class names have
+ * to survive a static scan of this file — a class built at runtime is a class
+ * the stylesheet never generates, and the column silently falls back to an
+ * equal share of the table.
+ */
+const COLUMN_CLASS: Readonly<Record<ColumnWidth, string>> = {
+  word: 'w-column-word',
+  badge: 'w-column-badge',
+  identifier: 'w-column-identifier',
+  instant: 'w-column-instant',
+  measure: 'w-column-measure',
+};
+
 function cellClass(kind: CellKind): string {
   return cx(
     'px-3 truncate',
@@ -139,13 +169,14 @@ function CellValue({ cell }: { readonly cell: Cell }): ReactNode {
 function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
   if (cell.href !== undefined) {
     return (
-      <a
+      <NextLink
         href={cell.href}
+        prefetch={false}
         title={cell.hint}
         className="underline-offset-2 hover:underline"
       >
         <CellValue cell={cell} />
-      </a>
+      </NextLink>
     );
   }
   if (cell.hint !== undefined) {
@@ -219,6 +250,20 @@ export function RowList({
     >
       <table className="w-full text-small table-fixed">
         <caption className="sr-only">{labels.caption}</caption>
+        {/* A column that declares a width gets it; the rest divide the
+            remainder. Declaring every column but the subject's is how the
+            subject ends up with the slack instead of an equal sixth of it. */}
+        <colgroup>
+          {columns.map((column) => (
+            <col
+              key={column.key}
+              data-column={column.key}
+              className={
+                column.width === undefined ? undefined : COLUMN_CLASS[column.width]
+              }
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {columns.map((column) => {
@@ -232,7 +277,15 @@ export function RowList({
                     sorted ? (state.descending ? 'descending' : 'ascending') : 'none'
                   }
                   className={cx(
-                    'text-micro uppercase text-muted edge border-border border-t-0 border-x-0',
+                    'text-micro text-muted edge border-border border-t-0 border-x-0',
+                    // The list windows its rows, so it scrolls inside itself —
+                    // and the headings used to scroll away with them, leaving an
+                    // operator forty rows down reading unlabelled columns. Stuck
+                    // to the cells rather than to `<thead>`, which browsers
+                    // still disagree about, and opaque rather than translucent,
+                    // because rows sliding under a see-through heading are
+                    // harder to read than no heading at all.
+                    'sticky top-0 z-1 bg-raised',
                     // A sortable heading moves the cell's padding onto its own
                     // link, so the padded area is the target rather than the
                     // glyphs. An ordinary heading keeps the spacing every other
@@ -242,8 +295,10 @@ export function RowList({
                   )}
                 >
                   {column.sortable === true ? (
-                    <a
+                    <NextLink
                       href={hrefFor(path, next, filters)}
+                      scroll={false}
+                      prefetch={false}
                       data-testid="sort"
                       data-column={column.key}
                       className={cx(
@@ -273,7 +328,7 @@ export function RowList({
                           column.header,
                         )}
                       </span>
-                    </a>
+                    </NextLink>
                   ) : (
                     column.header
                   )}
@@ -311,12 +366,16 @@ export function RowList({
                     )}
                   >
                     {index === 0 ? (
-                      <a href={row.href} className="flex items-center gap-2 min-w-0">
+                      <NextLink
+                        href={row.href}
+                        prefetch={false}
+                        className="flex items-center gap-2 min-w-0"
+                      >
                         <span className="truncate" title={cell.title}>
                           <CellBody cell={cell} />
                         </span>
                         <span className="sr-only">{labels.open}</span>
-                      </a>
+                      </NextLink>
                     ) : (
                       <CellBody cell={cell} />
                     )}

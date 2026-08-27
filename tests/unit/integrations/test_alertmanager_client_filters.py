@@ -73,3 +73,51 @@ async def test_the_timeline_keeps_the_incident_it_was_given() -> None:
     await _client(transport).incident_timeline(incident='alertname="InstanceDown"')
 
     assert "filter=" in _query(transport.sent[0])
+
+
+# --- A value that is not a matcher ------------------------------------------
+#
+# The two tests above pass matchers already formatted, and the client forwards
+# them correctly. What a real investigation sends is not that. Measured against
+# staging: the agent called the timeline with the deployment's own resource
+# identifier and the statistics with the word "firing", and Alertmanager
+# refused both with `400 bad matcher format`. Four calls out of four.
+#
+# The vendor's grammar is the client's business. An agent that has to know
+# Alertmanager writes matchers as `name="value"` is an agent that will get it
+# wrong, and being told afterwards costs the turn either way.
+
+
+async def test_a_bare_value_becomes_a_matcher_the_vendor_accepts() -> None:
+    transport = _Recording()
+
+    await _client(transport).incident_timeline(incident="CronJobStale")
+
+    query = _query(transport.sent[0])
+    assert "alertname" in query, f"a bare name was forwarded unwrapped: {query}"
+    assert "%3D" in query or "=" in query.partition("filter")[2]
+
+
+async def test_an_identifier_the_vendor_cannot_know_is_not_sent_as_a_matcher() -> None:
+    """Our resource ids mean nothing to Alertmanager, and it says so with a 400.
+
+    Sending one as an ``alertname`` matcher would be just as wrong and would
+    come back empty instead of refused — which is worse, because an empty
+    answer reads as "there is nothing" rather than "you asked wrongly".
+    """
+    transport = _Recording()
+
+    await _client(transport).incident_timeline(incident="res-7a73b8aa1194c1ed14dd87f7e0e80b81")
+
+    assert "filter=" not in _query(transport.sent[0])
+
+
+async def test_a_status_word_narrows_by_the_parameter_that_takes_it() -> None:
+    """Alertmanager expresses status with booleans, never with a matcher."""
+    transport = _Recording()
+
+    await _client(transport).list_incidents(status="firing")
+
+    query = _query(transport.sent[0])
+    assert "filter=" not in query, f"a status word was sent as a matcher: {query}"
+    assert "active=true" in query

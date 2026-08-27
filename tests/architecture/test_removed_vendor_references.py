@@ -268,13 +268,35 @@ def _is_allowed(path: Path) -> bool:
     return any(directory in path.parents for directory in ALLOWED_REFERENCE_DIRECTORIES)
 
 
+def _is_planning_record(relative) -> bool:
+    """Return whether ``relative`` sits in a wave's planning directory.
+
+    Those directories are now committed, which is what makes a control file
+    readable beside the code it measured. They are a record of what was decided
+    at a moment, not a surface anybody reads to learn what this deployment is
+    today — a wave that planned against a catalogue of a different size states
+    that size truthfully about its own moment. Matched by shape, because a list
+    of wave names is out of date the first time nobody remembers to add one.
+    """
+    if relative.as_posix() == "docs/provenance-map.md":
+        # The same kind of record, kept beside the docs rather than in a wave:
+        # it says where each module came from, which is a fact about a moment
+        # and not a claim about what this deployment ships today.
+        return True
+    return any(part == "specs" or re.fullmatch(r"specs_v\d+", part) for part in relative.parts)
+
+
 def _python_files() -> tuple[Path, ...]:
     excluded_top = {".venv", "node_modules", "_research", ".git", ".codegraph"}
     tracked = _tracked_files()
     found: list[Path] = []
     for path in REPO_ROOT.rglob("*.py"):
         relative = path.relative_to(REPO_ROOT)
-        if relative.parts[0] in excluded_top or "__pycache__" in relative.parts:
+        if (
+            relative.parts[0] in excluded_top
+            or "__pycache__" in relative.parts
+            or _is_planning_record(relative)
+        ):
             continue
         if path not in tracked:
             continue
@@ -290,12 +312,17 @@ def _reference_files() -> tuple[Path, ...]:
             if not path.is_file() or path not in tracked:
                 continue
             relative = path.relative_to(REPO_ROOT)
-            if "node_modules" in relative.parts or "_research" in relative.parts:
+            if (
+                "node_modules" in relative.parts
+                or "_research" in relative.parts
+                or _is_planning_record(relative)
+            ):
                 continue
             found.append(path)
     return tuple(found)
 
 
+@pytest.mark.sweep
 def test_no_committed_python_module_imports_a_removed_vendor_package() -> None:
     offenders: dict[str, list[str]] = {}
     for path in _python_files():
@@ -311,6 +338,7 @@ def test_no_committed_python_module_imports_a_removed_vendor_package() -> None:
     )
 
 
+@pytest.mark.sweep
 def test_no_reference_surface_names_a_removed_vendor() -> None:
     offenders: dict[str, list[str]] = {}
     for path in _reference_files():

@@ -21,6 +21,7 @@ from typing import Any, Final
 
 from config.constants.config_service import MODEL_ROLES
 from config.constants.first_run import (
+    LOCAL_ADMIN_SETUP_COMMAND,
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
     SETUP_READINESS_VERIFIED,
@@ -52,6 +53,10 @@ from platform.credentials.schemas import CredentialField
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
 from platform.identity.permissions import Permission, Role, permissions_for
+from platform.persistence.ports.run_trace_store import ToolCallRecord
+from platform.runs.headline import synthesize_headline
+from platform.runs.replay import REPLAY_RESULT_BOUNDS, touched_resources_of
+from platform.runs.truncation import truncate
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -365,7 +370,7 @@ REPLAYED_ACTIONS: Final[tuple[Mapping[str, Any], ...]] = (
 RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     {
         "run_id": "run-0001",
-        "status": "succeeded",
+        "status": "completed",
         "trigger": "alert",
         "started_at": at(days=2, minutes=41),
         "finished_at": at(days=2, minutes=27),
@@ -374,7 +379,7 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
     {
         "run_id": "run-0002",
-        "status": "succeeded",
+        "status": "completed",
         "trigger": "schedule",
         "started_at": at(days=1, hours=3),
         "finished_at": at(days=1, hours=2, minutes=48),
@@ -393,6 +398,13 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0004",
         "status": "failed",
         "trigger": "manual",
+        # Declared rather than synthesised. A run triggered by hand has whatever
+        # objective the operator typed, and this dataset has no such field — so
+        # the synthesiser would fall back to the trigger word and put "manual
+        # investigation" where a sentence belongs, which is the exact shape this
+        # wave spent itself removing from every screen. What a real run of this
+        # kind carries is a sentence a model wrote, so that is what is declared.
+        "headline": "The metrics agent on the primary never answered, so nothing was read",
         "started_at": at(days=3, hours=6),
         "finished_at": at(days=3, hours=5, minutes=51),
         "summary": "The investigation could not reach the metrics agent; it is one of the "
@@ -400,7 +412,11 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
     {
         "run_id": "run-0005",
-        "status": "awaiting_approval",
+        # Paused on a human decision, not finished — the store's own word for
+        # exactly that (`core/agent/session.py::SessionStatus.SUSPENDED`'s own
+        # docstring: "the state a run sits in while a human..."). `finished_at`
+        # stays `None` for the same reason: nothing about this run has ended.
+        "status": "suspended",
         "trigger": "alert",
         "started_at": at(minutes=22),
         "finished_at": None,
@@ -410,9 +426,121 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0006",
         "status": "cancelled",
         "trigger": "manual",
+        "headline": "An operator found the cause by hand and stopped the investigation",
         "started_at": at(days=5, hours=1),
         "finished_at": at(days=5, minutes=58),
         "summary": "Cancelled by the operator after the cause was identified by hand.",
+    },
+    # --- The three cases below reproduce, from fixture, what the running
+    # deployment looked like before and after the console learned to read a
+    # headline. Appended rather than folded into the six above: rewriting an
+    # existing run would move baselines and unit assertions that are not
+    # about this.
+    {
+        "run_id": "run-0101",
+        # The word the persistence store actually serves for an ordinary
+        # finish — the same word every run above now carries too, since the
+        # store never wrote the runtime's own spelling in the first place.
+        "status": "completed",
+        "trigger": "alert",
+        "started_at": at(days=1, hours=6, minutes=10),
+        "finished_at": at(days=1, hours=5, minutes=41),
+        # Explicitly empty, not merely absent: this run is one recorded
+        # before the headline field existed, and an absent key would instead
+        # take `_run_detail` down its *other* branch — synthesising a
+        # generic one from the trigger, which is not what this fixture is
+        # for. The empty string is what a real pre-headline row actually
+        # holds, and it is what makes the console's own fallback the thing
+        # under test here.
+        "headline": "",
+        "summary": (
+            "### Incident Findings & Root Cause Analysis\n"
+            "\n"
+            "The **standby** replica fell behind after a maintenance window "
+            "extended past its usual length, and alerting caught up only once "
+            "the replication lag crossed the paging threshold.\n"
+            "\n"
+            "#### Evidence gathered\n"
+            "\n"
+            "- Replication lag crossed 900s at 05:12, alerting fired at 05:41\n"
+            "- The maintenance window's own log shows it closed 38 minutes late\n"
+            "- No write was lost: the standby caught up on its own within the hour\n"
+            "\n"
+            "| Metric | Before | After |\n"
+            "| --- | --- | --- |\n"
+            "| Replication lag | 940s | 4s |\n"
+            "| Standby state | catching up | in sync |\n"
+            "\n"
+            "```\n"
+            "2026-08-06T05:12:03Z lag_seconds=940 threshold=900 "
+            "replica=pve02-pg-standby-01 window=maintenance-extended-past-schedule\n"
+            "```\n"
+            "\n"
+            "No action is required: the standby is caught up and the "
+            "maintenance window that caused the delay already closed."
+        ),
+    },
+    {
+        "run_id": "run-0102",
+        # Degraded on the runtime's own account — the evidence gathered is
+        # intact and the answer is whatever could be said from it — but the
+        # persistence store has no third word for that nuance at the run's
+        # own status field: `gateway/http/orchestration.py::_drive` writes
+        # `COMPLETED` whether the investigator's own report is confident or
+        # not, so this fixture serves the same word the deployment does. The
+        # degradation is still legible in the summary below, which is where
+        # the store actually carries it.
+        "status": "completed",
+        "trigger": "schedule",
+        "started_at": at(days=6, hours=2),
+        "finished_at": at(days=6, hours=1, minutes=44),
+        # Deliberately over the console's own display limit once flattened,
+        # and carrying emphasis a model's answer would — this is the case
+        # that proves the name is flattened and clipped, not merely shown.
+        "headline": (
+            "The **platform** node's shared connection pool exhausted under "
+            "sustained memory pressure, degrading query latency for every "
+            "service that depends on it, until the leak was found and cleared"
+        ),
+        "summary": (
+            "Memory pressure on the platform node exhausted the shared "
+            "connection pool. The evidence gathered so far points at a slow "
+            "leak in one long-running worker; the investigation could not "
+            "confirm which one before its own budget ran out."
+        ),
+    },
+    {
+        "run_id": "run-0103",
+        "status": "completed",
+        "trigger": "manual",
+        "started_at": at(days=7, hours=3),
+        "finished_at": at(days=7, hours=2, minutes=55),
+        "headline": "A stray log line was mistaken for a live credential",
+        # Hostile on purpose: a raw HTML tag, an image pointing off this
+        # deployment, a link whose scheme is executable, and one unbroken
+        # line wider than the viewport. The report panel has to survive all
+        # four without turning any of them into something the browser acts
+        # on.
+        "summary": (
+            "The alert text embedded a fragment the log line itself had "
+            "printed. Rendered here exactly as recorded, for review:\n"
+            "\n"
+            "<script>alert('not really')</script>\n"
+            "\n"
+            "![a screenshot the investigation was never given]"
+            "(https://attacker.example/track.png)\n"
+            "\n"
+            "[open the dashboard](javascript:alert(document.cookie))\n"
+            "\n"
+            "```\n"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
+            "```\n"
+            "\n"
+            "None of the above was a live credential; the alert source had "
+            "copied a fixture line verbatim into its own payload."
+        ),
     },
 )
 
@@ -600,29 +728,361 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
             ],
         },
     ),
+    # Four calls across two turns — the run the transcript and cost panels
+    # count against. One turn priced, one not: `unpriced_turns` on the
+    # replay this produces is 1, never 0 and never every turn, so both the
+    # "has cost" and the "this one did not price" paths stay exercised.
+    "run-0005": (
+        {
+            "turn_id": "turn-0005-1",
+            "index": 0,
+            "model": "operator-configured",
+            "selection_rationale": "the disabled job's own state names the subject to check first",
+            "prompt_tokens": 612,
+            "completion_tokens": 148,
+            "cost": 0.0091,
+            "calls": [
+                {
+                    "call_id": "call-0005-1",
+                    "name": "estate.backup_job_status",
+                    "status": "succeeded",
+                    "duration_ms": 205,
+                    "error": None,
+                    "arguments": {"resource": "proxmox:container/hal9000/110"},
+                },
+                {
+                    "call_id": "call-0005-2",
+                    "name": "estate.backup_job_status",
+                    "status": "succeeded",
+                    "duration_ms": 179,
+                    "error": None,
+                    "arguments": {"resource_id": "ct-101"},
+                },
+            ],
+        },
+        {
+            "turn_id": "turn-0005-2",
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "both subjects share one disabled job; read the schedule that disabled it",
+            # No "cost" key: the call this turn made is one this dataset has
+            # no real spend figure for, so the turn is left unpriced rather
+            # than given an invented one.
+            "calls": [
+                {
+                    "call_id": "call-0005-3",
+                    "name": "knowledge.search",
+                    "status": "succeeded",
+                    "duration_ms": 91,
+                    "error": None,
+                },
+                {
+                    "call_id": "call-0005-4",
+                    "name": "estate.backup_schedule",
+                    "status": "succeeded",
+                    "duration_ms": 133,
+                    "error": None,
+                    "arguments": {"resource": "proxmox:container/hal9000/110"},
+                },
+            ],
+        },
+    ),
 }
 
 
-def runs_records() -> tuple[CapturedRecord, ...]:
+#: What each run's stages established, in the order the pipeline runs them.
+#:
+#: Declared rather than derived, for the same reason the turns above are. A
+#: stage's finding is what that stage's own slice said, and a fixture that
+#: computed one from the turn list would be inventing the answer for the four
+#: stages that produce no turn at all — which is the whole reason a stage is
+#: recorded separately.
+#:
+#: ``llm_calls`` is structural and so is stated: intake classifies on one model
+#: call and diagnosis structures on one, whatever the run. The token counts are
+#: not structural, and this dataset has no real spend figures for them, so they
+#: are absent rather than filled with plausible numbers — the same rule the
+#: unpriced turn below already follows.
+#:
+#: ``run-0003`` is still gathering, so its trace holds the three stages that
+#: finished and no fourth. A stage record is written when a stage *ends*; a
+#: fixture that listed a fourth would be claiming a stage completed because it
+#: was seen to start, which is exactly what the recorder refuses to do.
+_STAGES: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
+    "run-0001": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 180,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_410,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "4 capabilities shortlisted, best first",
+            "duration_ms": 60,
+        },
+        {
+            "stage": "gather_evidence",
+            "finding": "3 observations gathered",
+            "duration_ms": 27_900,
+        },
+        {
+            "stage": "diagnose",
+            "finding": "3 of 3 claims tied to an observation the run holds",
+            "duration_ms": 4_120,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "deliver",
+            "finding": (
+                "No destination is configured for this team, so the report was produced "
+                "and not shipped. It is in the investigation record."
+            ),
+            "duration_ms": 300,
+        },
+    ),
+    "run-0003": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 175,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_260,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "3 capabilities shortlisted, best first",
+            "duration_ms": 55,
+        },
+    ),
+    "run-0005": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 168,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_330,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "2 capabilities shortlisted, best first",
+            "duration_ms": 48,
+        },
+        {
+            "stage": "gather_evidence",
+            "finding": "2 observations gathered",
+            "duration_ms": 11_400,
+            "prompt_tokens": 612,
+            "completion_tokens": 148,
+            "llm_calls": 2,
+        },
+    ),
+}
+
+#: Which of the six stages a turn ran inside. Every turn this dataset holds was
+#: written by the loop, and the loop is what the gathering stage drives — so all
+#: of them belong to that one stage, which is the fact that makes the other five
+#: sections worth serving at all.
+_TURN_STAGE: Final[str] = "gather_evidence"
+
+
+def _run_calls(run_id: str) -> tuple[ToolCallRecord, ...]:
+    """Return every call ``run_id`` made, in the shape ``touched_resources_of`` reads.
+
+    ``ToolCallRecord.arguments`` is the whole recorded call body — the same
+    ``arguments``/``result`` envelope a call in ``_TURNS`` is already written
+    in — so this wraps what is already there rather than reshaping it.
+    """
+    return tuple(
+        ToolCallRecord(
+            call_id=str(call["call_id"]),
+            run_id=run_id,
+            turn_id=str(turn["turn_id"]),
+            tool_name=str(call["name"]),
+            arguments=call,
+        )
+        for turn in _TURNS.get(run_id, ())
+        for call in turn.get("calls", ())
+    )
+
+
+def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> dict[str, Any]:
+    """Return ``run`` in the shape the console's investigation summary answers in.
+
+    Field for field what ``gateway.http.routes.investigations.summary_of`` and
+    ``linked_summary`` compute from a stored run — imported rather than
+    reimplemented, so a headline synthesised here and one a live deployment
+    synthesises are never two different sentences for the same run:
+
+    - ``headline`` is synthesised the same way a stored run with none gets
+      one — never read from ``summary``, which is the document it has to
+      stay distinct from — **unless** ``run`` already names an explicit
+      ``headline`` (including ``""``). A raw run entry that sets the key
+      itself is standing in for a real model-produced sentence, or for a run
+      recorded before this field existed at all; either way, the fixture is
+      declaring the fact rather than asking this function to invent one.
+    - ``report`` is that document, unaltered.
+    - ``touched_resources`` comes from what this run's own calls were
+      actually made with, never from a declared subject.
+    - ``incident_id`` is read back from the same incident this run is
+      attached to in the estate half of this dataset — the one place that
+      link is recorded — never invented here.
+    """
+    identifier = str(run["run_id"])
+    trigger = str(run.get("trigger") or "")
+    objective = f"{trigger} investigation" if trigger else ""
+    headline = (
+        str(run["headline"]) if "headline" in run else synthesize_headline(objective=objective)
+    )
+    return {
+        **run,
+        "headline": headline,
+        "report": str(run.get("summary") or ""),
+        "incident_id": incident_by_run.get(identifier, ""),
+        "touched_resources": list(touched_resources_of(_run_calls(identifier))),
+    }
+
+
+def _replay_call(call: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one call in the shape the replay route serves it.
+
+    The result goes through the reading bound the route applies, rather than
+    being copied out of ``_TURNS`` whole: a fixture that promised a console a
+    payload a deployment would have cut is a fixture the screen built against
+    it fails on in production. ``result`` and ``result_truncated`` are present
+    on every call for the same reason the route sets them on every call — a
+    capability that returned nothing and one whose answer was dropped are
+    different facts, and both have to be sayable.
+    """
+    served, removal = truncate(dict(call.get("result") or {}), bounds=REPLAY_RESULT_BOUNDS)
+    return {**call, "result": served, "result_truncated": removal.happened}
+
+
+def _replay_turn(turn: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one turn with its calls in the shape the replay route serves them."""
+    return {**turn, "calls": [_replay_call(call) for call in turn.get("calls", ())]}
+
+
+def _replay_stage(stage: Mapping[str, Any], turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Return one stage in the shape the replay route serves it.
+
+    Every key the route's own model declares is present, defaulted the way the
+    route defaults it. A fixture that omitted ``llm_calls`` on the four stages
+    that never turn would leave a console unable to tell a stage that made a
+    model call and produced no turn from one that did nothing at all — which is
+    the distinction the whole grouping rests on.
+    """
+    gathered = stage["stage"] == _TURN_STAGE
+    return {
+        "stage": str(stage["stage"]),
+        "finding": str(stage.get("finding", "")),
+        "duration_ms": int(stage.get("duration_ms", 0)),
+        "prompt_tokens": int(stage.get("prompt_tokens", 0)),
+        "completion_tokens": int(stage.get("completion_tokens", 0)),
+        "llm_calls": int(stage.get("llm_calls", 0)),
+        "failed": bool(stage.get("failed", False)),
+        "turns": [_replay_turn(turn) for turn in turns] if gathered else [],
+    }
+
+
+def _recorded_events(
+    turns: Sequence[Mapping[str, Any]],
+    stages: Sequence[Mapping[str, Any]],
+    *,
+    finished: bool,
+) -> int:
+    """Return how many entries this run's own event log holds.
+
+    Enumerated from the records the fixture declares, never a formula over the
+    turn count. The recorder writes exactly one event per turn, one per call,
+    one per stage that ended, one when the run starts and one when it ends — so
+    counting the declared records *is* reading the log, while multiplying turns
+    by a constant is guessing at a shape and is what the console was doing
+    before the count was served.
+    """
+    calls = sum(len(turn.get("calls", ())) for turn in turns)
+    return 1 + len(stages) + len(turns) + calls + (1 if finished else 0)
+
+
+def _turn_usage(turn: Mapping[str, Any]) -> tuple[float, int, bool]:
+    """Return ``(cost, tokens, priced)`` for one turn, from what it recorded.
+
+    ``priced`` is ``False`` exactly when the turn carries no ``cost`` at
+    all — the same distinction ``platform.runs.recorder.record_turn`` marks
+    by omitting the key, and the one ``ReplayedRun.unpriced_turn_count``
+    counts on the real replay path. A turn with no cost contributes zero to
+    the running total rather than a guess, which is what keeps the sum
+    honest for a run whose calls this dataset does not have real spend
+    figures for.
+    """
+    if "cost" not in turn:
+        return 0.0, 0, False
+    tokens = int(turn.get("prompt_tokens", 0)) + int(turn.get("completion_tokens", 0))
+    return float(turn["cost"]), tokens, True
+
+
+def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[CapturedRecord, ...]:
     """Return the run list, each run's detail, its transcript and its replay."""
-    records: list[CapturedRecord] = [_record("runs", {}, {"runs": list(RUNS)})]
-    for run in RUNS:
+    linked = incident_by_run or {}
+    details = tuple(_run_detail(run, linked) for run in RUNS)
+    records: list[CapturedRecord] = [_record("runs", {}, {"runs": list(details)})]
+    for run, detail in zip(RUNS, details):
         identifier = str(run["run_id"])
-        records.append(_record("run-detail", {"run_id": identifier}, dict(run)))
+        records.append(_record("run-detail", {"run_id": identifier}, detail))
         turns = list(_TURNS.get(identifier, ()))
         records.append(
             _record("run-threads", {"run_id": identifier}, {"run_id": identifier, "turns": turns})
         )
+        # Summed from what each turn actually carries — never a formula over
+        # the turn count — so a run with no real spend recorded reports zero
+        # rather than a plausible-looking number nothing backs. A turn that
+        # never priced itself (still running, or a call this dataset has no
+        # real figure for) is counted in ``unpriced_turns`` instead of
+        # silently contributing to the total.
+        usages = [_turn_usage(turn) for turn in turns]
+        stages = list(_STAGES.get(identifier, ()))
+        turn_tokens = sum(tokens for _, tokens, _ in usages)
         records.append(
             _record(
                 "run-replay",
                 {"run_id": identifier},
                 {
                     "run_id": identifier,
-                    "turns": turns,
-                    "total_cost": round(0.031 * (len(turns) + 1), 4),
-                    "total_tokens": 1840 * (len(turns) + 1),
+                    "turns": [_replay_turn(turn) for turn in turns],
+                    "stages": [_replay_stage(stage, turns) for stage in stages],
+                    "total_cost": round(sum(cost for cost, _, _ in usages), 4),
+                    # Summed over the stages when the run recorded any, which is
+                    # what the route does and for the same reason: only the
+                    # gathering stage produces turns, so a turn-only total omits
+                    # every model call the other five made.
+                    "total_tokens": (
+                        sum(
+                            int(stage.get("prompt_tokens", 0))
+                            + int(stage.get("completion_tokens", 0))
+                            for stage in stages
+                        )
+                        if stages
+                        else turn_tokens
+                    ),
+                    "turn_tokens": turn_tokens,
+                    "total_events": _recorded_events(
+                        turns, stages, finished=run.get("finished_at") is not None
+                    ),
                     "is_interrupted": run["status"] == "cancelled",
+                    "unpriced_turns": sum(1 for _, _, priced in usages if not priced),
                 },
             )
         )
@@ -1775,6 +2235,7 @@ def _catalogue_integration_record(entry: CatalogueEntry) -> dict[str, Any]:
                 strict=True,
             )
         ),
+        "where_to_get_it": entry.profile.where_to_get_it,
     }
 
 
@@ -2003,7 +2464,40 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                 ],
             },
         ),
+        *_integration_docs_records(),
     )
+
+
+def _integration_docs_records() -> tuple[CapturedRecord, ...]:
+    """Return one record per real, installed vendor's own package documentation.
+
+    Read the same way the gateway route reads it — the parity report's own
+    resolved path, never a path composed from the vendor name — so the mock
+    plane and a real deployment answer the documentation route identically.
+    A vendor whose parity report resolved no docs.md path answers unreadable,
+    the same distinction the real route holds between "no such vendor" (a 404
+    this endpoint's declaration itself already produces for an unknown name)
+    and "this deployment's own build did not carry the file".
+    """
+    records: list[CapturedRecord] = []
+    for entry in integration_catalogue():
+        docs_path = entry.parity.docs_path
+        if docs_path is None:
+            body: dict[str, Any] = {
+                "name": entry.name,
+                "display_name": entry.display_name,
+                "markdown": "",
+                "readable": False,
+            }
+        else:
+            body = {
+                "name": entry.name,
+                "display_name": entry.display_name,
+                "markdown": docs_path.read_text(encoding="utf-8"),
+                "readable": True,
+            }
+        records.append(_record("integration-docs", {"name": entry.name}, body))
+    return tuple(records)
 
 
 # --- Setting the deployment up -------------------------------------------------------
@@ -2037,12 +2531,23 @@ def provider_records(
 
     def listing(onboarding: ProviderOnboarding) -> dict[str, Any]:
         present = onboarding.provider_id in stored
+        verified = onboarding.provider_id in answered
         return {
             "provider_id": onboarding.provider_id,
             "display_name": onboarding.display_name,
             "local": onboarding.local,
             "configured": present,
-            "verified": onboarding.provider_id in answered,
+            "verified": verified,
+            # No scenario here represents a check that failed rather than
+            # never having run — a real gap in coverage, not a value
+            # fabricated to fill it.
+            "readiness": (
+                SETUP_READINESS_VERIFIED
+                if verified
+                else SETUP_READINESS_CONFIGURED
+                if present
+                else SETUP_READINESS_ABSENT
+            ),
             "default_model": onboarding.default_model,
             "detail": (
                 "a live request reached this endpoint"
@@ -2563,6 +3068,27 @@ def empty_transit_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+def local_administrator_record(*, unclaimed: bool = False) -> CapturedRecord:
+    """Return the ternary fact the sign-in and first-run screens read.
+
+    Mirrors the gateway's own ``LocalAdministratorAvailabilityView``:
+    ``unclaimed`` for a deployment nobody has opened local sign-in on yet
+    (with the CLI invitation attached, the same constant the boot
+    announcement prints), ``administered`` for one that already has an
+    owner — from the environment or a deliberate enrolment, this dataset
+    does not distinguish which. No scenario this module builds configures
+    an identity provider, so the gateway's third state is never returned
+    here.
+    """
+    if unclaimed:
+        return _record(
+            "local-administrator",
+            {},
+            {"state": "unclaimed", "command": LOCAL_ADMIN_SETUP_COMMAND},
+        )
+    return _record("local-administrator", {}, {"state": "administered", "command": ""})
+
+
 def setup_records() -> tuple[CapturedRecord, ...]:
     """Return what the full deployment says about its own setup: finished."""
     return (
@@ -2579,6 +3105,10 @@ def setup_records() -> tuple[CapturedRecord, ...]:
             investigated=True,
             integrations=_INTEGRATION_READINESS,
         ),
+        # This deployment already has an owner — the whole rest of this
+        # dataset is one operating mid-flight, and only `first_run_records`
+        # patches this back to `unclaimed`.
+        local_administrator_record(),
     )
 
 
@@ -3076,11 +3606,13 @@ def agent_records() -> tuple[CapturedRecord, ...]:
     return tuple(records)
 
 
-def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
+def served_records(
+    *, role: str = "owner", incident_by_run: Mapping[str, str] | None = None
+) -> tuple[CapturedRecord, ...]:
     """Return every record the gateway half of the dataset holds."""
     return (
         *agent_records(),
-        *runs_records(),
+        *runs_records(incident_by_run=incident_by_run),
         *interaction_records(),
         *proposal_records(),
         *memory_records(),
@@ -3124,6 +3656,7 @@ __all__ = [
     "role_records",
     "integration_records",
     "interaction_records",
+    "local_administrator_record",
     "proposal_records",
     "memory_records",
     "platform_records",

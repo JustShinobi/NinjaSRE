@@ -181,10 +181,28 @@ def _with_investigator_on_gemini(record: CapturedRecord) -> CapturedRecord:
     return record.with_body(body)
 
 
+def _incident_by_run(estate_records: Sequence[CapturedRecord]) -> dict[str, str]:
+    """Return the incident each run is attached to, by run id.
+
+    Read from the "incidents" record the estate half already serves — the
+    only place this dataset states which incident a run belongs to — never
+    recomputed or duplicated here.
+    """
+    for record in estate_records:
+        if record.slug == "incidents":
+            return {
+                str(incident["run_id"]): str(incident["incident_id"])
+                for incident in record.body["incidents"]
+                if incident.get("run_id")
+            }
+    return {}
+
+
 def populated_records() -> tuple[CapturedRecord, ...]:
     """Return every record of the full deployment, both halves, before the pipeline."""
     reading = profile.cluster_reading()
-    base = served.served_records(role="owner")
+    estate_records = estate(reading)
+    base = served.served_records(role="owner", incident_by_run=_incident_by_run(estate_records))
     # The organisation root's own effective configuration, overlaid rather than
     # duplicated: `served.config_records()` already emits exactly one record
     # for this `(slug, node_id)` pair, and a second one under the same key
@@ -216,7 +234,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
     )
     return (
         *records,
-        *estate(reading),
+        *estate_records,
         *project(reading),
         *stream_records(),
         *_write_responses(),
@@ -250,6 +268,10 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "impersonating": False,
             "impersonated_by": None,
         },
+        # This principal already signed in as the owner — an empty deployment
+        # is dataless, not unclaimed. `first_run_records` is the one scenario
+        # that patches this back to `unclaimed`.
+        "local-administrator": {"state": "administered", "command": ""},
         "runs": {"runs": []},
         "approvals": {"approvals": []},
         "proposals": {
@@ -571,6 +593,10 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                 ("proxmox", SETUP_READINESS_VERIFIED),
             ),
         ).body,
+        # The one scenario this dataset builds where nobody has opened local
+        # sign-in yet — the sign-in and first-run screens' own "no
+        # administrator" notice has nothing to render against otherwise.
+        "local-administrator": served.local_administrator_record(unclaimed=True).body,
     }
     return tuple(
         record.with_body(replacements[record.slug]) if record.slug in replacements else record

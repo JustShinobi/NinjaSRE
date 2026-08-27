@@ -49,6 +49,18 @@ MAX_SKILL_BODY_TOKENS: Final[int] = 4_000
 #: payload is carrying prose that belongs in the skill body.
 MAX_TOOL_DESCRIPTION_TOKENS: Final[int] = 192
 
+#: How much of a failed capability's own error text reaches the model and the
+#: console, in characters.
+#:
+#: The message used to carry the exception's class name and nothing else, so a
+#: reader looking at an incident card saw the word "ValueError". Carrying the
+#: text instead means carrying whatever a vendor put in it, and a gateway
+#: having a bad day answers with a page of HTML — which would arrive in the
+#: turn's context at the moment the investigation can least afford it. The
+#: whole of it is still kept in the result's ``detail``, which the trace holds
+#: and nothing sends to a model.
+MAX_CAPABILITY_ERROR_MESSAGE_CHARS: Final[int] = 300
+
 # --- Discovery ---------------------------------------------------------------
 
 #: The manifest that makes a directory a skill. Its presence is the whole of the
@@ -86,10 +98,29 @@ SECONDARY_EVIDENCE_SOURCES: Final[frozenset[str]] = frozenset(
 
 # --- Scoring weights ---------------------------------------------------------
 
-#: The alert names its own source, and a capability that reads that source is
-#: almost always relevant. This is the strongest signal that does not come from
-#: the planner.
-SCORE_ALERT_SOURCE_MATCH: Final[float] = 40.0
+#: The vendor that holds the thing the incident is about. Alert resolution has
+#: already matched the alert onto an estate resource by the time capabilities
+#: are ranked, and that resource says which system holds it — so this is known
+#: before the first model call, like everything else in the formula.
+#:
+#: It is the strongest signal that does not come from the planner, and it
+#: outweighs the alert source deliberately. A backup job failing on a Proxmox
+#: node is a question about Proxmox; the notification about it happens to have
+#: arrived through Alertmanager, and that is a fact about delivery rather than
+#: about what broke.
+SCORE_SUBJECT_SOURCE_MATCH: Final[float] = 40.0
+
+#: The alert names its own source, and a capability that reads that source can
+#: say more about the notification — when it started, how often it has fired,
+#: what else fired with it.
+#:
+#: Worth a term and not worth the largest one. This weight was 40, equal to a
+#: subject match and larger than every other signal put together, and a
+#: deployment whose alerts all arrive through one system therefore ranked that
+#: system's tools first for every incident it ever had. An investigation that
+#: spends its budget reading the alerting system about an alert it was handed
+#: learns nothing it did not start with.
+SCORE_ALERT_SOURCE_MATCH: Final[float] = 10.0
 
 #: A capability whose declared domain matches the incident's.
 SCORE_DOMAIN_MATCH: Final[float] = 15.0
@@ -155,6 +186,7 @@ __all__ = [
     "CAPABILITY_SKILLS_PACKAGE",
     "CAPABILITY_TOOLS_PACKAGE",
     "INTEGRATION_TOOLS_SUBPACKAGE",
+    "MAX_CAPABILITY_ERROR_MESSAGE_CHARS",
     "MAX_CATALOGUE_METADATA_TOKENS",
     "MAX_SELECTED_SKILLS",
     "MAX_SKILL_BODY_TOKENS",
@@ -165,6 +197,7 @@ __all__ = [
     "SCORE_DOMAIN_MATCH",
     "SCORE_EFFECTIVENESS_MAX",
     "SCORE_MINIMUM_TERM_LENGTH",
+    "SCORE_SUBJECT_SOURCE_MATCH",
     "SCORE_STOP_WORDS",
     "SCORE_TAG_OVERLAP_MAX",
     "SCORE_TAG_OVERLAP_PER_TAG",

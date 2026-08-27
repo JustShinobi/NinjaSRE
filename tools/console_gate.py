@@ -23,6 +23,7 @@ Three things are never skipped, whatever the environment:
 Usage::
 
     python -m tools.console_gate all
+    python -m tools.console_gate static
     python -m tools.console_gate typecheck
 
 Exits 0 when the requested checks passed or were skipped by policy, 1 when one
@@ -33,11 +34,12 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import json
 import os
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -83,7 +85,8 @@ SCRIPTED: Final[tuple[Check, ...]] = (
     Check("build", "build", "the production build"),
 )
 
-#: Every check name ``all`` runs, in order.
+#: Every check name ``all`` runs, in order. The browser checks stay here so the
+#: complete gate and the dedicated targets retain their full coverage.
 ORDER: Final[tuple[str, ...]] = (
     "lockfile",
     "format-check",
@@ -92,9 +95,15 @@ ORDER: Final[tuple[str, ...]] = (
     "test",
     "client-check",
     "build",
+    "dynamic-routes",
     "budget",
     "e2e",
     "visual",
+)
+
+#: The checks ``make verify`` runs for the console: everything except browsers.
+STATIC_ORDER: Final[tuple[str, ...]] = tuple(
+    check for check in ORDER if check not in {"e2e", "visual"}
 )
 
 
@@ -250,6 +259,96 @@ def client_check(toolchain: Toolchain) -> int:
     )
 
 
+#: The route group every screen this gate holds to this rule lives under.
+#: A parenthesised segment of Next.js's own file-system routing — it groups
+#: files without becoming part of the URL, which is why it disappears in
+#: `_route_from_page` along with any other segment shaped like it.
+_SHELL_GROUP: Final = "(shell)"
+
+
+def _route_from_page(app_root: Path, page: Path) -> str:
+    """Return the URL path ``page`` (an ``app/**/page.tsx``) serves.
+
+    Follows Next.js's own file-system routing: a parenthesised segment is a
+    route group and contributes nothing to the URL, a bracketed segment is a
+    dynamic parameter and keeps its own spelling — the same spelling the
+    build's prerender manifest uses for a route it did generate statically,
+    which is what lets the two be compared directly.
+    """
+    segments = [
+        part
+        for part in page.relative_to(app_root).parent.parts
+        if not (part.startswith("(") and part.endswith(")"))
+    ]
+    return "/" + "/".join(segments) if segments else "/"
+
+
+def _shell_routes(console: Path) -> tuple[str, ...]:
+    """Return every route this deployment serves under the shell, sorted.
+
+    Read from the file system rather than from ``shell/routes.ts``: that
+    document names the areas a viewer may navigate to, not the full set of
+    pages Next.js compiles — a detail route reached only by an address typed
+    or followed, never listed in the navigation, is served under the shell
+    just the same and belongs in this count.
+    """
+    app_root = console / "src" / "app"
+    shell_root = app_root / _SHELL_GROUP
+    if not shell_root.is_dir():
+        return ()
+    return tuple(sorted(_route_from_page(app_root, page) for page in shell_root.rglob("page.tsx")))
+
+
+def _prerendered_paths(next_dir: Path) -> frozenset[str]:
+    """Return every route the build's own manifest says it generated ahead of a request.
+
+    ``routes`` is what was rendered to static HTML at build time; ``dynamicRoutes``
+    is a route with pre-computed parameters and an ISR fallback, which is
+    prerendering just the same for the params it covers. Neither is asserted
+    about by name here — this reads Next.js's own file, whatever shape a
+    future version gives it, and reports nothing when there is no build to read.
+    """
+    manifest = next_dir / "prerender-manifest.json"
+    if not manifest.is_file():
+        return frozenset()
+    document = json.loads(manifest.read_text(encoding="utf-8"))
+    return frozenset({*document.get("routes", {}), *document.get("dynamicRoutes", {})})
+
+
+def _violations(shell_routes: Iterable[str], prerendered: frozenset[str]) -> tuple[str, ...]:
+    return tuple(sorted(route for route in shell_routes if route in prerendered))
+
+
+def dynamic_routes(console: Path | None = None) -> int:
+    """Fail when a route under the shell is listed as prerendered in the build's own manifest.
+
+    Pendant on the build rather than a standalone check: it reads
+    ``.next/prerender-manifest.json``, which only exists once the production
+    build has run, and reports the same policy-bound skip the two other
+    build-dependent checks (``budget``, ``e2e``) already use when there is
+    nothing to read yet — never a silent pass.
+
+    A route this deployment serves per request has no entry in the manifest
+    at all. One that does is being served from HTML computed once at build
+    time, however it got there — inheritance from a layout that stopped
+    applying, a route added without its own declaration, or a reversion —
+    and this is what catches that regardless of the mechanism.
+    """
+    root = console if console is not None else console_root()
+    next_dir = root / ".next"
+    if not (next_dir / "prerender-manifest.json").is_file():
+        return _skip("there is no console build to check — the build check runs first")
+
+    violations = _violations(_shell_routes(root), _prerendered_paths(next_dir))
+    if violations:
+        return _fail(
+            "dynamic-routes",
+            f"prerendered in the production build, per {next_dir / 'prerender-manifest.json'}: "
+            f"{', '.join(violations)}",
+        )
+    return 0
+
+
 def _module(name: str, arguments: Sequence[str]) -> int:
     """Run one of this repository's own modules and return its exit status."""
     finished = subprocess.run(
@@ -326,6 +425,8 @@ def one(name: str) -> int:
         return lockfile(toolchain)
     if name == "client-check":
         return client_check(toolchain)
+    if name == "dynamic-routes":
+        return dynamic_routes()
     if name == "budget":
         return budget()
     if name == "e2e":
@@ -334,6 +435,20 @@ def one(name: str) -> int:
         if check.name == name:
             return scripted(check, toolchain)
     raise SystemExit(f"console gate: {name} is not a check")
+
+
+def _run_checks(names: Iterable[str]) -> int:
+    """Run checks in ``names``, stopping at the first failure."""
+    for name in names:
+        status = one(name)
+        if status != 0:
+            return status
+    return 0
+
+
+def static() -> int:
+    """Run the console checks that do not drive a browser."""
+    return _run_checks(STATIC_ORDER)
 
 
 def every() -> int:
@@ -355,18 +470,18 @@ def every() -> int:
             file=sys.stderr,
         )
 
-    for name in names:
-        status = one(name)
-        if status != 0:
-            return status
-    return 0
+    return _run_checks(names)
 
 
 def _main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="console_gate", description=__doc__)
-    parser.add_argument("check", choices=("all", *ORDER))
+    parser.add_argument("check", choices=("all", "static", *ORDER))
     arguments = parser.parse_args(argv)
-    return every() if arguments.check == "all" else one(arguments.check)
+    if arguments.check == "all":
+        return every()
+    if arguments.check == "static":
+        return static()
+    return one(arguments.check)
 
 
 if __name__ == "__main__":

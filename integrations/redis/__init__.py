@@ -36,6 +36,10 @@ PROFILE: Final = IntegrationProfile(
     display_name="Redis",
     category=IntegrationCategory.DATABASE,
     summary="The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer.",
+    where_to_get_it=(
+        "Redis Cloud → Access Management → API Keys issues the account key and its "
+        "paired secret key together."
+    ),
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,

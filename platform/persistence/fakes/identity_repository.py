@@ -10,6 +10,7 @@ from platform.persistence.errors import DuplicateRecord, RecordNotFound
 from platform.persistence.fakes.state import State, TenantState
 from platform.persistence.ports.identity_repository import (
     ApiToken,
+    LocalSignInOpening,
     RoleBinding,
     TokenLocation,
     TokenResolution,
@@ -29,7 +30,14 @@ class FakeIdentityRepository:
         return self.state.users.get(user_id)
 
     async def find_user_by_email(self, email: str) -> User | None:
-        """Return the user with ``email``, or ``None``."""
+        """Return the user with ``email``, or ``None``.
+
+        An empty ``email`` never matches: it is not a value anybody entered,
+        it is the absence of one, and any number of principals can share it
+        without being "found" by a search for nothing.
+        """
+        if not email:
+            return None
         wanted = email.casefold()
         return next((u for u in self.state.users.values() if u.email.casefold() == wanted), None)
 
@@ -48,13 +56,51 @@ class FakeIdentityRepository:
         free by never assigning that column here. Only ``set_local_password``
         writes it, so a caller updating a display name or a status cannot
         clear a person's password by constructing a bare ``User``.
+
+        Raises ``DuplicateRecord`` when ``user.email`` is non-empty and
+        another principal already holds it, compared case-insensitively —
+        mirroring the unique index the Postgres backend enforces, so the two
+        backends refuse the same collision rather than one of them silently
+        allowing it.
         """
+        if user.email:
+            folded = user.email.casefold()
+            clash = next(
+                (
+                    other
+                    for other in self.state.users.values()
+                    if other.user_id != user.user_id and other.email.casefold() == folded
+                ),
+                None,
+            )
+            if clash is not None:
+                raise DuplicateRecord(kind="user", identifier=user.email)
         existing = self.state.users.get(user.user_id)
         stored = user if user.created_at is not None else replace(user, created_at=_now())
         if existing is not None:
             stored = replace(stored, local_password_hash=existing.local_password_hash)
         self.state.users[user.user_id] = stored
         return stored
+
+    async def local_sign_in_opening(self) -> LocalSignInOpening | None:
+        """Return this deployment's opening record, or ``None`` if it has never opened."""
+        return self.state.local_sign_in_opening
+
+    async def open_local_sign_in(
+        self, *, opened_at: datetime, opened_via: str
+    ) -> LocalSignInOpening:
+        """Record that the local sign-in door has been opened, once.
+
+        A single Python process holding the GIL is its own exclusion: there
+        is no window between the check and the write for a second caller to
+        land in, which is what makes this the fake's whole implementation of
+        the arbiter the Postgres backend needs an advisory lock for.
+        """
+        if self.state.local_sign_in_opening is not None:
+            raise DuplicateRecord(kind="local sign-in opening", identifier=self.org_id)
+        opening = LocalSignInOpening(opened_at=opened_at, opened_via=opened_via)
+        self.state.local_sign_in_opening = opening
+        return opening
 
     async def list_users(self) -> tuple[User, ...]:
         """Return every user in this tenant, ordered by email."""

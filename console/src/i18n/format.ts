@@ -162,3 +162,31 @@ export function timestamp(
     iso: parsed.toISOString(),
   };
 }
+
+/**
+ * An internal identifier, rendered as something a person reads.
+ *
+ * `resolve_integrations` becomes "Resolve integrations". The console's own
+ * dashboard writes every label in words, and the agent's topology was setting
+ * pipeline identifiers at twenty-two pixels as though they were headings — the
+ * same product speaking two vocabularies, with the louder one being the
+ * variable name.
+ *
+ * This never replaces the identifier. A stage's name is what a log line and a
+ * configuration key are spelled as, so a screen that showed only the readable
+ * form would make the two impossible to connect. The identifier keeps its
+ * place beside the name, in the monospaced face, at the size of a reference.
+ *
+ * Deliberately not translated. It is a rendering of a string the deployment
+ * chose, not a term this console has a word for, and a catalogue entry per
+ * identifier would be a catalogue that goes stale the first time a stage is
+ * added.
+ */
+export function humaniseIdentifier(identifier: string): string {
+  const words = identifier
+    .trim()
+    .replaceAll(/[_.\-]+/gu, ' ')
+    .trim();
+  if (words === '') return '';
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

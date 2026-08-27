@@ -120,6 +120,11 @@ class IncidentSignals:
     tags: tuple[str, ...] = ()
     domain: str = ""
     planned_capabilities: tuple[str, ...] = ()
+    #: Which systems hold what the incident is about, as the estate names them.
+    #: Available before the first model call for the same reason everything else
+    #: here is: alert resolution ran at intake, and it wrote down which resource
+    #: the alert matched and therefore which vendor holds it.
+    subject_sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -43,8 +43,16 @@ from config.constants.runs import (
     RUN_METADATA_PRINCIPAL,
     RUN_METADATA_SUBAGENT,
     RUN_METADATA_TEAM,
+    STAGE_DETAIL_COMPLETION_TOKENS,
+    STAGE_DETAIL_FINDING,
+    STAGE_DETAIL_LLM_CALLS,
+    STAGE_DETAIL_PROMPT_TOKENS,
+    STAGE_EVENT_DURATION_MS,
+    STAGE_EVENT_FAILED,
+    STAGE_EVENT_NAME,
     TRIGGER_SUBAGENT,
     TURN_PAYLOAD_CAPABILITIES,
+    TURN_PAYLOAD_MODEL_RATIONALE,
     TURN_PAYLOAD_RATIONALE,
     TURN_USAGE_COMPLETION_TOKENS,
     TURN_USAGE_COST,
@@ -100,9 +108,16 @@ class RecordedTurn:
     model: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    cost: float = 0.0
+    #: ``None`` when the provider publishes no price for this model — never a
+    #: stand-in zero. A turn that cost nothing to run does not exist; a turn
+    #: nobody can price is the fact this field exists to keep distinguishable
+    #: from one.
+    cost: float | None = None
     duration_ms: int = 0
     selection_rationale: str = ""
+    #: What the model said while it worked, as the loop captured it. Redacted
+    #: on the way in like every other free text a model produced.
+    model_rationale: str = ""
     offered_capabilities: Sequence[str] = ()
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -238,14 +253,21 @@ class RunRecorder:
         *,
         status: RunStatus,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
-        """Close ``run_id`` and return the stored run."""
+        """Close ``run_id`` and return the stored run.
+
+        ``headline`` goes through the same guardrail redaction as
+        ``summary`` — a sentence the model wrote is exactly as capable of
+        carrying a secret as the document it summarises.
+        """
         finished = self.clock()
         closed = await self.store.complete_run(
             run_id,
             status=status,
             finished_at=finished,
             summary=self._redact(summary) if summary is not None else None,
+            headline=self._redact(headline) if headline is not None else None,
         )
         await self.record_event(
             run_id,
@@ -312,6 +334,7 @@ class RunRecorder:
             runtime=closed.runtime,
             model_id=closed.model_id,
             summary=closed.summary,
+            headline=closed.headline,
             metadata=metadata,
         )
 
@@ -323,9 +346,20 @@ class RunRecorder:
             {
                 **self._scrub(turn.payload),
                 TURN_PAYLOAD_RATIONALE: self._redact(turn.selection_rationale),
+                TURN_PAYLOAD_MODEL_RATIONALE: self._redact(turn.model_rationale),
                 TURN_PAYLOAD_CAPABILITIES: list(turn.offered_capabilities),
             }
         )
+        usage: dict[str, Any] = {
+            TURN_USAGE_MODEL: turn.model,
+            TURN_USAGE_PROMPT_TOKENS: turn.prompt_tokens,
+            TURN_USAGE_COMPLETION_TOKENS: turn.completion_tokens,
+            TURN_USAGE_DURATION_MS: turn.duration_ms,
+        }
+        # The key itself is absent for an unpriced turn — never present with a
+        # fabricated ``0.0`` standing in for "the provider publishes no price".
+        if turn.cost is not None:
+            usage[TURN_USAGE_COST] = turn.cost
         record = await self.store.record_turn(
             TurnRecord(
                 turn_id=self.ids(),
@@ -334,13 +368,7 @@ class RunRecorder:
                 started_at=turn.started_at,
                 finished_at=turn.finished_at,
                 payload=payload,
-                usage={
-                    TURN_USAGE_MODEL: turn.model,
-                    TURN_USAGE_PROMPT_TOKENS: turn.prompt_tokens,
-                    TURN_USAGE_COMPLETION_TOKENS: turn.completion_tokens,
-                    TURN_USAGE_COST: turn.cost,
-                    TURN_USAGE_DURATION_MS: turn.duration_ms,
-                },
+                usage=usage,
             )
         )
         await self.record_event(
@@ -350,6 +378,49 @@ class RunRecorder:
             payload={"index": turn.index, TURN_USAGE_MODEL: turn.model},
         )
         return record
+
+    async def record_stage(
+        self,
+        run_id: str,
+        *,
+        stage: str,
+        finding: str = "",
+        duration_ms: int = 0,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        llm_calls: int = 0,
+        failed: bool = False,
+    ) -> TraceEventRecord:
+        """Record that one of the six stages finished, and what it did.
+
+        An event rather than a table of its own. A stage has no body worth a
+        row — a name, a line, a duration and a spend — and the event log is
+        already the thing a replay orders everything else by, so a stage
+        written here arrives in the same sequence as the turns that happened
+        inside it rather than needing a timestamp comparison to be placed.
+
+        Written on the stage *ending*, so a run that stopped inside a stage
+        leaves that stage unrecorded. That is the honest asymmetry: the trace
+        then says which stages finished, and never claims one completed on the
+        strength of having been seen to start.
+
+        ``finding`` goes through redaction like every other free text, because
+        it is assembled from what a model classified and what a delivery
+        reported, and both can carry an identifier a ruleset removes.
+        """
+        return await self.record_event(
+            run_id,
+            TraceEventKind.STAGE_COMPLETED,
+            payload={
+                STAGE_EVENT_NAME: stage,
+                STAGE_DETAIL_FINDING: self._redact(finding),
+                STAGE_EVENT_DURATION_MS: duration_ms,
+                STAGE_DETAIL_PROMPT_TOKENS: prompt_tokens,
+                STAGE_DETAIL_COMPLETION_TOKENS: completion_tokens,
+                STAGE_DETAIL_LLM_CALLS: llm_calls,
+                STAGE_EVENT_FAILED: failed,
+            },
+        )
 
     async def record_call(self, call: RecordedCall) -> ToolCallRecord:
         """Store one capability invocation and return the record written.

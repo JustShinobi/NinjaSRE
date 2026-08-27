@@ -11,7 +11,7 @@ situation: |
 fixtures:
   cluster_state: degraded
   responses:
-    /nodes/pve02/lxc/140/status/tasks:
+    /nodes/pve02/tasks:
       - {upid: 'UPID:pve02:0000C001:0511E000:68943C01:vzstart:140:root@pam:', type: vzstart,
          status: OK, starttime: 1754803000, endtime: 1754803010, node: pve02, user: 'root@pam'}
       - {upid: 'UPID:pve02:0000C002:0511E001:68943C02:vzstart:140:root@pam:', type: vzstart,

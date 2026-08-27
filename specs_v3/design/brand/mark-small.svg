@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NinjaSRE">
+  <!--
+    O corte óptico, para 24px e abaixo — favicon, item de menu, avatar.
+
+    Pontas mais curtas (razão 0,53 contra 0,48) e furo maior. Reduzir o corte
+    principal a 16px afila as oito pontas até elas se fecharem umas nas outras e
+    o furo desaparece — o desenho vira uma mancha redonda. Aqui as pontas são
+    mais grossas e o furo é grande o bastante para sobreviver a um pixel.
+
+    É a mesma marca com corte diferente, como um tipo de letra tem corte de
+    texto e corte de display. Usar o corte errado é o erro mais provável, e é o
+    que a revisão deve procurar primeiro.
+  -->
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M32 3 L37.93 17.68 L52.51 11.49 L46.32 26.07 L61 32 L46.32 37.93
+           L52.51 52.51 L37.93 46.32 L32 61 L26.07 46.32 L11.49 52.51 L17.68 37.93
+           L3 32 L17.68 26.07 L11.49 11.49 L26.07 17.68 Z
+           M32 25.5 A6.5 6.5 0 1 0 32 38.5 A6.5 6.5 0 1 0 32 25.5 Z"/>
+</svg>

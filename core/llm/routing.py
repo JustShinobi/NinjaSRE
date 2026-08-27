@@ -35,7 +35,7 @@ from config.constants.config_service import (
     MODEL_ROLE_SELECTION,
     MODEL_ROLE_SUMMARISATION,
 )
-from config.constants.llm import DEFAULT_MODEL_ID, DEFAULT_PROVIDER
+from core.llm.factory import resolve_binding
 
 
 class TaskClass(StrEnum):
@@ -105,20 +105,33 @@ class TaskBinding:
 
 
 class TaskRouter:
-    """Resolves a task class to a provider and model, falling back to the default.
+    """Resolves a task class to a provider and model, through the one resolver.
 
-    A class nobody configured resolves to the deployment default rather than
-    failing, for the reason the config service gives about roles: an
-    investigation that cannot start is worse than one that starts on the default
-    model and records in its trace which model that was.
+    This class is the surface FR-017 asks for — a model resolvable per task
+    class — and it kept the distinction that matters: whether a task runs on
+    something somebody chose or on something it fell into. What it must not be
+    is a *second* resolver. It carried its own default pair for a while, and
+    that was the dangerous half: a router with its own idea of the fallback
+    cannot know that an unnamed role follows the investigator, so composing it
+    as it stood would have reintroduced the split-provider failure — a
+    deployment answering to two providers at once — by another door.
+
+    So it resolves through :func:`core.llm.factory.resolve_binding`, which is
+    what the rest of the deployment calls. One rule, one place, and a task
+    class remains a way of asking rather than a second thing to configure.
+
+    ``source`` stays for a caller that has a selection table and no process-wide
+    configuration — the synthetic harness and the benchmark adapter both do.
+    When it is given it wins, because such a caller has said what it wants
+    measured; when it is absent, the deployment's own configuration answers.
     """
 
     def __init__(
         self,
         *,
         source: ModelSelectionSource | None = None,
-        default_provider: str = DEFAULT_PROVIDER,
-        default_model: str = DEFAULT_MODEL_ID,
+        default_provider: str = "",
+        default_model: str = "",
     ) -> None:
         self._source = source
         self._default = (default_provider, default_model)
@@ -126,14 +139,28 @@ class TaskRouter:
     def binding_for(self, task: TaskClass) -> TaskBinding:
         """Return which provider and model ``task`` runs on."""
         role = TASK_ROLES[task]
-        selection = self._source.selection_for(role) if self._source is not None else None
-        provider_id, model_id = selection if selection is not None else self._default
+        if self._source is not None:
+            selection = self._source.selection_for(role)
+            if selection is not None:
+                provider_id, model_id = selection
+                return TaskBinding(
+                    task=task,
+                    role=role,
+                    provider_id=provider_id,
+                    model_id=model_id,
+                    configured=True,
+                )
+            if any(self._default):
+                provider_id, model_id = self._default
+                return TaskBinding(task=task, role=role, provider_id=provider_id, model_id=model_id)
+
+        binding = resolve_binding(role)
         return TaskBinding(
             task=task,
             role=role,
-            provider_id=provider_id,
-            model_id=model_id,
-            configured=selection is not None,
+            provider_id=binding.provider_id,
+            model_id=binding.model_id,
+            configured=binding.configured,
         )
 
     def bindings(self) -> tuple[TaskBinding, ...]:

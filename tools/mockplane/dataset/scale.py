@@ -23,11 +23,19 @@ from config.constants.fixtures import (
     SCALE_RUN_COUNT,
     SCALE_SEED,
 )
+from platform.persistence.ports.run_trace_store import RunStatus
 from tools.mockplane.dataset import served
 from tools.mockplane.dataset.stream import LIVE_RUN
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
-_STATUSES: Final = ("succeeded", "failed", "cancelled", "running")
+#: Taken from the domain enumeration rather than kept as a list of its own —
+#: a private copy here is exactly how this generator drifted from the store
+#: in the first place (`succeeded`, a runtime spelling, was one of four).
+_STATUSES: Final = tuple(status.value for status in RunStatus)
+#: The two states a run has not settled in — still running, or paused on a
+#: human decision. Both leave `finished_at` unset; every other status in
+#: `_STATUSES` is one the store only ever writes once a run is done.
+_OPEN_STATUSES: Final = frozenset({RunStatus.RUNNING.value, RunStatus.SUSPENDED.value})
 _KINDS: Final = ("container", "virtual-machine")
 _STATES: Final = ("running", "stopped", "paused", "unknown")
 
@@ -72,8 +80,10 @@ def runs() -> list[dict[str, Any]]:
                 "status": status,
                 "trigger": "alert" if number % 3 else "schedule",
                 "started_at": served.at(minutes=ordinal + 10),
-                "finished_at": None if status == "running" else served.at(minutes=ordinal + 7),
-                "summary": None if status == "running" else f"Investigation {ordinal} concluded.",
+                "finished_at": None if status in _OPEN_STATUSES else served.at(minutes=ordinal + 7),
+                "summary": None
+                if status in _OPEN_STATUSES
+                else f"Investigation {ordinal} concluded.",
             }
         )
     return found

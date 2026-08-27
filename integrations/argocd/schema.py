@@ -34,6 +34,7 @@ SCHEMA: Final = credential_schema(
         "Where your Argo CD API answers — https://argocd.example.com. The same "
         "address the web UI is served at; the API lives under /api/v1 on it.",
         label="Argo CD address",
+        guide_url="https://argo-cd.readthedocs.io/en/stable/developer-guide/api-docs/",
     ),
     secret(
         "token",

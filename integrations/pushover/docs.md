@@ -4,10 +4,20 @@ Pushover as a last-resort notification path: which delivery groups exist, and a 
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `token` | Pushover application API token | yes | yes |
-| `user_key` | Pushover user or group key | yes | yes |
+| `token` | Pushover application API token | this token does not carry scope — treat it as full access | [Build an application](https://pushover.net/apps/build) |
+| `user_key` | Pushover user or group key | this token does not carry scope — treat it as full access | [pushover.net](https://pushover.net/) |
+
+Sources: Pushover has no scope system for either field. An application token
+can post to any user or group that has installed that application; the user
+or group key only names the recipient. Confirmed against Pushover's own API
+documentation.
 
 ```bash
 ninjasre integrations setup pushover

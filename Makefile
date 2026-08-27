@@ -14,11 +14,12 @@ PYTHON_SOURCE_PATHS := config core platform integrations capabilities gateway su
 # `wildcard` keeps the targets usable before either directory exists.
 LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
-.PHONY: install lint format format-check typecheck test \
+.PHONY: install lint format format-check typecheck test fast test-fast test-sweeps \
 	console-setup console-install console-format console-format-check \
 	console-lockfile console-lint console-typecheck console-test console-build \
 	console-client console-client-check console-budget console-e2e console-e2e-run \
-	console-e2e-sweep console-visual console-visual-accept console-check \
+	console-e2e-sweep console-visual console-visual-accept console-static console-check \
+	console-dynamic-routes \
 	check-console-boundary \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
@@ -66,9 +67,201 @@ PYTEST_WORKERS ?= 4
 # `benchmark` marker already means "asserts a latency budget rather than a
 # behaviour", so it is exactly the line to cut along: everything else in
 # parallel, the budgets alone on an uncontended machine.
+# Two suites are held out of the default run, and both for the same reason:
+# they are about the console's own gate rather than about this repository's
+# behaviour, and running them here costs twenty minutes and leaves debris.
+#
+# `test_console_gate.py` proves each console check fails on a seeded fault. To
+# do that it splices broken files into `console/` and removes them again — so a
+# lint or a format-check running beside it sees a file that is not the tree's,
+# and an interrupted run leaves a `seeded.spec.ts` behind for somebody to find
+# and wonder about. It takes a lock for exactly this reason; holding the lock
+# does not stop the other run, it just makes the collision legible.
+#
+# `test_console_visual_regression.py` compares committed baselines. On a branch
+# that is changing screens those baselines are *meant* to differ, so it reports
+# a difference that means "the work happened" and reddens the gate for it.
+#
+# Neither is dropped: `ci-run` below runs `console-visual` as its own job, and
+# the gate contract belongs beside it. Run them deliberately —
+# `pytest tests/contract/console/test_console_gate.py` — not on every commit.
+HELD_OUT_OF_TEST := \
+	--ignore=tests/contract/console/test_console_gate.py \
+	--ignore=tests/contract/console/test_console_visual_regression.py
+
 test: ## Run the test suite: behaviour across $(PYTEST_WORKERS) workers, budgets alone
-	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup -m "not benchmark"
-	$(RUN) pytest -m benchmark
+	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup -m "not benchmark" $(HELD_OUT_OF_TEST)
+	$(RUN) pytest -m benchmark $(HELD_OUT_OF_TEST)
+
+# --- The inner loop ----------------------------------------------------------
+#
+# `verify` is the gate, it runs before a push, and nothing below takes anything
+# away from it. This is the other target: what to run *during* an edit, when the
+# question is "did I just break something" rather than "does the repository
+# still hold". Those are different questions and they deserve different runs.
+#
+# Two measurements decided the shape, and both are worth writing down because
+# the obvious design fails on them.
+#
+# **Collection costs more than most tests do.** Importing all thirteen thousand
+# of them takes about fifty seconds here — and a marker filter cannot buy any of
+# it back, because `-m` deselects *after* collection. `pytest -m "not slow"`
+# over the whole tree therefore has a fifty-second floor no matter what it then
+# skips. A tier that finishes in seconds has to collect less, which means naming
+# paths, not naming markers. `tests/unit/platform/memory` collects in two.
+#
+# **A few tests are not about the edit at all.** They walk every committed file
+# and answer "does the repository still hold" — one directory of scenario
+# fixtures, no committed module importing a removed vendor, no stated catalogue
+# total that has gone stale. An edit to `platform/memory` cannot change their
+# answer, and they are most of what makes `tests/unit/tools` take thirty-five
+# seconds rather than twelve. They now carry the `sweep` marker. One more test
+# posts a thousand webhooks to prove the shedder bounds them: that is a real
+# behaviour assertion and it stays in `make test`, but the wall clock is the
+# volume rather than the assertion, so it carries `load` and sits this out.
+#
+# So: paths from what changed, markers to drop what an edit cannot change.
+
+# The one to type. `lint` costs four tenths of a second over the whole tree and
+# catches the break that would otherwise be found sixty seconds into a
+# selection, so the inner loop pays for it without noticing.
+fast: lint test-fast ## The inner loop: lint, then the tests that mirror what you changed
+
+#: The test paths `test-fast` runs. Empty means "work it out from git".
+SCOPE ?=
+
+# How a path is worked out. Three rules, and they are applied to whatever names
+# a path — a file `git status` reported, or an entry a person put in `SCOPE`:
+#
+#   1. A path under a runtime package selects the mirroring directory under
+#      `tests/unit`, walking up until one exists: `platform/memory/store.py`
+#      selects `tests/unit/platform/memory`, `core/llm/x/y/z.py` selects
+#      `tests/unit/core/llm`. A path that *is* a directory maps from itself
+#      rather than from its parent, so `SCOPE=platform/memory` selects
+#      `tests/unit/platform/memory` and not `tests/unit/platform`.
+#   2. Any component of its path that names a suite under `tests/contract` or
+#      `tests/security` selects that suite too. `gateway/http/routes/runs.py`
+#      selects `tests/contract/runs`; `platform/persistence/store.py` selects
+#      `tests/contract/persistence`. Crude, and it earns its keep: those are the
+#      suites that break for a reason `tests/unit` never sees.
+#   3. A path under `tests/` selects itself.
+#
+# Without SCOPE the paths come from `git status --untracked-files=all` — the
+# working tree, which is what "after every edit" means.
+#
+# `console/` selects nothing here — it has its own gate, `make console-check`.
+# Anything else that maps to nothing is *named on stdout* rather than passed
+# over in silence, because a file whose change this tier cannot test is the one
+# thing somebody needs to be told.
+#
+# **One mapping, used by both modes.** It used to exist only in the automatic
+# branch, and `SCOPE=` handed its string to pytest untouched — so naming the
+# source directory you had just edited collected zero tests, hit pytest's exit
+# code 5, and was reported as a pass. A fast tier that runs nothing and goes
+# green is one people stop believing, so the mapping moved into `map_path` and
+# both branches call it. The two branches differ only in what an unmappable
+# path means: the automatic mode is reading a working tree it did not choose,
+# so it names the file and carries on, while a SCOPE entry is a request that
+# cannot be honoured and refuses the whole invocation before spending a minute
+# on the paths that did map.
+#
+# **One pytest per path, not one pytest over all of them.** Several test modules
+# import their sibling `conftest` by bare name, which resolves through the
+# `sys.path` entry pytest adds per rootdir-relative test directory. Hand it two
+# directories that both have a `conftest.py` and the wrong one can win:
+# `tests/unit/gateway/http` plus `tests/contract/runs` fails collection with
+# `cannot import name ORG from conftest`, naming the other suite's file. The
+# whole-tree run in `make test` does not hit this and neither does either path
+# alone, so the defect belongs to the combination, not to the tests. A process
+# per path also means one broken selection reports and the rest still run.
+#
+# Pytest's exit code 5 — "collected something, selected nothing" — is a pass
+# here and only here. Editing a module whose every test is a `sweep` deselects
+# the lot, and a tier that went red for having correctly skipped what it says it
+# skips would be untrustworthy within a week. Every other non-zero code fails.
+# It stays a pass because the selection is now proved to name real test
+# directories before pytest is reached; an empty selection never gets that far.
+test-fast: ## The inner loop: the tests that mirror what you changed, in seconds
+	@map_path() { \
+		file="$${1%/}"; \
+		case "$$file" in \
+			console|console/*) return 2 ;; \
+			tests|tests/*) \
+				if [ -e "$$file" ]; then printf '%s\n' "$$file"; return 0; fi; \
+				return 2 ;; \
+		esac; \
+		hit=1; \
+		if [ -d "$$file" ]; then dir="tests/unit/$$file"; \
+		else dir="tests/unit/$${file%/*}"; fi; \
+		while [ "$$dir" != "tests/unit" ] && [ ! -d "$$dir" ]; do \
+			dir="$${dir%/*}"; \
+		done; \
+		if [ -d "$$dir" ] && [ "$$dir" != "tests/unit" ]; then \
+			printf '%s\n' "$$dir"; hit=0; \
+		fi; \
+		for part in $$(echo "$$file" | tr / ' '); do \
+			for suite in tests/contract/$$part tests/security/$$part; do \
+				if [ -d "$$suite" ]; then printf '%s\n' "$$suite"; hit=0; fi; \
+			done; \
+		done; \
+		return $$hit; \
+	}; \
+	paths=""; unmapped=""; \
+	if [ -n "$(SCOPE)" ]; then \
+		for file in $(SCOPE); do \
+			selected=$$(map_path "$$file"); code=$$?; \
+			if [ $$code -eq 0 ]; then paths="$$paths $$selected"; \
+			else unmapped="$$unmapped $$file"; fi; \
+		done; \
+		if [ -n "$$unmapped" ]; then \
+			printf 'test-fast: SCOPE selects no tests:\n'; \
+			printf '  %s\n' $$unmapped; \
+			printf '  A scope that runs nothing must not report success, so this is a\n'; \
+			printf '  failure rather than an empty pass. Name a source path — it is\n'; \
+			printf '  mapped the same way the automatic mode maps it — or a tests/ path.\n'; \
+			case "$$unmapped" in *console*) \
+				printf '  The console is not in this tier at all: make console-check.\n' ;; \
+			esac; \
+			exit 2; \
+		fi; \
+	else \
+		for file in $$(git status --porcelain=1 --untracked-files=all \
+				| cut -c4- | sed 's/.* -> //'); do \
+			selected=$$(map_path "$$file"); code=$$?; \
+			if [ $$code -eq 0 ]; then paths="$$paths $$selected"; \
+			elif [ $$code -eq 1 ]; then unmapped="$$unmapped $$file"; fi; \
+		done; \
+		if [ -n "$$unmapped" ]; then \
+			printf 'test-fast: no test path mirrors these, so nothing here covers them:\n'; \
+			printf '  %s\n' $$unmapped; \
+			printf '  `make verify` does. This tier is not a substitute for it.\n'; \
+		fi; \
+	fi; \
+	if [ -n "$$paths" ]; then \
+		paths=$$(printf '%s\n' $$paths | sort -u | tr '\n' ' '); \
+	fi; \
+	if [ -z "$$paths" ]; then \
+		echo "test-fast: nothing selected. Name it — make test-fast SCOPE=tests/unit/core"; \
+		exit 0; \
+	fi; \
+	echo "test-fast: $$paths"; \
+	status=0; \
+	for path in $$paths; do \
+		$(RUN) pytest "$$path" -p no:cacheprovider --no-header -q \
+			-m "not benchmark and not sweep and not load and not e2e" \
+			$(HELD_OUT_OF_TEST); \
+		code=$$?; \
+		if [ $$code -ne 0 ] && [ $$code -ne 5 ]; then status=1; fi; \
+	done; \
+	exit $$status
+
+# What `test-fast` drops, by name, so the drop is a thing you can run rather
+# than a thing you have to reconstruct. `verify` runs all of it through `test`;
+# this target is here for the moment you have touched a guard on purpose and
+# want its answer without waiting for the whole gate.
+test-sweeps: ## Run only the whole-repository sweeps, the budgets, and the load assertion
+	$(RUN) pytest -m "sweep or load" $(HELD_OUT_OF_TEST)
+	$(RUN) pytest -m benchmark $(HELD_OUT_OF_TEST)
 
 # Not part of `verify`: it builds a PostgreSQL image, starts it, and creates a
 # database per test. That is a minute the gate should not spend on every commit,
@@ -218,10 +411,10 @@ e2e-proxmox-laboratory: ## Run the destructive Proxmox scenarios against the lab
 # --- The console ---------------------------------------------------------------
 #
 # The console is TypeScript, so none of the Python tooling above sees it. These
-# targets are how it is held to the same standard: every one of them is part of
-# `verify`, and every one of them is individually runnable, because a
-# contributor fixing a type error should not have to sit through a browser suite
-# to find out whether they fixed it.
+# targets are how it is held to the same standard: the static checks are part of
+# `verify`, and every check is individually runnable. The browser checks remain
+# explicit targets because a contributor fixing a type error should not have to
+# sit through a browser suite to find out whether they fixed it.
 #
 # Each is a thin wrapper over `tools/console_gate.py`, which owns the one piece
 # of policy that cannot live in a Makefile: what to do on a machine that has no
@@ -252,6 +445,9 @@ console-typecheck: ## Type-check the console
 
 console-test: ## Run the console's unit suite against its coverage threshold
 	$(RUN) python -m tools.console_gate test
+
+console-dynamic-routes: ## Fail if a shell route is prerendered instead of served live
+	$(RUN) python -m tools.console_gate dynamic-routes
 
 console-build: ## Produce the console's standalone production build
 	$(RUN) python -m tools.console_gate build
@@ -286,8 +482,14 @@ console-visual: ## Compare every registered screen against its committed baselin
 console-visual-accept: ## Recapture the baselines, for review as a committed change
 	$(RUN) python -m tools.console_visual accept
 
+console-static: ## Run the console checks without browser or visual-baseline suites
+	$(RUN) python -m tools.console_gate static
+
 console-check: ## Every console check, cheapest failure first
 	$(RUN) python -m tools.console_gate all
+
+console-gate-contract: ## Contract test proving console gate checks fail on seeded faults
+	$(RUN) pytest tests/contract/console/test_console_gate.py
 
 check-console-boundary: ## Reject a Python import of the console, or the reverse
 	$(RUN) python tools/check_console_boundary.py
@@ -317,6 +519,17 @@ check-literals: ## Reject a missing comma that merges two capability metadata en
 
 check-raw-sql: ## Reject SQL, Cypher, or a database driver outside platform/persistence/
 	$(RUN) python tools/check_raw_sql.py
+
+# Run as a module for the same reason check-integrations is: it imports the
+# persistence store's own status enumeration, and `platform/` only wins its
+# name over the stdlib module when the repository root leads sys.path.
+check-run-status-vocabulary: ## Reject a fixture or console run status the persistence store does not declare
+	$(RUN) python -m tools.check_run_status_vocabulary
+
+# The same guard for the enumeration that never had one, and for the same
+# reason it is a module rather than a script.
+check-incident-states: ## Reject a console incident state the persistence store does not declare
+	$(RUN) python -m tools.check_incident_state_vocabulary
 
 check-credentials: ## Reject a credential read outside the vault and the proxy (FR-017)
 	$(RUN) python tools/check_direct_credentials.py
@@ -390,9 +603,9 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 
 # The single gate CI runs. Ordered cheapest-first so an obvious failure reports
 # in seconds rather than after the suite.
-# The console's checks come after the Python ones and before the Python suite:
-# they are the ones a contributor is most likely to have broken while working on
-# the console, and the Python suite is the longest single step in the gate.
+# The console's static checks come after the Python ones and before the Python
+# suite. Browser and visual-baseline checks remain available through their
+# dedicated targets and are included in `ci-run` below.
 
 
 
@@ -482,7 +695,7 @@ ci: ## Everything CI used to run, locally, cleaning up after itself
 # passed or failed — a failed run leaves the most behind, and is exactly when
 # somebody is least likely to remember to sweep.
 ci-run: verify test-postgres test-synthetic docs-build console-build console-visual \
-	console-e2e-run images-scan chart-check backup-cycle ## The gate, without the sweep
+	console-e2e-run console-gate-contract images-scan chart-check backup-cycle ## The gate, without the sweep
 
 images-scan: ## Build every deployment image and scan it for fixable HIGH/CRITICAL
 	@for component in app console proxy; do \
@@ -505,9 +718,10 @@ backup-cycle: ## Back up, restore into a clean database, and verify the result
 
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
+	check-run-status-vocabulary check-incident-states \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
-	console-check test ## The single quality gate
+	console-static test ## The single quality gate
 
 # Which wave of specs the branch/slug contract reads. Override per invocation
 # (`make close-task SPECS_DIR=specs_v2`) or export NINJASRE_SPECS_DIR once for a

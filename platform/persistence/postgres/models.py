@@ -139,6 +139,14 @@ class ConfigNode(Base):
 # --- Identity -----------------------------------------------------------------
 
 
+#: The unique index enforcing case-insensitive email uniqueness on ``users``.
+#: Named once and imported by the repository, which reads it back out of a
+#: driver error to decide *which* collision fired — never to put the name in
+#: a message a caller sees, only to choose the domain error that names the
+#: address instead.
+USERS_EMAIL_UNIQUE_INDEX_NAME = "ix_users_email"
+
+
 class User(Base):
     """A person or service account within one organisation."""
 
@@ -148,14 +156,21 @@ class User(Base):
         # Case-insensitive uniqueness is enforced by the repository, which
         # stores and compares a folded copy. A functional unique index would
         # need the same fold and would disagree with Python's on non-ASCII.
-        Index("ix_users_email", "org_id", "email_folded", unique=True),
+        #
+        # ``email_folded`` is nullable and the index is an ordinary unique
+        # index rather than a partial one: PostgreSQL never treats two NULLs
+        # as a collision, so any number of principals with no address at all
+        # coexist without needing a `WHERE` clause to say so. The repository
+        # writes NULL for "no address" and never the empty string, which is
+        # what makes that true.
+        Index(USERS_EMAIL_UNIQUE_INDEX_NAME, "org_id", "email_folded", unique=True),
         Index("ix_users_subject", "org_id", "external_subject"),
     )
 
     org_id: Mapped[str] = _org()
     user_id: Mapped[str] = _id()
     email: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
-    email_folded: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    email_folded: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     display_name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -166,6 +181,25 @@ class User(Base):
     # cannot clear it by omission the way a full-row upsert would.
     local_password_hash: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     created_at: Mapped[datetime | None] = _timestamp()
+
+
+class LocalSignInOpening(Base):
+    """The one fact that decides whether this deployment's local sign-in exists.
+
+    One row per organisation, ever — the primary key is ``org_id`` alone, so a
+    second attempt to write one collides on the primary key rather than on a
+    separately declared uniqueness rule. Nothing updates or deletes a row here;
+    the repository only ever inserts.
+    """
+
+    __tablename__ = "local_sign_in_openings"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    opened_via: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class ApiToken(Base):
@@ -272,6 +306,11 @@ class AgentRun(Base):
     runtime: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     model_id: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: One sentence naming the run, apart from the document ``summary`` holds.
+    #: ``NOT NULL DEFAULT ''`` — a run from before this column existed reads
+    #: as an empty headline, which the read path synthesises one for rather
+    #: than treating as a stored fact.
+    headline: Mapped[str] = mapped_column(Text, nullable=False, default="")
     run_metadata: Mapped[dict[str, Any]] = _json()
 
 
@@ -930,10 +969,24 @@ class IncidentRow(Base):
         Index("ix_incidents_state", "org_id", "state"),
         Index("ix_incidents_team", "org_id", "team_node_id"),
         Index("ix_incidents_age", "closed_at"),
+        # Containment ("does this incident's run_ids array hold this run"),
+        # the same reasoning as ``episodes.components`` above: a btree cannot
+        # answer it, and a run's own incident is read on every run detail
+        # view, not swept for with a paginated incident query.
+        Index("ix_incidents_run_ids", "run_ids", postgresql_using="gin"),
+        # Unique per organisation, not globally: what makes a collision a
+        # failed write rather than "opened the wrong incident" is that no two
+        # rows of the same tenant may share an address, and a sixty-four-bit
+        # digest makes that failure arithmetically negligible in the first
+        # place.
+        Index("ix_incidents_public_id", "org_id", "public_id", unique=True),
     )
 
     org_id: Mapped[str] = _org()
     incident_id: Mapped[str] = _id()
+    #: The short, URL-safe address this incident is reached by — see
+    #: ``platform.persistence.ports.incident_store.public_incident_id``.
+    public_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
     correlation_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")

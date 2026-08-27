@@ -17,12 +17,24 @@ it reads that tuple.
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | A node's address, port included — https://pve01.internal:8006 | no | yes |
-| `api_token` | Proxmox API token as one line: user@realm!tokenid=secret | yes | yes (or `username`+`password`) |
-| `username` | Login name with its realm, for the ticket path | no | no |
-| `password` | Password for the ticket login | yes | no (or `api_token`) |
+| `endpoint` | A node's address, port included — https://pve01.internal:8006. Any node will do: the API answers cluster-wide questions from whichever one is asked. | — | [Proxmox VE Administration Guide](https://pve.proxmox.com/pve-docs/) |
+| `api_token` | Proxmox API token as one line, exactly as the header wants it: `user@realm!tokenid=secret` | Sys.Audit on `/`, VM.Audit on `/vms` and Datastore.Audit on `/storage` — granted together by the `PVEAuditor` role on `/` | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `username` | Login name with its realm, such as `ninjasre@pve`. Only for deployments that cannot issue an API token. | — | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `password` | Password for the ticket login. Exchanged for a two-hour ticket on the proxy side and never read here. | Same as `api_token`, for the login name this password authenticates | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `ticket` | The short-lived ticket the proxy exchanged the password for. Written by the refresher, never by an operator. | The same access as the login (`username` and `password`) that was exchanged for it — session material the proxy writes, never a scope an operator sets | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+| `csrf_token` | The CSRF prevention token that accompanies a ticket. Written by the refresher, never by an operator. | The same as `ticket` — session material, not an operator-set scope | [User Management](https://pve.proxmox.com/pve-docs/chapter-pveum.html) |
+
+Sources: all six from Proxmox's own Administration Guide, current as of this
+feature. `ticket` and `csrf_token` are session material Proxmox itself issues
+at login rather than a value an operator requests, so their minimum permission
+is the login that produced them, not an invented scope.
 
 `endpoint` goes to the configuration tree rather than the vault — it is where
 the credential proxy reads its egress allow-list from. The port, `8006`, is
@@ -108,8 +120,10 @@ will not let this integration reach a host that is not in it.
 ### 4. Decide about the certificate
 
 Certificate verification is **on by default** and disabling it requires an
-explicit, audited setting. Homelab Proxmox is almost always self-signed, so pick
-one of the first two:
+explicit, audited setting. A default Proxmox install is self-signed — that is
+the ordinary case, not an eccentricity — so this is a decision almost every
+deployment has to take, and the whole difficulty is that the insecure option is
+also the convenient one.
 
 ```python
 from integrations.proxmox import CertificateTrust
@@ -128,6 +142,131 @@ There is no boolean that turns verification off. The management plane of a
 hypervisor is the last place to teach an operator that certificate warnings are
 noise: anything that can impersonate it can read every guest's configuration and
 start, stop and reconfigure all of them.
+
+#### Which form to pick
+
+**A pinned fingerprint, for a single node and for any cluster reached by IP
+address.** The pin *replaces* the identity check rather than adding to it, so it
+is the form that works when the certificate names `pve01` and the integration is
+pointed at `10.20.20.9`. A cluster declares one fingerprint per node in a single
+declaration, because each node presents its own certificate.
+
+**A supplied certificate, for a cluster reached by name.** Proxmox mints one
+authority per cluster and issues each node a certificate from it, so one paste
+covers every node — and chain building, expiry and hostname checking all stay
+on, which is why it is the stronger of the two wherever it fits.
+
+Try the fingerprint first. If you supply the authority for a cluster you address
+by IP, the chain will validate and the name will not match, and the refusal says
+exactly that.
+
+#### Declaring it without editing code
+
+The forms above are the vocabulary. A running deployment declares them through
+the API, and the declaration lands in the configuration tree beside the address
+the integration is pointed at:
+
+```http
+PUT /v1/integrations/proxmox/trust
+```
+
+```json
+{ "fingerprints": ["AB:CD:…", "EF:01:…"] }
+```
+
+Colons are optional — both spellings a tool produces are accepted. The other two
+forms are `{"certificate_pem": "<PEM-encoded certificate>"}` and
+`{"unverified_reason": "…"}`. There is no field in that body that turns
+verification off: the insecure form is reached by writing down *why*, and a
+reason that is present and blank is refused naming the reason.
+
+A private key pasted where the certificate goes is refused by name, and the
+value is not stored anywhere — not in the document, not in the log, not in the
+audit event.
+
+**The proxy picks it up without a restart.** The declaration is applied at the
+credential proxy's egress, which is where the TLS handshake happens, and the
+same cycle that rebuilds the egress allow-list from the configuration tree
+rebuilds this. It rebuilds rather than accumulates, so a declaration you remove
+stops applying on the next cycle instead of outliving the decision that made it.
+
+#### Which permission each form needs
+
+| Form | Permission |
+|---|---|
+| Pinned fingerprint | `integration.manage` — the same one that writes the address |
+| Supplied certificate | `integration.manage` |
+| Not verifying | `integration.manage` **and** `integration.trust_unverified`, held by an administrator and above |
+
+Pinning and supplying do not weaken anything: they point verification at a
+narrower anchor than the system trust store, which is strictly stronger for a
+host that issues its own certificate. Requiring an administrator for those would
+push an operator towards the worse option precisely because the better one is
+out of reach. Not verifying is the one operation that gives up a guarantee and
+returns nothing but convenience, so it has a gate an audit review can tell apart
+from editing configuration.
+
+A request without the dedicated permission is refused naming it, and **nothing
+is written** — the declaration is validated and authorised before the document
+is touched.
+
+#### What gets recorded
+
+Writing a declaration appends one audit event: who, when, which integration,
+which addresses, which form, the fingerprints when there are any, and the reason
+when there is one. The identity is the authenticated principal and the instant
+is the server's — a value sent in the request body for either is discarded
+before anything is validated.
+
+Every credential resolution afterwards carries two more fields: which form was
+in force, and the fingerprint when the form is a pin. On a refusal the same line
+records the fingerprint that was actually *presented*, which is the fact
+somebody looking into it needs.
+
+No certificate material reaches any of this. A fingerprint may — it is the
+public half's digest, it is not a secret, and it is exactly what you compare
+against what the node shows you.
+
+#### Trust is scoped to an address, never to the vendor
+
+A declaration authorises the addresses it names and no others. Move the
+integration to a different address and the declaration made for the old one
+stops applying; the new address is refused for its certificate until a decision
+covers it. A supplied authority is the one thing that spreads, and only as far
+as the certificates it signed — which for a cluster is the whole cluster, and is
+a consequence of your having supplied that authority rather than an implicit
+extension.
+
+#### When the node's certificate changes
+
+A reinstall, a renewal, or somebody in the middle of the path. If you pinned a
+fingerprint, the call is **refused**, and the refusal carries both fingerprints
+labelled as expected and observed.
+
+Nothing else happens. There is no fall back to the system trust store, no fall
+back to not verifying, and the new fingerprint is never adopted automatically —
+a pin that updates itself when it does not match is a decorative field, and a
+replaced certificate is the exact event it exists to catch. Compare the observed
+fingerprint against what the node shows at Datacenter → <node> → System →
+Certificates, and if the change was legitimate, declare the new value the same
+way you declared the first: same permission, same audit record.
+
+#### The three refusals, and the one that is not about certificates
+
+A refused certificate is its own kind of failure, and it says which certificate:
+
+- **not trusted** — nothing declared what to accept at this address; the message
+  carries the fingerprint that was presented and where to declare it;
+- **pin broken** — a fingerprint is declared and a different one arrived; the
+  message carries both, labelled;
+- **name does not match** — the chain validated against what you supplied and the
+  certificate does not name the address you configured; the message carries the
+  address and the names the certificate carries.
+
+None of the three is the message for a host that did not answer, and that one is
+unchanged and mentions no certificate. An operator sent to check a network
+because of a certificate finds the network correct and concludes the product is
+broken, which is half the cost of the original defect.
 
 ### Ticket authentication, for deployments that cannot issue a token
 

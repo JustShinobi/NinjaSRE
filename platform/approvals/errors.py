@@ -50,6 +50,34 @@ class ChangeNotFound(ApprovalError):
         self.change_id = change_id
 
 
+class ChangeExpired(ApprovalError):
+    """A decision arrived after the window for making it had closed.
+
+    Its own error rather than ``ChangeAlreadyDecided``, because the two say
+    different things to the person who clicked. "Somebody already decided this"
+    means look at what they decided. "The window closed" means the diagram this
+    decision was going to be made against is old, and the honest next step is a
+    fresh reading rather than a decision taken on a stale one.
+
+    Refused on the clock rather than on the stored state. A change is relabelled
+    ``expired`` by a sweep, and a deployment whose sweep is not running would
+    otherwise leave every lapsed change answerable indefinitely — which is
+    exactly what happened here: a remediation proposed at 23:48 with a
+    fifteen-minute window was approved at 00:53 and carried out, fifty minutes
+    after the reading behind it stopped being current.
+    """
+
+    def __init__(self, change_id: str, expired_at: str, now: str) -> None:
+        super().__init__(
+            f"{change_id!r} could be answered until {expired_at} and it is now {now}. The "
+            f"state it was proposed against was read before that window closed, so deciding "
+            f"now would be deciding about a cluster nobody has looked at since. Ask for it "
+            f"again to get a current reading."
+        )
+        self.change_id = change_id
+        self.expired_at = expired_at
+
+
 class ChangeAlreadyDecided(ApprovalError):
     """A second decision arrived for a change that already has one.
 
@@ -168,6 +196,7 @@ class PolicyLocked(ApprovalError):
 __all__ = [
     "ApprovalError",
     "ChangeAlreadyDecided",
+    "ChangeExpired",
     "ChangeConflicted",
     "ChangeNotFound",
     "IllegalTransition",

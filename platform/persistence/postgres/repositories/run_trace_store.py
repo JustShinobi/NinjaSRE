@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -59,6 +59,7 @@ def _to_run(row: models.AgentRun) -> AgentRun:
         runtime=row.runtime,
         model_id=row.model_id,
         summary=row.summary,
+        headline=row.headline,
         metadata=dict(row.run_metadata),
     )
 
@@ -134,6 +135,7 @@ class PostgresRunTraceStore(TenantBound):
             runtime=run.runtime,
             model_id=run.model_id,
             summary=run.summary,
+            headline=run.headline,
             run_metadata=check_payload(run.metadata, kind="agent run metadata"),
         )
         self.session.add(row)
@@ -148,6 +150,7 @@ class PostgresRunTraceStore(TenantBound):
         status: RunStatus,
         finished_at: datetime,
         summary: str | None = None,
+        headline: str | None = None,
     ) -> AgentRun:
         """Close ``run_id`` with a terminal status and return the stored run."""
         row = await self._require_run(run_id)
@@ -155,6 +158,8 @@ class PostgresRunTraceStore(TenantBound):
         row.finished_at = finished_at
         if summary is not None:
             row.summary = summary
+        if headline is not None:
+            row.headline = headline
         await self.session.flush()
         return _to_run(row)
 
@@ -278,6 +283,24 @@ class PostgresRunTraceStore(TenantBound):
         rows = await self.session.scalars(
             select(models.ToolCall)
             .where(models.ToolCall.org_id == self.org_id, models.ToolCall.run_id == run_id)
+            .order_by(models.ToolCall.recorded_seq, models.ToolCall.call_id)
+        )
+        return tuple(_to_call(row) for row in rows)
+
+    async def named_tool_calls_for_runs(
+        self, run_ids: Sequence[str], tool_name: str
+    ) -> tuple[ToolCallRecord, ...]:
+        """Return every call of ``tool_name`` across ``run_ids``, recording order."""
+        wanted = list(dict.fromkeys(run_ids))
+        if not wanted:
+            return ()
+        rows = await self.session.scalars(
+            select(models.ToolCall)
+            .where(
+                models.ToolCall.org_id == self.org_id,
+                models.ToolCall.run_id.in_(wanted),
+                models.ToolCall.tool_name == tool_name,
+            )
             .order_by(models.ToolCall.recorded_seq, models.ToolCall.call_id)
         )
         return tuple(_to_call(row) for row in rows)

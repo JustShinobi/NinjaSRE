@@ -605,3 +605,20 @@ describe('what a role means, at the point it is chosen', () => {
     expect(summary.textContent.length).toBeLessThan(manyPermissions.join(', ').length);
   });
 });
+
+/**
+ * A destructive action is a target a person can actually hit.
+ *
+ * Remove was a twelve-pixel underlined word, about fifty by sixteen pixels,
+ * pressed against the right edge of a row — under the twenty-four pixels WCAG
+ * 2.2 asks of any target, and nowhere near what a thumb needs. Meanwhile the
+ * reversible action beside it, "Grant this role", was a filled button.
+ */
+it('gives Remove a real target and a ground to land on', () => {
+  panel();
+
+  const remove = screen.getAllByTestId('remove-grant')[0];
+  expect(remove?.className).toContain('min-h-6');
+  expect(remove?.className).toContain('px-2');
+  expect(remove?.className).toContain('hover:bg-danger-bg');
+});

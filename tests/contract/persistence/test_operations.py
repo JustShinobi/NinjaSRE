@@ -190,6 +190,59 @@ async def test_the_evidence_columns_migration_is_reversible(
 
 
 @pytest.mark.usefixtures("postgres_only")
+async def test_the_email_optional_migration_upgrades_a_row_that_already_has_no_address(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The exact row a staging database held when `0019_users_email_optional` ran.
+
+    That migration's own `upgrade()` folds every `email_folded = ''` to `NULL`
+    before it widens the column to nullable — so the fold writes `NULL` into a
+    column still declared `NOT NULL`, and only a database that already holds a
+    row with the empty string ever takes this path. A database with none never
+    exercises the write that fails, which is exactly how this shipped.
+    """
+    assert isinstance(gateway, PostgresPersistence)
+    head = migrations.head_revision()
+
+    landed = await migrations.downgrade_to(gateway.engine, "0018_local_sign_in_opening")
+    assert landed == "0018_local_sign_in_opening"
+
+    async with gateway.engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO users "
+                "(org_id, user_id, email, email_folded, display_name, kind, is_active) "
+                "VALUES (:org_id, 'user-bootstrap-no-email', '', '', "
+                "'Bootstrap service account', 'service', true)"
+            ),
+            {"org_id": scope.org_id},
+        )
+
+    assert await migrations.upgrade_to_head(gateway.engine) == head
+
+    async with gateway.engine.connect() as conn:
+        stored = await conn.scalar(
+            text("SELECT email_folded FROM users WHERE user_id = 'user-bootstrap-no-email'")
+        )
+    assert stored is None, "the fold must turn the stored empty string into NULL"
+
+    # The mirror check `downgrade()` asks for: this NULL row is the one case
+    # `downgrade()` has to widen back to "" *before* it tightens the column
+    # to NOT NULL again — the same ordering hazard `upgrade()` had, in the
+    # other direction. `downgrade()` already writes the wide value first, so
+    # this is a determinism check on that claim, not a new assertion about it.
+    landed_again = await migrations.downgrade_to(gateway.engine, "0018_local_sign_in_opening")
+    assert landed_again == "0018_local_sign_in_opening"
+    async with gateway.engine.connect() as conn:
+        restored = await conn.scalar(
+            text("SELECT email_folded FROM users WHERE user_id = 'user-bootstrap-no-email'")
+        )
+    assert restored == "", "the downgrade must widen the NULL back to the empty string"
+
+    assert await migrations.upgrade_to_head(gateway.engine) == head
+
+
+@pytest.mark.usefixtures("postgres_only")
 async def test_two_replicas_starting_together_do_not_race(
     gateway: PersistenceGateway,
 ) -> None:

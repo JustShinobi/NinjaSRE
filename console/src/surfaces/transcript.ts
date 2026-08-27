@@ -54,6 +54,18 @@ export interface TranscriptEvent {
   readonly title: string;
   /** The prose. What the agent concluded, what the guardrail withheld. */
   readonly detail: string;
+  /**
+   * The deployment's own note about this event, never the model's words.
+   *
+   * A turn's selection rationale lives here: it is generated prose full of
+   * capability names, it repeats almost verbatim between turns because the
+   * scoring is deterministic, and it is the answer to a question — "why was
+   * this capability not offered" — nobody asks until something has gone wrong.
+   * So it is carried apart from `detail`, drawn folded, and never run through
+   * the markdown renderer, which would eat the underscores out of every
+   * capability name it contains.
+   */
+  readonly note: string;
   /** Arguments or a result, bounded when rendered. */
   readonly payload: string;
   /** A capability call's outcome. Empty when the event is not a call. */
@@ -142,6 +154,7 @@ interface Draft {
   readonly at?: string;
   readonly title: string;
   readonly detail?: string;
+  readonly note?: string;
   readonly payload?: string;
   readonly status?: string;
   readonly durationMs?: number;
@@ -155,6 +168,7 @@ function event(id: string, draft: Draft): TranscriptEvent {
     at: draft.at ?? '',
     title: draft.title,
     detail: draft.detail ?? '',
+    note: draft.note ?? '',
     payload: draft.payload ?? '',
     status: draft.status ?? '',
     durationMs: draft.durationMs ?? 0,
@@ -181,8 +195,12 @@ export function eventsFromReplay(body: unknown): readonly TranscriptEvent[] {
       event(`${turnId}-reasoning`, {
         kind: 'reasoning',
         rawKind: 'turn',
-        title: String(index + 1),
-        detail: text(turn, 'selection_rationale'),
+        // The index the run recorded, unchanged. Adding one here made every
+        // screen count from two: a five-turn investigation showed turns 2 to 6
+        // and no turn 1 anywhere in the console.
+        title: String(index),
+        detail: text(turn, 'model_rationale'),
+        note: text(turn, 'selection_rationale'),
         payload: text(turn, 'model'),
       }),
     );
@@ -305,6 +323,17 @@ export interface TurnUsage {
 export interface RunUsage {
   readonly tokens: number;
   readonly cost: number;
+  /**
+   * How many turns carried no recorded price.
+   *
+   * The distinction this exists to keep: a run whose provider publishes no
+   * price for its model is not a run that cost nothing. Reading `cost` alone
+   * prints a confident `$0.00` beside tens of thousands of tokens, which is
+   * the one reading that is certainly false.
+   */
+  readonly unpricedTurns: number;
+  /** Whether every turn of this run carried a price. */
+  readonly priced: boolean;
   readonly byModel: readonly ModelUsage[];
   readonly byTurn: readonly TurnUsage[];
 }
@@ -323,8 +352,12 @@ export function usageFrom(body: unknown): RunUsage {
   const cost = count(body, 'total_cost');
   const share = turns.length === 0 ? 0 : 1 / turns.length;
 
+  const unpricedTurns = count(body, 'unpriced_turns');
   const byTurn: TurnUsage[] = turns.map((turn) => ({
-    turn: count(turn, 'index') + 1,
+    // The index the run recorded. Adding one made the cost table count from
+    // two, so a five-turn run listed turns 2 to 6 beside a transcript that
+    // agreed with it and a store that did not.
+    turn: count(turn, 'index'),
     model: text(turn, 'model'),
     calls: list(turn, 'calls').length,
     tokens: tokens * share,
@@ -342,5 +375,12 @@ export function usageFrom(body: unknown): RunUsage {
     });
   }
 
-  return { tokens, cost, byModel: [...models.values()], byTurn };
+  return {
+    tokens,
+    cost,
+    unpricedTurns,
+    priced: turns.length > 0 && unpricedTurns === 0,
+    byModel: [...models.values()],
+    byTurn,
+  };
 }

@@ -1060,7 +1060,7 @@ function ObjectList({
     <fieldset
       data-testid="object-list"
       data-path={field.path}
-      className="flex flex-col gap-3 border-l border-subtle pl-3"
+      className="flex flex-col gap-3 border-l border-border pl-3"
     >
       <legend className="text-meta text-strong">{field.label}</legend>
       {field.help === '' ? null : <p className="text-meta text-muted">{field.help}</p>}
@@ -1090,10 +1090,7 @@ function ObjectList({
                     {title}
                   </span>
                 )}
-                <span
-                  data-testid="entry-position"
-                  className="text-micro uppercase text-muted"
-                >
+                <span data-testid="entry-position" className="text-micro text-muted">
                   {labels.entryPosition} {index + 1}
                 </span>
                 <button
@@ -1264,7 +1261,7 @@ function Diff({ answer, labels }: DiffProps): ReactNode {
                 <th
                   key={header}
                   scope="col"
-                  className="text-left text-micro uppercase text-muted pb-1"
+                  className="text-left text-micro text-muted pb-1"
                 >
                   {header}
                 </th>

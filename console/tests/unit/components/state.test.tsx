@@ -214,3 +214,26 @@ describe('the empty state as one control rather than two', () => {
     ).toThrow(/no action/i);
   });
 });
+
+/**
+ * A long explanation is left-aligned, even inside a centred well.
+ *
+ * Knowledge's empty state runs to four lines and names the two ways a document
+ * can reach the corpus. Centred, every one of those lines begins at a different
+ * x and the eye has to hunt for the start of each — the cost is small for one
+ * line and real for four. The well stays centred; the sentence inside it does
+ * not.
+ */
+it('left-aligns the body while keeping the well centred', () => {
+  render(
+    <EmptyState
+      heading="Nothing has been ingested"
+      body="Nothing here yet, and this console has no upload control to offer. A document reaches this corpus when the sync brings it in, or when an investigation proposes one and a reviewer approves it."
+      action={{ label: 'Review what has been proposed', href: '/decisions' }}
+    />,
+  );
+
+  const body = screen.getByText(/Nothing here yet/);
+  expect(body.className).toContain('text-left');
+  expect(body.className).toContain('max-w-prose');
+});

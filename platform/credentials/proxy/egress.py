@@ -28,7 +28,11 @@ from __future__ import annotations
 from typing import Final
 from urllib.parse import urlsplit
 
-from platform.credentials.proxy.errors import EgressDenied, MalformedProxyRequest
+from platform.credentials.proxy.errors import (
+    CredentialWouldCrossInClear,
+    EgressDenied,
+    MalformedProxyRequest,
+)
 from platform.credentials.proxy.injection import InjectionRule
 
 #: The scheme a proxied request carrying a credential may use. Deliberately not
@@ -85,7 +89,7 @@ def enforce(rule: InjectionRule, url: str) -> str:
 
 
 def refuse_credential_in_clear(rule: InjectionRule, url: str) -> None:
-    """Raise ``EgressDenied`` if a credential would go out over plain HTTP.
+    """Raise ``CredentialWouldCrossInClear`` if a credential would go out over plain HTTP.
 
     Called only where a credential actually resolved. The question this answers
     is not "is the scheme https" but "is a secret about to cross an unencrypted
@@ -95,11 +99,15 @@ def refuse_credential_in_clear(rule: InjectionRule, url: str) -> None:
 
     Loopback is the same exception it has always been, and for the same reason:
     a test double or a local emulator standing in for a vendor.
+
+    Raises a refusal distinct from ``EgressDenied`` — same classification, a
+    different sentence — because this is never about an address the
+    integration failed to declare. See ``CredentialWouldCrossInClear``.
     """
     split = urlsplit(url)
     host = host_of(url)
     if split.scheme != PERMITTED_SCHEME and host not in LOOPBACK_HOSTS:
-        raise EgressDenied(rule.integration, host=f"{split.scheme}://{host}", allowed=rule.hosts)
+        raise CredentialWouldCrossInClear(rule.integration, scheme=split.scheme, host=host)
 
 
 __all__ = [

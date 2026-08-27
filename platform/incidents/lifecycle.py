@@ -50,6 +50,7 @@ from platform.persistence.ports.incident_store import (
     TimelineEntry,
     TimelineKind,
     incident_key,
+    public_incident_id,
     timeline_key,
 )
 
@@ -98,8 +99,10 @@ class IncidentLifecycle:
         if existing is not None:
             return await self._correlate(existing, request, now=now)
 
+        new_incident_id = incident_key(request.correlation_key, now)
         incident = Incident(
-            incident_id=incident_key(request.correlation_key, now),
+            incident_id=new_incident_id,
+            public_id=public_incident_id(new_incident_id),
             correlation_key=request.correlation_key,
             title=request.title,
             summary=request.summary,
@@ -176,6 +179,7 @@ class IncidentLifecycle:
         run_id: str,
         *,
         objective: str = "",
+        advance_state: bool = True,
         now: datetime,
     ) -> Incident:
         """Link an investigation to ``incident_id`` and move it to investigating.
@@ -188,10 +192,15 @@ class IncidentLifecycle:
         if run_id in incident.run_ids:
             return incident
 
+        new_state = (
+            IncidentState.INVESTIGATING
+            if (advance_state and incident.state.is_live)
+            else incident.state
+        )
         linked = replace(
             incident,
             run_ids=(*incident.run_ids, run_id),
-            state=IncidentState.INVESTIGATING if incident.state.is_live else incident.state,
+            state=new_state,
         )
         stored = await self.store.upsert(linked)
         await self._record(

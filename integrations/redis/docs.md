@@ -4,10 +4,19 @@ The Redis Cloud control plane: which databases exist in a subscription and in wh
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `api_key` | Redis Cloud account key | yes | yes |
-| `secret_key` | Redis Cloud user secret key | yes | yes |
+| `api_key` | Redis Cloud account key | this token does not carry scope — treat it as full access | [API getting started](https://redis.io/docs/latest/operate/rc/api/get-started/) |
+| `secret_key` | Redis Cloud user secret key | `subscriptions:read` | [API getting started](https://redis.io/docs/latest/operate/rc/api/get-started/) |
+
+Sources: Redis Cloud's own API documentation. The account key only identifies
+the account; the permission model lives on the user associated with the
+secret key, which is why only that field carries a real scope.
 
 ```bash
 ninjasre integrations setup redis

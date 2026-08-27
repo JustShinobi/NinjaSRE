@@ -214,6 +214,10 @@ async def test_a_webhook_alert_and_a_detected_condition_are_structurally_identic
     #: agree in kind, which is what "one lifecycle" actually claims.
     expected_to_differ = {
         "incident_id",
+        # Derived one-to-one from incident_id, which is already in this set —
+        # two different internal keys must have two different public
+        # addresses.
+        "public_id",
         "correlation_key",
         "origin",
         "origin_id",

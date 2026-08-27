@@ -408,6 +408,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="whether this team's credential for an integration is present and usable",
     ),
     ConsoleEndpoint(
+        method="GET",
+        path="/v1/integrations/{name}/docs",
+        slug="integration-docs",
+        source=_GATEWAY,
+        summary="the vendor package's own documentation, as its docs.md reads",
+    ),
+    ConsoleEndpoint(
         method="POST",
         path="/v1/providers/{provider_id}/verify",
         slug="provider-verify",
@@ -422,6 +429,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="what is left to set up, each step verified against its dependency",
         records_key="steps",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/setup/local-administrator",
+        slug="local-administrator",
+        source=_GATEWAY,
+        summary="whether this deployment has a local administrator yet, and the command that gives it one",
     ),
     ConsoleEndpoint(
         method="GET",

@@ -7,6 +7,9 @@ import { legacyRedirectHref } from '@/shell/legacy-redirect';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 import { SignalsScreen } from '@/surfaces/screens/signals';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /** One area of the product. What it is, and what it is for, come from the manifest. */
 export function generateMetadata(): Promise<Metadata> {
   return areaMetadata('signals');

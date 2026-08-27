@@ -33,6 +33,7 @@ from enum import StrEnum
 from typing import Any, Final
 
 from config.constants.security import (
+    APPROVAL_PAYLOAD_RUN,
     CHANGE_TYPE_CAPABILITY,
     CHANGE_TYPE_CONFIGURATION,
     CHANGE_TYPE_KNOWLEDGE,
@@ -326,6 +327,19 @@ class PendingChange:
     # --- Reading -------------------------------------------------------------
 
     @property
+    def proposing_run(self) -> str:
+        """Return the run that proposed this change, or empty when none did.
+
+        Read from the payload rather than held as a field, because the payload
+        is what the proposer already fills in and a second copy is a second
+        thing to keep true. A change queued by a person carries no run and
+        answers with the empty string, which is the honest answer rather than
+        an invented identifier.
+        """
+        found = self.proposed.get(APPROVAL_PAYLOAD_RUN)
+        return found if isinstance(found, str) else ""
+
+    @property
     def node_id(self) -> str | None:
         """Return the node this change takes effect at, if it names one."""
         return self.target.node_id
@@ -410,10 +424,22 @@ class PendingChange:
         what still needs answering must include it. Why it is conflicted lives
         in the payload, where re-review can clear it without the store having to
         offer a way back out of a decided state.
+
+        ``run_id`` is the run that proposed this change when one did, and the
+        key built from the target when none did. A configuration edit is queued
+        by a person and has no run to name, so for those the synthesised key is
+        the answer — it is how a listing groups changes to one target. A
+        remediation is proposed by an investigation, and that run is the only
+        thing any surface can find the approval by: ``incident-detail`` reads
+        ``/v1/approvals?run_id=<the incident's run>`` and draws the approve and
+        reject controls only when it comes back with something. Writing
+        ``remediation:pve01`` into the column while the real run sat in the
+        payload meant that query never matched, so the controls were never
+        drawn and no proposal in this product could ever be decided.
         """
         return ApprovalRequest(
             approval_id=self.change_id,
-            run_id=f"{self.change_type.value}:{self.target.identifier}",
+            run_id=self.proposing_run or f"{self.change_type.value}:{self.target.identifier}",
             action=f"{self.change_type.value}.change",
             side_effect_level=self.side_effect_level,
             summary=self.summary(),

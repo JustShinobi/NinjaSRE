@@ -39,6 +39,22 @@ _OWN_ENV_PATTERN = re.compile(r"^NINJASRE_[A-Z0-9_]+$")
 #: operator runs, or points at their own; the pipeline does not publish it.
 INFRASTRUCTURE_IMAGE = "postgres.Dockerfile"
 
+#: The image the compose shape builds and the cluster descriptor does not name.
+#:
+#: It is the same wheel as `app` started at a second entry point — a whole
+#: second copy of the gateway rather than a front end, whatever its name
+#: suggests. The cluster ran a copy of it for a while, drifting eighteen hours
+#: behind while the ingress pointed a browser at it, and the browser read pages
+#: the running code had stopped producing. `web` calls `app` now, and the
+#: cluster descriptor stopped naming this image rather than publishing a second
+#: gateway nobody reaches.
+#:
+#: Compose still builds it, which is why this is an exception rather than a
+#: deletion, and `test_the_compose_only_image_is_really_built_by_compose`
+#: below is what stops the exception from quietly becoming an orphan — the
+#: precise failure the rule underneath exists to catch.
+COMPOSE_ONLY_IMAGE = "console.Dockerfile"
+
 
 def test_every_image_is_shipped() -> None:
     names = {path.name for path in dockerfiles()}
@@ -75,7 +91,7 @@ def test_every_image_that_is_not_infrastructure_is_a_delivered_component() -> No
         str(component["dockerfile"]).rsplit("/", 1)[-1]
         for component in descriptor.get("components") or []
     }
-    present = {path.name for path in dockerfiles()} - {INFRASTRUCTURE_IMAGE}
+    present = {path.name for path in dockerfiles()} - {INFRASTRUCTURE_IMAGE, COMPOSE_ONLY_IMAGE}
 
     assert declared <= present, (
         f"the descriptor names {sorted(declared - present)}, which is not in deploy/images"
@@ -83,6 +99,29 @@ def test_every_image_that_is_not_infrastructure_is_a_delivered_component() -> No
     assert present <= declared, (
         f"{sorted(present - declared)} is built by nothing. An image no component "
         f"declares is never published, and never runs anywhere."
+    )
+
+
+def test_the_compose_only_image_is_really_built_by_compose() -> None:
+    """The one image the cluster descriptor does not name must still be built.
+
+    Without this, `COMPOSE_ONLY_IMAGE` is a hole in the rule above rather than
+    an exception to it: anybody could drop a component from the descriptor,
+    name the image here, and the suite would agree the image is fine while no
+    shape at all builds it — which is precisely the failure the rule exists to
+    catch, arrived at through the door marked "exception".
+    """
+    referenced = {
+        str(service.get("build", {}).get("dockerfile", "")).rsplit("/", 1)[-1]
+        for compose in COMPOSE.glob("docker-compose*.yml")
+        for service in (yaml.safe_load(compose.read_text("utf-8")).get("services") or {}).values()
+        if isinstance(service, dict) and isinstance(service.get("build"), dict)
+    }
+
+    assert COMPOSE_ONLY_IMAGE in referenced, (
+        f"{COMPOSE_ONLY_IMAGE} is named as compose's own, and no compose file builds it. "
+        f"Either a compose service should, or the image should be deleted along with "
+        f"this exception — an image nothing builds is an image no deployment ever gets."
     )
 
 

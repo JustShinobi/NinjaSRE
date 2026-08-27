@@ -55,6 +55,22 @@ MAX_AGENT_TOOL_SCHEMAS: Final[int] = 40
 #: so a flood of high-scoring vendor tools cannot crowd them out.
 MAX_SECONDARY_FALLBACK_TOOLS: Final[int] = 5
 
+#: Evidence entries, most recent first, that re-ranking reads back as "what this
+#: run has learned". The cap above bounds what a turn *sends*; this bounds what
+#: the turn's ranking is *scored against*, which is a separate budget and needs
+#: to be one: the whole of a long run's evidence would swamp the vocabulary a
+#: capability declares itself with, and every capability would then score the
+#: same against everything.
+MAX_TURN_RANKING_EVIDENCE: Final[int] = 12
+
+#: Characters of that run progress the ranking actually reads. The entry count
+#: alone is not a bound — one observation can be a megabyte of log lines — and
+#: the scorer's lexical term is a ratio over the union of both vocabularies, so
+#: an unbounded incident side drives every use-case overlap towards zero and
+#: quietly turns the term off. Measured against declarations whose use cases run
+#: to a sentence or two apiece.
+MAX_TURN_RANKING_CHARS: Final[int] = 2000
+
 #: Capabilities the planning stage shortlists before the loop starts.
 DEFAULT_TOOL_BUDGET: Final[int] = 8
 
@@ -114,6 +130,18 @@ CONTEXT_BUDGET_WARNING_RATIO: Final[float] = 0.9
 #: is the agent's own prose: worth keeping while it is fresh, first to go when
 #: something measured is competing for the same tokens.
 UNRELIABLE_EVIDENCE_SOURCES: Final[tuple[str, ...]] = ("reasoning",)
+
+#: The capability whose own arguments say what a run could and could not back.
+#: Named here rather than in the console or the gateway because three tiers now
+#: read the same call: the agent offers it, the trace stores its arguments, and
+#: every surface that says how sure a run was counts them.
+EVIDENCE_ASSESSMENT_CAPABILITY: Final[str] = "assess_evidence_sufficiency"
+
+#: The two argument names that capability carries its answer in. A run that
+#: called it with neither said nothing about its own evidence, which is a
+#: different fact from a run that called it and found nothing missing.
+EVIDENCE_SUPPORTING_ARGUMENT: Final[str] = "supporting_evidence"
+EVIDENCE_MISSING_ARGUMENT: Final[str] = "missing_evidence"
 
 # --- Mid-run interaction -----------------------------------------------------
 
@@ -347,6 +375,9 @@ __all__ = [
     "DEFAULT_SUBAGENT_ITERATIONS",
     "DEFAULT_TOOL_BUDGET",
     "DERIVED_WINDOW_CONFIDENCE",
+    "EVIDENCE_ASSESSMENT_CAPABILITY",
+    "EVIDENCE_MISSING_ARGUMENT",
+    "EVIDENCE_SUPPORTING_ARGUMENT",
     "EVIDENCE_TRUNCATION_FLOOR_CHARS",
     "EVIDENCE_VALUE_CITED_BONUS",
     "EVIDENCE_VALUE_RECENCY_WEIGHT",
@@ -368,11 +399,13 @@ __all__ = [
     "MAX_PARALLEL_TOOL_CALLS",
     "MAX_REMEDIATION_STEPS",
     "MAX_SECONDARY_FALLBACK_TOOLS",
+    "MAX_TURN_RANKING_CHARS",
+    "MAX_TURN_RANKING_EVIDENCE",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
-    "MIN_TOOL_RESULT_CHARS",
     "MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS",
     "MESSAGE_QUEUE_DEBOUNCE_MS",
+    "MIN_TOOL_RESULT_CHARS",
     "NINJASRE_RUNTIME_ENV",
     "NOISE_CLASSIFICATION_THRESHOLD",
     "PLAN_CONFIDENCE_FLOOR",

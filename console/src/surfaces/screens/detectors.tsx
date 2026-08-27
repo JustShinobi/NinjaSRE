@@ -12,6 +12,7 @@ import {
   setupCause,
   watchingCause,
 } from '../emptiness';
+import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -78,7 +79,7 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
   const configurationHref = '/settings/alert-intake';
   const watching = watchingCause(locale, liveDetectors);
   const cause = firstCause(
-    setupCause(locale, setup),
+    setupCause(locale, setup, INVESTIGATION_STEP),
     watching === null ? null : { ...watching, href: configurationHref },
   );
 
@@ -116,7 +117,7 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
                 <th
                   key={header}
                   scope="col"
-                  className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                  className="text-left text-micro text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
                 >
                   {header}
                 </th>

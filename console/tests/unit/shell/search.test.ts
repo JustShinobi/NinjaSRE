@@ -87,11 +87,18 @@ describe('finding a resource by what it is called', () => {
 describe('finding an incident and a run', () => {
   it('finds an incident by its title', () => {
     const found = incidentsMatching(
-      [{ incident_id: 'inc-1', title: 'checkout is out of memory', severity: 'high' }],
+      [
+        {
+          incident_id: 'inc-1',
+          public_id: 'inc_1',
+          title: 'checkout is out of memory',
+          severity: 'high',
+        },
+      ],
       'memory',
     );
 
-    expect(found[0]?.href).toBe('/incidents/inc-1');
+    expect(found[0]?.href).toBe('/incidents/inc_1');
     expect(found[0]?.hint).toContain('high');
   });
 
@@ -212,13 +219,13 @@ describe('what a found thing becomes in the palette', () => {
     expect(with_?.hint).toBe('container');
   });
 
-  it('falls back to the identifier when an incident has no title', () => {
+  it('falls back to the public address when an incident has no title', () => {
     const found = incidentsMatching(
-      [{ incident_id: 'inc-9', summary: 'a volume filled' }],
+      [{ incident_id: 'inc-9', public_id: 'inc_9', summary: 'a volume filled' }],
       'volume',
     );
 
-    expect(found[0]?.label).toBe('inc-9');
+    expect(found[0]?.label).toBe('inc_9');
   });
 
   it('falls back to the status when a run has no summary', () => {

@@ -17,9 +17,6 @@ fixtures:
     /nodes/pve02/lxc/115/status/current:
       {status: running, name: adguard, vmid: 115, lock: backup, cpus: 2, maxmem: 1073741824,
        mem: 500000000, maxdisk: 8589934592, disk: 8100000000, uptime: 81324}
-    /nodes/pve02/lxc/115/status/tasks:
-      - {upid: 'UPID:pve02:0000B1C7:0511D6A9:68943A19:vzdump:115:root@pam:', type: vzdump,
-         starttime: 1754800000, node: pve02, user: 'root@pam'}
     /nodes/pve02/tasks:
       - {upid: 'UPID:pve02:0000B1C7:0511D6A9:68943A19:vzdump:115:root@pam:', type: vzdump,
          starttime: 1754800000, node: pve02, user: 'root@pam'}

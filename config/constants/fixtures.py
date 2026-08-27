@@ -85,6 +85,7 @@ FIXTURE_SCENARIO_NAMES: Final = (
     "restricted",
     "audit-flooded",
     "scale",
+    "now-violations",
 )
 
 #: The default, and the only one a caller that names nothing gets.

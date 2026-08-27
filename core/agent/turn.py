@@ -252,7 +252,15 @@ class Turn:
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     duration_seconds: float = 0.0
     offered_capabilities: tuple[str, ...] = ()
+    #: What the model said while it worked. Its own reasoning for this turn.
     rationale: str = ""
+    #: Why the capabilities above were the ones on offer — the half of a turn
+    #: that cannot be reconstructed from what was called. Distinct from
+    #: ``rationale`` on purpose: a turn that only emitted tool calls says
+    #: nothing, and a field carrying the model's silence would read as "the
+    #: selection had no reason" to whoever opened it asking why something was
+    #: missing.
+    selection_rationale: str = ""
     provider_id: str = ""
     model_id: str = ""
     finish_reason: FinishReason = FinishReason.STOP
@@ -279,6 +287,7 @@ class Turn:
             "duration_seconds": self.duration_seconds,
             "offered_capabilities": list(self.offered_capabilities),
             "rationale": self.rationale,
+            "selection_rationale": self.selection_rationale,
             "provider_id": self.provider_id,
             "model_id": self.model_id,
             "finish_reason": self.finish_reason.value,
@@ -301,6 +310,7 @@ class Turn:
                 str(name) for name in record.get("offered_capabilities") or ()
             ),
             rationale=str(record.get("rationale", "")),
+            selection_rationale=str(record.get("selection_rationale", "")),
             provider_id=str(record.get("provider_id", "")),
             model_id=str(record.get("model_id", "")),
             finish_reason=FinishReason(record.get("finish_reason", FinishReason.STOP.value)),

@@ -233,7 +233,7 @@ async def test_with_nothing_configured_the_gate_asks_a_person() -> None:
     assert executor.calls == []
     assert len(requests.queued) == 1
     assert "waiting on a human" in outcome.reason
-    assert "propose_only" in outcome.reason
+    assert "propose-only" in outcome.reason
 
 
 async def test_a_configured_level_makes_the_gate_act_without_asking() -> None:

@@ -1,0 +1,33 @@
+# E8 — the decision, its author and its instant, recorded before any effect
+# collected at 2026-08-25T07:35:01.956155+00:00
+# parameters: org=default run=d393d5d0916c404b854337a270fa825d incident=inc_05328c58ca88676b approval=(none) resource=res-47555daca81efa67dacce16fb42c898e
+
+## decision — who decided, when, and why — on the row the execution was authorised from
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## audit-of-the-decision — the decision reached the audit trail with author, action, subject and result
+## before the wave: no row
+## NOT COLLECTED: this query needs --approval, which was not given. Nothing was asked of the database. A station without evidence is not a station that passed.
+
+
+## nothing-executed-unattended — no action above reading executed without a recorded human decision; this must read nought at the end of the demonstration
+## before the wave: 0 — nothing executed at all
+
+-- This must read nought at the end. A row here is an action carried out with
+-- no human decision recorded against it.
+SELECT count(*) AS unattended_executions
+FROM remediation_outcomes
+WHERE org_id = 'default'
+  AND autonomous IS TRUE;
+
+--- output ---
+ unattended_executions 
+-----------------------
+                     0
+(1 row)
+
+
+--- end of output ---
+

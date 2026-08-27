@@ -115,7 +115,7 @@ export function StatTile({
   return (
     <div
       data-state={state}
-      className="bg-raised edge border-border rounded-3 shadow-1 p-4 flex flex-col gap-1"
+      className="bg-raised edge border-border rounded-3 shadow-1 p-4 flex h-full flex-col gap-1"
     >
       <span className="text-meta text-muted flex items-center gap-1">
         {icon}

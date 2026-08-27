@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 from config.constants.runs import (
     MAX_TRACE_PAYLOAD_BYTES,
@@ -39,6 +39,29 @@ from config.constants.runs import (
 #: What replaces a branch below the depth ceiling. Carries the suffix so the
 #: same string search finds every kind of reduction in a rendered payload.
 _DEPTH_MARKER = f"<nested{TRUNCATION_SUFFIX}>"
+
+
+@dataclass(frozen=True, slots=True)
+class Bounds:
+    """The four ceilings one reduction applies.
+
+    Carried as a value rather than read from the constants at each step,
+    because there is more than one reader of a payload and they do not want the
+    same size. Writing to the trace wants the storage bound; serving a whole
+    run's calls in one response wants a much tighter one, and re-implementing
+    the reduction for the second reader would mean two vocabularies of marker
+    for the same fact — that something was cut.
+    """
+
+    payload_bytes: int = MAX_TRACE_PAYLOAD_BYTES
+    string_length: int = MAX_TRACE_STRING_LENGTH
+    depth: int = MAX_TRACE_PAYLOAD_DEPTH
+    sequence_items: int = MAX_TRACE_SEQUENCE_ITEMS
+
+
+#: What the recorder writes under. The default, so an existing caller keeps the
+#: bounds it already had.
+TRACE_BOUNDS: Final = Bounds()
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,8 +90,10 @@ class Truncation:
         }
 
 
-def truncate(payload: Mapping[str, Any]) -> tuple[dict[str, Any], Truncation]:
-    """Return ``payload`` as it will be stored, and what was removed from it.
+def truncate(
+    payload: Mapping[str, Any], *, bounds: Bounds = TRACE_BOUNDS
+) -> tuple[dict[str, Any], Truncation]:
+    """Return ``payload`` reduced to ``bounds``, and what was removed from it.
 
     The returned mapping is JSON-serialisable whatever went in: a value the
     encoder cannot represent becomes its ``repr``. A payload that raised on the
@@ -76,11 +101,13 @@ def truncate(payload: Mapping[str, Any]) -> tuple[dict[str, Any], Truncation]:
     explicit that a result which never entered the trace did not happen.
     """
     counter = _Counter()
-    reduced = {key: _walk(value, depth=1, counter=counter) for key, value in payload.items()}
+    reduced = {
+        key: _walk(value, depth=1, counter=counter, bounds=bounds) for key, value in payload.items()
+    }
 
     before = _size(reduced)
-    if before > MAX_TRACE_PAYLOAD_BYTES:
-        reduced = _shed(reduced, counter=counter)
+    if before > bounds.payload_bytes:
+        reduced = _shed(reduced, counter=counter, bounds=bounds)
         counter.bytes_removed += before - _size(reduced)
 
     removal = counter.result()
@@ -110,32 +137,33 @@ class _Counter:
         )
 
 
-def _walk(value: Any, *, depth: int, counter: _Counter) -> Any:
+def _walk(value: Any, *, depth: int, counter: _Counter, bounds: Bounds) -> Any:
     """Return ``value`` reduced to the structural bounds, counting as it goes."""
-    if depth > MAX_TRACE_PAYLOAD_DEPTH:
+    if depth > bounds.depth:
         counter.branches += 1
         return _DEPTH_MARKER
 
     if isinstance(value, str):
-        if len(value) <= MAX_TRACE_STRING_LENGTH:
+        if len(value) <= bounds.string_length:
             return value
         counter.strings += 1
-        counter.bytes_removed += len(value[MAX_TRACE_STRING_LENGTH:].encode("utf-8"))
-        return value[:MAX_TRACE_STRING_LENGTH] + TRUNCATION_SUFFIX
+        counter.bytes_removed += len(value[bounds.string_length :].encode("utf-8"))
+        return value[: bounds.string_length] + TRUNCATION_SUFFIX
 
     if isinstance(value, Mapping):
         return {
-            str(key): _walk(item, depth=depth + 1, counter=counter) for key, item in value.items()
+            str(key): _walk(item, depth=depth + 1, counter=counter, bounds=bounds)
+            for key, item in value.items()
         }
 
     # ``str`` and ``bytes`` are sequences and are handled above and below; what
     # is left here is the list-shaped thing a tool result actually carries.
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         items = list(value)
-        if len(items) > MAX_TRACE_SEQUENCE_ITEMS:
-            counter.items += len(items) - MAX_TRACE_SEQUENCE_ITEMS
-            items = items[:MAX_TRACE_SEQUENCE_ITEMS]
-        return [_walk(item, depth=depth + 1, counter=counter) for item in items]
+        if len(items) > bounds.sequence_items:
+            counter.items += len(items) - bounds.sequence_items
+            items = items[: bounds.sequence_items]
+        return [_walk(item, depth=depth + 1, counter=counter, bounds=bounds) for item in items]
 
     if isinstance(value, bool | int | float) or value is None:
         return value
@@ -143,10 +171,10 @@ def _walk(value: Any, *, depth: int, counter: _Counter) -> Any:
     # Anything else — a datetime, a dataclass, a vendor client's response
     # object. Its ``repr`` is worse than a schema and infinitely better than an
     # exception raised while recording what a capability returned.
-    return _walk(repr(value), depth=depth, counter=counter)
+    return _walk(repr(value), depth=depth, counter=counter, bounds=bounds)
 
 
-def _shed(payload: dict[str, Any], *, counter: _Counter) -> dict[str, Any]:
+def _shed(payload: dict[str, Any], *, counter: _Counter, bounds: Bounds) -> dict[str, Any]:
     """Return ``payload`` with its largest fields dropped until it fits.
 
     Largest first, because the alternative — dropping in key order — removes an
@@ -161,7 +189,7 @@ def _shed(payload: dict[str, Any], *, counter: _Counter) -> dict[str, Any]:
         reverse=True,
     )
     for key in by_size:
-        if _size(reduced) <= MAX_TRACE_PAYLOAD_BYTES:
+        if _size(reduced) <= bounds.payload_bytes:
             break
         reduced[key] = f"<dropped{TRUNCATION_SUFFIX}>"
         counter.fields += 1
@@ -176,4 +204,4 @@ def _size(value: Any) -> int:
         return len(repr(value).encode("utf-8"))
 
 
-__all__ = ["Truncation", "truncate"]
+__all__ = ["TRACE_BOUNDS", "Bounds", "Truncation", "truncate"]

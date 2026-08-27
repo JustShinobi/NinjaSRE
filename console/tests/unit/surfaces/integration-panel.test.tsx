@@ -70,6 +70,26 @@ const LABELS: IntegrationPanelLabels = {
   intakeTitle: 'Where to send alerts',
   intakeBody: 'The one step that happens outside this deployment.',
   intakeAction: 'Point your alert router at it',
+  docsHeading: 'Package documentation',
+  docsToggle: 'Read the package documentation',
+  docsUnreadable: "This vendor's own documentation could not be read.",
+  trust: {
+    heading: 'Certificate trust',
+    intro: 'What this deployment accepts from the certificate this address presents.',
+    fingerprintsLabel: 'Pinned fingerprints',
+    fingerprintsHelp: 'One SHA-256 fingerprint per line.',
+    certificateLabel: 'Certificate authority (PEM)',
+    certificateHelp: 'The authority the cluster minted for itself.',
+    submit: 'Declare trust',
+    sending: 'Declaring…',
+    saved: 'Declared. Testing the connection now.',
+    refused: 'The deployment refused it:',
+    unreachable: 'The deployment could not be reached.',
+    unverifiedHeading: 'Accept without verifying',
+    unverifiedReasonLabel: 'Why',
+    unverifiedReasonHelp: 'Recorded with your name and the moment you accept.',
+  },
+  credentialTeamAmbiguous: 'More than one team holds a credential for this vendor.',
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -80,6 +100,7 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     summary: 'What is firing, grouped and silenced.',
     health: 'unconfigured',
     healthDetail: '',
+    credentialTeamAmbiguous: false,
     fields: [
       {
         name: 'token',
@@ -93,6 +114,9 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     discoveredAddress: '',
     direction: 'outbound',
     intakePath: '',
+    whereToGetIt: '',
+    docsMarkdown: '',
+    docsReadable: true,
     ...overrides,
   };
 }
@@ -280,6 +304,129 @@ describe('a connected integration: state and actions, not an empty form', () => 
     expect(screen.getByTestId('credential')).toBeInTheDocument();
     expect(screen.queryByTestId('credential-connected')).toBeNull();
     expect(screen.queryByRole('button', { name: /^Disconnect/ })).toBeNull();
+  });
+});
+
+describe('more than one team holding this integration’s credential', () => {
+  it('says so, when the resolution found two teams', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ credentialTeamAmbiguous: true })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('panel-credential-team-ambiguous')).toHaveTextContent(
+      LABELS.credentialTeamAmbiguous,
+    );
+  });
+
+  it('says nothing at all when only one team, or none, holds it', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ credentialTeamAmbiguous: false })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('panel-credential-team-ambiguous')).toBeNull();
+  });
+});
+
+describe('where to obtain the credential', () => {
+  it('shows the vendor-declared phrase when the vendor declares one', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({
+          whereToGetIt: 'Ask your platform team for the shared bearer token.',
+        })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('where-to-get-it')).toHaveTextContent(
+      'Ask your platform team for the shared bearer token.',
+    );
+  });
+
+  it('renders no line at all when the vendor declares no phrase', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ whereToGetIt: '' })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('where-to-get-it')).toBeNull();
+  });
+});
+
+describe('the package documentation section', () => {
+  it('renders the document as read text when this deployment could read it', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({
+          docsMarkdown: '# Alertmanager\n\nWhat it holds.',
+          docsReadable: true,
+        })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    const section = screen.getByTestId('integration-docs');
+    expect(within(section).getByTestId('report')).toHaveTextContent('What it holds.');
+    expect(within(section).queryByTestId('integration-docs-unreadable')).toBeNull();
+  });
+
+  it('says it could not read the document when this deployment could not, never that it does not exist', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ docsMarkdown: '', docsReadable: false })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    const section = screen.getByTestId('integration-docs');
+    expect(
+      within(section).getByTestId('integration-docs-unreadable'),
+    ).toHaveTextContent(LABELS.docsUnreadable);
+    expect(within(section).queryByTestId('report')).toBeNull();
   });
 });
 

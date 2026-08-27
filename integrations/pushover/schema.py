@@ -31,6 +31,9 @@ SCHEMA: Final = credential_schema(
         "Pushover application API token",
         min_length=8,
         label="Application token",
+        # Pushover has no scope model at all: an application token can post to
+        # any user or group that has entered that application, full stop.
+        min_scope="this token does not carry scope — treat it as full access",
         guide_url="https://pushover.net/apps/build",
     ),
     secret(
@@ -38,6 +41,7 @@ SCHEMA: Final = credential_schema(
         "Pushover user or group key",
         min_length=8,
         label="User or group key",
+        min_scope="this token does not carry scope — treat it as full access",
         guide_url="https://pushover.net/",
     ),
 )

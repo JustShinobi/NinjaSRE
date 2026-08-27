@@ -1,0 +1,270 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    a { color: #3ad195; text-decoration: none; } a:hover { color: #6ede9d; }
+    .sg { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 500; border: 1px solid; line-height: 1.3; }
+    .card { background: #101815; border: 1px solid #223029; border-radius: 12px; }
+    .navitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; color: #9fb2aa; font-size: 13.5px; font-weight: 500; }
+    .navlabel { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #6d7f77; padding: 14px 12px 6px; font-weight: 600; }
+    @keyframes pulseRing { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.4); opacity: 0; } }
+    .pulse { position: relative; }
+    .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 999px; border: 1.5px solid #3ad195; animation: pulseRing 2s ease-out infinite; }
+  </style>
+</helmet>
+<div style="display: flex; width: 1440px; height: 960px; background: #0a100e; color: #e9f0ec; overflow: hidden; background-image: radial-gradient(720px 320px at 78% -80px, rgba(58,209,149,.10), transparent 70%);">
+
+  <!-- Sidebar -->
+  <div style="display: flex; flex-direction: column; width: 232px; flex-shrink: 0; border-right: 1px solid #1a241f; background: rgba(13,19,17,.75); padding: 16px 12px 14px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 2px 12px 14px;">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 2l2.6 5.6L21 5.2l-1.9 5.7 5 3.1-5 3.1 1.9 5.7-5.4-2.4L13 26l-2.6-5.6L5 22.8l1.9-5.7-5-3.1 5-3.1L5 5.2l5.4 2.4L13 2z" fill="#3ad195" opacity=".92"/><circle cx="13" cy="14" r="4.2" fill="#0a100e"/><circle cx="13" cy="14" r="1.8" fill="#3ad195"/></svg>
+      <span class="sg" style="font-size: 17px; font-weight: 700;">Ninja<span style="color: #3ad195;">SRE</span></span>
+    </div>
+    <div class="navlabel">Agora</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>Painel</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6.2v4.2l2.6 1.6"/></svg>Incidentes<span class="mono" style="margin-left: auto; font-size: 11px; color: #ef7070;">4</span></div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.6" cy="8.6" r="5.6"/><path d="M13 13l4.4 4.4"/><path d="M6.4 8.6h4.4"/></svg>Investigações</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5l6.5 3v4.7c0 4-2.8 6.6-6.5 7.8-3.7-1.2-6.5-3.8-6.5-7.8V5.5l6.5-3z"/><path d="M7.2 10l2 2 3.6-3.8"/></svg>Decisões<span style="margin-left: auto; background: #e0a84e; color: #241a08; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 0 7px;">1</span></div>
+    <div class="navlabel">Ambiente</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="15" height="5.5" rx="1.5"/><rect x="2.5" y="11.5" width="15" height="5.5" rx="1.5"/><circle cx="5.6" cy="5.75" r=".9" fill="currentColor" stroke="none"/><circle cx="5.6" cy="14.25" r=".9" fill="currentColor" stroke="none"/></svg>Recursos</div>
+    <div class="navitem" style="background: #12271f; color: #3ad195; box-shadow: inset 2px 0 0 #3ad195;"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4.5c-1.6-1.4-3.8-1.6-6-1v12c2.2-.6 4.4-.4 6 1 1.6-1.4 3.8-1.6 6-1v-12c-2.2-.6-4.4-.4-6 1z"/><path d="M10 4.5v12"/></svg>Conhecimento</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10h3l2-4.5 3 9 2-4.5h5"/></svg>O agente</div>
+    <div class="navlabel">Configuração</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v4a3 3 0 006 0V3"/><path d="M10 10v3.5"/><path d="M6.5 17h7"/></svg>Integrações</div>
+    <div class="navitem"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2.2M10 15v2.2M2.8 10H5M15 10h2.2M4.9 4.9l1.6 1.6M13.5 13.5l1.6 1.6M15.1 4.9l-1.6 1.6M6.5 13.5l-1.6 1.6"/></svg>Ajustes</div>
+    <div style="margin-top: auto; padding: 10px 12px; border-top: 1px solid #1a241f; display: flex; align-items: center; gap: 8px;">
+      <span class="pulse" style="display: inline-flex; width: 8px; height: 8px; border-radius: 999px; background: #3ad195;"></span>
+      <span style="font-size: 12px; color: #9fb2aa;">Guardião ativo · <span style="color: #e9f0ec;">só propõe</span></span>
+    </div>
+  </div>
+
+  <!-- Coluna principal -->
+  <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
+    <div style="display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 24px; border-bottom: 1px solid #1a241f; background: rgba(13,19,17,.6); flex-shrink: 0;">
+      <span style="font-size: 13px; color: #6d7f77;">Buscar…  <span class="mono" style="font-size: 10.5px; border: 1px solid #223029; border-radius: 5px; padding: 1px 6px;">Ctrl K</span></span>
+      <span style="flex: 1;"></span>
+      <span class="chip" style="border-color: #12694a; background: #12271f; color: #3ad195;"><span class="pulse" style="display: inline-flex; width: 7px; height: 7px; border-radius: 999px; background: #3ad195;"></span>Ao vivo</span>
+    </div>
+
+    <div style="flex: 1; overflow: hidden; padding: 22px 28px; display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="display: flex; align-items: baseline; gap: 14px;">
+        <span class="sg" style="font-size: 26px; font-weight: 700; letter-spacing: -.02em;">Conhecimento</span>
+        <span style="font-size: 13px; color: #9fb2aa;">O que as investigações podem ler — e o que elas mesmas deixaram.</span>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <span class="chip" style="border-color: transparent; color: #9fb2aa; padding: 6px 14px;">Aprendido</span>
+        <span class="chip" style="border-color: transparent; color: #9fb2aa; padding: 6px 14px;">Documentos</span>
+        <span class="chip" style="border-color: #2a5c44; background: #12271f; color: #3ad195; font-weight: 600; padding: 6px 14px;">Topologia</span>
+      </div>
+
+      <!-- Toolbar do grafo -->
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="chip" style="border-color: #35493f; background: #131c18; color: #e9f0ec; padding: 6px 12px;">
+          Vizinhança: <span class="mono" style="font-size: 11.5px; color: #3ad195;">cluster:HAL9000</span>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+        </span>
+        <span style="display: inline-flex; gap: 4px; align-items: center;">
+          <span style="font-size: 12px; color: #6d7f77;">profundidade</span>
+          <span class="chip" style="border-color: transparent; color: #9fb2aa; padding: 3px 9px;">1</span>
+          <span class="chip" style="border-color: #2a5c44; background: #12271f; color: #3ad195; font-weight: 600; padding: 3px 9px;">2</span>
+          <span class="chip" style="border-color: transparent; color: #9fb2aa; padding: 3px 9px;">3</span>
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; background: #0d1311; border: 1px solid #223029; border-radius: 8px; padding: 6px 12px; color: #6d7f77; font-size: 12.5px; width: 240px;">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.6" cy="8.6" r="5.6"/><path d="M13 13l4.4 4.4"/></svg>
+          Buscar componente…
+        </span>
+        <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 14px; font-size: 11.5px; color: #9fb2aa;">
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="26" height="8"><path d="M1 4 C 9 0, 17 8, 25 4" fill="none" stroke="#6cb8e0" stroke-width="1.4"/></svg>observa</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="26" height="8"><path d="M1 4 C 9 0, 17 8, 25 4" fill="none" stroke="#3ad195" stroke-width="1.4"/></svg>roda em</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="26" height="8"><path d="M1 4 C 9 0, 17 8, 25 4" fill="none" stroke="#e0a84e" stroke-width="1.4" stroke-dasharray="4 3"/></svg>depende de</span>
+        </span>
+      </div>
+
+      <!-- Grafo + rail -->
+      <div style="display: grid; grid-template-columns: 1fr 300px; gap: 16px; flex: 1; min-height: 0;">
+
+        <div class="card" style="display: flex; align-items: center; justify-content: center; overflow: hidden; background-image: radial-gradient(#16211d 1px, transparent 1px); background-size: 26px 26px; background-position: 12px 12px;">
+          <svg width="880" height="560" viewBox="0 0 880 560" fill="none">
+            <!-- arestas -->
+            <!-- HAL9000 -> pve01 / pve02 (roda em / membro) -->
+            <path d="M400 96 C 330 130, 290 150, 255 182" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <path d="M480 96 C 550 130, 590 150, 625 182" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <!-- guests -> pve01 -->
+            <path d="M190 330 C 200 290, 215 260, 235 232" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <path d="M330 330 C 315 295, 295 262, 270 234" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <path d="M475 296 C 400 265, 330 240, 285 224" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <!-- serviços -> pve02 -->
+            <path d="M645 330 C 650 295, 655 262, 660 234" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <path d="M790 330 C 760 295, 720 258, 690 230" stroke="#3ad195" stroke-width="1.4" opacity=".55"/>
+            <!-- observações -->
+            <path d="M240 356 C 320 380, 390 380, 462 330" stroke="#6cb8e0" stroke-width="1.4" opacity=".6"/>
+            <!-- storages (depende de, inalcançável) -->
+            <path d="M380 474 C 320 420, 280 280, 250 234" stroke="#e0a84e" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>
+            <path d="M420 474 C 500 400, 590 280, 645 234" stroke="#e0a84e" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>
+            <path d="M590 474 C 560 420, 530 300, 480 240" stroke="#e0a84e" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>
+            <path d="M630 474 C 650 400, 655 300, 660 234" stroke="#e0a84e" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>
+            <!-- rótulos de aresta -->
+            <text x="300" y="150" font-size="9" fill="#6d7f77" font-family="IBM Plex Sans, sans-serif">membro</text>
+            <text x="556" y="150" font-size="9" fill="#6d7f77" font-family="IBM Plex Sans, sans-serif">membro</text>
+            <text x="196" y="284" font-size="9" fill="#6d7f77" font-family="IBM Plex Sans, sans-serif">roda em</text>
+            <text x="352" y="390" font-size="9" fill="#6cb8e0" opacity=".8" font-family="IBM Plex Sans, sans-serif">observa</text>
+            <text x="292" y="330" font-size="9" fill="#8a6a2e" font-family="IBM Plex Sans, sans-serif">monta · inalcançável</text>
+
+            <!-- nó: HAL9000 (cluster, centro) -->
+            <g>
+              <rect x="360" y="42" width="160" height="54" rx="10" fill="#131c18" stroke="#35493f" stroke-width="1.2"/>
+              <circle cx="386" cy="69" r="11" fill="#12271f" stroke="#3ad195" stroke-width="1.2"/>
+              <path d="M381 69h10M386 64v10" stroke="#3ad195" stroke-width="1.4" stroke-linecap="round"/>
+              <text x="406" y="66" font-size="12.5" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">HAL9000</text>
+              <text x="406" y="82" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">cluster · quorate</text>
+              <circle cx="506" cy="56" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó: pve01 -->
+            <g>
+              <rect x="180" y="182" width="130" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <rect x="196" y="196" width="18" height="12" rx="2.5" stroke="#9fb2aa" stroke-width="1.4"/>
+              <rect x="196" y="212" width="18" height="12" rx="2.5" stroke="#9fb2aa" stroke-width="1.4"/>
+              <text x="224" y="205" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">pve01</text>
+              <text x="224" y="221" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">nó · saudável</text>
+              <circle cx="296" cy="196" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó: pve02 -->
+            <g>
+              <rect x="590" y="182" width="130" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <rect x="606" y="196" width="18" height="12" rx="2.5" stroke="#9fb2aa" stroke-width="1.4"/>
+              <rect x="606" y="212" width="18" height="12" rx="2.5" stroke="#9fb2aa" stroke-width="1.4"/>
+              <text x="634" y="205" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">pve02</text>
+              <text x="634" y="221" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">nó · saudável</text>
+              <circle cx="706" cy="196" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó selecionado: lxc/122 redis -->
+            <g>
+              <rect x="116" y="326" width="148" height="56" rx="10" fill="#16211d" stroke="#3ad195" stroke-width="1.6"/>
+              <rect x="110" y="320" width="160" height="68" rx="13" stroke="#3ad195" stroke-width="1" opacity=".35"/>
+              <rect x="132" y="342" width="16" height="16" rx="3" stroke="#e9f0ec" stroke-width="1.4"/>
+              <path d="M136 350h8" stroke="#e9f0ec" stroke-width="1.2"/>
+              <text x="158" y="349" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">redis</text>
+              <text x="158" y="365" font-size="10" fill="#9fb2aa" font-family="IBM Plex Mono, monospace">guest lxc/122</text>
+              <rect x="244" y="338" width="9" height="9" rx="2" fill="#ef7070"/>
+            </g>
+
+            <!-- nó: lxc/129 postgresql -->
+            <g>
+              <rect x="286" y="330" width="150" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <ellipse cx="310" cy="349" rx="9" ry="4.5" stroke="#9fb2aa" stroke-width="1.3"/>
+              <path d="M301 349v10c0 2.5 4 4.5 9 4.5s9-2 9-4.5v-10" stroke="#9fb2aa" stroke-width="1.3"/>
+              <text x="328" y="352" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">postgresql</text>
+              <text x="328" y="368" font-size="10" fill="#9fb2aa" font-family="IBM Plex Mono, monospace">guest lxc/129</text>
+              <circle cx="422" cy="342" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó: adguard-primary -->
+            <g>
+              <rect x="462" y="292" width="152" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <path d="M486 306l8 3.5v5.5c0 5-3.4 8-8 9.5-4.6-1.5-8-4.5-8-9.5v-5.5l8-3.5z" stroke="#9fb2aa" stroke-width="1.3"/>
+              <text x="504" y="314" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">adguard-primary</text>
+              <text x="504" y="330" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">serviço · DNS</text>
+              <circle cx="600" cy="304" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó: unbound-pve02 -->
+            <g>
+              <rect x="576" y="330" width="146" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <path d="M600 344l8 3.5v5.5c0 5-3.4 8-8 9.5-4.6-1.5-8-4.5-8-9.5v-5.5l8-3.5z" stroke="#9fb2aa" stroke-width="1.3"/>
+              <text x="618" y="352" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">unbound-pve02</text>
+              <text x="618" y="368" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">serviço · DNS</text>
+              <circle cx="708" cy="342" r="4" fill="#3ad195"/>
+            </g>
+
+            <!-- nó: k3s-lab-server -->
+            <g>
+              <rect x="742" y="330" width="130" height="52" rx="10" fill="#131c18" stroke="#223029" stroke-width="1.2"/>
+              <rect x="758" y="344" width="16" height="16" rx="3" stroke="#9fb2aa" stroke-width="1.3"/>
+              <text x="782" y="352" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">k3s-lab-server</text>
+              <text x="782" y="368" font-size="10" fill="#9fb2aa" font-family="IBM Plex Sans, sans-serif">contêiner</text>
+              <rect x="854" y="340" width="9" height="9" rx="2" fill="#ef7070"/>
+            </g>
+
+            <!-- storages inalcançáveis -->
+            <g>
+              <rect x="330" y="470" width="140" height="50" rx="10" fill="#171310" stroke="#e0a84e" stroke-width="1.2" stroke-dasharray="6 4"/>
+              <path d="M352 484h18M352 490h18M352 496h18" stroke="#e0a84e" stroke-width="1.3" opacity=".8"/>
+              <text x="380" y="491" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">GigaChad</text>
+              <text x="380" y="506" font-size="10" fill="#e0a84e" font-family="IBM Plex Sans, sans-serif">CIFS · unknown</text>
+            </g>
+            <g>
+              <rect x="540" y="470" width="140" height="50" rx="10" fill="#171310" stroke="#e0a84e" stroke-width="1.2" stroke-dasharray="6 4"/>
+              <path d="M562 484h18M562 490h18M562 496h18" stroke="#e0a84e" stroke-width="1.3" opacity=".8"/>
+              <text x="590" y="491" font-size="12" font-weight="600" fill="#e9f0ec" font-family="Space Grotesk, sans-serif">TeraChad</text>
+              <text x="590" y="506" font-size="10" fill="#e0a84e" font-family="IBM Plex Sans, sans-serif">CIFS · unknown</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Rail: nó selecionado -->
+        <div style="display: flex; flex-direction: column; gap: 14px; min-height: 0;">
+          <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="width: 10px; height: 10px; background: #ef7070; border-radius: 2.5px; flex-shrink: 0;"></span>
+              <span class="sg" style="font-size: 15px; font-weight: 600;">redis</span>
+              <span class="mono" style="font-size: 11px; color: #9fb2aa;">guest lxc/122</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span class="chip" style="border-color: #223029; background: #0d1311; color: #9fb2aa; font-size: 11px;">3 investigações tocaram</span>
+              <span class="chip" style="border-color: #223029; background: #0d1311; color: #9fb2aa; font-size: 11px;">2 episódios</span>
+              <span class="chip" style="border-color: #223029; background: #0d1311; color: #9fb2aa; font-size: 11px;">visto há 10 min</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px;">
+              <span style="font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6d7f77;">Visto junto com</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: #3ad195;"></span>
+                <span class="mono" style="font-size: 12px; color: #c9d5d0;">redis-exporter</span>
+                <span style="font-size: 11px; color: #6d7f77;">observa</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: #3ad195;"></span>
+                <span class="mono" style="font-size: 12px; color: #c9d5d0;">pve01</span>
+                <span style="font-size: 11px; color: #6d7f77;">roda em</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 7px; height: 7px; border-radius: 999px; background: #3ad195;"></span>
+                <span class="mono" style="font-size: 12px; color: #c9d5d0;">HAL9000</span>
+                <span style="font-size: 11px; color: #6d7f77;">membro</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid #1a241f;">
+              <a href="#" style="font-size: 12.5px;">abrir em Recursos →</a>
+              <a href="#" style="font-size: 12.5px;">investigar este componente →</a>
+            </div>
+          </div>
+
+          <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+            <span class="sg" style="font-size: 13.5px; font-weight: 600;">Última observação</span>
+            <span style="font-size: 12.5px; color: #9fb2aa; line-height: 1.5;">Probes TCP falharam porque o contêiner foi parado por <span class="mono" style="font-size: 11.5px;">vzshutdown</span> administrativo — registrado pela investigação <a href="#">RedisExporterDown</a>.</span>
+            <span class="mono" style="font-size: 11px; color: #6d7f77;">há 10 min</span>
+          </div>
+        </div>
+      </div>
+
+      <span style="font-size: 11.5px; color: #6d7f77; padding-top: 2px;">Construída do que as investigações observam — nada aqui foi desenhado à mão.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

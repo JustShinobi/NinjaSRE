@@ -5,6 +5,9 @@ import { useEffect, type ReactNode } from 'react';
 
 import { configurationRedirectTarget } from '@/shell/configuration-redirect';
 
+/** Declared per route: a layout's dynamism can stop applying to a child segment without warning. */
+export const dynamic = 'force-dynamic';
+
 /**
  * The retired configuration editor's address, forwarding to whichever page now
  * owns the group a visitor was heading for.

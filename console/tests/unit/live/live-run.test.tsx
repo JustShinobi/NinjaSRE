@@ -12,7 +12,7 @@ import type {
 } from '@/live/connection';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
 import { InvestigateDrawer } from '@/live/investigate';
-import { LiveRun } from '@/live/live-run';
+import { LiveEventCount, LiveRun } from '@/live/live-run';
 import { applyEvents, openRun } from '@/live/reducer';
 import { eventFrom, type StreamEvent } from '@/live/events';
 import { RunStore } from '@/live/store';
@@ -115,6 +115,64 @@ function answering(ok: boolean, body: unknown = {}): typeof fetch {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('the count over a live transcript', () => {
+  /** The card as the screen composes it: the header's count above the body. */
+  function card(store: RunStore): React.ReactElement {
+    return (
+      <>
+        <LiveEventCount runId="run-3" locale="en" seed={{}} store={store} />
+        {liveRun(store)}
+      </>
+    );
+  }
+
+  it('states the number the transcript below it is drawing, as it grows', () => {
+    const { source, store } = harness();
+    render(card(store));
+
+    // Before anything has arrived. Nought and nought, rather than a recorded
+    // count over an empty list.
+    expect(screen.getByTestId('transcript-count')).toHaveTextContent('0 events');
+    expect(screen.getByTestId('transcript')).toHaveAttribute('data-total', '0');
+
+    act(() => {
+      source.deliver(0, 'run_started', { objective: 'the primary is unreachable' });
+      source.deliver(1, 'tool_called', { name: 'estate.failed_units' });
+      source.deliver(2, 'tool_succeeded', { name: 'estate.failed_units' });
+    });
+
+    expect(screen.getByTestId('transcript')).toHaveAttribute('data-total', '3');
+    expect(screen.getByTestId('transcript-count')).toHaveTextContent('3 events');
+  });
+
+  it('says "1 event" rather than "1 events", from the same catalogue', () => {
+    const { source, store } = harness();
+    render(card(store));
+
+    act(() => {
+      source.deliver(0, 'run_started', { objective: 'the primary is unreachable' });
+    });
+
+    expect(screen.getByTestId('transcript-count')).toHaveTextContent('1 event');
+  });
+
+  it('opens no second stream for the run its transcript is already watching', () => {
+    const { source, store } = harness();
+    render(card(store));
+
+    act(() => {
+      source.deliver(0);
+    });
+
+    // The reason the two halves can share a source at all: the store is
+    // reference-counted per run. A count that opened a stream of its own would
+    // double the deployment's fan-out and let the two drift apart again, which
+    // is the whole failure this arrangement exists to make impossible.
+    expect(store.opened).toBe(1);
+    expect(source.opened).toBe(1);
+  });
 });
 
 describe('a live transcript', () => {

@@ -23,7 +23,10 @@ from typing import Any, Final
 
 from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.estate.signal_map import signal_map_for
+from platform.incidents import correlation
 from platform.persistence.ports.estate_repository import Resource
+from platform.persistence.ports.incident_store import public_incident_id
+from platform.persistence.ports.run_trace_store import RunStatus
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -58,6 +61,11 @@ SHALLOW_RETENTION_KEEP_LAST: Final = 2
 #: attaching it here reuses an already-coherent run rather than inventing a
 #: second one nothing else references.
 _INVESTIGATED_RUN_ID: Final = "run-0005"
+
+#: The source whose fingerprints the captured alert-shaped records stand in for.
+#: Keeping the source here makes the fixture's alert keys follow the same
+#: namespace as alerts raised through the webhook path.
+_ALERT_SOURCE: Final = "alertmanager"
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,6 +348,14 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     # specifically, whatever detector produced it.
     if incidents:
         incidents = (_investigated(incidents[0]), *incidents[1:])
+    # The public address every incident answers by, derived the same way
+    # the platform derives it — imported rather than reimplemented, so the
+    # fixture and the real deployment never compute two different digests
+    # for the same internal key.
+    incidents = tuple(
+        {**incident, "public_id": public_incident_id(str(incident["incident_id"]))}
+        for incident in incidents
+    )
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
@@ -364,7 +380,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
         records.append(
             _record(
                 "incident-detail",
-                {"incident_id": incident["incident_id"]},
+                {"incident_id": incident["public_id"]},
                 {
                     "incident": incident,
                     "observations": [
@@ -508,6 +524,9 @@ def _alert_incidents(reading: ClusterReading) -> tuple[dict[str, Any], ...]:
             "closed_at": None,
             "subjects": [f"unresolved-target:{absent}"],
             "detector": "alertmanager",
+            "correlation_key": correlation.for_alert(
+                source=_ALERT_SOURCE, fingerprint=f"ContainerMemoryHigh:{absent}"
+            ),
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
@@ -546,7 +565,7 @@ def _unattended_alert_incident(
         return ()
     return (
         {
-            "incident_id": "inc-alert-0002",
+            "incident_id": (f"alert:alertmanager:{resource_id_of(guest)}@{reading.captured_at}"),
             "title": f"{guest.name} is not responding",
             "severity": "high",
             "state": "open",
@@ -555,6 +574,9 @@ def _unattended_alert_incident(
             "closed_at": None,
             "subjects": [resource_id_of(guest)],
             "detector": "alertmanager",
+            "correlation_key": correlation.for_alert(
+                source=_ALERT_SOURCE, fingerprint=resource_id_of(guest)
+            ),
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
@@ -1132,6 +1154,7 @@ def _incidents(
             "closed_at": None,
             "subjects": sorted({item.subject for item in found}),
             "detector": detector_id,
+            "correlation_key": f"detector:{detector_id}",
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
@@ -1163,10 +1186,21 @@ def _investigation_summary(
     run, and are stated rather than computed from the timeline: the numbers a
     real deployment reports are what the run recorded, not what an onlooker
     could add up afterwards.
+
+    The status is the run's own, and it is here for the same reason the numbers
+    are: a summary without it leaves the console unable to say whether the
+    investigation is over, and a mock plane that omits a field the gateway
+    publishes is a mock plane that makes a screen look right here and wrong
+    against a deployment.
     """
     if not investigated or not incident.get("run_id"):
         return None
-    return {"step_count": 6, "duration_ms": 41_000, "cost": 0.004}
+    return {
+        "step_count": 6,
+        "duration_ms": 41_000,
+        "cost": 0.004,
+        "status": RunStatus.COMPLETED.value,
+    }
 
 
 def _timeline(incident: Mapping[str, Any], *, investigated: bool = False) -> list[dict[str, str]]:

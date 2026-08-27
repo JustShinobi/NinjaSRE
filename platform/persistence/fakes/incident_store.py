@@ -39,6 +39,13 @@ class FakeIncidentStore:
         """Return the incident with ``incident_id``, or ``None``."""
         return self.state.incidents.get(incident_id)
 
+    async def get_by_public_id(self, public_id: str) -> Incident | None:
+        """Return the incident whose public address is ``public_id``, or ``None``."""
+        for incident in self.state.incidents.values():
+            if incident.public_id == public_id:
+                return incident
+        return None
+
     async def open_for(self, correlation_key: str) -> Incident | None:
         """Return the live incident for ``correlation_key``, or ``None``."""
         live = [
@@ -49,6 +56,13 @@ class FakeIncidentStore:
         if not live:
             return None
         return max(live, key=lambda incident: (incident.opened_at, incident.incident_id))
+
+    async def find_by_run(self, run_id: str) -> Incident | None:
+        """Return the incident ``run_id`` is attached to, or ``None``."""
+        for incident in self.state.incidents.values():
+            if run_id in incident.run_ids:
+                return incident
+        return None
 
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
         """Return the incidents matching ``query``, most recently opened first."""

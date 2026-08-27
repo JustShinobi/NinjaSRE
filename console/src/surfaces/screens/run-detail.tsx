@@ -29,9 +29,13 @@ import {
   stateOf,
   text,
 } from '../read';
-import { isSettled } from '@/design/status';
+import { CopyReport } from '../copy-report';
+import { Report } from '../report';
+import { subjectOf } from '../run-subject';
+import { isLiveRun } from '@/design/status';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
-import { LiveRun } from '@/live/live-run';
+import { LiveEventCount, LiveRun } from '@/live/live-run';
+import type { Seed } from '@/live/reducer';
 import { may } from '@/session/viewer';
 import { eventsFromReplay, usageFrom } from '../transcript';
 import { Transcript } from '../transcript-view';
@@ -80,36 +84,52 @@ export async function RunDetailScreen(
 
   const run = dataOf(detail);
   const replayed = dataOf(replay);
-  // A run that has settled is read back; one that has not is watched. Which of
-  // the two it is decides which reader fills the transcript, and nothing below
-  // that line can tell the difference.
-  const running = !isSettled(text(run, 'status'));
+  // A run that is still doing something is watched; one that has settled is
+  // read back. Affirmative rather than "not settled" — a status neither
+  // vocabulary recognises is drawn as the unknown word it is and offered
+  // nothing, instead of defaulting to live the way the negated check used to.
+  const running = isLiveRun(text(run, 'status'));
   const steerable = may(viewer, 'investigation.run');
   const open = list(dataOf(interactions), 'interactions').filter(
     (record) => field(record, 'is_open') !== false,
   );
 
-  // What this screen says about the run's summary — computed once, and read by
-  // the title, the summary panel and the transcript's own report entry, so the
-  // deployment's raw exception is translated in exactly one place rather than
-  // reappearing untranslated everywhere the summary is quoted.
-  const said = readFailure(text(run, 'summary'), locale);
+  // The name of this run, computed once by the one place every surface that
+  // names a run calls — the header below, the tab title (`page.tsx`) and the
+  // runs list column all read the same function over the same record.
+  const subject = subjectOf(run, locale);
 
-  // A translated headline does not also become the transcript's own "report"
-  // entry: the summary panel above already carries it, next to the raw text
-  // behind its disclosure, and a second, undisclosed copy styled as the run's
-  // own concluding word is the third repetition this screen used to make. A
-  // sentence somebody wrote for a person is not an exception — it still closes
-  // the transcript the way it always has.
-  const events = eventsFromReplay({
-    ...Object(replayed),
-    summary: said.technical === '' ? said.title : '',
-  });
+  // What this screen says when the deployment's own text is an exception
+  // rather than a document — still the only translator of a failure, and
+  // still not the source of a successful run's name (`subject` above never
+  // calls into this for that).
+  const said = readFailure(text(run, 'summary'), locale);
+  const reportText = text(run, 'report').trim();
+  const headlineSentence = text(run, 'headline').trim() === '' ? '' : subject.full;
+
+  // The transcript's own replay reader is handed the replay exactly as the
+  // deployment served it — no summary spliced in. The report panel below is
+  // where a run's document lives now, once, rather than as a second,
+  // undisclosed copy styled as the transcript's own concluding word.
+  const events = eventsFromReplay(replayed);
   const usage = usageFrom(replayed);
+
+  // Nothing: a live run's transcript is the stream, whose catch-up read carries
+  // the whole log, and seeding it with the replay as well would put every event
+  // on the screen twice under two identities. Named and shared rather than
+  // written twice, because the header and the body below are both given it and
+  // the store keys its first state on whichever of them subscribes first.
+  const liveSeed: Seed = {};
 
   const incident = list(dataOf(incidents), 'incidents').find(
     (record) => text(record, 'run_id') === runId,
   );
+  // What this run's own record names — never the correlated incident's
+  // subjects, which describe the incident rather than what this
+  // investigation actually touched.
+  const touchedResources = list(run, 'touched_resources').map(String);
+  const linksReadFailed = incidents.status === 'error';
+  const linksEmpty = incident === undefined && touchedResources.length === 0;
 
   const started = timestamp(locale, text(run, 'started_at'), now, zone);
   const seconds = durationOf(run);
@@ -126,14 +146,14 @@ export async function RunDetailScreen(
   // than what the whole area is for.
   const area = areaFor('runs');
   const Icon = area.icon;
-  const title = said.title === '' ? runId : said.title;
-  const trail = trailFor(area, [{ label: runId }]);
+  const title = subject.text;
+  const trail = trailFor(area, [{ label: subject.text }]);
   const trigger = triggerLabel(locale, text(run, 'trigger'));
   const subtitle = [
     started.relative,
     trigger,
     seconds === 0 ? '' : formatDuration(locale, seconds),
-    usage.cost === 0 ? '' : formatCurrency(locale, usage.cost, CURRENCY),
+    usage.priced && usage.cost > 0 ? formatCurrency(locale, usage.cost, CURRENCY) : '',
   ]
     .filter((part) => part !== '')
     .join(' · ');
@@ -163,6 +183,7 @@ export async function RunDetailScreen(
         ) : null}
         <PageHeader
           title={title}
+          titleTooltip={subject.truncated ? subject.full : undefined}
           context={subtitle}
           icon={<Icon size="head" />}
           actions={<Badge status={text(run, 'status')} />}
@@ -173,7 +194,10 @@ export async function RunDetailScreen(
         <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
           <Panel
             title={message(locale, 'run.summary.title')}
-            state={stateOf(detail, text(run, 'summary') === '')}
+            state={stateOf(
+              detail,
+              !said.known && reportText === '' && headlineSentence === '',
+            )}
             dependency={dependencyOf(detail)}
             labels={panelLabels(locale, message(locale, 'run.summary.title'))}
             empty={{
@@ -183,24 +207,54 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
           >
-            {/* The one screen that keeps the deployment's own words, because
-                it is the one somebody lands on to find out what happened. The
-                headline is the translation; the raw text is a disclosure below
-                it, closed, for whoever runs the deployment. */}
-            {said.technical === '' ? <p className="text-small">{said.title}</p> : null}
-            {said.action === '' ? null : (
-              <p className="text-small text-muted mt-1">{said.action}</p>
-            )}
-            {said.technical === '' ? null : (
-              <details className="mt-2" data-testid="run-technical-detail">
-                <summary className="text-meta text-muted cursor-pointer">
-                  {message(locale, 'failure.technical')}
-                </summary>
-                <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
-                  {said.technical}
-                </p>
-              </details>
-            )}
+            {/* A recognised failure always wins this panel, even when the
+                deployment's `report` field happens to carry the same raw
+                exception text — the translation is the better reading of it.
+                Otherwise the rendered document, when there is one; otherwise
+                the headline itself, so a panel with a name but no document
+                is not left blank; otherwise nothing, which is the empty
+                state above. The header already says the name once, so this
+                panel never repeats it next to the document. */}
+            {said.known ? (
+              <>
+                <p className="text-small">{said.title}</p>
+                {said.action === '' ? null : (
+                  <p className="text-small text-muted mt-1">{said.action}</p>
+                )}
+                <details className="mt-2" data-testid="run-technical-detail">
+                  <summary className="text-meta text-muted cursor-pointer">
+                    {message(locale, 'failure.technical')}
+                  </summary>
+                  <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
+                    {said.technical}
+                  </p>
+                </details>
+              </>
+            ) : reportText !== '' ? (
+              <>
+                <Report text={reportText} />
+                {/* What used to sit here was a disclosure holding the Markdown
+                    source of the document rendered directly above it — the same
+                    sentences twice, once as prose and once as `###` headings, on
+                    every run page in the console. The reason it was kept is
+                    real and survives as a control: somebody pastes a report
+                    into a ticket, and what they want is the Markdown. A button
+                    does that in one gesture and costs one line instead of the
+                    document's height. */}
+                <div className="mt-2">
+                  <CopyReport
+                    text={reportText}
+                    labels={{
+                      copy: message(locale, 'run.report.copy'),
+                      copied: message(locale, 'run.report.copied'),
+                      refused: message(locale, 'run.report.copyRefused'),
+                    }}
+                  />
+                </div>
+              </>
+            ) : headlineSentence !== '' ? (
+              <p className="text-small">{headlineSentence}</p>
+            ) : null}
             <p className="text-meta text-muted mt-2">
               <time dateTime={started.iso} title={started.absolute}>
                 {started.relative}
@@ -209,10 +263,21 @@ export async function RunDetailScreen(
             </p>
           </Panel>
 
+          {/* One card, one source. The header counts and the body lists, and
+              which of them a reader believes must never depend on which of
+              them they read: a live run whose header counted the replay while
+              its body drew the stream said "6 events" above "This
+              investigation recorded no events." So a live run answers all
+              three parts of this panel from the stream, and a settled one
+              answers all three from the replay. The panel's own state is the
+              third part and is no exception — a live run put into `empty` or
+              `error` by the replay would never mount the stream, and would
+              then sit at "no transcript yet" while the run it names produced
+              events. */}
           <Panel
             title={message(locale, 'transcript.title')}
-            state={stateOf(replay, events.length === 0)}
-            dependency={dependencyOf(replay)}
+            state={running ? 'ready' : stateOf(replay, events.length === 0)}
+            dependency={running ? '' : dependencyOf(replay)}
             labels={panelLabels(locale, message(locale, 'transcript.title'))}
             empty={{
               heading: message(locale, 'transcript.empty.heading'),
@@ -221,25 +286,25 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
             action={
-              <span className="text-meta text-muted">
-                {formatCount(
-                  locale,
-                  events.length,
-                  'transcript.events.one',
-                  'transcript.events',
-                )}
-              </span>
+              running ? (
+                <LiveEventCount runId={runId} locale={locale} seed={liveSeed} />
+              ) : (
+                <span data-testid="transcript-count" className="text-meta text-muted">
+                  {formatCount(
+                    locale,
+                    events.length,
+                    'transcript.events.one',
+                    'transcript.events',
+                  )}
+                </span>
+              )
             }
           >
             {running ? (
-              // Seeded with nothing on purpose. The deployment's catch-up read
-              // is inclusive of the whole log, so the stream *is* the transcript
-              // — and seeding it with the replay as well would put every event
-              // on the screen twice under two different identities.
               <LiveRun
                 runId={runId}
                 locale={locale}
-                seed={{}}
+                seed={liveSeed}
                 now={now.toISOString()}
                 zone={zone}
               />
@@ -344,8 +409,14 @@ export async function RunDetailScreen(
                   <span className="text-muted">
                     {message(locale, 'run.usage.cost')}
                   </span>
-                  <span className="ml-auto tabular-nums">
-                    {formatCurrency(locale, usage.cost, CURRENCY)}
+                  <span data-testid="run-cost" className="ml-auto tabular-nums">
+                    {/* "$0.00" over thirty-six thousand tokens is not a
+                        measurement, it is the absence of one wearing a
+                        number. The gateway distinguishes the two and this
+                        reads which it is. */}
+                    {usage.priced
+                      ? formatCurrency(locale, usage.cost, CURRENCY)
+                      : message(locale, 'run.usage.unpriced')}
                   </span>
                 </div>
 
@@ -355,22 +426,13 @@ export async function RunDetailScreen(
                   </caption>
                   <thead>
                     <tr>
-                      <th
-                        scope="col"
-                        className="text-left text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-left text-micro text-muted pb-1">
                         {message(locale, 'run.usage.model')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.turns')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.tokens')}
                       </th>
                     </tr>
@@ -396,22 +458,13 @@ export async function RunDetailScreen(
                   </caption>
                   <thead>
                     <tr>
-                      <th
-                        scope="col"
-                        className="text-left text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-left text-micro text-muted pb-1">
                         {message(locale, 'run.usage.turn')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.calls')}
                       </th>
-                      <th
-                        scope="col"
-                        className="text-right text-micro uppercase text-muted pb-1"
-                      >
+                      <th scope="col" className="text-right text-micro text-muted pb-1">
                         {message(locale, 'run.usage.cost')}
                       </th>
                     </tr>
@@ -426,7 +479,9 @@ export async function RunDetailScreen(
                           {formatNumber(locale, turn.calls)}
                         </td>
                         <td className="py-1 text-right tabular-nums">
-                          {formatCurrency(locale, turn.cost, CURRENCY)}
+                          {usage.priced
+                            ? formatCurrency(locale, turn.cost, CURRENCY)
+                            : message(locale, 'run.usage.unpriced.short')}
                         </td>
                       </tr>
                     ))}
@@ -445,11 +500,20 @@ export async function RunDetailScreen(
 
           <Panel
             title={message(locale, 'run.links.title')}
-            // Same reasoning as the cost panel above: a run with nothing linked
-            // because it failed before it began is not a read that came back
-            // empty, and it does not need that read's call to action.
-            state={stateOf(detail, incident === undefined && !failedBeforeStart)}
-            dependency={dependencyOf(detail)}
+            // A failed read of the correlation source is reported as a read
+            // failure, never folded into "nothing linked" — the two are
+            // different facts and only one of them is this screen's to
+            // assert. A run with nothing linked because it failed before it
+            // began is not a read that came back empty either, and does not
+            // need that read's call to action.
+            state={
+              linksReadFailed
+                ? 'error'
+                : stateOf(detail, linksEmpty && !failedBeforeStart)
+            }
+            dependency={
+              linksReadFailed ? dependencyOf(incidents) : dependencyOf(detail)
+            }
             labels={panelLabels(locale, message(locale, 'run.links.title'))}
             empty={{
               heading: message(locale, 'run.links.empty.heading'),
@@ -458,34 +522,39 @@ export async function RunDetailScreen(
               href: '/resources',
             }}
           >
-            {failedBeforeStart && incident === undefined ? (
+            {linksEmpty ? (
               <p className="text-small text-muted">
                 {message(locale, 'run.links.empty.heading')}
               </p>
             ) : (
               <dl className="flex flex-col gap-2 text-small">
-                <div className="flex items-center gap-3">
-                  <dt className="text-muted">
-                    {message(locale, 'run.links.incident')}
-                  </dt>
-                  <dd className="ml-auto min-w-0 truncate">
-                    <Link href={`/incidents/${text(incident, 'incident_id')}`}>
-                      {text(incident, 'title')}
-                    </Link>
-                  </dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className="text-muted">
-                    {message(locale, 'run.links.resources')}
-                  </dt>
-                  {list(incident, 'subjects').map((subject) => (
-                    <dd key={String(subject)} className="min-w-0 truncate">
-                      <Link href={`/resources?selected=${String(subject)}`}>
-                        {String(subject)}
+                {incident === undefined ? null : (
+                  <div className="flex items-center gap-3">
+                    <dt className="text-muted">
+                      {message(locale, 'run.links.incident')}
+                    </dt>
+                    <dd className="ml-auto min-w-0 truncate">
+                      <Link
+                        data-testid="run-incident-link"
+                        href={`/incidents/${text(incident, 'public_id')}`}
+                      >
+                        {text(incident, 'title')}
                       </Link>
                     </dd>
-                  ))}
-                </div>
+                  </div>
+                )}
+                {touchedResources.length === 0 ? null : (
+                  <div className="flex flex-col gap-1">
+                    <dt className="text-muted">
+                      {message(locale, 'run.links.resources')}
+                    </dt>
+                    {touchedResources.map((resource) => (
+                      <dd key={resource} className="min-w-0 truncate">
+                        <Link href={`/resources?selected=${resource}`}>{resource}</Link>
+                      </dd>
+                    ))}
+                  </div>
+                )}
               </dl>
             )}
           </Panel>
@@ -511,12 +580,12 @@ export async function RunDetailScreen(
                 fraction of the window each one fell at — the same axis for the
                 deploy and for the moment the investigation began, which is the
                 whole point of drawing it rather than listing it. */}
-            <div className="relative h-6 rounded-full bg-subtle">
+            <div className="relative h-6 rounded-full bg-sunken">
               {ruler.investigation === undefined ? null : (
                 <span
                   data-testid="investigation-mark"
                   aria-label={message(locale, 'run.changes.investigation')}
-                  className="absolute top-0 h-6 w-0.5 bg-danger"
+                  className="absolute top-0 h-6 w-stroke-emphasis bg-danger"
                   style={{
                     insetInlineStart: `${String(ruler.investigation.percent)}%`,
                   }}

@@ -65,11 +65,25 @@ class IncidentSummaryView(BaseModel):
     """One incident as a table row shows it."""
 
     incident_id: str
+    #: The short, URL-safe address this incident is reached by. What every
+    #: link and every address bar carries; ``incident_id`` stays on the
+    #: payload because the timeline references it and an operator debugging
+    #: from the database needs it, but the console never emits it as a link.
+    public_id: str
     title: str
     summary: str
     state: str
     severity: str
     origin: str
+    #: What two firings of one cause share: the condition and the resource it
+    #: fired on, which is what the store opens an incident *for* rather than
+    #: opening a second one. It is mandatory on the domain object and used to
+    #: be dropped here, and dropping it is what made a repeating estate
+    #: unreadable — a client has nothing else to fold fifty firings of seven
+    #: conditions back into seven rows with, because a title is prose and a
+    #: subject list is not the cause. The console's own search already filters
+    #: on this field and was matching the empty string.
+    correlation_key: str
     #: The detector, the alert source, or the person who opened it.
     detector: str
     #: Every subject, named. Never a count — see the module docstring.
@@ -128,6 +142,11 @@ class InvestigationSummaryView(BaseModel):
     step_count: int
     duration_ms: int | None = None
     cost: float | None = None
+    #: The run's own status, in the product's vocabulary. Here because a screen
+    #: that has to infer "still going" from what a timeline is missing gets it
+    #: wrong the moment a run finishes without delivering anywhere — which it
+    #: did, and drew "investigation running" beside "resolved" on one header.
+    status: str = ""
 
 
 class IncidentDetailView(BaseModel):
@@ -241,11 +260,13 @@ async def _detectors(state: GatewayState, auth: AuthenticatedRequest) -> Detecto
 def _row(incident: Incident) -> IncidentSummaryView:
     return IncidentSummaryView(
         incident_id=incident.incident_id,
+        public_id=incident.public_id,
         title=incident.title,
         summary=incident.summary,
         state=incident.state.value,
         severity=incident.severity,
         origin=incident.origin.value,
+        correlation_key=incident.correlation_key,
         detector=incident.origin_id,
         subjects=list(incident.subject_ids),
         opened_at=incident.opened_at,
@@ -297,6 +318,7 @@ async def _investigation(
     )
     return InvestigationSummaryView(
         step_count=summary.step_count,
+        status=run.status.value if run is not None else "",
         duration_ms=(
             round(summary.duration_seconds * 1000) if summary.duration_seconds is not None else None
         ),

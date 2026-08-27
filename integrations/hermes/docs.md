@@ -4,11 +4,26 @@ Hermes log tailing and classification: what a stream is currently emitting, grou
 
 ## Setup
 
-| Field | Where it comes from | Secret | Required |
+Secret and required status are declared once, in this package's `schema.py`;
+this table does not repeat them. It carries what `schema.py` does not show in a
+browsable form: what each field is, the minimum permission it needs when it is
+secret, and a guide to producing it.
+
+| Field | What it is | Minimum permission | Guide |
 |---|---|---|---|
-| `endpoint` | Where your Hermes answers, scheme and port included | no | yes |
-| `api_key` | Hermes access token for the workspace holding this stream | yes | yes |
-| `stream` | Default stream to read | no | no |
+| `endpoint` | Where your Hermes answers, scheme and port included | — | this document |
+| `api_key` | Hermes access token for the workspace holding this stream | `logs:read` | this document |
+| `stream` | Default stream to read | — | this document |
+
+**Every guide above is this document, and that is a decision rather than an
+omission.** Hermes is this deployment's own package: unlike every other vendor
+in this catalogue, it has no public vendor website with its own setup guide to
+point at. Its guide is this deployment's own served copy of this document —
+the address is an absolute path on this deployment
+(`/v1/integrations/hermes/docs`) rather than a link to somewhere else, and the
+gate that checks every guide's form accepts that shape for exactly this case.
+Confirm with the operator that this is the intended reading of "guide" for a
+package that is its own vendor.
 
 The endpoint goes to the configuration tree rather than the vault — it is not
 part of the credential, and it is where the credential proxy reads its egress
