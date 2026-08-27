@@ -9,10 +9,10 @@ problems should learn all three from one boot, not from three. A validator that
 raised on the first would turn a ten-minute setup into an hour of one restart
 per typo.
 
-**A finding has a remedy, not just a diagnosis.** ``ANTHROPIC_API_KEY is not
-set`` is a diagnosis. ``Set ANTHROPIC_API_KEY, or set NINJASRE_LLM_PROVIDER to a
-provider you have a credential for`` is something to type. The remedy is a
-separate field rather than prose so a console can render it as an action.
+**A finding has a remedy, not just a diagnosis.** ``NINJASRE_DATABASE_URL is not
+set`` is a diagnosis. ``Set it to a postgresql:// URL for the instance holding
+this deployment's data`` is something to type. The remedy is a separate field
+rather than prose so a console can render it as an action.
 
 **No finding quotes a value.** Validation runs against the environment, which
 holds database passwords and API keys, and its output goes to a container log.
@@ -22,6 +22,16 @@ The one thing this module deliberately does not do is connect to anything.
 Reachability is readiness' question and it has a different answer over time; a
 validator that failed on a database still starting up would make the deployment
 order matter.
+
+**And it cannot read the configuration tree.** Validation runs before the
+database is open — every check after it needs the database URL this one checks —
+so anything living in configuration is beyond what it can see. Which provider
+and model each role runs on lives there. This module used to reach for
+``NINJASRE_LLM_PROVIDER`` instead and treat it as the deployment's choice, which
+gave it a fatal finding about a provider nothing would ever call: a value left
+in a manifest could refuse a boot outright, and the deployment it refused was
+correctly configured everywhere that counted. What the environment can still be
+asked, honestly, is whether it equips *any* provider at all — see ``_provider``.
 """
 
 from __future__ import annotations
@@ -32,34 +42,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Final
 
 from config.constants.deployment import (
     DEPLOYMENT_PROFILES,
     NINJASRE_AIR_GAPPED_ENV,
     NINJASRE_CA_BUNDLE_ENV,
     NINJASRE_DEPLOYMENT_PROFILE_ENV,
-)
-from config.constants.llm import (
-    ANTHROPIC_API_KEY_ENV,
-    AWS_ACCESS_KEY_ID_ENV,
-    AWS_PROFILE_ENV,
-    AWS_SECRET_ACCESS_KEY_ENV,
-    AZURE_OPENAI_API_KEY_ENV,
-    GOOGLE_API_KEY_ENV,
-    GOOGLE_APPLICATION_CREDENTIALS_ENV,
-    NINJASRE_LLM_PROVIDER_ENV,
-    NVIDIA_API_KEY_ENV,
-    OPENAI_API_KEY_ENV,
-    OPENROUTER_API_KEY_ENV,
-    PROVIDER_ANTHROPIC,
-    PROVIDER_AWS_BEDROCK,
-    PROVIDER_AZURE_OPENAI,
-    PROVIDER_GOOGLE_GEMINI,
-    PROVIDER_GOOGLE_VERTEX_AI,
-    PROVIDER_NVIDIA_NIM,
-    PROVIDER_OPENAI,
-    PROVIDER_OPENROUTER,
-    SUPPORTED_PROVIDERS,
 )
 from config.constants.persistence import (
     NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
@@ -70,7 +59,12 @@ from config.constants.security import (
     NINJASRE_SANDBOX_PROFILE_ENV,
     SANDBOX_PROFILES,
 )
-from platform.startup.egress import PURPOSE_PROVIDER, external_destinations, provider_is_local
+from platform.startup.egress import (
+    PROVIDER_CREDENTIAL_ENV,
+    PURPOSE_PROVIDER,
+    external_destinations,
+    provider_destinations,
+)
 from platform.startup.errors import ConfigurationInvalid, UnknownDeploymentProfile
 from platform.startup.keys import ENCRYPTION_KEY_BYTES, KEY_GENERATOR_HINT
 from platform.startup.profiles import (
@@ -80,19 +74,13 @@ from platform.startup.profiles import (
     topology_for,
 )
 
-#: What each provider needs before it can authenticate. A provider whose entry
-#: holds several names is satisfied by any one of them: Bedrock takes a key pair
-#: or a named profile, and Vertex takes a key or an application-credentials file.
-PROVIDER_CREDENTIAL_ENV: Mapping[str, tuple[str, ...]] = {
-    PROVIDER_ANTHROPIC: (ANTHROPIC_API_KEY_ENV,),
-    PROVIDER_OPENAI: (OPENAI_API_KEY_ENV,),
-    PROVIDER_AZURE_OPENAI: (AZURE_OPENAI_API_KEY_ENV,),
-    PROVIDER_AWS_BEDROCK: (AWS_ACCESS_KEY_ID_ENV, AWS_SECRET_ACCESS_KEY_ENV, AWS_PROFILE_ENV),
-    PROVIDER_GOOGLE_GEMINI: (GOOGLE_API_KEY_ENV,),
-    PROVIDER_GOOGLE_VERTEX_AI: (GOOGLE_API_KEY_ENV, GOOGLE_APPLICATION_CREDENTIALS_ENV),
-    PROVIDER_OPENROUTER: (OPENROUTER_API_KEY_ENV,),
-    PROVIDER_NVIDIA_NIM: (NVIDIA_API_KEY_ENV,),
-}
+#: What the provider finding names, since no single variable is the answer. Eight
+#: providers carry eight credential names between them, and the supported way to
+#: connect one writes to the vault and sets nothing in the environment at all —
+#: so the finding names the group. It is deliberately not an environment
+#: variable: nothing reads it, and the one that used to be named here reads as an
+#: instruction to set a line that does nothing.
+PROVIDER_CREDENTIAL_SETTING: Final = "model provider credential"
 
 #: URL schemes that name this deployment's one datastore. Both spellings, since
 #: an operator's other tools accept ``postgres://`` and the driver rewrites it.
@@ -299,68 +287,45 @@ def _database(source: Mapping[str, str], findings: list[Finding]) -> None:
 
 
 def _provider(source: Mapping[str, str], findings: list[Finding]) -> None:
-    """Check the model provider, distinguishing silence from a request that cannot be met.
+    """Warn when nothing in this environment equips any model provider at all.
 
-    The two are not the same finding and must not carry the same severity.
+    The one provider question an environment can still answer. Which provider a
+    role runs on is configuration, and configuration is in a database this check
+    runs before opening; but whether a credential or an endpoint is present here
+    is a fact about the environment itself, and it is worth saying.
 
-    **Silence is a deployment that has not been set up yet**, which is the state
-    every deployment starts in. Connecting a provider is a first-run step: the
-    setup checklist lists it second, and the console has a screen for a
-    deployment that has none. Refusing to boot would kill the process that
-    renders them, so the absence is advisory — said out loud at every start, and
-    never a reason to refuse one.
+    **It is advisory and stays advisory**, in both directions. A deployment that
+    has not been set up yet has connected nothing, which is the state every
+    deployment starts in: connecting a provider is a first-run step the console
+    has a screen for, and refusing to boot would kill the process that renders
+    it. And a deployment that *has* been set up keeps its provider credential in
+    the vault, where this check cannot see it — so silence here is as likely to
+    mean "correctly configured" as "not configured", and a fatal finding would
+    be fatal about a state nobody can distinguish from success.
 
-    **A named provider is a request**, and a request that cannot be met is
-    fatal. An operator who wrote ``anthropic`` and no key gets a failure naming
-    the key, because starting anyway would defer the same error to the first
-    investigation somebody runs.
+    An endpoint counts as well as a credential, because a local model server
+    needs no credential: a deployment running Ollama would otherwise be told at
+    every boot that it has no provider, which is how an advisory becomes noise
+    somebody filters out.
     """
-    named = source.get(NINJASRE_LLM_PROVIDER_ENV, "").strip().lower()
-
-    if not named:
-        configured = [
-            provider
-            for provider, names in PROVIDER_CREDENTIAL_ENV.items()
-            if any(source.get(name, "").strip() for name in names)
-        ]
-        if not configured:
-            findings.append(
-                Finding(
-                    setting=NINJASRE_LLM_PROVIDER_ENV,
-                    problem="No model provider is configured.",
-                    remedy=(
-                        "Connect one at first run, in the console: the credential is "
-                        "stored in the vault rather than set here. Naming a provider "
-                        f"in the environment — one of {', '.join(SUPPORTED_PROVIDERS)}, "
-                        "with that provider's credential — is the other way."
-                    ),
-                    severity=Severity.WARNING,
-                )
-            )
+    if provider_destinations(source):
         return
 
-    if named not in SUPPORTED_PROVIDERS:
-        findings.append(
-            Finding(
-                setting=NINJASRE_LLM_PROVIDER_ENV,
-                problem=f"{named!r} is not a supported provider.",
-                remedy=f"Set it to one of: {', '.join(SUPPORTED_PROVIDERS)}.",
-            )
+    findings.append(
+        Finding(
+            setting=PROVIDER_CREDENTIAL_SETTING,
+            problem="Nothing in this environment equips a model provider.",
+            remedy=(
+                "Connect one at first run, in the console: the credential is "
+                "stored in the vault, which this check runs too early to read, so "
+                "a deployment that has done it will still see this line. Setting a "
+                "provider's own credential or endpoint here is the other way, and "
+                "which provider each role then runs on is configuration rather "
+                "than an environment variable."
+            ),
+            severity=Severity.WARNING,
         )
-        return
-
-    required = PROVIDER_CREDENTIAL_ENV.get(named, ())
-    if required and not any(source.get(name, "").strip() for name in required):
-        findings.append(
-            Finding(
-                setting=required[0],
-                problem=f"The {named} provider is selected and has no credential.",
-                remedy=(
-                    f"Set {' or '.join(required)} to the credential your {named} "
-                    f"account uses, or select a different provider."
-                ),
-            )
-        )
+    )
 
 
 def _encryption_key(
@@ -487,37 +452,38 @@ def _proxy(
 
 
 def _air_gapped(source: Mapping[str, str], findings: list[Finding]) -> None:
-    """Check that an air-gapped deployment's configuration implies no egress (FR-023)."""
+    """Check that an air-gapped deployment's configuration implies no egress (FR-023).
+
+    Every external destination is a finding, model providers included — and the
+    provider ones are the reason this reads the derived list rather than a
+    provider name. It used to refuse a boot whenever ``NINJASRE_LLM_PROVIDER``
+    named a hosted provider, and to synthesise the shipped default when nothing
+    named one, so an air-gapped deployment that had set none was refused over a
+    vendor it had never configured and would never call. What is left is the
+    honest half: a credential or an endpoint the operator actually put here, and
+    a remedy naming the one they can remove.
+    """
     if source.get(NINJASRE_AIR_GAPPED_ENV, "").strip().lower() not in _TRUTHY:
         return
 
-    if not provider_is_local(source):
-        provider = source.get(NINJASRE_LLM_PROVIDER_ENV, "").strip().lower()
-        findings.append(
-            Finding(
-                setting=NINJASRE_LLM_PROVIDER_ENV,
-                problem=(
-                    f"This deployment is air-gapped and {provider or 'the default provider'} "
-                    f"is reached over the internet."
-                ),
-                remedy=(
-                    "Run a local model — Ollama or vLLM — and point the provider "
-                    "endpoint at it. Provider neutrality is what makes a no-egress "
-                    "deployment fully functional."
-                ),
-            )
-        )
-
     for destination in external_destinations(source):
-        if destination.setting == NINJASRE_LLM_PROVIDER_ENV:
-            continue
+        provider = destination.purpose.startswith(PURPOSE_PROVIDER)
         findings.append(
             Finding(
                 setting=destination.setting,
                 problem=f"This deployment is air-gapped and {destination} leaves the host.",
                 remedy=(
-                    "Point it at a service on the operator's own infrastructure, or "
-                    "remove the setting."
+                    (
+                        "Run a local model — Ollama or vLLM — and point that "
+                        "provider's endpoint at it, or remove the credential that "
+                        "equips it here. Provider neutrality is what makes a "
+                        "no-egress deployment fully functional."
+                    )
+                    if provider
+                    else (
+                        "Point it at a service on the operator's own infrastructure, "
+                        "or remove the setting."
+                    )
                 ),
             )
         )
@@ -530,14 +496,12 @@ def _proxy_egress(source: Mapping[str, str], findings: list[Finding]) -> None:
     the process that actually carries an authenticated call to a vendor on
     another process's behalf, so the no-egress guarantee is one it has to
     uphold for the database, telemetry export, and the operator's own
-    allow-list. It is not reused unmodified: ``configured_destinations``
-    always reports a model-provider destination — synthesised from the
-    default provider even when nothing names one — and ``_air_gapped``'s own
-    skip only catches that destination in the one shape where nothing
-    overrides the provider's endpoint. Every provider-purposed destination is
-    skipped here regardless of shape, because the proxy never calls a model
-    and refusing it over that destination is the exact mistake this module
-    exists to correct.
+    allow-list.
+
+    Every provider-purposed destination is skipped, whatever setting produced
+    it. The proxy never calls a model, so refusing to start it over a provider
+    credential that reached its environment by sharing a manifest is the exact
+    mistake ``validate_proxy`` exists to correct.
     """
     if source.get(NINJASRE_AIR_GAPPED_ENV, "").strip().lower() not in _TRUTHY:
         return
@@ -581,6 +545,7 @@ def _trust_bundle(source: Mapping[str, str], findings: list[Finding]) -> None:
 
 __all__ = [
     "PROVIDER_CREDENTIAL_ENV",
+    "PROVIDER_CREDENTIAL_SETTING",
     "Finding",
     "Severity",
     "ValidationReport",

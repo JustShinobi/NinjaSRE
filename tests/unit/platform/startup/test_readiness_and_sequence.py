@@ -31,7 +31,6 @@ pytestmark = pytest.mark.unit
 STANDARD_ENV = {
     NINJASRE_DEPLOYMENT_PROFILE_ENV: DEPLOYMENT_PROFILE_STANDARD,
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
-    NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
     NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
@@ -148,13 +147,44 @@ async def test_a_valid_deployment_resolves_its_profile_and_migrates(
 async def test_an_invalid_configuration_stops_the_boot_before_the_database_is_touched(
     schema: SchemaState,
 ) -> None:
-    environ = {key: value for key, value in STANDARD_ENV.items() if key != ANTHROPIC_API_KEY_ENV}
+    environ = {
+        key: value for key, value in STANDARD_ENV.items() if key != NINJASRE_DATABASE_URL_ENV
+    }
 
     with pytest.raises(ConfigurationInvalid) as caught:
         await run_startup(environ=environ, migrator=FakeMigrator(state=schema))
 
-    assert ANTHROPIC_API_KEY_ENV in caught.value.settings
+    assert NINJASRE_DATABASE_URL_ENV in caught.value.settings
     assert schema.upgrades == 0
+
+
+async def test_a_provider_left_to_first_run_is_not_a_reason_to_refuse_the_boot(
+    schema: SchemaState,
+) -> None:
+    """Which provider each role runs on is configuration, and the boot is what opens it.
+
+    Validation runs before the database, so it cannot see a provider bound in
+    the console or a credential stored in the vault. Refusing to start over
+    what it cannot see would take down the deployment that holds the answer —
+    and would take down the console an operator connects a provider *in*.
+    """
+    environ = {key: value for key, value in STANDARD_ENV.items() if key != ANTHROPIC_API_KEY_ENV}
+
+    result = await run_startup(environ=environ, migrator=FakeMigrator(state=schema))
+
+    assert result.validation.ok, result.validation.summary()
+    assert result.validation.warnings, "the absence is still said out loud"
+
+
+async def test_a_stale_provider_name_in_a_manifest_does_not_refuse_the_boot(
+    schema: SchemaState,
+) -> None:
+    """The availability half. ``NINJASRE_LLM_PROVIDER`` selects nothing and must cost nothing."""
+    environ = STANDARD_ENV | {NINJASRE_LLM_PROVIDER_ENV: "not-a-provider"}
+
+    result = await run_startup(environ=environ, migrator=FakeMigrator(state=schema))
+
+    assert result.validation.ok, result.validation.summary()
 
 
 async def test_an_unknown_profile_stops_the_boot_first_of_all(schema: SchemaState) -> None:

@@ -29,6 +29,15 @@ class CapabilityErrorClass(StrEnum):
     Closed, like the provider taxonomy it mirrors. A failure nobody recognised
     is ``INTERNAL``, and ``INTERNAL`` is not retried: repeating a call whose
     failure nobody understands is how one broken tool becomes a spent budget.
+
+    ``INVALID_ARGUMENTS`` has exactly two sources, and neither of them guesses:
+    the schema check the wrapper makes before a tool runs, and a tool that
+    returns this class about arguments it can see are wrong. It is never
+    inferred from an exception a body raised, because by then the arguments have
+    already passed the schema and whatever went wrong belongs to the call the
+    tool made. Telling a model its arguments were bad is telling it to send
+    different ones, so a wrong guess here does not merely mislabel a failure —
+    it buys another.
     """
 
     INVALID_ARGUMENTS = "invalid_arguments"
