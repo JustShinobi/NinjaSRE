@@ -2,21 +2,7 @@
 
 # Model provider
 
-27 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
-
-### `NINJASRE_LLM_PROVIDER`
-
-Which model provider to use. Connecting one is a first-run step, done in the console, where the credential goes to the vault instead of into this file; setting it here is the other way, for an operator who would rather hand the deployment its provider than click one. A deployment with neither starts, says it has no provider, and shows where to connect one. One of: anthropic, openai, azure_openai, aws_bedrock, google_gemini, google_vertex_ai, openrouter, nvidia_nim, ollama.
-
-- **Required:** no
-- **Default:** `anthropic`
-
-### `NINJASRE_LLM_MODEL`
-
-Which model, when the effective configuration names none.
-
-- **Required:** no
-- **Default:** `claude-sonnet-5`
+25 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
 
 ### `NINJASRE_LLM_TRANSPORT`
 
