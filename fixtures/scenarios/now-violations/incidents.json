@@ -7,6 +7,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:backup-job-disabled",
             "detector": "backup-job-disabled",
             "incident_id": "inc-0001",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -28,6 +29,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:datastore-near-full",
             "detector": "datastore-near-full",
             "incident_id": "inc-0002",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -49,6 +51,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:guest-uncovered-by-backup",
             "detector": "guest-uncovered-by-backup",
             "incident_id": "inc-0003",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -142,6 +145,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:guest-volume-near-full",
             "detector": "guest-volume-near-full",
             "incident_id": "inc-0004",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -164,6 +168,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:kernel-never-booted",
             "detector": "kernel-never-booted",
             "incident_id": "inc-0005",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -185,6 +190,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:no-replication-node-local-storage",
             "detector": "no-replication-node-local-storage",
             "incident_id": "inc-0006",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -205,6 +211,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:quorum-device-not-contributing",
             "detector": "quorum-device-not-contributing",
             "incident_id": "inc-0007",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -225,6 +232,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "detector:quorum-margin-zero",
             "detector": "quorum-margin-zero",
             "incident_id": "inc-0008",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -245,6 +253,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "alert:alertmanager:ContainerMemoryHigh:184",
             "detector": "alertmanager",
             "incident_id": "inc-alert-0001",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -265,6 +274,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "alert:alertmanager:ct-102",
             "detector": "alertmanager",
             "incident_id": "alert:alertmanager:ct-102@2026-08-07T12:00:00+00:00",
             "opened_at": "2026-08-07T12:00:00+00:00",
@@ -285,6 +295,7 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "alert:alertmanager:c046a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
             "detector": "alertmanager",
             "incident_id": "alert:alertmanager:c046a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0@2026-08-22T23:43:23.303208+00:00",
             "opened_at": "2026-08-22T23:43:23+00:00",

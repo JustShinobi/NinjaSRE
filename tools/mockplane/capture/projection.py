@@ -23,6 +23,7 @@ from typing import Any, Final
 
 from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.estate.signal_map import signal_map_for
+from platform.incidents import correlation
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.incident_store import public_incident_id
 from platform.persistence.ports.run_trace_store import RunStatus
@@ -60,6 +61,11 @@ SHALLOW_RETENTION_KEEP_LAST: Final = 2
 #: attaching it here reuses an already-coherent run rather than inventing a
 #: second one nothing else references.
 _INVESTIGATED_RUN_ID: Final = "run-0005"
+
+#: The source whose fingerprints the captured alert-shaped records stand in for.
+#: Keeping the source here makes the fixture's alert keys follow the same
+#: namespace as alerts raised through the webhook path.
+_ALERT_SOURCE: Final = "alertmanager"
 
 
 @dataclass(frozen=True, slots=True)
@@ -518,6 +524,9 @@ def _alert_incidents(reading: ClusterReading) -> tuple[dict[str, Any], ...]:
             "closed_at": None,
             "subjects": [f"unresolved-target:{absent}"],
             "detector": "alertmanager",
+            "correlation_key": correlation.for_alert(
+                source=_ALERT_SOURCE, fingerprint=f"ContainerMemoryHigh:{absent}"
+            ),
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
@@ -565,6 +574,9 @@ def _unattended_alert_incident(
             "closed_at": None,
             "subjects": [resource_id_of(guest)],
             "detector": "alertmanager",
+            "correlation_key": correlation.for_alert(
+                source=_ALERT_SOURCE, fingerprint=resource_id_of(guest)
+            ),
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
@@ -1142,6 +1154,7 @@ def _incidents(
             "closed_at": None,
             "subjects": sorted({item.subject for item in found}),
             "detector": detector_id,
+            "correlation_key": f"detector:{detector_id}",
             "run_id": None,
             "team_node_id": "",
             "self_resolved": False,
