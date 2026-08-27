@@ -26,16 +26,19 @@ from config.constants.estate import (
     SUBJECT_CONTEXT_RESOURCE_NAME,
 )
 from config.constants.investigation import CONTEXT_ALERT_SOURCE, CONTEXT_PLAN_RATIONALE
+from config.constants.runs import STAGE_EVENT_NAME, TURN_PAYLOAD_STAGE
 from core.agent.react_loop import ReActLoop
 from core.agent.runtime_port import RunResult, RunStatus
 from core.agent.session import Session
 from core.llm.types import FinishReason, InvokeRequest, InvokeResult, ToolCall
 from core.llm.usage import TokenCounts, UsageRecord
+from core.state.types import STAGE_ORDER, StageName
 from gateway.http.services import InvestigationStart
 from gateway.runtime.investigator import InvestigationDidNotComplete, ReActInvestigationRunner
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import PersistenceGateway, TenantScope
+from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RunRecorder
 from platform.runs.stream import RunEventBroker
 from tests.unit.gateway.runtime.conftest import (
@@ -251,6 +254,65 @@ class TestWhatServingAlreadyGuaranteedStillHolds:
 
         assert len(turns) == 2
         assert [call.tool_name for call in calls] == ["fixture_probe"]
+
+    async def test_every_turn_the_loop_wrote_names_the_stage_it_ran_under(
+        self, gateway: PersistenceGateway, scope: TenantScope
+    ) -> None:
+        """The pipeline's stream reaches the recorder, or the turns say nothing.
+
+        The stage boundaries are announced on the pipeline's own ``EventStream``
+        and the turns are written from the loop's ``on_turn_end``. Nothing joins
+        those two channels unless the serving path hands the recorder in as a
+        sink on the stream it builds the pipeline with, and this is the assertion
+        that it does — without it a turn carries no stage and the console is back
+        to a flat list of numbered iterations.
+        """
+        llm = ScriptedLLM([text_turn("the disk on host-1 is full")])
+        llm.structured = [_structured(AN_INCIDENT), _structured({})]
+        runner = ReActInvestigationRunner(llm=llm, registry=_registry("fixture_probe"))
+        runner.attach_recording(
+            gateway=gateway, guardrails=GuardrailEngine(), broker=RunEventBroker()
+        )
+        await _reserve(gateway, scope, "run-1")
+
+        await runner.investigate(_request("run-1"))
+
+        async with gateway.begin(scope) as uow:
+            turns = await uow.run_traces.turns_for_run("run-1")
+
+        assert turns
+        assert {turn.payload.get(TURN_PAYLOAD_STAGE) for turn in turns} == {
+            StageName.GATHER_EVIDENCE.value
+        }
+
+    async def test_the_stages_that_produced_no_turn_are_recorded_anyway(
+        self, gateway: PersistenceGateway, scope: TenantScope
+    ) -> None:
+        """Intake and diagnosis each call a model and turn nothing.
+
+        A trace that showed six stages by inventing turns for them would be
+        worse than the flat list it replaced, so each stage writes its own
+        record — what it established, how long it took, and what it spent.
+        """
+        llm = ScriptedLLM([text_turn("the disk on host-1 is full")])
+        llm.structured = [_structured(AN_INCIDENT), _structured({})]
+        runner = ReActInvestigationRunner(llm=llm, registry=_registry("fixture_probe"))
+        runner.attach_recording(
+            gateway=gateway, guardrails=GuardrailEngine(), broker=RunEventBroker()
+        )
+        await _reserve(gateway, scope, "run-1")
+
+        await runner.investigate(_request("run-1"))
+
+        async with gateway.begin(scope) as uow:
+            events = await uow.run_traces.events_for_run("run-1", limit=200)
+
+        staged = [
+            event.payload[STAGE_EVENT_NAME]
+            for event in events
+            if event.kind == TraceEventKind.STAGE_COMPLETED.value
+        ]
+        assert staged == [name.value for name in STAGE_ORDER]
 
     async def test_the_run_is_steerable_while_the_stages_drive_it(self) -> None:
         """The live registry holds the loop the gather stage is running.

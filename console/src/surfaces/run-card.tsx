@@ -59,6 +59,14 @@ export interface RunCardBody {
   readonly tokens: number;
   readonly priced: boolean;
   readonly turns: readonly RunCardTurn[];
+  /**
+   * The six stages the investigation ran, in order, as the trace recorded
+   * them. Empty for a run whose trace holds no stages — every run recorded
+   * before the deployment wrote them down, and any loop driven outside the
+   * pipeline — and the card falls back to the flat list of turns there,
+   * which is the only honest thing to draw when stages is all it lacks.
+   */
+  readonly stages: readonly RunCardStage[];
   readonly calls: number;
   readonly events: number;
   readonly waiting: readonly string[];
@@ -120,18 +128,55 @@ export interface RunCardCall {
   readonly durationMs: number;
 }
 
-/** The turns `replay` carries, in the shape the card draws them. */
+/**
+ * One of the six stages, and whatever ran inside it.
+ *
+ * `turns` is empty for five of the six and stays empty. Only the gathering
+ * stage drives the loop; intake and diagnosis each make a model call of their
+ * own and hand back a value, and resolving and planning make none. That is why
+ * `llmCalls` is here: without it a stage that spent a model call and a stage
+ * that did nothing draw identically, and the second is the one worth spotting.
+ */
+export interface RunCardStage {
+  /** The trace's own name for the stage — `gather_evidence`, not a label. */
+  readonly stage: string;
+  /** The one line the stage wrote about what it established. May be empty. */
+  readonly finding: string;
+  readonly durationMs: number;
+  readonly llmCalls: number;
+  readonly failed: boolean;
+  readonly turns: readonly RunCardTurn[];
+}
+
+/**
+ * Calls shown before a long stage folds the rest away.
+ *
+ * Five, because the gathering stage of a real investigation runs eleven or
+ * more and the point of the grouping is that six stages fit on one screen. The
+ * rest are a press away and are still in the document, so a reader searching
+ * the page finds a capability that is folded.
+ */
+const VISIBLE_CALLS = 5;
+
+/**
+ * The turns `replay` carries, in the shape the card draws them.
+ *
+ * `rationale` is the model's own account of the turn, and only that. The other
+ * rationale a turn carries — why those capabilities were the ones offered —
+ * reads "ranked 75, offered 40, cut by the ceiling 19" and is identical on
+ * every turn of a run: capability scoring, not reasoning. Falling back to it
+ * filled six group headings with the same machine sentence, which is worse
+ * than the honest line saying the model wrote none. It stays where the run's
+ * own page already keeps it, behind its own disclosure.
+ */
 export function turnsFrom(replay: unknown): readonly RunCardTurn[] {
-  return list(replay, 'turns').map((turn) => ({
+  return list(replay, 'turns').map(turnFrom);
+}
+
+/** One turn as the replay serves it, in the shape the card draws it. */
+function turnFrom(turn: unknown): RunCardTurn {
+  return {
     index: number(turn, 'index'),
-    // The model's own account of the turn, and only that. The other
-    // rationale a turn carries — why those capabilities were the ones
-    // offered — reads "ranked 75, offered 40, cut by the ceiling 19" and is
-    // identical on every turn of a run: capability scoring, not reasoning.
-    // Falling back to it filled six group headings with the same machine
-    // sentence, which is worse than the honest line saying the model wrote
-    // none. It stays where the run's own page already keeps it, behind its
-    // own disclosure.
     rationale: text(turn, 'model_rationale'),
     model: text(turn, 'model'),
     calls: list(turn, 'calls').map((call) => ({
@@ -141,6 +186,28 @@ export function turnsFrom(replay: unknown): readonly RunCardTurn[] {
       error: text(call, 'error'),
       durationMs: number(call, 'duration_ms'),
     })),
+  };
+}
+
+/**
+ * The stages `replay` carries, in the shape the card draws them.
+ *
+ * Nothing is derived here and nothing is filled in. A run whose trace recorded
+ * no stages returns nothing, and the card draws the flat turn list it always
+ * drew; a stage the deployment wrote with no finding on it keeps the empty
+ * string, and the card says the stage recorded none rather than composing one
+ * out of what the turns happen to contain. The whole reason the deployment
+ * writes a stage down is that four of the six leave nothing a console could
+ * reconstruct them from.
+ */
+export function stagesFrom(replay: unknown): readonly RunCardStage[] {
+  return list(replay, 'stages').map((stage) => ({
+    stage: text(stage, 'stage'),
+    finding: text(stage, 'finding'),
+    durationMs: number(stage, 'duration_ms'),
+    llmCalls: number(stage, 'llm_calls'),
+    failed: field(stage, 'failed') === true,
+    turns: list(stage, 'turns').map(turnFrom),
   }));
 }
 
@@ -265,6 +332,164 @@ function Remembered({
       )}
     </div>
   );
+}
+
+/** One capability call, drawn the same wherever it sits. */
+function CallRow({
+  locale,
+  call,
+}: {
+  readonly locale: Locale;
+  readonly call: RunCardCall;
+}): ReactNode {
+  return (
+    <li
+      data-testid="run-call"
+      className="flex items-center gap-3 px-3 py-2 edge border-border border-x-0 border-t-0 last:border-b-0"
+    >
+      <Badge status={call.status} className="shrink-0" />
+      <span className="font-mono text-meta grow min-w-0 break-all">{call.name}</span>
+      {call.error === '' ? null : (
+        <span className="text-meta text-danger min-w-0 break-words">{call.error}</span>
+      )}
+      {/* Nothing rather than "not recorded" on every row. A duration this
+          deployment does not record is a column of the same three words down
+          the whole trace, which reads as a fault and is an absence. */}
+      {call.durationMs === 0 ? null : (
+        <span className="text-meta text-muted tabular-nums shrink-0">
+          {formatDuration(locale, call.durationMs / 1000)}
+        </span>
+      )}
+    </li>
+  );
+}
+
+/**
+ * One stage, its line, and the calls it made.
+ *
+ * The calls are listed under the stage rather than under the turns inside it,
+ * which is what the design asks for and is the right reading: an operator
+ * scanning "what it did" is looking for which capabilities answered, and the
+ * loop's iteration boundaries are an implementation detail of one stage of
+ * six. The turn-by-turn transcript, reasoning and all, is still on the run's
+ * own page — this is the summary, and it is grouped by the thing the product
+ * says an investigation is made of.
+ *
+ * A stage with no calls draws none. For four of the six that is permanent, and
+ * the line plus the model-call count is the whole of what they have to say —
+ * which is more than the flat turn list said about them, which was nothing.
+ */
+function StageRow({
+  locale,
+  stage,
+}: {
+  readonly locale: Locale;
+  readonly stage: RunCardStage;
+}): ReactNode {
+  const calls = stage.turns.flatMap((turn) => turn.calls);
+  const shown = calls.slice(0, VISIBLE_CALLS);
+  const folded = calls.slice(VISIBLE_CALLS);
+  return (
+    <div
+      data-testid="run-stage"
+      data-stage={stage.stage}
+      className="edge border-border rounded-2 bg-sunken"
+    >
+      <div className="flex items-start gap-3 p-3">
+        <span className="text-small shrink-0 w-column-word">
+          {stageLabel(locale, stage.stage)}
+        </span>
+        <p className="text-small text-muted grow min-w-0">
+          {stage.finding === ''
+            ? message(locale, 'run.stage.noFinding')
+            : stage.finding}
+        </p>
+        {stage.failed ? <Badge status="failed" className="shrink-0" /> : null}
+        {calls.length === 0 && stage.llmCalls > 0 ? (
+          <span className="text-meta text-muted shrink-0">
+            {message(locale, 'run.stage.modelCalls', { calls: String(stage.llmCalls) })}
+          </span>
+        ) : null}
+        {calls.length === 0 ? null : (
+          <span className="text-meta text-muted shrink-0">
+            {message(locale, 'run.did.calls', { calls: String(calls.length) })}
+          </span>
+        )}
+        {stage.durationMs === 0 ? null : (
+          <span className="text-meta text-muted tabular-nums shrink-0">
+            {formatDuration(locale, stage.durationMs / 1000)}
+          </span>
+        )}
+      </div>
+      {calls.length === 0 ? null : (
+        <ul className="edge border-border border-x-0 border-b-0">
+          {shown.map((call) => (
+            <CallRow key={call.callId} locale={locale} call={call} />
+          ))}
+        </ul>
+      )}
+      {folded.length === 0 ? null : (
+        // A native disclosure rather than a client component. The list is
+        // rendered on the server either way — a reader searching the page
+        // finds a folded capability, and a browser with no JavaScript still
+        // opens it.
+        <details
+          data-testid="run-stage-more"
+          className="edge border-border border-x-0 border-b-0"
+        >
+          <summary className="px-3 py-2 text-meta text-muted motion-hover hover:bg-hover cursor-pointer">
+            {message(locale, 'run.did.more', { count: String(folded.length) })}
+          </summary>
+          <ul>
+            {folded.map((call) => (
+              <CallRow key={call.callId} locale={locale} call={call} />
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The turns no recorded stage claims.
+ *
+ * Every turn, for a run whose trace holds no stages — which is exactly the
+ * flat list the card drew before, and the right drawing for a run that has
+ * nothing else. For a run still going it is the turns of the stage that has
+ * not ended yet: a stage record is written when the stage *ends*, so the
+ * gathering a reader is watching happen has turns and no stage. Dropping them
+ * would empty the section on the one run somebody has the card open for.
+ */
+export function unplacedTurns(body: RunCardBody): readonly RunCardTurn[] {
+  const placed = new Set(
+    body.stages.flatMap((stage) => stage.turns.map((turn) => turn.index)),
+  );
+  return body.turns.filter((turn) => !placed.has(turn.index));
+}
+
+/** The six the pipeline runs, and the only names this console has a label for. */
+const STAGE_NAMES = [
+  'resolve_integrations',
+  'intake',
+  'plan_evidence',
+  'gather_evidence',
+  'diagnose',
+  'deliver',
+] as const;
+
+/**
+ * What one stage is called on screen.
+ *
+ * The trace's own name when the console has no label for it. A deployment
+ * running a newer pipeline records a stage this build has never heard of, and
+ * showing `enrich_context` is an ugly label and a true one — dropping the row
+ * would make the card disagree with the trace about how many stages ran, which
+ * is the one thing a summary of a run must not do.
+ */
+export function stageLabel(locale: Locale, stage: string): string {
+  const known = STAGE_NAMES.find((name) => name === stage);
+  return known === undefined ? stage : message(locale, `run.stage.${known}`);
 }
 
 export interface RunCardProps {
@@ -572,19 +797,39 @@ export function RunCard({
               <Remembered locale={locale} episode={body.episode} />
             </Section>
 
+            {/* Grouped by stage, because that is what an investigation is.
+                The section counted "16 events across 6 turns" and listed the
+                loop's iterations, which is a complete account of the fourth
+                stage of six and silence about the rest — including the two
+                that each spend a model call and produce no turn at all, so no
+                amount of grouping the turn list could have recovered them.
+
+                The turns that fall outside a recorded stage are still drawn,
+                below. A stage is written down when it *ends*, so a run still
+                gathering has turns whose stage the trace does not hold yet,
+                and grouping strictly would make them vanish off the card
+                belonging to the one run somebody is actually watching. */}
             <Section
               label={message(locale, 'run.section.did')}
               action={
                 <span className="text-meta text-muted">
-                  {message(locale, 'run.did.summary', {
-                    events: String(body.events),
-                    turns: String(body.turns.length),
-                  })}
+                  {body.stages.length === 0
+                    ? message(locale, 'run.did.summary', {
+                        events: String(body.events),
+                        turns: String(body.turns.length),
+                      })
+                    : message(locale, 'run.did.stages', {
+                        events: String(body.events),
+                        stages: String(body.stages.length),
+                      })}
                 </span>
               }
             >
               <div className="flex flex-col gap-3">
-                {body.turns.map((turn) => (
+                {body.stages.map((stage) => (
+                  <StageRow key={stage.stage} locale={locale} stage={stage} />
+                ))}
+                {unplacedTurns(body).map((turn) => (
                   <div
                     key={turn.index}
                     data-testid="run-turn"
@@ -606,31 +851,7 @@ export function RunCard({
                     {turn.calls.length === 0 ? null : (
                       <ul className="edge border-border border-x-0 border-b-0">
                         {turn.calls.map((call) => (
-                          <li
-                            key={call.callId}
-                            data-testid="run-call"
-                            className="flex items-center gap-3 px-3 py-2 edge border-border border-x-0 border-t-0 last:border-b-0"
-                          >
-                            <Badge status={call.status} className="shrink-0" />
-                            <span className="font-mono text-meta grow min-w-0 break-all">
-                              {call.name}
-                            </span>
-                            {call.error === '' ? null : (
-                              <span className="text-meta text-danger min-w-0 break-words">
-                                {call.error}
-                              </span>
-                            )}
-                            {/* Nothing rather than "not recorded" on every
-                                row. A duration this deployment does not
-                                record is a column of the same three words
-                                down the whole trace, which reads as a fault
-                                and is an absence. */}
-                            {call.durationMs === 0 ? null : (
-                              <span className="text-meta text-muted tabular-nums shrink-0">
-                                {formatDuration(locale, call.durationMs / 1000)}
-                              </span>
-                            )}
-                          </li>
+                          <CallRow key={call.callId} locale={locale} call={call} />
                         ))}
                       </ul>
                     )}

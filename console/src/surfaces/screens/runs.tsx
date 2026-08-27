@@ -23,6 +23,7 @@ import {
 import {
   RunCard,
   namedEvidence,
+  stagesFrom,
   turnsFrom,
   type RunCardBody,
   type RunCardEpisode,
@@ -268,8 +269,14 @@ async function openBody(runId: string, init: RequestInit): Promise<RunCardBody> 
     // treated an unpriced turn as nothing would be a floor drawn as a total.
     priced: turns.length > 0 && number(replayed, 'unpriced_turns') === 0,
     turns,
+    stages: stagesFrom(replayed),
     calls: turns.reduce((total, turn) => total + turn.calls.length, 0),
-    events: turns.reduce((total, turn) => total + turn.calls.length * 2 + 1, 0),
+    // Read, not computed. This was `calls * 2 + 1` per turn, which is a guess
+    // at the recorder's shape rather than a count of what it wrote — and it
+    // could not see the events no turn produces, which is every stage boundary,
+    // every guardrail action and every delivery. The trace knows how many
+    // entries its own log holds, so the trace is asked.
+    events: number(replayed, 'total_events'),
     waiting,
     decisions,
     supporting: assessment.supporting,

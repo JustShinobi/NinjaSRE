@@ -790,6 +790,115 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
 }
 
 
+#: What each run's stages established, in the order the pipeline runs them.
+#:
+#: Declared rather than derived, for the same reason the turns above are. A
+#: stage's finding is what that stage's own slice said, and a fixture that
+#: computed one from the turn list would be inventing the answer for the four
+#: stages that produce no turn at all — which is the whole reason a stage is
+#: recorded separately.
+#:
+#: ``llm_calls`` is structural and so is stated: intake classifies on one model
+#: call and diagnosis structures on one, whatever the run. The token counts are
+#: not structural, and this dataset has no real spend figures for them, so they
+#: are absent rather than filled with plausible numbers — the same rule the
+#: unpriced turn below already follows.
+#:
+#: ``run-0003`` is still gathering, so its trace holds the three stages that
+#: finished and no fourth. A stage record is written when a stage *ends*; a
+#: fixture that listed a fourth would be claiming a stage completed because it
+#: was seen to start, which is exactly what the recorder refuses to do.
+_STAGES: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
+    "run-0001": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 180,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_410,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "4 capabilities shortlisted, best first",
+            "duration_ms": 60,
+        },
+        {
+            "stage": "gather_evidence",
+            "finding": "3 observations gathered",
+            "duration_ms": 27_900,
+        },
+        {
+            "stage": "diagnose",
+            "finding": "3 of 3 claims tied to an observation the run holds",
+            "duration_ms": 4_120,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "deliver",
+            "finding": (
+                "No destination is configured for this team, so the report was produced "
+                "and not shipped. It is in the investigation record."
+            ),
+            "duration_ms": 300,
+        },
+    ),
+    "run-0003": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 175,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_260,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "3 capabilities shortlisted, best first",
+            "duration_ms": 55,
+        },
+    ),
+    "run-0005": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "6 capabilities available on this team",
+            "duration_ms": 168,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_330,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "2 capabilities shortlisted, best first",
+            "duration_ms": 48,
+        },
+        {
+            "stage": "gather_evidence",
+            "finding": "2 observations gathered",
+            "duration_ms": 11_400,
+            "prompt_tokens": 612,
+            "completion_tokens": 148,
+            "llm_calls": 2,
+        },
+    ),
+}
+
+#: Which of the six stages a turn ran inside. Every turn this dataset holds was
+#: written by the loop, and the loop is what the gathering stage drives — so all
+#: of them belong to that one stage, which is the fact that makes the other five
+#: sections worth serving at all.
+_TURN_STAGE: Final[str] = "gather_evidence"
+
+
 def _run_calls(run_id: str) -> tuple[ToolCallRecord, ...]:
     """Return every call ``run_id`` made, in the shape ``touched_resources_of`` reads.
 
@@ -867,6 +976,47 @@ def _replay_turn(turn: Mapping[str, Any]) -> dict[str, Any]:
     return {**turn, "calls": [_replay_call(call) for call in turn.get("calls", ())]}
 
 
+def _replay_stage(stage: Mapping[str, Any], turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Return one stage in the shape the replay route serves it.
+
+    Every key the route's own model declares is present, defaulted the way the
+    route defaults it. A fixture that omitted ``llm_calls`` on the four stages
+    that never turn would leave a console unable to tell a stage that made a
+    model call and produced no turn from one that did nothing at all — which is
+    the distinction the whole grouping rests on.
+    """
+    gathered = stage["stage"] == _TURN_STAGE
+    return {
+        "stage": str(stage["stage"]),
+        "finding": str(stage.get("finding", "")),
+        "duration_ms": int(stage.get("duration_ms", 0)),
+        "prompt_tokens": int(stage.get("prompt_tokens", 0)),
+        "completion_tokens": int(stage.get("completion_tokens", 0)),
+        "llm_calls": int(stage.get("llm_calls", 0)),
+        "failed": bool(stage.get("failed", False)),
+        "turns": [_replay_turn(turn) for turn in turns] if gathered else [],
+    }
+
+
+def _recorded_events(
+    turns: Sequence[Mapping[str, Any]],
+    stages: Sequence[Mapping[str, Any]],
+    *,
+    finished: bool,
+) -> int:
+    """Return how many entries this run's own event log holds.
+
+    Enumerated from the records the fixture declares, never a formula over the
+    turn count. The recorder writes exactly one event per turn, one per call,
+    one per stage that ended, one when the run starts and one when it ends — so
+    counting the declared records *is* reading the log, while multiplying turns
+    by a constant is guessing at a shape and is what the console was doing
+    before the count was served.
+    """
+    calls = sum(len(turn.get("calls", ())) for turn in turns)
+    return 1 + len(stages) + len(turns) + calls + (1 if finished else 0)
+
+
 def _turn_usage(turn: Mapping[str, Any]) -> tuple[float, int, bool]:
     """Return ``(cost, tokens, priced)`` for one turn, from what it recorded.
 
@@ -903,6 +1053,8 @@ def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[C
         # real figure for) is counted in ``unpriced_turns`` instead of
         # silently contributing to the total.
         usages = [_turn_usage(turn) for turn in turns]
+        stages = list(_STAGES.get(identifier, ()))
+        turn_tokens = sum(tokens for _, tokens, _ in usages)
         records.append(
             _record(
                 "run-replay",
@@ -910,8 +1062,25 @@ def runs_records(*, incident_by_run: Mapping[str, str] | None = None) -> tuple[C
                 {
                     "run_id": identifier,
                     "turns": [_replay_turn(turn) for turn in turns],
+                    "stages": [_replay_stage(stage, turns) for stage in stages],
                     "total_cost": round(sum(cost for cost, _, _ in usages), 4),
-                    "total_tokens": sum(tokens for _, tokens, _ in usages),
+                    # Summed over the stages when the run recorded any, which is
+                    # what the route does and for the same reason: only the
+                    # gathering stage produces turns, so a turn-only total omits
+                    # every model call the other five made.
+                    "total_tokens": (
+                        sum(
+                            int(stage.get("prompt_tokens", 0))
+                            + int(stage.get("completion_tokens", 0))
+                            for stage in stages
+                        )
+                        if stages
+                        else turn_tokens
+                    ),
+                    "turn_tokens": turn_tokens,
+                    "total_events": _recorded_events(
+                        turns, stages, finished=run.get("finished_at") is not None
+                    ),
                     "is_interrupted": run["status"] == "cancelled",
                     "unpriced_turns": sum(1 for _, _, priced in usages if not priced),
                 },

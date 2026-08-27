@@ -43,6 +43,13 @@ from config.constants.runs import (
     RUN_METADATA_PRINCIPAL,
     RUN_METADATA_SUBAGENT,
     RUN_METADATA_TEAM,
+    STAGE_DETAIL_COMPLETION_TOKENS,
+    STAGE_DETAIL_FINDING,
+    STAGE_DETAIL_LLM_CALLS,
+    STAGE_DETAIL_PROMPT_TOKENS,
+    STAGE_EVENT_DURATION_MS,
+    STAGE_EVENT_FAILED,
+    STAGE_EVENT_NAME,
     TRIGGER_SUBAGENT,
     TURN_PAYLOAD_CAPABILITIES,
     TURN_PAYLOAD_MODEL_RATIONALE,
@@ -371,6 +378,49 @@ class RunRecorder:
             payload={"index": turn.index, TURN_USAGE_MODEL: turn.model},
         )
         return record
+
+    async def record_stage(
+        self,
+        run_id: str,
+        *,
+        stage: str,
+        finding: str = "",
+        duration_ms: int = 0,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        llm_calls: int = 0,
+        failed: bool = False,
+    ) -> TraceEventRecord:
+        """Record that one of the six stages finished, and what it did.
+
+        An event rather than a table of its own. A stage has no body worth a
+        row — a name, a line, a duration and a spend — and the event log is
+        already the thing a replay orders everything else by, so a stage
+        written here arrives in the same sequence as the turns that happened
+        inside it rather than needing a timestamp comparison to be placed.
+
+        Written on the stage *ending*, so a run that stopped inside a stage
+        leaves that stage unrecorded. That is the honest asymmetry: the trace
+        then says which stages finished, and never claims one completed on the
+        strength of having been seen to start.
+
+        ``finding`` goes through redaction like every other free text, because
+        it is assembled from what a model classified and what a delivery
+        reported, and both can carry an identifier a ruleset removes.
+        """
+        return await self.record_event(
+            run_id,
+            TraceEventKind.STAGE_COMPLETED,
+            payload={
+                STAGE_EVENT_NAME: stage,
+                STAGE_DETAIL_FINDING: self._redact(finding),
+                STAGE_EVENT_DURATION_MS: duration_ms,
+                STAGE_DETAIL_PROMPT_TOKENS: prompt_tokens,
+                STAGE_DETAIL_COMPLETION_TOKENS: completion_tokens,
+                STAGE_DETAIL_LLM_CALLS: llm_calls,
+                STAGE_EVENT_FAILED: failed,
+            },
+        )
 
     async def record_call(self, call: RecordedCall) -> ToolCallRecord:
         """Store one capability invocation and return the record written.

@@ -26,6 +26,12 @@ class TraceEventKind(StrEnum):
     """What one entry in a run's log is about."""
 
     RUN_STARTED = "run_started"
+    #: One of the six stages finished, with what it established, how long it
+    #: took and what it spent. The only record four of the stages leave: they
+    #: produce no loop turn at all, so a trace assembled from turns alone can
+    #: describe the gathering and is silent about resolving, intake, planning
+    #: and diagnosis — including the two of those that each cost a model call.
+    STAGE_COMPLETED = "stage_completed"
     TURN_COMPLETED = "turn_completed"
     CAPABILITY_CALLED = "capability_called"
     EVIDENCE_OBSERVED = "evidence_observed"

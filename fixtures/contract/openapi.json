@@ -5786,6 +5786,58 @@
         "title": "ReplayCallView",
         "type": "object"
       },
+      "ReplayStageView": {
+        "description": "One of the six stages, with the turns that ran inside it.\n\nFive of the six hold no turns and that is the point of serving them. Only\nthe gathering stage drives the loop, so a replay of turns alone is a\ndetailed account of one stage and silence about the other five — including\nintake and diagnosis, which each spend a model call and turn nothing.\n``llm_calls`` is what separates \"made no turn\" from \"did nothing\", and a\nreader who has only the turn list cannot tell those apart.",
+        "properties": {
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "failed": {
+            "default": false,
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "finding": {
+            "default": "",
+            "title": "Finding",
+            "type": "string"
+          },
+          "llm_calls": {
+            "default": 0,
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayTurnView"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stage",
+          "turns"
+        ],
+        "title": "ReplayStageView",
+        "type": "object"
+      },
       "ReplayTurnView": {
         "description": "One turn as a replay serves it, its calls carrying their results.\n\nThe turn's own fields are the thread view's, restated rather than\ninherited: a subclass cannot narrow ``list[ThreadCallView]`` to\n``list[ReplayCallView]``, because a list is mutable and so invariant. The\n*values* still come from ``thread_turn_view`` below, which is the half that\ncould actually drift.",
         "properties": {
@@ -6510,12 +6562,27 @@
             "title": "Run Id",
             "type": "string"
           },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayStageView"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
           "total_cost": {
             "title": "Total Cost",
             "type": "number"
           },
+          "total_events": {
+            "title": "Total Events",
+            "type": "integer"
+          },
           "total_tokens": {
             "title": "Total Tokens",
+            "type": "integer"
+          },
+          "turn_tokens": {
+            "title": "Turn Tokens",
             "type": "integer"
           },
           "turns": {
@@ -6533,9 +6600,12 @@
         "required": [
           "run_id",
           "turns",
+          "stages",
           "total_cost",
           "unpriced_turns",
           "total_tokens",
+          "turn_tokens",
+          "total_events",
           "is_interrupted"
         ],
         "title": "RunReplayView",
@@ -15299,7 +15369,7 @@
     },
     "/v1/runs/{run_id}/replay": {
       "get": {
-        "description": "Return ``run_id`` reconstructed from its recorded events alone.\n\nEach call carries what it returned, bounded for reading. The trace has held\nthe result since it was recorded; until it was served here, a reader could\nsee which capabilities a run asked and not one thing any of them answered,\nwhich is a transcript of the questions and none of the findings.",
+        "description": "Return ``run_id`` reconstructed from its recorded events alone.\n\nEach call carries what it returned, bounded for reading. The trace has held\nthe result since it was recorded; until it was served here, a reader could\nsee which capabilities a run asked and not one thing any of them answered,\nwhich is a transcript of the questions and none of the findings.\n\nThe turns arrive twice, and deliberately: flat in ``turns`` and grouped in\n``stages``. An investigation is six stages, and only the fourth of them\nruns the loop — so the flat list is a complete account of the gathering and\nsays nothing about the classification that decided the run was worth\nstarting or the diagnosis that structured what it found. The grouping is\nwhat a reader wants; the flat list is what a client that has never heard of\na stage still gets, including for the runs recorded before stages reached\nthe trace, whose ``stages`` is empty.",
         "operationId": "replay_v1_runs__run_id__replay_get",
         "parameters": [
           {

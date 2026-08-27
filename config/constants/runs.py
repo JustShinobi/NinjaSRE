@@ -94,6 +94,11 @@ TURN_PAYLOAD_RATIONALE: Final[str] = "selection_rationale"
 #: given and never what it thought.
 TURN_PAYLOAD_MODEL_RATIONALE: Final[str] = "model_rationale"
 TURN_PAYLOAD_CAPABILITIES: Final[str] = "offered_capabilities"
+
+#: Which of the six stages a turn happened inside. Written by the recording
+#: hook from the stage the pipeline had open at the moment the turn ended, and
+#: absent — never one of the six — on a turn driven outside the pipeline.
+TURN_PAYLOAD_STAGE: Final[str] = "stage"
 TURN_USAGE_MODEL: Final[str] = "model"
 TURN_USAGE_PROMPT_TOKENS: Final[str] = "prompt_tokens"
 
@@ -112,6 +117,31 @@ MAX_HEADLINE_LENGTH: Final[int] = 140
 TURN_USAGE_COMPLETION_TOKENS: Final[str] = "completion_tokens"
 TURN_USAGE_COST: Final[str] = "cost"
 TURN_USAGE_DURATION_MS: Final[str] = "duration_ms"
+
+# --- What a stage says about itself -------------------------------------------
+#
+# Two hops, one vocabulary. The pipeline puts these on the ``stage_end`` event's
+# detail, which is a string-to-string mapping; the recording hook reads them
+# there and writes them into a stage's trace-event payload, where the numbers
+# are numbers again. Naming both ends here is what keeps the writer and the
+# reader from drifting into two spellings of the same fact.
+
+#: The one line a stage wrote about what it established, from the slice that
+#: stage owns. Empty when the stage established nothing worth a sentence — a
+#: stage is never given a line it did not earn.
+STAGE_DETAIL_FINDING: Final[str] = "finding"
+STAGE_DETAIL_PROMPT_TOKENS: Final[str] = "prompt_tokens"
+STAGE_DETAIL_COMPLETION_TOKENS: Final[str] = "completion_tokens"
+
+#: Model calls this stage made. The number that makes a stage which produced no
+#: loop turn legible: intake and diagnosis each call a model once and turn
+#: nothing, so "no turns" and "did nothing" are told apart by this.
+STAGE_DETAIL_LLM_CALLS: Final[str] = "llm_calls"
+
+#: Keys inside a stage's own trace-event payload.
+STAGE_EVENT_NAME: Final[str] = "stage"
+STAGE_EVENT_DURATION_MS: Final[str] = "duration_ms"
+STAGE_EVENT_FAILED: Final[str] = "failed"
 
 #: What started a run. A scheduled run and an interactive one differ in this
 #: and in their principal, and in nothing else — which is what lets one history
@@ -209,6 +239,13 @@ __all__ = [
     "RUN_METADATA_SUBAGENT",
     "RUN_METADATA_TEAM",
     "SCHEDULE_PREVIEW_FIRING_COUNT",
+    "STAGE_DETAIL_COMPLETION_TOKENS",
+    "STAGE_DETAIL_FINDING",
+    "STAGE_DETAIL_LLM_CALLS",
+    "STAGE_DETAIL_PROMPT_TOKENS",
+    "STAGE_EVENT_DURATION_MS",
+    "STAGE_EVENT_FAILED",
+    "STAGE_EVENT_NAME",
     "SCHEDULER_GLOBAL_CONCURRENCY",
     "SCHEDULER_HEARTBEAT_SECONDS",
     "SCHEDULER_MISFIRE_GRACE_SECONDS",
@@ -223,6 +260,7 @@ __all__ = [
     "TURN_PAYLOAD_CAPABILITIES",
     "TURN_PAYLOAD_MODEL_RATIONALE",
     "TURN_PAYLOAD_RATIONALE",
+    "TURN_PAYLOAD_STAGE",
     "TURN_USAGE_COMPLETION_TOKENS",
     "TURN_USAGE_COST",
     "TURN_USAGE_DURATION_MS",

@@ -120,6 +120,7 @@ from core.pipeline.ports import (
 )
 from core.pipeline.stages.resolve_integrations import zero_integration_outcome
 from core.pipeline.state_factory import initial_state
+from core.pipeline.streaming import EventStream
 from core.state.agent_state import AgentState
 from core.state.catalogue import ResolvedCapabilities
 from core.state.types import InvestigationOutcome, TeamContext
@@ -445,6 +446,13 @@ class ReActInvestigationRunner:
             if selection.outcome is not None:
                 return _outcome_summary(selection.outcome)
 
+            # One recorder, handed to both halves of the run. The loop gets it
+            # as a turn hook and the pipeline gets it as a sink on its stream,
+            # and it is the same object because that is the only thing joining
+            # the two channels: the stage boundaries arrive on the stream, the
+            # turns arrive from the loop, and a turn only knows which stage it
+            # ran inside because one object saw both.
+            recorder = self._recording_hook_for(request)
             loop = self._build_runtime(
                 request,
                 messages=queue,
@@ -452,13 +460,14 @@ class ReActInvestigationRunner:
                 rationale=selection.rationale,
                 memory=memory,
                 selector=selection.selector,
+                recorder=recorder,
             )
             live = _LiveRun(loop=loop, messages=queue, handoff=handoff)
             self._live[request.run_id] = live
 
-            run = await self._pipeline_for(request, runtime=loop, selection=selection).run(
-                _state_of(request, selection)
-            )
+            run = await self._pipeline_for(
+                request, runtime=loop, selection=selection, recorder=recorder
+            ).run(_state_of(request, selection))
 
         return _summary_of(run)
 
@@ -468,6 +477,7 @@ class ReActInvestigationRunner:
         *,
         runtime: ReActLoop,
         selection: _Selection,
+        recorder: RunTraceRecordingHook | None = None,
     ) -> Pipeline:
         """Return the six stages, over what this run has already been given.
 
@@ -491,12 +501,21 @@ class ReActInvestigationRunner:
         writer. Nothing in this repository implements a delivery destination
         yet, so the stage records that the report was produced and not shipped
         — which is true, and is where it is: in the run's own record.
+
+        ``recorder`` is on the stream rather than in the stage list, and it is
+        the one thing here that is not per-stage configuration. The pipeline
+        announces every stage boundary on that stream; a recorder listening to
+        it can say which stage each of the loop's turns belonged to, and can
+        write down what the four stages that never turn established. Without
+        it the trace is a flat list of loop iterations, which is a complete
+        account of one stage of six.
         """
         return build_pipeline(
             llm=self.llm,
             runtime=runtime,
             resolver=FixedCatalogueResolver(selection.catalogue),
             ranker=CatalogueRanker(),
+            stream=EventStream(request.run_id, (recorder,)) if recorder is not None else None,
             system_prompt=self._system_prompt_for(selection),
             context=dict(request.context),
         )
@@ -707,6 +726,7 @@ class ReActInvestigationRunner:
         rationale: str = "",
         memory: RunMemory | None = None,
         selector: TurnCatalogueSelector | None = None,
+        recorder: RunTraceRecordingHook | None = None,
     ) -> ReActLoop:
         """Return the canonical loop, carrying at most the tools the model may hold.
 
@@ -715,8 +735,16 @@ class ReActInvestigationRunner:
         rather than only the selector keeps the loop's own cap check on a real
         payload at construction: a run that could never send a legal first turn
         should fail where it is composed, not on its third iteration.
+
+        ``recorder`` is passed in rather than built here because the pipeline
+        needs the same instance — it is the object that sees both the loop's
+        turns and the pipeline's stage boundaries, and two of them would see
+        one channel each and correlate nothing. A caller with none gets one
+        built here, which is what keeps this method usable on its own.
         """
-        hooks = investigation_hooks(recorder=self._recording_hook_for(request))
+        hooks = investigation_hooks(
+            recorder=recorder if recorder is not None else self._recording_hook_for(request)
+        )
         if self._remediation is not None:
             # Registered at ``pre_tool_use`` after the guardrails and before
             # anything else, carrying this run's own context. It is the point
