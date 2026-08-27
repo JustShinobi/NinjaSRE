@@ -417,6 +417,48 @@ export const FONT_STACKS = {
 export const CONTENT_WIDTH = 1360;
 
 /**
+ * How wide one centred column of content gets before it stops being one.
+ *
+ * `CONTENT_WIDTH` caps the page; this caps a single stack inside it — a setup
+ * checklist, a short form — where the surrounding panel is much wider than the
+ * thing being read. Roughly sixty characters at the small step, which is where
+ * a list stops scanning as a column and starts reading as a paragraph.
+ *
+ * Not on the spacing scale, for the reason `SHELL` is not: it is a measurement
+ * taken from the type, not a multiple of a step.
+ */
+export const READING_WIDTH = 448;
+
+/**
+ * How tall a scrolling region is allowed to get, by which region it is.
+ *
+ * These exist because the spacing scale has nothing to say about them and
+ * should not. Its largest step is 48px — a gap between sections — and a scroll
+ * ceiling is two orders of that: it is measured from how much content is worth
+ * showing before the reader would rather scroll than scan, which is a decision
+ * about the content and not a multiple of a gutter.
+ *
+ * They were literals before the scale was closed: `max-h-96`, `max-h-64` and
+ * `h-44` compiled through Tailwind's own `--spacing` base, which this design
+ * never declared and every check believed was absent. Named here, they are
+ * three numbers a reviewer can compare instead of three numbers scattered
+ * across four screens.
+ */
+export const SCROLL_HEIGHTS = {
+  /** A panel's own scrolling region: a rules list, a rendered prompt. */
+  pane: 384,
+  /** A scroller nested inside one entry: a single transcript event's note. */
+  entry: 256,
+  /**
+   * A region pinned to one height so its siblings never move.
+   *
+   * The tutorial's body, where the point is not the ceiling but the constancy:
+   * Back and Next must be at the same pixel on slide one and on slide five.
+   */
+  slot: 176,
+} as const;
+
+/**
  * The application shell's two fixed measurements.
  *
  * Neither is on the spacing scale and neither should be. A sidebar is as wide as

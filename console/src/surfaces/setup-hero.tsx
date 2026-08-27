@@ -71,7 +71,7 @@ export function SetupHero({ locale, setup, source }: SetupHeroProps): ReactNode 
               `outstanding(setup)` counts. Drawing the seven wizard screens
               here instead is exactly how a stated pending count stopped
               matching what a person could count in this list. */}
-          <ol className="flex w-full max-w-md flex-col gap-1 text-left text-small">
+          <ol className="flex w-full max-w-reading flex-col gap-1 text-left text-small">
             {setup.steps.map((step) => {
               const done = step.state === 'done';
               const current = step.name === setup.next;

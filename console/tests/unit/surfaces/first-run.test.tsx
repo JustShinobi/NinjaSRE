@@ -2105,7 +2105,12 @@ describe('the tutorial overlay', () => {
     for (let index = 0; index < SLIDES.length; index += 1) {
       expect(card()?.className).toContain('w-full');
       expect(card()?.className).toContain('max-w-prose');
-      expect(screen.getByTestId('tutorial-body').className).toContain('h-44');
+      // `h-scroll-slot` rather than the `h-44` this replaced, and for the same
+      // reason `w-prose` was wrong: `h-44` took its length from Tailwind's own
+      // spacing base, which this design never declared. Closing that base
+      // would have left this block with no height at all — the original defect
+      // back again, silently.
+      expect(screen.getByTestId('tutorial-body').className).toContain('h-scroll-slot');
       expect(screen.getByTestId('tutorial-body').className).toContain(
         'overflow-y-auto',
       );
