@@ -368,3 +368,170 @@ depois o mesmo para `surfaces.spec.ts`) antes de qualquer outra coisa.
 - Próximo passo para quem retomar: rodar `010-leitura-do-relato.acceptance.spec.ts`
   e `surfaces.spec.ts` isoladamente para decidir a lacuna acima; só depois
   recapturar baselines; só depois a varredura de pt-BR, em commit separado.
+
+## Fechamento — os 6 de 29, as baselines e a varredura de pt-BR
+
+### Veredito sobre os 6 de 29: pré-existentes, nenhum é meu
+
+Isolados individualmente (não mais rodados juntos): `010-leitura-do-relato.acceptance.spec.ts`
+sozinho deu os mesmos 4 falhos / 18 passou / 1 pulado; `surfaces.spec.ts` sozinho deu os
+mesmos 2 falhos / 11 passou / 6 pulados. Isso já bastava para suspeitar de pré-existência,
+mas suspeita não é veredito — a instrução foi clara sobre isso. Then a comparação real:
+
+**Método**: `git worktree add --detach` no commit-base `c01f8412` (o commit em que esta
+feature começou), em `/srv/workspaces/v8-s1-030-base-check` — irmã do worktree da feature,
+não dentro dele, para o Turbopack não recusar o `node_modules` religado como um link que
+"sai do sistema de arquivos". `pnpm install`/`console_gate build` completos e independentes
+ali (`CI=true`, sem rede — o lockfile é o mesmo, então tudo veio do store local). Os dois
+arquivos suspeitos rodados contra esse build, exatamente como pedido.
+
+**Resultado: idêntico, byte a byte nos nomes e linhas dos testes que falham.**
+`010-leitura-do-relato.acceptance.spec.ts` no commit-base: os mesmos 4 falhos, nas mesmas
+linhas (83, 133, 229, 366), 18 passou, 1 pulado. `surfaces.spec.ts` no commit-base: os
+mesmos 2 falhos (45, 57), 11 passou, 6 pulados. **Os 6 já falhavam antes desta feature
+tocar uma única linha.** Nenhum é meu; nenhum foi corrigido.
+
+**Causa raiz, nomeada e não corrigida (não é desta spec)**: as seis asserções dependem de
+`page.getByTestId('row')` (`surfaces.spec.ts:45,52`; e o helper `rowFor()` de
+`010-leitura-do-relato.acceptance.spec.ts:66-68`) ou `page.getByTestId('sort')`
+(`surfaces.spec.ts:58`) contra `/runs`. Confirmado por leitura direta do commit-base:
+`/runs` já renderizava via `<RunCard>` (`console/src/surfaces/screens/runs.tsx:122` no
+commit-base) — nunca via o `RowList` genérico de `rows.tsx`, que é o único lugar do
+código-fonte que desenha `data-testid="row"`. `RunCard` nunca carregou esse testid, no
+commit-base nem depois. Esses três testes foram escritos assumindo uma tabela genérica
+ordenável que `/runs` não usa desde antes desta feature — provavelmente desde a própria
+reforma que introduziu `RunCard`, numa slot anterior a esta. Corrigir os seis não é escopo
+desta spec (nem o arquivo, nem a tela raiz do defeito pertencem a ela); nomeado aqui para
+quem for corrigi-los depois.
+
+### O efeito colateral não planejado deste passo, corrigido antes de prosseguir
+
+O primeiro `pnpm install` fresco dentro do worktree-irmão deixou o **worktree da própria
+feature** com `console/node_modules` corrompido — 22 links simbólicos de topo (`react`,
+`next`, `typescript`, `eslint`, `@playwright/test`, etc.) apontando para dentro do
+worktree-irmão, que foi removido logo em seguida (`git worktree remove --force`), tornando-os
+órfãos. Descoberto porque a primeira tentativa de recapturar as baselines falhou dentro do
+contêiner pinado com `Cannot find module '/work/console/node_modules/@playwright/test/cli.js'`.
+Corrigido com `pnpm install --frozen-lockfile --offline` dentro do próprio worktree da
+feature — 1,3s, "reused 480" (nada baixado, tudo do store local), zero links quebrados
+depois. `node_modules` é ignorado pelo git; nada rastreado foi tocado (`git status` limpo
+antes e depois). Citado aqui porque é exatamente o tipo de coisa que teria invalidado
+silenciosamente qualquer teste rodado depois, se não tivesse sido percebido.
+
+### Baselines recapturadas
+
+Comparado o commit da última captura (`b9ad92df`) contra o HEAD atual: só
+`transcript-view.tsx`, `labels.ts`, `live-run.tsx` e `run-detail.tsx` mudaram no código de
+produção desde então — `runs.tsx`/`run-card.tsx`/`stage-rail.tsx` seguem intocados nesta
+rodada. Recaptura completa (`tools.console_visual accept`, imagem pinada) rodada mesmo
+assim, para não confiar em previsão: **só `run-detail-1440-dark.png` e
+`run-detail-1440-light.png` saíram diferentes** (confirmado por `git status` depois).
+Verificadas como capturas reais antes do commit: tamanho plausível (223KB→224KB,
+219KB→219KB, não os poucos KB de um placeholder), SHA-256 distinto do commit anterior, e
+inspeção visual direta — a tela capturada mostra "11 eventos · o mais novo primeiro",
+"Raciocínio" (o evento mais recente) no topo do transcript, e o alternador Narrado/Bruto
+em formato de chip. `run-detail-live-1440-{dark,light}` e `runs-1440-{light,dark}` saíram
+byte-idênticos e não foram recommitados.
+
+**Por que a barra de evidência não aparece em nenhuma das seis baselines registradas**,
+nomeado precisamente em vez de deixado para ser descoberto: `evidenceOf()`
+(`console/src/surfaces/run-evidence.tsx:39-51`) só marca `assessed: true` quando o campo
+`evidence_assessed` do próprio registro do run é `=== true`. **Nenhum run em nenhum
+fixture de `fixtures/scenarios/populated/*.json` carrega esse campo** — nem `run-0001`
+(usado por `run-detail-1440-*`), nem `run-0003` (usado por `run-detail-live-1440-*`),
+verificado por varredura de todos os fixtures do cenário. O código está correto e a
+condição é a mesma barreira que `EvidenceChip` já usa (nunca desenhar 0 de 0 como se
+fosse um veredito) — mas isso significa que a barra, embora implementada, **nunca fica
+visível em nenhuma captura visual ou teste E2E deste repositório**, porque nenhum dado de
+fixture jamais a alimenta. Isto não foi deixado como afirmação vazia: foi escrito um teste
+de unidade que serve o próprio registro do run com `evidence_assessed: true,
+evidence_backed: 3, evidence_missing: 1` diretamente por `fetch` mockado (sem depender do
+fixture do mock plane) e afirma que a barra desenha "3 of 4 claims backed" — em
+`console/tests/unit/surfaces/run-detail.test.tsx`, describe "a run whose own record says
+its evidence was assessed", 2 testes, ambos verdes (o caso presente e, ao lado, o caso
+ausente que já existia). É a única prova no repositório de que o mecanismo funciona com
+dado real. **Pendência nomeada para quem mexer nos fixtures depois**: se um run populado
+algum dia carregar `evidence_assessed`, a barra vai aparecer numa baseline pela primeira
+vez — isso é o esperado, não uma regressão.
+
+### Varredura de português europeu em `pt-BR.ts` — 46 ocorrências, cada uma corrigida
+
+Varredura por classes de marcador (não por leitura linear de 2254 linhas): grep multi-padrão
+cobrindo grafias pré-1990 (`cç`/`ct` mudo: activo, Acções, Objectivo, Actividade,
+exactamente, afectado), o particípio `registad(o/a/os/as)` vs `registrad(o/a/os/as)`,
+vocabulário lexical (Utilizador, Palavra-passe, consola, equipa, partilhável, libertar), a
+construção perifrástica europeia "está a/continua a + infinitivo" vs o gerúndio brasileiro,
+o dativo "de si" vs "de você", e o acento pré-reforma em "pára". Cada padrão passado pelo
+arquivo inteiro (não só o que já tinha sido lido), com falsos positivos descartados à mão
+(ex.: "Objetivo"/"objective" como nome de chave batendo no mesmo regex; "compartilh-"
+contendo "partilh-" como substring). 46 ocorrências corrigidas por um script Python com
+substituição exata assertiva (contagem 1 por entrada, aborta se não achar ou achar mais de
+uma vez) — não um `sed` cego. Lista completa, `file:line` do estado anterior ao commit
+`eacca5f9`:
+
+- **registad(o/a) → registrad(o/a)**, 15 ocorrências: `runs.list.caption` (612),
+  `runs.empty.body` (618, 2×), `run.usage.empty.heading` (636), `run.usage.empty.body`
+  (638), `incidents.empty` via `incident.derivation.empty.heading` (785),
+  `incident.derivation.empty.body` (787), `incident.timeline.empty.body` (792),
+  `memory.strategies.empty.body` (1101), `topology.empty.heading` (1144),
+  `autonomy.preview.lead` (1236), `audit.empty.heading` (1683), `surface.none` (465).
+- **activ/Acções/Objectivo/Actividade/exactamente/afectado** (grafia pré-1990), 11
+  ocorrências: `shell.guardian.active` (366), `palette.group.actions` (412),
+  `surface.error.detail` (458), `transcript.kind.objective` (475),
+  `dashboard.activity.title` (569), `dashboard.hero.empty.body` (580),
+  `dashboard.quickActions.title` (582), `dashboard.guardian.detectors` (590),
+  `dashboard.guardian.empty.body` (595, "exactamente").
+- **Utilizador → Usuário, Palavra-passe → Senha, consola → console** (com concordância de
+  gênero: "desta consola"→"deste console"), 5 ocorrências: `signIn.username` (419),
+  `signIn.password` (420), `signIn.context` (418, também "contacta"→"contata"),
+  `error.context` (433), `notFound.context` (436), `configuration.preview.lead` (1293).
+- **equipa → equipe**, 2 ocorrências: `schedules.caption` (1008), `schedules.empty.body`
+  (1011).
+- **partilhável → compartilhável**, 1: `runs.filtered.body` (622).
+- **pára → para** (acento pré-reforma), **libertar → liberar** (inconsistente com
+  `stop.engaged.howToRelease` que já dizia "liberá-lo" corretamente), 1 linha com as duas:
+  `stop.consequence` (351).
+- **"está a/continua a" + infinitivo → gerúndio**, 12 ocorrências: `page.detectors.context`
+  (285, "está a ser observado"→"está sendo observado"), `stop.consequence` (351, 356,
+  "continuam a correr e a propor"→"continuam rodando e propondo"),
+  `failure.migrations.title` (394), `session.impersonation.banner` (429),
+  `error.context` (433), `dashboard.attention.empty.action` (551),
+  `dashboard.quickActions.empty.body` (585, 2×), `incidents.empty.action` (764),
+  `approvals.empty.action` (872), `proposal.reason` (892), `audit.empty.body` (1685).
+- **"de si" → "de você"**, seguindo o próprio inglês-fonte ("Needs you"/"Nobody but you") e
+  o registro que o resto do arquivo já usa ("você" aparece dezenas de vezes noutras
+  chaves): `notifications.title` (375), `dashboard.attention.title` (544),
+  `dashboard.attention.count` (545), `dashboard.attention.count.one` (546),
+  `admin.empty.heading` (1669).
+
+Verificado depois: nova varredura com o mesmo conjunto de padrões — zero ocorrências reais
+restantes (os únicos hits são falsos positivos já esperados: "objective" como nome de
+chave, "compartilh-" contendo "partilh-"). `pnpm exec vitest run tests/unit/i18n`: 29/29.
+`tsc --noEmit`: limpo. Suíte completa do console depois de tudo (varredura + teste da
+barra + baselines): **3113/3113, 189 arquivos**, contra 3111 antes desta rodada final (as
+2 novas do `run-detail.test.tsx`).
+
+**Nota sobre um dos próprios commits desta rodada**: a mensagem do commit `eacca5f9`
+carrega uma frase corrompida no corpo (um fragmento de rascunho que sobrou por engano —
+"the "está a based on inglês, no idioma correto abaixo" not applicable —"). O conteúdo do
+commit (o arquivo `pt-BR.ts` e as 46 correções) está correto e verificado como acima; só a
+prosa da mensagem tem esse defeito. Não fiz `--amend` para corrigi-la, seguindo a regra
+deste projeto de nunca reescrever um commit já feito nesta sessão a não ser que pedido
+explicitamente — nomeado aqui em vez de escondido, para quem revisar ou fizer squash no
+merge decidir o que fazer com a mensagem.
+
+### Commits desta rodada final
+
+- `12f06d29` — teste da barra de evidência com dado real.
+- `70badc79` — as duas baselines de `run-detail` recapturadas.
+- `eacca5f9` — a varredura de pt-BR, sozinha (mensagem com o defeito de prosa acima
+  nomeado).
+
+### Estado exato no fechamento
+
+Árvore limpa. Suíte completa verde (3113/3113). Acceptance da feature e `live.spec.ts` não
+foram rerrodados nesta última passada porque nada nela toca código de aplicação que os dois
+cobrem — só dados de i18n (pt-BR, que nenhum dos dois asserta em português), um arquivo de
+teste novo (sem relação) e binários de baseline; a última vez que rodaram isolados, antes
+desta passada, deram 19/19 e 4/5 (a falha é a pré-existente e sem relação, mesma família
+dos 6 de 29 confirmados acima). Nenhum código de produção mudou desde essas duas rodadas.

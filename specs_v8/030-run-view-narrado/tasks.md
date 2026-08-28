@@ -133,16 +133,21 @@ envergonhado.
 
 ## Phase 4: Gates locais
 
-- [~] T018 Suítes de unidade do console e do gateway verdes; acceptance verde
-      no harness local (mock backing) — confirmado após a reversão newest-first
-      (19/19). A suíte transversal da onda: `010-leitura-do-relato.acceptance.spec.ts`
-      e `surfaces.spec.ts`, rodados juntos (não isoladamente, por corte de
-      orçamento), deram 6 falhas ainda não isoladas como pré-existentes,
-      interferência entre arquivos ou regressão real — ver `controle.md`.
-      Reabrir para `[x]` só depois de rodar os dois arquivos isoladamente.
-- [ ] T019 `console/visual/screens.json`: detalhe de run vivo e encerrado nos
-      dois temas; recapturar baselines na imagem pinada
-      (`tools/console_visual.py accept`) e commitar o aceite como revisão.
+- [x] T018 Suítes de unidade do console e do gateway verdes (3113/3113,
+      189 arquivos); acceptance verde no harness local (mock backing, 19/19).
+      A suíte transversal da onda: as 6 falhas de `010-leitura-do-relato.
+      acceptance.spec.ts` e `surfaces.spec.ts` isoladas por comparação direta
+      contra o commit-base (`c01f8412`, worktree separado, mesmo build) —
+      idênticas nos dois lados, portanto pré-existentes e não desta spec.
+      Causa raiz nomeada em `controle.md` (dependem de `getByTestId('row')`,
+      que `/runs` não carrega desde antes desta feature).
+- [x] T019 `console/visual/screens.json`: detalhe de run vivo e encerrado nos
+      dois temas registrado (`run-detail-1440-*`, `run-detail-live-1440-*`);
+      baselines recapturadas na imagem pinada (`tools.console_visual accept`)
+      e commitadas em revisão própria (`70badc79`). Só as duas do run
+      encerrado saíram diferentes desta vez — verificado por diff de código
+      desde a última captura; as do run vivo e as de `/runs` seguem
+      byte-idênticas, e por quê está em `controle.md`.
 - [~] T020 (do orquestrador, no merge do slot) `make verify` completo, verde, partindo do verde de T001.
 
 ## Phase 5: Staging e o gate visual da onda
