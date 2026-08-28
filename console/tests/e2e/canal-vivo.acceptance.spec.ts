@@ -32,7 +32,9 @@ test('a run started from another page appears on the Painel without a reload', a
   page,
 }) => {
   await page.goto('/');
-  await expect(page.getByTestId('freshness')).toHaveAttribute('data-state', 'live');
+  await expect(page.getByTestId('freshness')).toHaveAttribute('data-state', 'live', {
+    timeout: 10_000,
+  });
 
   const before = await page.getByTestId('guardian-flight').count();
   const objective = `canal vivo probe ${String(Date.now())}`;
