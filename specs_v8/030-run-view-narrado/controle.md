@@ -20,7 +20,7 @@ narrated run view`): a linha de base vermelha.
 | T006 — funil único (unidade) | FEITO (vermelho confirmado) | Mesmo arquivo acima, mesma causa (import quebrado). |
 | T007 — acumulação do redutor (unidade) | FEITO (vermelho confirmado) | `console/tests/unit/live/reducer-stage-usage.test.ts`. **11 de 11 falharam**, todas por `state.stages`/`state.usage`/`state.touched` serem `undefined` — campos que ainda não existem em `LiveState`. Comando: `pnpm exec vitest run tests/unit/live/reducer-stage-usage.test.ts`. |
 | T008 — contrato: `stages[]` com nome/duração/finding/falha, na ordem | **FEITO (já existia, verificado) + FEITO (lacuna fechada)** | `tests/contract/runs/test_replay_contract.py::TestReplayGroupsTheRunByStage` já cobria nome/ordem/duração/finding — rodei a suíte intacta (`uv run pytest tests/contract/runs/test_replay_contract.py -q`): **9 passed** antes de eu tocar o arquivo. A única lacuna real era `failed`: nenhum teste servia um estágio que de fato falhou pela rota HTTP. Acrescentei `test_a_failed_stage_is_served_with_its_own_failure_and_the_run_stops_there`; rodei de novo: **10 passed** — verde imediato, não fabricado, porque `ReplayStageView.failed`/`replay_stage_view` já propagavam o campo corretamente, só não estava testado no nível de contrato. |
-| T009 — caracterização do painel de relatório e controles | PARCIAL — coberto por suíte existente, não duplicado | `console/tests/e2e/live.spec.ts` já prova `takeover`/`add-context` visíveis num run vivo e ausentes num encerrado; suítes de relatório (`Report`, `CopyReport`) já existem. Não escrevi um teste de caracterização novo — reli o existente e vou rodá-lo de novo no fim como rede de segurança de regressão, e registro esse resultado aqui quando fizer. |
+| T009 — caracterização do painel de relatório e controles | FEITO | Nomeado por arquivo e resultado real de execução, não por suposição. **Painel de relatório**: `console/tests/unit/surfaces/report.test.tsx` (15 casos — heading/lista/tabela/código/link/negrito/itálico/código-inline como elementos reais, nunca `dangerouslySetInnerHTML`) cobre `renderReport`, que `run-detail.tsx` usa tanto para o painel "What this investigation found" quanto para uma entrada `reasoning`/`report` do transcript — o mesmo renderizador, testado uma vez. `console/tests/unit/surfaces/run-detail.test.tsx` (7 casos) cobre especificamente a tela de run: título/breadcrumb/painel nunca duplicam o texto de falha, o rótulo de gatilho traduzido, nenhuma entrada "report" duplicada no transcript, e os painéis de custo/vínculos colapsando para uma linha em vez do empty state cheio quando o run falhou antes de começar — exatamente o comportamento que esta feature precisava não quebrar ao religar esses painéis ao estado vivo. `console/tests/unit/surfaces/run-detail-live-transcript.test.tsx` cobre a paridade contagem-cabeçalho/corpo num run vivo. Comando: `pnpm exec vitest run tests/unit/surfaces/run-detail.test.tsx tests/unit/surfaces/report.test.tsx tests/unit/surfaces/report-malformed.test.tsx tests/unit/surfaces/run-detail-live-transcript.test.tsx` — **40 passed, 4 arquivos, zero falhas**, rodado depois de todas as mudanças desta feature (T012–T017), confirmando que nada disso regrediu. **Controles de condução**: `console/tests/e2e/live.spec.ts::'a live run offers control of it, and stopping it asks first'` prova `takeover`/`stop-run` visíveis e o diálogo de confirmação num run vivo (`run-0003`); os dois novos testes desta feature (`run-view-narrado.acceptance.spec.ts`, bloco AN-12, linhas ~321–336) provam adicionalmente `takeover`/`add-context` com contagem 0 num run encerrado (`run-0001`) — ambos verdes na rodada final (19/19, ver T004). Não existe um teste de unidade isolado de `TakeoverControls`/`AddContext` como componentes — a cobertura é via as telas que os montam, nomeada aqui em vez de presumida. |
 | T010 — confronto `stages[]` servido × o que o rail precisa | FEITO | Ver seção "Confronto de campos" abaixo. Resultado: **nada faltou**. |
 | T011 — regenerar contrato/cliente TS se T010 acrescentou campo | **Fora do escopo** — nada a fazer | T010 não acrescentou campo nenhum; não há o que regenerar. |
 | T012 — tabela de narração no vocabulário compartilhado | FEITO | `console/src/surfaces/transcript.ts`: `narrate(event, locale)`, tabela `NARRATION_LEAD` (17 chaves = `STREAM_KINDS`), `namedOrFallback()` para ausência declarada. Verde: `pnpm exec vitest run tests/unit/surfaces/transcript-narration.test.ts` — 39 passed. |
@@ -30,9 +30,127 @@ narrated run view`): a linha de base vermelha.
 | T016 — redutor acumula usage/touched; painéis religados | FEITO | `console/src/live/reducer.ts`: `LiveStage`/`LiveUsage` novos tipos; `LiveState` ganha `stages`/`usage`/`touched`; `stagesAfter`/`usageAfter`/`touchedAfter` no laço de liberação de `applyEvents` (mesma disciplina de dedupe/held que `phase`/`waiting`/`decided` já tinham — verificado pelos testes de fora-de-ordem e de duplicata). `usageAfter` soma de `turn_completed` (tokens reais por turno, não apportionado); `touchedAfter` lê `tool_called.payload.arguments` pelas mesmas oito chaves de `platform/runs/replay.py::_RESOURCE_ARGUMENT_KEYS`, espelhadas em `RESOURCE_ARGUMENT_KEYS` (comentário cruzando os dois). `console/src/live/live-run-rail.tsx`: `LiveUsage`, `LiveTouched`, `LiveFindings`, `TouchedChip`, `FindingItem` — todos client components lendo o mesmo `useRun`. `run-detail.tsx`: painel de custo e painel de vínculos passam a `state='ready'` incondicional quando `running`; corpo lê `LiveUsage`/`LiveTouched` no lugar da tabela/lista estática; painel NOVO "Descobertas até agora" (`run.findings.title`), lido de `LiveFindings` (vivo) ou de `stagesFrom(replayed)` filtrando `finding !== ''` (encerrado) — reusa `FindingItem`, então as duas leituras desenham exatamente a mesma marca. Ordem das três colocada mais perto do artboard: Descobertas → Custo → Vínculos (o artboard tem Descobertas → Vínculos → Custo; não persegui essa troca final, registrado como divergência menor abaixo). Verde: `pnpm exec vitest run tests/unit/live/` — **148 passed**, incluindo as 12 do T007. `uv run python -m tools.console_gate typecheck` e `lint`: **limpos**. Suíte completa do console: `uv run python -m tools.console_gate test` — **3108 passed, 189 arquivos, zero falhas** (sem regressão em nenhuma tela). |
 | Bug real encontrado e corrigido nesta fase | — | `Entry` (`transcript-view.tsx`) tratava como "documento" (renderizado por `renderReport`, nunca pela frase narrada) todo evento cujo `event.kind` semântico fosse `reasoning`/`report` — mas `kindOf()` usa `reasoning` como *default* para qualquer kind cru desconhecido (`stage_completed` incluso). Resultado: um evento de kind desconhecido caía em `renderReport('')` e não mostrava nada — quebrando AN-11. Corrigido com um segundo conjunto, `DOCUMENT_RAW_KINDS = {turn, model_reasoned, run_completed, run_failed}` (os quatro rawKind que os dois leitores realmente produzem para um documento), testado nos dois leitores. Achado pelo próprio acceptance vermelho, não por inspeção — exatamente o motivo de rodar o teste antes de assumir verde. |
 | T016a — reforma da lista `/runs` | FEITO, com um degrade documentado | `console/src/surfaces/screens/runs.tsx`: runs vivos separados num band "Vivas agora" (`runs.live.title`) no topo, um card por run (`data-testid="run-live-card"`) com losango pulsante (`pulse-live`/`rotate-45`), barra de seis segmentos (`StageBar`, NOVO export de `stage-rail.tsx`, reusando a mesma `railOf()` do rail grande — uma derivação, duas apresentações) e tempo decorrido (`run-live-elapsed`); leitura de replay só para os runs vivos (tipicamente 0–3), nunca para os assentados — preserva a garantia "uma leitura para a lista inteira" documentada no cabeçalho do arquivo. Filtro trocou de `<FilterBar>` (dropdown compartilhado, usado por outras seis telas sem artboard nesta onda — não tocado) para `FilterChips`, um componente **local** desta tela (não o componente compartilhado): cada valor é um link para o endereço com aquele filtro, testid `filter-chip`, `data-active`. `RunCard` (`run-card.tsx`): `data-status` no card; título via `subject.full` + `line-clamp-2` (substituindo `subject.text` + `truncate`, decisão do board — `Investigations.dc.html`'s `.headline` também é 2 linhas); link `runs.row.openPage` (chave já existente, reusada) visível na linha fechada quando `status==='failed'`, para o transcript. **Degradado, nomeado**: o "estágio onde parou" de uma linha falhada não é mostrado — `last_completed_stage`/`stage_index` são campos que FR-023 atribui à feature 020 (ainda não rodou nesta onda) e não existem em `InvestigationSummary` hoje (confirmado por leitura direta do modelo Pydantic); FR-021a autoriza explicitamente "degradando sem eles". A forma de falha (quadrado vermelho) continua vindo de graça do `Badge` que a linha já tinha. |
-| T017 — passe final contra o artboard | PARCIAL | Coberto organicamente pelas tarefas acima (tokens de papel/forma em todo componente novo, `pulse-live`/`stage-shimmer` da fundação, sem cor literal). Não fiz uma passada dedicada de comparação pixel-a-pixel — isso é o gate visual do Orca Browser (T022, do orquestrador). Duas divergências conhecidas e não perseguidas por escassez de tempo, nenhuma normativa: (1) a ordem das três colocadas na rail direita do run-detail é Descobertas → Custo → Vínculos; o artboard tem Descobertas → Vínculos → Custo; (2) o transcript não replica o corte "lead em negrito — resto em cinza" com travessão do artboard; a frase narrada é um parágrafo único. Nenhuma das duas quebra uma alegação normativa (AN-06/07/08, AN-04) — ambas candidatas a registro em `DIVERGENCIAS.md` se o Orca Browser as marcar como desvio real. |
-| T018 — gates locais verdes | FEITO, com uma lacuna pré-existente registrada | `uv run python -m tools.console_gate typecheck`: limpo. `lint`: limpo. `test` (vitest, cobertura): **3108 passed, 189 arquivos, zero falhas**. Acceptance da feature (`tests/e2e/run-view-narrado.acceptance.spec.ts`): **19/19 passed**. Suíte transversal da onda (`transversal-rules.spec.ts` + `screen-truthfulness.acceptance.spec.ts`): rodando em segundo plano no momento deste commit (arquivo grande, ~60+40 casos) — resultado registrado abaixo assim que terminar. Uma falha já identificada nela por leitura direta, **confirmada pré-existente e não causada por esta feature**: `identificador como nome ... /runs/{id}` espera `getByTestId('row')` na lista, mas `RunCard` (`run-card.tsx`) sempre usou `data-testid="run-card"`, nunca `"row"` — confirmado com `git show c01f8412:console/src/surfaces/run-card.tsx`, o commit-base desta worktree, antes de qualquer edição minha. `row` é o testid do componente genérico `rows.tsx` que `/incidents` usa e `/runs` nunca usou. Fora do escopo de arquivo desta feature para corrigir com segurança (mudar o testid do `RunCard` compartilhado, ou o teste transversal, são os dois só do dono da suíte transversal). |
-| T019 — baselines visuais novos | NÃO INICIADO | |
+| T017 — passe final contra o artboard | FEITO | Comparação linha a linha abaixo, contra `design/padrao-2026-08/RunView.dc.html` e `RunViewLight.dc.html`, lida junto com o código e as capturas comitadas (`run-detail-1440-{dark,light}.png`, `run-detail-live-1440-{dark,light}.png`). Duas divergências reais corrigidas nesta rodada; três nomeadas para o operador, nenhuma no meu escopo de arquivo para corrigir sem um raio de alcance maior do que esta feature deveria assumir sozinha. |
+
+## T017 — o passe final, alegação por alegação
+
+**Grid e espaçamento.** O artboard usa `grid-template-columns: 1fr 340px` para
+transcript+rail (rail com largura fixa). O console usa `grid-cols-1
+lg:grid-cols-3` com o transcript em `lg:col-span-2` (proporção 2/3–1/3, não
+340px fixos) — em 1440px isso dá à rail ~458px, não 340px. **Não corrigido**:
+essa grade é do scaffold de `RunDetailScreen` de antes desta feature (nunca
+editei as classes de grid), compartilhada com outras telas de detalhe de
+duas colunas — estreitá-la para 340px fixos é uma mudança de escopo maior do
+que esta feature, com risco de quebrar responsividade em outros pontos.
+**Nomeado para o operador**: se a largura fixa da rail for normativa, é um
+ajuste no scaffold compartilhado, não nesta feature.
+
+**Chips e seus contornos.** `Badge`/`CHIP_SHAPE` (fundação) já desenha
+contorno + tinta — confirmado nas capturas, igual ao board (decisão 1 de
+`DIVERGENCIAS.md`, já resolvida antes desta feature). O alternador
+Narrado/Bruto: o artboard desenha dois chips independentes lado a lado, cada
+um com seu próprio contorno; minha primeira versão os colocava dentro de um
+único poço (`rounded-full border bg-sunken p-1`), um controle segmentado —
+divergência real, **corrigida** (commit `fff2cd4a`): agora são dois `Button`
+lado a lado sem poço comum, `variant='secondary'` quando ativo (com
+contorno) e `variant='quiet'` quando não (sem contorno). Confirmado na
+recaptura de `run-detail-1440-dark.png`. **Remanescente, nomeado**: o board
+desenha esses chips pequenos (padding 2px 9px, 11px) e eu reusei o `Button`
+padrão (`h-control`, `text-body`) — mais alto que o board. Precisaria de uma
+variante pequena de chip que a fundação ainda não declara; declarado abaixo
+para o orquestrador aplicar via 000, não inventado aqui.
+
+**As três famílias tipográficas.** Título (`PageHeader`), rótulos de
+estágio, corpo do transcript: usam as classes já verificadas pelo acceptance
+da 000 (`font-display`=Space Grotesk, texto corrido=IBM Plex Sans, ids/dados
+via `font-mono`=IBM Plex Mono) — nenhuma nova família introduzida por mim.
+Um ponto real encontrado: o número de um estágio futuro é `.sg` (Space
+Grotesk) no board — minha primeira versão usava `font-sans` (IBM Plex Sans).
+**Corrigido** junto com a mudança de posição do número (ver "formas do rail"
+abaixo, commit `fff2cd4a`).
+
+**As formas do rail de estágios.** Concluído: círculo cheio + check — cor
+bate (`bg-success`/`#3ad195` dark, `#0a7452` light — o mesmo hex que
+`--accent`, registrado como não-divergência: `success` e `accent` são o
+mesmo valor nesta paleta, então a diferença de nome de token não é uma
+diferença visual). Ativo: anel + ícone de busca + `pulse-live`/`pulse-live-ring`
+(a primitiva certa da fundação, reaproveitada, não inventada) — bate.
+Falhado: quadrado + ícone — o board não desenha um estágio falhado
+neste artboard específico (o cenário do artboard não falha), então a forma
+vem só de FR-003 e do vocabulário de `design/status.ts` (`failed`→
+danger/square), não de um pixel do board para comparar. **Divergência real,
+corrigida** (commit `fff2cd4a`): um estágio futuro no board tem o número
+*dentro* do próprio círculo (o `<span>` do círculo carrega o dígito como seu
+próprio conteúdo de texto); minha primeira versão deixava o círculo vazio e
+desenhava o número como uma terceira linha abaixo do rótulo. Corrigido —
+`StageMark` agora recebe `position`/`locale` e desenha o número dentro do
+círculo para o estado `future`; a linha de baixo só existe para
+`done`/`failed` (duração), exatamente como o board. Confirmado visualmente
+nas quatro capturas recapturadas.
+
+**Formas de status.** `Badge`/`StatusDot` (fundação) — não tocados por
+mim, herdados corretamente. Os marcadores de "Descobertas até agora" usam
+`StatusDot status={failed ? 'failure' : 'info'}` (losango/quadrado do
+vocabulário já declarado) — o board desenha um losango âmbar e um quadrado
+vermelho nos três exemplos, sem relação óbvia com falha de estágio (dado
+ilustrativo, não especificação de cor por finding — já registrado como
+suposição na seção própria).
+
+**Motion.** `pulse-live`/`pulse-live-ring` no estágio ativo — bate (mesma
+primitiva, mesmo efeito visual que o `.pulse::after` do board). O
+`stage-shimmer` no conector que entra no estágio ativo — bate com
+`.stageActive` do board. O `slide-in` nos chips de "O que tocou" recém-
+chegados — bate com `.newRow` do board nesses mesmos chips. **Divergência
+nomeada, não corrigida**: o board também aplica `.newRow`/slide-in ao evento
+mais novo do *transcript* (a primeira entrada da lista); esta feature não
+aplica motion de chegada às entradas do transcript. Não é uma AN normativa
+("o movimento em si é asserido pelo acceptance automatizado" — não há
+alegação de acceptance sobre isso) e exigiria rastrear "qual é o evento mais
+novo" como estado extra no componente `Transcript` compartilhado com o
+replay — deixado de fora por escopo e tempo, nomeado para o operador.
+
+**A contagem do cabeçalho.** AN-09 (contagem = lista renderizada) está
+verde — mas o board também diz "o mais novo primeiro" e mostra o evento mais
+recente no topo. O console (antes e depois desta feature, comportamento
+herdado) lista os eventos em ordem cronológica — o mais **antigo** primeiro
+— confirmado por `live.spec.ts`: "the first thing a run does is start...
+entries.first() has data-raw-kind 'run_started'". **Divergência real,
+nomeada, não corrigida**: inverter a ordem do transcript é uma mudança de
+comportamento estabelecida por toda a base (replay e stream, todo teste que
+assume ordem cronológica) — bem além do raio de alcance desta feature, e
+`tasks.md`/`spec.md` desta feature nunca pedem essa inversão. Nomeado para o
+operador: se "mais novo primeiro" for normativo, é uma decisão de onda, não
+um ajuste desta feature — e o rótulo "o mais novo primeiro" nem deveria ser
+escrito antes dessa decisão, porque hoje seria uma legenda falsa.
+
+**Estados vivo/encerrado dos controles.** AN-12 verde (`takeover`/
+`add-context` ausentes num run encerrado, testado). O board desenha
+Assumir/Parar no cabeçalho do run; o console os desenha num painel "Control"
+na rail direita. **Divergência pré-existente, não desta feature**: FR-020
+("Os controles de condução... DEVEM permanecer como estão... sem mudança de
+comportamento") congela essa posição explicitamente — citada aqui por
+completude, não como algo a corrigir.
+
+**"Descobertas até agora" — a barra de progresso.** O board desenha, sob a
+lista de descobertas, uma barra "N de M alegações com evidência" — um dado
+de avaliação de evidência (`evidence_assessed`/`backed`/`missing`, o mesmo
+usado pelo `EvidenceChip` da lista), não o mesmo dado dos findings de
+estágio. FR-017 pede só a lista de findings por estágio, que está construída
+e testada; a barra de progresso **não está implementada**. **Nomeado para o
+operador**: um elemento visível do board que a spec desta feature não pede
+por texto — candidato a acréscimo futuro ou a registro em
+`DIVERGENCIAS.md`, não uma alegação que este slot deixou vermelha.
+
+**Token/forma declarados para o orquestrador aplicar via 000**: uma variante
+pequena de chip (padding ~2px 9px, ~11px, contorno fino) para o alternador
+Narrado/Bruto — hoje aproximada com o `Button` padrão (mais alto que o
+board). Não criei essa variante aqui porque `components/action.tsx` é
+consumido em todo o console e uma variante nova pede a mesma disciplina de
+runtime-checkable/teste que as três existentes já têm — decisão da 000, não
+desta feature.
+| T018 — gates locais verdes | FEITO, com uma lacuna pré-existente registrada | `uv run python -m tools.console_gate typecheck`: limpo. `lint`: limpo. `test` (vitest, cobertura): **3109 passed, 189 arquivos, zero falhas**. Acceptance da feature (`tests/e2e/run-view-narrado.acceptance.spec.ts`): **19/19 passed**. Suíte transversal da onda (`transversal-rules.spec.ts` + `screen-truthfulness.acceptance.spec.ts`, ~60+40 casos): **12 falharam, o resto passou** — todas as 12 confirmadas **pré-existentes, não causadas por esta feature**, por duas causas distintas, nenhuma no meu escopo de arquivo: (1) 3 falhas sobre "setup progress"/`wizard-position` — o assistente de configuração inicial, nada a ver com runs; (2) 9 falhas (6 combinações de regra × `/runs/{id}` e/ou `/incidents/{id}`, mais o teste de controle de run vivo) todas pelo mesmo `getByTestId('row')` nunca encontrado — confirmado que **`/incidents/{id}` falha pela mesma razão**, e `/incidents` nunca foi tocado por esta feature; `RunCard` (`run-card.tsx`) sempre usou `data-testid="run-card"`, nunca `"row"` (confirmado com `git show c01f8412:console/src/surfaces/run-card.tsx`, o commit-base desta worktree, antes de qualquer edição minha) — pré-existente em ambas as telas, não uma regressão desta feature. Fora do escopo de arquivo desta feature para corrigir com segurança. |
+| Segundo bug real encontrado e corrigido, desta vez pela inspeção visual | — | A captura de `run-detail-1440-light` mostrou toda "Capability result" narrando "An event of an unrecognised kind arrived: tool_returned" — `eventsFromReplay` soletra o resultado de uma chamada como `tool_returned` (`transcript.ts`), nunca `tool_succeeded`/`tool_failed` (o vocabulário do *stream*), e a tabela de narração só tinha as duas grafias do stream. Todo resultado de capacidade em **todo run encerrado** caía no genérico — e nenhum teste de unidade pegou, porque o teste de "funil único" construiu as duas leituras a partir de um documento no formato do *stream*, nunca chamando `eventsFromReplay` de verdade. Corrigido: `tool_returned` mapeado para a mesma frase de `tool_succeeded` (texto neutro quanto ao desfecho — o Badge ao lado já carrega sucesso/falha). Teste de regressão acrescentado a `transcript-narration.test.ts`, chamando `eventsFromReplay` de verdade. Achado pela imagem, não pelo teste — exatamente o motivo de inspecionar a captura em vez de confiar só na existência do arquivo. |
+| T019 — baselines visuais novos | FEITO | `console/visual/screens.json`: 4 entradas atualizadas (`run-detail-1440-dark`, `run-detail-1440-light`, `run-detail-live-1440-light`, `runs-1440-light`) + 2 novas (`run-detail-live-1440-dark`, `runs-1440-dark`) — cobre "run vivo e encerrado nos dois temas" (FR-024) e a lista reformada nos dois temas. Editado preservando a ordem original do arquivo (a primeira tentativa usou `.sort()` e reordenou entradas não relacionadas por um `id` fora de ordem alfabética já existente — revertida antes de commitar; `git diff --stat` confirmou 28 inserções/6 deleções, exatamente as 6 entradas pretendidas). Capturado com `uv run python -m tools.console_visual accept` (a imagem pinada por dígest, `--network none`) — nunca `console_gate e2e`. Cada uma das 6 PNGs verificada: (1) todas com SHA-256 distintos entre si; (2) tamanhos de arquivo substanciais e distintos (118–226 KB); (3) **inspeção visual das três telas mais relevantes** (`run-detail-live-1440-dark`, `runs-1440-dark`, `run-detail-1440-light`) confirmando conteúdo real e correto — rail de seis estágios, narração, disclosure fechado, painéis vivos honestos, band "Vivas agora" com barra de seis segmentos, chips de filtro, headline em duas linhas, link de transcript na linha falhada. A inspeção da captura de `run-detail-1440-light` foi o que **achou o bug do `tool_returned`** (ver linha abaixo) — recapturado depois da correção; as 4 telas não afetadas pelo bug (as duas `live`, as duas de `runs`) têm checksum idêntico entre a primeira e a segunda rodada, confirmando captura determinística. `resources-1440-light`/`resources-320-light` falharam nas duas rodadas por um overflow pré-existente e não relacionado (`row-list` mais alto que a página inteira) — nenhum baseline meu foi afetado, confirmado por `git status` mostrando só os 6 arquivos esperados. Baselines num commit próprio, separado da mudança de código. |
 | T020 — `make verify` completo | **Do orquestrador** | Rodarei as suítes locais que tocar; o `make verify` completo do slot é do orquestrador no merge, por instrução do despacho. |
 | T021–T023 | **[~] — do orquestrador** | Staging, Orca Browser, leitura direta do trace store. |
 

@@ -78,7 +78,7 @@ envergonhado.
       run encerrado: registrar isso como o resultado real, e isolar o vermelho
       no que de fato falta (o caminho vivo, e qualquer campo do rail ausente).
       Um vermelho fabricado é pior que um verde honesto.
-- [~] T009 (coberto por suíte existente, não duplicado) Caracterização (verde, protege o que fica): o painel de report da
+- [x] T009 (coberto por suíte existente, nomeada no controle — ver controle.md) Caracterização (verde, protege o que fica): o painel de report da
       v7 (headline, markdown renderizado, copiar) e os controles de condução
       renderizam como hoje nos dois estados do run.
 
@@ -126,7 +126,7 @@ envergonhado.
       chip de alegações com forma, falhados com estágio e link, filtros como
       chips. Estender o acceptance da feature com a asserção da lista
       (vermelho antes desta task).
-- [~] T017 (parcial — sem passada dedicada de comparação; ver controle) Passe final da tela contra o artboard: grid, espaçamentos, chips,
+- [x] T017 Passe final da tela contra o artboard: grid, espaçamentos, chips,
       tipografia e motion pelos tokens da fundação; contagem do cabeçalho
       derivada da lista renderizada (AN-09); estados vivo/encerrado dos
       controles (AN-12).
