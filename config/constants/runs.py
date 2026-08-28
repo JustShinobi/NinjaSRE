@@ -167,6 +167,33 @@ STREAM_CATCH_UP_PAGE_SIZE: Final[int] = 200
 #: the recording one can serve a live subscriber.
 RUN_EVENT_CHANNEL: Final[str] = "ninjasre_run_events"
 
+# --- The deployment-scoped event channel --------------------------------------
+#
+# One channel, not one per screen: the console's lists and its dashboard need to
+# know that a run started, an incident opened, or a decision was made, and none
+# of that is a run's own trace. Deliberately not durable — a sibling of
+# ``MAX_STREAM_BUFFER_EVENTS`` rather than a second log, because losing an event
+# here costs a client one re-read of the routes that already carry the truth,
+# never a fact that only existed on the wire.
+
+#: Events the deployment channel's in-process buffer holds before a slow or
+#: absent subscriber falls behind its epoch and is told to resync instead of
+#: replayed to. Smaller than the per-run buffer: this channel's events are a
+#: cue to re-read a list, not the content of the read, so a client that misses
+#: the buffer loses nothing a resync does not immediately recover.
+DEPLOYMENT_STREAM_BUFFER_EVENTS: Final[int] = 256
+
+#: How often the deployment stream sends a keep-alive comment, so a proxy's
+#: idle-connection timeout never mistakes a quiet deployment for a dead one.
+SSE_KEEPALIVE_SECONDS: Final[float] = 15.0
+
+#: How long the console's client waits after one deployment event before it
+#: acts, so a burst of several events in the same instant costs one
+#: `router.refresh()` rather than one per event. Mirrored as an exported
+#: constant of the same value in `console/src/live/deployment.ts`, because nothing
+#: on the client side reads a Python module at build time.
+DEPLOYMENT_REFRESH_BATCH_MS: Final[int] = 250
+
 # --- Scheduling --------------------------------------------------------------
 
 #: How often a worker renews the lease on a job it is executing. Comfortably
@@ -219,6 +246,8 @@ DEFAULT_RUN_HISTORY_PAGE_SIZE: Final[int] = 50
 __all__ = [
     "DEFAULT_RUN_HISTORY_PAGE_SIZE",
     "DEFAULT_SCHEDULE_TIMEZONE",
+    "DEPLOYMENT_REFRESH_BATCH_MS",
+    "DEPLOYMENT_STREAM_BUFFER_EVENTS",
     "HEADLINE_MARKER",
     "MAX_CRON_LOOKAHEAD_DAYS",
     "MAX_HEADLINE_LENGTH",
@@ -250,6 +279,7 @@ __all__ = [
     "SCHEDULER_HEARTBEAT_SECONDS",
     "SCHEDULER_MISFIRE_GRACE_SECONDS",
     "SCHEDULER_TEAM_CONCURRENCY",
+    "SSE_KEEPALIVE_SECONDS",
     "STREAM_CATCH_UP_PAGE_SIZE",
     "TRIGGER_ALERT",
     "TRIGGER_INTERACTIVE",
