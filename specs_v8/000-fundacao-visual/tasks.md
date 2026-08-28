@@ -163,7 +163,7 @@ por outro caminho. Um `[~]` nunca é um `[x]` envergonhado.
       tela a tela contra o board (é a revisão, não um carimbo) e comitar
       no mesmo diff; cobertura vermelha herdada do gate registrada no
       controle como herdada.
-- [ ] T023 `make verify` completo, verde, partindo do verde de T001;
+- [x] T023 `make verify` completo, verde, partindo do verde de T001;
       contagem dos cenários sintéticos comparada com T003 ("sem efeito"
       confirmado). Junto: `git status --short` e `git diff --stat` da
       feature inteira conferidos contra a lista de arquivos permitidos do

@@ -45,13 +45,30 @@
   "completed_features": [],
   "last_verdict": "pending",
   "last_gate": {
-    "name": "baseline make verify",
-    "status": "KNOWN_RED",
-    "at": "2026-08-28T00:26:07+00:00",
-    "exit_code": 2
+    "name": "make verify (post visual repair)",
+    "status": "PASS_AGAINST_PINNED_BASELINE",
+    "at": "2026-08-28T02:32:23+00:00",
+    "passed": 12972,
+    "failed": 9,
+    "console_tests": 3058
   },
-  "open_questions": [],
-  "last_checkpoint": "2026-08-28T01:41:31+00:00",
+  "open_questions": [
+    {
+      "id": "chip-border-midtone",
+      "raised_at": "2026-08-28T02:32:23+00:00",
+      "question": "The board borders tinted chips with a mid-tone (danger #5c2525 between #2a1616 and #ef7070; success #12694a/#2a5c44/#1d3a2d). The console borders them at full role brightness (border-danger). Consistent across all five roles.",
+      "why_not_done": "Needs five new tokens and contradicts FR-017, which fixes the border as the role's own colour and which the acceptance spec asserts. A spec change plus a token change, not a three-class edit.",
+      "options": "Follow-up in this slot, or a task in 060."
+    },
+    {
+      "id": "resources-baselines",
+      "raised_at": "2026-08-28T02:32:23+00:00",
+      "question": "resources-1440-light and resources-320-light cannot be captured: the row list caps its own height so no taller window satisfies the harness (~3160px of overflow).",
+      "attribution": "Inherited. rows.tsx, window.ts and capture.ts are untouched here.",
+      "owner": "Whoever takes /resources in 060."
+    }
+  ],
+  "last_checkpoint": "2026-08-28T02:32:23+00:00",
   "next_action": "T023 make verify running (orchestrator). Then: re-confirm acceptance on final build, speckit-converge, deploy-stg, Orca visual gate, verifier.",
   "fingerprint": "d454b52d2f4012ae",
   "features": [
@@ -63,7 +80,7 @@
       "status": "in_progress",
       "runtime": "claude",
       "last_checkpoint": "2026-08-28T00:18:52+00:00",
-      "next_action": "Await implementer report; then speckit-converge.",
+      "next_action": "Redeploy landing; re-capture both themes, update VEREDITO, then dispatch the independent verifier.",
       "worktree": "shared-tree",
       "lifecycle_results": {
         "analyze": {
@@ -117,7 +134,7 @@
           "blocking": false
         },
         "implement": {
-          "status": "complete_pending_gate",
+          "status": "complete",
           "at": "2026-08-28T01:41:31+00:00",
           "agent": "spec-implementer",
           "turn_ceilings_hit": 2,
@@ -141,28 +158,81 @@
           ]
         },
         "converge": {
-          "status": "pending",
-          "rounds_used": 0,
-          "rounds": []
+          "status": "CONVERGED",
+          "rounds_used": 1,
+          "at": "2026-08-28T02:01:07+00:00",
+          "gaps": [],
+          "tasks_appended": 0,
+          "note": "Assessor ran the unit suites itself (92 passed across 6 files) rather than reading the implementer's report. Only finding was a stale T023 checkbox, now ticked. FR-035 independently confirmed: no surfaces/screens file appears in the four-commit diff.",
+          "rounds": [
+            {
+              "round": 1,
+              "result": "CONVERGED",
+              "appended": 0
+            }
+          ]
         }
       },
       "playwright_result": {
         "status": "PASS",
-        "backing": "mock",
-        "at": "2026-08-28T01:41:31+00:00",
+        "backing": "staging",
+        "at": "2026-08-28T02:32:23+00:00",
         "tests": [
-          "console/tests/e2e/fundacao-visual.acceptance.spec.ts",
-          "console/tests/e2e/network.spec.ts"
+          "console/tests/e2e/fundacao-visual.acceptance.spec.ts"
         ],
-        "detail": "20 passed on the acceptance spec (fresh build), exit 0 read from the log; network.spec.ts 2 passed, identical to the Phase 0 'before'."
+        "detail": "15 passed against https://stg-ninjasre.lan.kyo.ninja, real exit 0, pod digest verified.",
+        "defect_found_and_fixed": {
+          "issue": "The zero-egress claim filtered on a hardcoded loopback host list, so it asked 'did anything reach a non-localhost host'. On staging every same-origin chunk, stylesheet and self-hosted font counted as foreign; it failed while naming its own origin.",
+          "why_it_matters": "Passing locally meant the property was never measured where it could fail — a build fetching fonts from a CDN would also have passed, since a CDN and the deployment are both merely 'not localhost' to that list.",
+          "fix": "Compares each request against the run's real origin. Predicate proved in both directions before accepting the green: self-hosted font internal, Google Fonts / arbitrary third party caught, local harness unaffected.",
+          "commit": "c902d519"
+        }
       },
       "visual_result": {
-        "status": "pending",
+        "status": "PASS_AFTER_REPAIR",
         "reviewer": "orca-browser",
-        "runtime": null,
-        "routes": [],
-        "viewports": [],
-        "evidence": []
+        "runtime": "claude",
+        "at": "2026-08-28T02:32:23+00:00",
+        "routes": [
+          "/"
+        ],
+        "themes": [
+          "dark",
+          "light"
+        ],
+        "artboards": [
+          "design/padrao-2026-08/Main.dc.html",
+          "design/padrao-2026-08/DashboardLight.dc.html"
+        ],
+        "evidence": [
+          "specs_v8/000-fundacao-visual/evidence/visual/shell-dark.png",
+          "specs_v8/000-fundacao-visual/evidence/visual/shell-light.png",
+          "specs_v8/000-fundacao-visual/evidence/visual/VEREDITO.md"
+        ],
+        "method": "Themes switched with the topbar button, never an injected data-theme. Deployed digest confirmed against the pushed manifest before judging.",
+        "measured_live": {
+          "dark_sunken": "#0a100e",
+          "dark_accent": "#3ad195",
+          "light_sunken": "#f2f6f4",
+          "light_accent": "#0a7452",
+          "border_strong": "#35493f",
+          "sidebar_px": 232,
+          "body_font": "IBM Plex Sans"
+        },
+        "deviation_found": {
+          "what": "The destructive control was filled: #ef7070 ground with #2a1616 text. The board draws it tinted — #2a1616 ground, #ef7070 text. The same two tokens with their roles inverted, in both themes.",
+          "where": "console/src/components/action.tsx:54, the shared Button destructive variant — not the topbar's own styling.",
+          "raised_because": "The fix restyles every destructive button in the console, including on screens with no artboard, so the scope was the operator's to approve.",
+          "operator_ruling": "Approved: align to the artboard. Standing rule given — when in doubt the artboard always wins.",
+          "fixed_in": [
+            "2db19664 tinted variant",
+            "46c6fe24 35 baselines recaptured"
+          ]
+        },
+        "not_deviations": {
+          "dashboard_structure": "The artboard's live-execution band, sparklines, mini-timelines and activity feed are absent by design. Decision 8 gives 000 vocabulary and nothing structural; those belong to 050, 040 and 060.",
+          "data_and_language": "Counts differ and the board is pt-BR while the console ran in English. Data and i18n, not design."
+        }
       },
       "verifier_result": {
         "status": "pending",
@@ -180,6 +250,53 @@
         ],
         "attribution": "Inherited, not this feature. Verified independently by the orchestrator: rows.tsx (maxBlockSize cap), window.ts (ROW_HEIGHT=44) and capture.ts are all untouched here; the overflow is structural (row count x 44 against a 660px cap, ~3160px excess), not typographic; a dozen commits have changed fixtures since those two baselines were last captured. Both PNGs are unmodified. The repair belongs to whoever touches /resources — the area-screens feature.",
         "review": "Seven captures opened and inspected individually across both themes, not stamped."
+      },
+      "gates": {
+        "make_verify": {
+          "status": "PASS_AGAINST_PINNED_BASELINE",
+          "at": "2026-08-28T01:58:18+00:00",
+          "exit_code": 2,
+          "totals": {
+            "passed": 12972,
+            "failed": 9,
+            "skipped": 39
+          },
+          "console_suite": {
+            "files": 187,
+            "tests": 3058,
+            "status": "all passed"
+          },
+          "condition": "Exactly the 9 pinned known-red tests and no others. Met: identical list, and the passed count matches the clean-tree baseline exactly.",
+          "defects_found_and_fixed": [
+            {
+              "test": "test_the_console_and_this_tier_agree_about_the_shell_geometry",
+              "issue": "Console moved to the board's 232px sidebar / 60px topbar; config/constants/console.py still declared 236 / 52.",
+              "fix": "Constants updated to 232 / 60.",
+              "commit": "e8553738"
+            },
+            {
+              "test": "test_every_claim_has_the_test_it_names[SC-001]",
+              "issue": "SC-001 claimed every boundary reaches 3:1 and named a test that was renamed when the exemption registry landed, leaving the criterion pointing at a test that no longer exists.",
+              "fix": "Claim restated to 'and every boundary reaches 3:1, bar the board's registered exemptions' and re-pointed. Restated rather than only re-pointed: the old wording asserted what the operator's ruling made false.",
+              "commit": "e8553738"
+            }
+          ],
+          "note": "An earlier scoped run excluding tests/contract/console reported clean. It was correct but held both defects in the excluded directory. Only the full gate on a clean tree is the verdict."
+        }
+      },
+      "transversal_result": {
+        "status": "PARTIAL",
+        "at": "2026-08-28T02:32:23+00:00",
+        "passed": 12,
+        "failed": 7,
+        "captures": 19,
+        "failing_routes": [
+          "/runs/{id}",
+          "/incidents/{id}"
+        ],
+        "cause": "Each failure is `waiting for getByTestId('row').first()` — the test cannot click into a detail. NOT an empty database: the dashboard shows 11 incidents held and 28 firings across 10 subjects.",
+        "attribution": "Not this feature. 000 touches no list rendering, no data and no gateway. These are the wave's allowlist debt for the features that own those screens (020, 030, 060).",
+        "correction": "An earlier orchestrator hypothesis that staging had no data was wrong and is retracted here."
       }
     },
     {
@@ -544,6 +661,32 @@
         "contrast-border-strong"
       ],
       "effect": "Board palette restored; contrast contract to carry a measured divergence registry."
+    },
+    {
+      "at": "2026-08-28T01:58:18+00:00",
+      "event": "gate_pass",
+      "feature": "specs_v8/000-fundacao-visual",
+      "gate": "make verify",
+      "result": "pinned baseline matched exactly",
+      "defects_fixed": 2
+    },
+    {
+      "at": "2026-08-28T02:01:07+00:00",
+      "event": "converge_complete",
+      "feature": "specs_v8/000-fundacao-visual",
+      "result": "CONVERGED",
+      "rounds": 1
+    },
+    {
+      "at": "2026-08-28T02:32:23+00:00",
+      "event": "visual_gate_repaired",
+      "feature": "specs_v8/000-fundacao-visual",
+      "deviation": "destructive control filled instead of tinted",
+      "approved_by": "operator",
+      "commits": [
+        "2db19664",
+        "46c6fe24"
+      ]
     }
   ],
   "baseline": {
@@ -589,5 +732,15 @@
       "registered_in": "design/padrao-2026-08/DIVERGENCIAS.md item 7",
       "accepted_cost": "Neutral control boundaries sit near 1.9:1 on every dark ground. A real property of the approved board, recorded so it is not silently 'fixed'."
     }
-  ]
+  ],
+  "commits": [
+    "ba3aeb5e foundation code",
+    "040ba864 visual baselines",
+    "adbfd9e5 planning + DIVERGENCIAS",
+    "e8553738 cross-tier shell geometry + SC-001 claim",
+    "c902d519 egress measured against origin",
+    "2db19664 tinted destructive control",
+    "46c6fe24 baselines for the tinted control"
+  ],
+  "branch": "feat/000-fundacao-visual"
 }
