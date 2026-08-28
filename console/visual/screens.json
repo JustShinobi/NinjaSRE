@@ -296,8 +296,8 @@
       "viewport": 1440,
       "theme": "dark",
       "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured under the dark token set and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+        "against": null,
+        "reason": "A settled run: the six-stage pipeline rail on top (no active ring, each stage its own duration), the transcript narrated by default with the raw payload behind a closed disclosure and the Narrado/Bruto toggle, and the rail's three panels — Descobertas até agora, Custo e tokens, O que tocou — read from the same replay the transcript is. First capture of the narrated run view; the previous baseline described the JSON-block transcript this feature replaces."
       }
     },
     {
@@ -307,8 +307,19 @@
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured in light and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+        "against": null,
+        "reason": "The same settled run as the dark baseline, under the light token set. First capture of the narrated run view."
+      }
+    },
+    {
+      "id": "run-detail-live-1440-dark",
+      "route": "/runs/run-0003",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The live run baseline under the dark token set — the theme the board itself is drawn in. Did not exist before this feature; the live state only became worth a picture once the rail, the narrated transcript and the honest live panels existed to be in it."
       }
     },
     {
@@ -319,7 +330,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach. Held once and rejected, on the transcript card contradicting itself: the header counted the replay the server had read while the body drew the stream, so the card said “6 events” over “This investigation recorded no events.” Both halves read the live run now, and the picture is what that looks like — “0 events” beside a Reconnecting badge, over a body saying the same thing. Nought rather than six is the honest reading of this capture and not a loss: the fixture server answers reads and serves no stream, so nothing has arrived, and the badge beside the count is what says so. Reviewed image by image on 2026-08-26 against this entry's own criteria and accepted on what the picture shows. Two things the picture also shows, named here so accepting it does not read as endorsing them. The sidebar's group labels are sentence case — “The environment”, “Settings” — where every other committed baseline still has them shouting; that is the design change that stopped the labels shouting, already committed, and no baseline has been recaptured for it yet, so this one is ahead of the rest of the set rather than the set being wrong. And the run's title is “alert investigation”, a generic label rather than a sentence, for the same reason the settled run-detail baselines carry it: the fixture stores that string in the headline field."
+        "reason": "A live run: the pipeline rail with the active stage's pulsing ring, the transcript still narrating from the stream, and the cost, findings and 'what it touched' panels reading the live state instead of the settled empty chrome. First capture of the narrated live view; the previous baseline predates the rail entirely and described a '0 events' reconnecting state this fixture no longer reaches with the stream carrying stage_completed events from the start."
       }
     },
     {
@@ -330,7 +341,18 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. Recaptured after the headline/report split, and the change is visible and is the improvement — four subjects now read as sentences the run itself produced rather than as a raw summary. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Two things the picture also shows, named here so accepting it does not read as endorsing them: three rows carry the generic label 'alert investigation' as their subject, one of them a completed run that has a report; and one reads 'Alert · run-0101', an identifier standing in for a name. Both come from the fixture, which stores those strings in the headline field itself. This baseline freezes what the screen draws, which is its job; it does not claim the subjects are all sentences."
+        "reason": "The reformed list: live runs as their own band of cards with a six-segment stage bar and elapsed time, settled runs below as the existing accordion with a two-line headline, filters as chips. First capture of the reformed list; the previous baseline described the dropdown-filtered, single-line-subject table this feature replaces."
+      }
+    },
+    {
+      "id": "runs-1440-dark",
+      "route": "/runs",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The reformed list under the dark token set. Did not exist before this feature."
       }
     },
     {
