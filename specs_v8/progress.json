@@ -41,9 +41,11 @@
     ],
     "S5": []
   },
-  "current_feature": "specs_v8/000-fundacao-visual",
-  "completed_features": [],
-  "last_verdict": "pending",
+  "current_feature": null,
+  "completed_features": [
+    "specs_v8/000-fundacao-visual"
+  ],
+  "last_verdict": "PASS",
   "last_gate": {
     "name": "make verify (post visual repair)",
     "status": "PASS_AGAINST_PINNED_BASELINE",
@@ -68,19 +70,19 @@
       "owner": "Whoever takes /resources in 060."
     }
   ],
-  "last_checkpoint": "2026-08-28T02:32:23+00:00",
-  "next_action": "T023 make verify running (orchestrator). Then: re-confirm acceptance on final build, speckit-converge, deploy-stg, Orca visual gate, verifier.",
+  "last_checkpoint": "2026-08-28T02:57:36+00:00",
+  "next_action": "Open slot S1: 010-canal-vivo and 030-run-view-narrado, isolated worktrees cut from feat/000-fundacao-visual. Single-write owner for S1 is 030.",
   "fingerprint": "d454b52d2f4012ae",
   "features": [
     {
       "path": "specs_v8/000-fundacao-visual",
       "slot": "S0",
       "dependencies": [],
-      "phase": "implement",
-      "status": "in_progress",
+      "phase": "complete",
+      "status": "PASS",
       "runtime": "claude",
       "last_checkpoint": "2026-08-28T00:18:52+00:00",
-      "next_action": "Redeploy landing; re-capture both themes, update VEREDITO, then dispatch the independent verifier.",
+      "next_action": "S0 complete. Open S1: 010-canal-vivo and 030-run-view-narrado in isolated worktrees.",
       "worktree": "shared-tree",
       "lifecycle_results": {
         "analyze": {
@@ -235,9 +237,38 @@
         }
       },
       "verifier_result": {
-        "status": "pending",
-        "findings": [],
-        "commands": []
+        "status": "PASS",
+        "at": "2026-08-28T02:57:36+00:00",
+        "agent": "spec-verifier",
+        "independent": true,
+        "commands": [
+          "git log/diff master..HEAD",
+          "make verify -> exit 2, 12972 passed, 9 failed (the pinned set, no others), log-verified",
+          "console_gate build -> exit 0",
+          "console_e2e run --backing mock -> 20/20 acceptance passed; 9 transversal failures on detail routes",
+          "pillow pixel sampling of both evidence captures"
+        ],
+        "findings": [
+          {
+            "severity": "MEDIUM",
+            "status": "FIXED",
+            "issue": "controle.md's 26x2 table still listed the adjusted first-pass values (hover dark #1e2b27, border-strong #68776f/#7c8983) attributed to 'contraste', describing a state the code no longer had. tokens.ts, the contrast suite and DIVERGENCIAS.md item 7 all agreed with each other; only the table lied.",
+            "fix": "Three cells reconciled to the board hexes with origin 'board (registered exemption)' and the measured ratios. A note records why, because documentation that contradicts the code with authority is worse than none."
+          },
+          {
+            "severity": "LOW",
+            "status": "FIXED",
+            "issue": "T023 had no evidence row in controle.md — the orchestrator ran it and recorded the result only in progress.json.",
+            "fix": "Row added, including the two real defects the gate caught and the guard that aborted the first run."
+          },
+          {
+            "severity": "INFO",
+            "status": "ACCEPTED",
+            "issue": "Acceptance-first is true but not independently re-derivable: the implementer never commits on a shared tree, so there is no separate RED commit to inspect. Evidence is controle.md's transcribed failure messages, which are specific and plausible.",
+            "note": "A real limit of the shared-tree convention, not a defect of this feature. Worth considering for later slots, which run in isolated worktrees where the implementer does commit."
+          }
+        ],
+        "visual_note": "The verifier reports VISUAL: UNVERIFIED from its own position — it has no browser tool. It pixel-sampled both committed captures as a non-substitute check and found them consistent with the verdict: dark button #2a1616 on #ef7070 text, light #f9e9e9 on #a51f1f, page background #f2f6f4. The Orca Browser review itself was performed by the orchestrator, which is where EXECUCAO section 3 places it."
       },
       "fingerprint": null,
       "visual_baselines": {
@@ -687,6 +718,13 @@
         "2db19664",
         "46c6fe24"
       ]
+    },
+    {
+      "at": "2026-08-28T02:57:36+00:00",
+      "event": "feature_pass",
+      "feature": "specs_v8/000-fundacao-visual",
+      "verifier": "PASS",
+      "findings_fixed": 2
     }
   ],
   "baseline": {

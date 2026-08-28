@@ -233,19 +233,29 @@ Fatos verificados do spec.md; **contraste** = ajuste mínimo desta feature,
 registrado na seção de divergência no topo deste arquivo; **FR-003/004** =
 decisão desta spec para papéis que o board não nomeia.
 
+**Corrigido depois do veredito do verifier independente.** Três células
+desta tabela ainda traziam os valores *ajustados* da primeira passagem
+(`hover` dark `#1e2b27`, `border-strong` `#68776f`/`#7c8983`) atribuídos a
+"contraste". Aquela passagem foi revertida quando o operador decidiu que o
+board fica como está — o código sempre carregou os hexes do board a partir
+dali, e `tokens.ts`, a suíte de contraste e o `DIVERGENCIAS.md` item 7
+concordavam entre si. Só esta tabela descrevia um estado que o código já não
+tinha, o que é pior que não ter tabela: é documentação que mente com
+autoridade. As três células agora dizem o que a `tokens.ts` diz.
+
 | Papel | Dark | Origem (dark) | Light | Origem (light) |
 |---|---|---|---|---|
 | surface | `#101815` | board | `#ffffff` | board |
 | sunken | `#0a100e` | board | `#f2f6f4` | board |
 | raised | `#16211d` | board | `#ffffff` | board |
-| hover | `#1e2b27` | **contraste** (board `#1c2925`, 1.098:1 vs `raised`) | `#e9eeec` | board |
+| hover | `#1c2925` | board (isenção registrada: 1.098:1 vs `raised`, mínimo interno 1.1) | `#e9eeec` | board |
 | text | `#e9f0ec` | board | `#17211d` | board |
 | muted | `#9fb2aa` | board | `#55645e` | board |
 | accent | `#3ad195` | board | `#0a7452` | board |
 | on-accent | `#062018` | board | `#ffffff` | board |
 | accent-bg | `#12271f` | board | `#e2f2ec` | board |
 | border | `#223029` | board | `#dde5e1` | board |
-| border-strong | `#68776f` | **contraste** (board `#35493f`, pior caso 1.56:1 vs `hover`) | `#7c8983` | **contraste** (board `#9fb0a8`, pior caso 1.94:1 vs `hover`) |
+| border-strong | `#35493f` | board (isenção registrada: 1.56–1.99:1, mínimo 3:1) | `#9fb0a8` | board (isenção registrada: 1.94–2.27:1, mínimo 3:1) |
 | success | `#3ad195` | FR-003 (= accent) | `#0a7452` | FR-003 (= accent) |
 | on-success | `#062018` | FR-004 (= on-accent) | `#ffffff` | FR-004 (= on-accent) |
 | success-bg | `#12271f` | FR-004 (= accent-bg) | `#e2f2ec` | FR-004 (= accent-bg) |
@@ -315,6 +325,7 @@ desde o último build.
 |---|---|---|
 | T021 Acceptance verde no harness local | FEITO | Depois de `uv run python -m tools.console_gate build` (build fresco) e um bug de seletor corrigido no próprio teste (`engage-stop, [data-testid="stop-banner"]` estava duplamente aninhado — corrigido para `engage-stop, stop-banner`, texto puro que o código já sabia envolver): `uv run python -m tools.console_e2e run --backing mock -- tests/e2e/fundacao-visual.acceptance.spec.ts` → **20 passed (10.4s), exit code 0, real** (verificado no log, não só na notificação — ver nota de disciplina abaixo). As 16 alegações, todas verdes; T017/AN-09 e as duas caracterizações (AN-06 requests, AN-08 formas) continuam verdes como estavam antes de qualquer mudança. `network.spec.ts` (a mesma caracterização de zero-egress, rodada separadamente): **2 passed, exit 0** — idêntico ao "antes" da Fase 0. |
 | T022 Baselines recapturadas | Em andamento nesta mesma sessão — ver abaixo | `uv run python -m tools.console_visual accept` (imagem Docker pinada, `--network none`). |
+| T023 `make verify` completo + varredura de escopo | FEITO (rodado pelo orquestrador) | Duas corridas. A primeira parou num `INTERNALERROR` do xdist: a suíte de contrato do console **se recusa a rodar com baseline visual não commitado** — ela sobrescreve e restaura baselines e se protege de destruir trabalho em andamento; a T022 tinha acabado de recapturar 36. Não é defeito, é a guarda funcionando, e derrubou a corrida inteira em vez de falhar legível. Depois de commitar, a corrida completa achou **duas falhas reais desta mudança**, ambas corrigidas em `e8553738`: (a) `test_the_console_and_this_tier_agree_about_the_shell_geometry` — o console foi para 232/60 e `config/constants/console.py` continuava em 236/52; (b) `test_every_claim_has_the_test_it_names[SC-001]` — o critério nomeava um teste renomeado quando entrou o registro de isenções, e foi **reescrito**, não só reapontado, porque o texto antigo afirmava o que a decisão do operador tornou falso. Corrida final: exit 2, **12972 passed, 9 failed** — exatamente as 9 ambientais fixadas na T001, nenhuma décima; console 3058/3058. Varredura de escopo: `git diff --stat` não toca nenhuma tela de área, rota, dado ou gateway (FR-035 vale). Dois arquivos fora do console entraram de propósito e estão justificados acima. Exit code lido do log, nunca da notificação — que reportou "exit 0" para corrida que saiu 2, pelo menos quatro vezes nesta feature. |
 
 ### Nota de disciplina: a notificação do wrapper mentiu sobre o exit code, de novo
 
