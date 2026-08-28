@@ -2,9 +2,10 @@
 
 Revisão feita pelo modelo no Orca Browser, contra o staging real
 (`https://stg-ninjasre.lan.kyo.ninja/`), com o build desta feature confirmado
-no cluster: pod `web` rodando o digest `ceb807791af046e3…`, o mesmo publicado
-pelo `make deploy-stg` deste slot, iniciado às 01:58:38Z. Não é uma inferência
-de "Synced/Healthy" — é o digest conferido.
+no cluster: pod `web` rodando o digest `1a528388775680e9…`, o mesmo publicado
+pelo `make deploy-stg` que carregou a correção do item 1, iniciado às
+02:32:25Z. Não é uma inferência de "Synced/Healthy" — é o digest conferido,
+depois do rollout terminar.
 
 Temas alternados **pelo botão de tema da topbar**, nunca por `data-theme`
 injetado: o botão faz parte do que se valida, e clicá-lo levou
