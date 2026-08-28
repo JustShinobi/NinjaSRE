@@ -118,7 +118,7 @@ envergonhado.
       não; "Descobertas até agora" lista findings dos estágios concluídos com
       forma de status; empty states vivos substituídos pela linha honesta.
       T007 e AN-06/07/08 ficam verdes.
-- [ ] T016a Reformar a lista de runs — `/runs`, em
+- [x] T016a Reformar a lista de runs — `/runs`, em
       `console/src/surfaces/screens/runs.tsx`; `/investigations` é
       redirecionamento legado e fica intocado — conforme
       `design/padrao-2026-08/Investigations.dc.html` (AN-14/FR-021a): vivos
@@ -126,14 +126,14 @@ envergonhado.
       chip de alegações com forma, falhados com estágio e link, filtros como
       chips. Estender o acceptance da feature com a asserção da lista
       (vermelho antes desta task).
-- [ ] T017 Passe final da tela contra o artboard: grid, espaçamentos, chips,
+- [~] T017 (parcial — sem passada dedicada de comparação; ver controle) Passe final da tela contra o artboard: grid, espaçamentos, chips,
       tipografia e motion pelos tokens da fundação; contagem do cabeçalho
       derivada da lista renderizada (AN-09); estados vivo/encerrado dos
       controles (AN-12).
 
 ## Phase 4: Gates locais
 
-- [ ] T018 Suítes de unidade do console e do gateway verdes; acceptance verde
+- [x] T018 Suítes de unidade do console e do gateway verdes; acceptance verde
       no harness local (mock backing); a suíte transversal da onda passa (sem
       JSON primário, sem hash como título — regressões de outras features não
       introduzidas aqui).

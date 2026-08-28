@@ -792,6 +792,9 @@ export const EN = {
   'runs.trigger.scheduled': 'Scheduled',
   'runs.trigger.specialist': 'Specialist',
   'runs.list.caption': 'Every investigation this deployment has recorded',
+  'runs.live.title': 'Live now',
+  'runs.live.count.one': '{count} in flight',
+  'runs.live.count': '{count} in flight',
   'runs.empty.heading': 'No investigations yet',
   'runs.empty.body':
     'An investigation is recorded whenever an alert, a schedule or a person starts one. None has been.',

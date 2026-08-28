@@ -609,6 +609,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'runs.trigger.scheduled': 'Agendada',
   'runs.trigger.specialist': 'Especialista',
   'runs.list.caption': 'Todas as investigações registadas por esta instalação',
+  'runs.live.title': 'Vivas agora',
+  'runs.live.count.one': '{count} em voo',
+  'runs.live.count': '{count} em voo',
   'runs.empty.heading': 'Ainda não há investigações',
   'runs.empty.body':
     'Uma investigação é registada quando um alerta, um horário ou uma pessoa inicia uma. Nenhuma foi registada.',

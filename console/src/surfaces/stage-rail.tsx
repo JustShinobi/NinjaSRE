@@ -33,7 +33,7 @@ export interface StageRailEntry {
 
 type RailState = 'done' | 'active' | 'failed' | 'future';
 
-interface RailItem {
+export interface RailItem {
   readonly stage: string;
   readonly state: RailState;
   readonly durationMs: number;
@@ -55,8 +55,15 @@ const CANONICAL = new Set<string>(STAGE_NAMES);
  *
  * No stage is drawn `active` once any recorded stage has failed: the run
  * ends inside the stage that failed, and nothing after it will run.
+ *
+ * Exported for the run list's own mini stage bar
+ * (`console/src/surfaces/screens/runs.tsx`), which draws the same states as
+ * thin segments instead of circles — one derivation, two presentations.
  */
-function railOf(entries: readonly StageRailEntry[], running: boolean): readonly RailItem[] {
+export function railOf(
+  entries: readonly StageRailEntry[],
+  running: boolean,
+): readonly RailItem[] {
   const byName = new Map(entries.map((entry) => [entry.stage, entry] as const));
   const extra = entries.map((entry) => entry.stage).filter((name) => !CANONICAL.has(name));
   const order = [...STAGE_NAMES, ...extra];
@@ -141,6 +148,39 @@ function Connector({
         )}
       />
     </span>
+  );
+}
+
+/**
+ * The same six states, as a thin bar instead of six circles — what the run
+ * list draws inside a live card, where six 28px wells would not fit beside
+ * a subject line and an elapsed time.
+ */
+export function StageBar({ locale, stages, running }: StageRailProps): ReactNode {
+  const items = railOf(stages, running);
+  return (
+    <div className="flex gap-1" role="list" aria-label={message(locale, 'run.stage.rail.title')}>
+      {items.map((item) => (
+        <span
+          key={item.stage}
+          role="listitem"
+          data-testid="stage-bar-segment"
+          data-stage={item.stage}
+          data-state={item.state}
+          title={stageLabel(locale, item.stage)}
+          className={cx(
+            'flex-1 h-1 rounded-full',
+            item.state === 'done'
+              ? 'bg-success'
+              : item.state === 'failed'
+                ? 'bg-danger'
+                : item.state === 'active'
+                  ? 'stage-shimmer'
+                  : 'bg-sunken',
+          )}
+        />
+      ))}
+    </div>
   );
 }
 
