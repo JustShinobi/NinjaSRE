@@ -3,7 +3,12 @@
 A client's position is the ``Last-Event-ID`` header on reconnect, or nothing
 for a first connection. ``platform.runs.stream.watching`` does the actual
 catch-up-then-live read; this module turns that into the byte stream
-``routes/investigations.py`` hands ``StreamingResponse``.
+``routes/investigations.py`` hands ``StreamingResponse``. The deployment
+channel below shares the same shape — parse a cursor, then a generator that
+yields SSE frames with heartbeats — over
+``platform.runs.deployment.DeploymentEventBroker`` instead, which has no log
+to catch up from and answers a gap it cannot cover with ``resync`` rather
+than a replay.
 """
 
 from __future__ import annotations
@@ -13,13 +18,20 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import cast
 
+from config.constants.runs import SSE_KEEPALIVE_SECONDS
 from config.constants.surfaces import SSE_KEEPALIVE_INTERVAL_SECONDS
 from gateway.http.errors import bad_request
-from gateway.http.streaming.sse import HEARTBEAT_FRAME, sse_frame
+from gateway.http.streaming.sse import HEARTBEAT_FRAME, deployment_sse_frame, sse_frame
 from platform.observability.logging import get_logger
 from platform.persistence.ports.run_trace_store import RunTraceStore, TraceEventRecord
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.runs.cursor import Cursor, CursorError
+from platform.runs.deployment import (
+    DeploymentCursor,
+    DeploymentCursorError,
+    DeploymentEventBroker,
+    DeploymentSubscriberTooSlow,
+)
 from platform.runs.stream import RunEventBroker, RunStream, SubscriberTooSlow, watching
 
 logger = get_logger(__name__)
@@ -112,4 +124,91 @@ async def event_source(
             yield sse_frame(event)
 
 
-__all__ = ["event_source", "parse_cursor"]
+def parse_deployment_cursor(last_event_id: str | None) -> DeploymentCursor | None:
+    """Return the cursor a reconnecting client presents, or ``None`` for a first connection.
+
+    ``None`` rather than a start-of-stream sentinel: a first connection to the
+    deployment channel needs no catch-up at all, because the page that opened
+    it already read its own current state (plan decision 1). Only a
+    reconnection — one that presents ``Last-Event-ID`` — has a cursor to judge
+    against the broker's memory.
+    """
+    if not last_event_id:
+        return None
+    try:
+        return DeploymentCursor.parse(last_event_id)
+    except DeploymentCursorError as error:
+        raise bad_request(f"Last-Event-ID is not a valid cursor: {error}") from error
+
+
+async def deployment_event_source(
+    *,
+    broker: DeploymentEventBroker,
+    cursor: DeploymentCursor | None,
+    is_disconnected: Callable[[], Awaitable[bool]] | None = None,
+    keepalive_seconds: float = SSE_KEEPALIVE_SECONDS,
+) -> AsyncIterator[bytes]:
+    """Yield SSE frames: any backlog first, then live, with heartbeats between events.
+
+    A subscriber that falls behind the bounded buffer is disconnected here —
+    ``DeploymentSubscriberTooSlow`` ends the generator, which ends the HTTP
+    response — without any write path that publishes to the broker ever
+    waiting on it. A subscriber that simply closed the connection is noticed
+    via ``is_disconnected``, polled between short waits rather than only once
+    per heartbeat, the same way the per-run stream is.
+
+    Polls ``subscription.drain()`` directly rather than wrapping
+    ``follow_deployment_events`` in ``asyncio.wait_for`` the way the per-run
+    ``event_source`` wraps ``RunStream.follow``: ``drain()`` never awaits
+    anything itself, so there is nothing inside it for a timeout to cancel
+    mid-flight. Doing it the other way once, here, showed the actual failure
+    mode of that pattern — cancelling a coroutine that is suspended inside an
+    async generator's own internal sleep does not just time out the call, it
+    finalises the generator, and every subsequent ``__anext__()`` on it raises
+    ``StopAsyncIteration`` instead of resuming. Wrapped in this function's own
+    ``except StopAsyncIteration: return``, that ended the stream after exactly
+    one heartbeat. Recorded here rather than silently worked around, because
+    ``event_source`` for the per-run stream uses the same
+    ``wait_for(generator.__anext__(), timeout=...)`` shape against
+    ``RunStream.follow``, which polls on the same short interval — an idle run
+    watched for a full keep-alive interval with nothing published is the
+    condition this reproduces, and neither this module nor its tests are the
+    place to change that call, which this feature's file scope does not reach.
+    """
+    subscription, backlog = broker.attach(cursor)
+    try:
+        for event in backlog:
+            yield deployment_sse_frame(event, epoch=broker.epoch)
+
+        waited = 0.0
+        while True:
+            if is_disconnected is not None and await is_disconnected():
+                return
+            try:
+                delivered = False
+                async for event in subscription.drain():
+                    delivered = True
+                    waited = 0.0
+                    yield deployment_sse_frame(event, epoch=broker.epoch)
+            except DeploymentSubscriberTooSlow:
+                logger.warning("gateway.deployment_sse_subscriber_dropped")
+                return
+            if delivered:
+                continue
+
+            slice_seconds = min(_DISCONNECT_POLL_SECONDS, keepalive_seconds - waited)
+            await asyncio.sleep(max(slice_seconds, 0.0))
+            waited += slice_seconds
+            if waited >= keepalive_seconds:
+                yield HEARTBEAT_FRAME
+                waited = 0.0
+    finally:
+        broker.detach(subscription)
+
+
+__all__ = [
+    "deployment_event_source",
+    "event_source",
+    "parse_cursor",
+    "parse_deployment_cursor",
+]

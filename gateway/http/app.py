@@ -18,6 +18,7 @@ from gateway.http.routes import (
     config,
     estate,
     estate_discovery,
+    events,
     first_run,
     health,
     identity,
@@ -82,6 +83,7 @@ def create_app(
     for router in (
         agent.router,
         autonomy.router,
+        events.router,
         incidents.router,
         investigations.router,
         threads.router,
