@@ -41,31 +41,45 @@ estabelece o baseline; o dono efetivo de cada escrita é o slot abaixo:
 feature que precisar de um token ou ícone novo declara no relatório e o
 orquestrador aplica — a fundação não deriva por acréscimo silencioso.
 
-## 3. O gate visual (decisão 7 — sem desvio negativo)
+## 3. O gate visual via Orca Browser (decisão 7 — sem desvio negativo)
 
 O que a onda anterior de design não teve: um portão que compara **o que o
-staging serve** com **o que o board manda**, antes de fechar o slot. O
-protocolo, por slot, depois do deploy e do acceptance:
+staging serve** com **o que o board manda**, antes de fechar o slot. O review
+visual é feito pelo modelo no Orca Browser, usando a capacidade `orca-cli` do
+runtime atual. Playwright não faz análise visual; seus screenshots e traces são
+somente artefatos de diagnóstico dos testes automatizados.
+
+Os testes Playwright continuam obrigatórios para comportamento automatizado:
+acceptance specs, regras transversais, fluxos funcionais e cenários
+determinísticos. Eles não produzem o veredito de aparência e não substituem o
+review visual.
+
+O protocolo visual, por slot, depois do deploy e do acceptance:
 
 1. Para cada tela alterada no slot, na URL real
-   (`https://stg-ninjasre.lan.kyo.ninja/<rota>`), via Orca browser:
-   - tema escuro: `goto` → `wait --load networkidle` → `full-screenshot`;
+   (`https://stg-ninjasre.lan.kyo.ninja/<rota>`), via Orca Browser:
+   - abrir a rota e aguardar a aplicação estabilizar;
+   - tema escuro: inspecionar a tela e capturar pelo Orca Browser;
    - alternar para o claro pelo botão de tema da topbar (nunca por
-     `data-theme` injetado — o botão é parte do que se valida) → capturar;
+     `data-theme` injetado — o botão é parte do que se valida) e capturar pelo
+     Orca Browser;
    - guardar como `<feature>/evidence/visual/<rota>-{dark,light}.png`.
 2. Abrir o artboard correspondente (`design/padrao-2026-08/<Nome>.dc.html`)
    e comparar lado a lado. A comparação é estrutural, não pixel-a-pixel:
    layout e hierarquia, tokens de cor aplicados, tipografia (as três
    famílias), ícones do set novo, formas de status, chips com contorno,
    motion presente onde o artboard anota (pulse do "Ao vivo", slide-in de
-   item novo, shimmer de estágio ativo — capturadas em screenshot como
-   presença do elemento; o movimento em si é asserido pelo acceptance).
+   item novo, shimmer de estágio ativo). O movimento em si é asserido pelo
+   acceptance automatizado; a presença e composição visual são julgadas pelo
+   modelo no Orca Browser.
 3. Veredito escrito em `<feature>/evidence/visual/VEREDITO.md`: uma linha
    por tela×tema — CONFORME, ou o desvio nomeado. **Qualquer desvio = FAIL
    do slot**, com dois destinos possíveis e nenhum terceiro: corrigir o
    código, ou registrar em `design/padrao-2026-08/DIVERGENCIAS.md` com
    aprovação explícita do operador. Desvio "que melhora" segue o mesmo
-   caminho: a onda anterior morreu disso.
+   caminho: a onda anterior morreu disso. Se o Orca Browser não estiver
+   disponível, o resultado visual é `UNVERIFIED`, nunca um PASS inferido dos
+   testes Playwright.
 4. Os dados vivos do staging diferem dos dados de exemplo do artboard — o
    veredito compara estrutura e vocabulário visual, e diz explicitamente
    quando uma diferença é de dado (aceitável) e não de desenho.
@@ -104,7 +118,8 @@ não altera o orçamento de criação no staging.
 
 Acceptance-first confirmado vermelho; `spec-implementer` por feature em
 worktree isolada; verifier independente em contexto limpo; no máximo dois
-ciclos de reparo; `make verify` nos checkpoints e no fim; evidência antes de
-avançar; confronto final da onda com a coluna "quem constrói isso em
+ciclos de reparo; Playwright somente para testes automatizados; review visual
+LLM somente pelo Orca Browser; `make verify` nos checkpoints e no fim; evidência
+antes de avançar; confronto final da onda com a coluna "quem constrói isso em
 produção?". Paralelizar muda quando as coisas rodam, nunca o que precisa
 passar.

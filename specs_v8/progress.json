@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "wave": "specs_v8",
+  "status": "pending",
+  "runtime": null,
+  "active_run": null,
+  "feature_order": [
+    "specs_v8/000-fundacao-visual",
+    "specs_v8/010-canal-vivo",
+    "specs_v8/020-titulo-vivo",
+    "specs_v8/030-run-view-narrado",
+    "specs_v8/040-decisoes-estruturadas",
+    "specs_v8/050-painel-vivo",
+    "specs_v8/060-telas-de-area",
+    "specs_v8/070-iniciar-investigacao"
+  ],
+  "slots": {
+    "S0": ["specs_v8/000-fundacao-visual"],
+    "S1": ["specs_v8/010-canal-vivo", "specs_v8/030-run-view-narrado"],
+    "S2": ["specs_v8/040-decisoes-estruturadas", "specs_v8/060-telas-de-area"],
+    "S3": ["specs_v8/020-titulo-vivo", "specs_v8/050-painel-vivo"],
+    "S4": ["specs_v8/070-iniciar-investigacao"],
+    "S5": []
+  },
+  "current_feature": null,
+  "completed_features": [],
+  "last_verdict": "pending",
+  "last_gate": null,
+  "open_questions": [],
+  "last_checkpoint": null,
+  "next_action": "Run analyze for specs_v8/000-fundacao-visual before dispatching an implementer.",
+  "fingerprint": null,
+  "features": [
+    {
+      "path": "specs_v8/000-fundacao-visual",
+      "slot": "S0",
+      "dependencies": [],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/010-canal-vivo",
+      "slot": "S1",
+      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/020-titulo-vivo",
+      "slot": "S3",
+      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/030-run-view-narrado",
+      "slot": "S1",
+      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/040-decisoes-estruturadas",
+      "slot": "S2",
+      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/050-painel-vivo",
+      "slot": "S3",
+      "dependencies": [
+        "specs_v8/010-canal-vivo",
+        "specs_v8/020-titulo-vivo",
+        "specs_v8/040-decisoes-estruturadas"
+      ],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/060-telas-de-area",
+      "slot": "S2",
+      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    },
+    {
+      "path": "specs_v8/070-iniciar-investigacao",
+      "slot": "S4",
+      "dependencies": ["specs_v8/000-fundacao-visual", "specs_v8/010-canal-vivo"],
+      "phase": "initialize",
+      "status": "pending",
+      "runtime": null,
+      "last_checkpoint": null,
+      "next_action": "Wait for dependencies, then run speckit-analyze.",
+      "worktree": null,
+      "lifecycle_results": {
+        "analyze": { "status": "pending" },
+        "implement": { "status": "pending" },
+        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+      },
+      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "visual_result": {
+        "status": "pending",
+        "reviewer": "orca-browser",
+        "runtime": null,
+        "routes": [],
+        "viewports": [],
+        "evidence": []
+      },
+      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "fingerprint": null
+    }
+  ],
+  "history": []
+}
