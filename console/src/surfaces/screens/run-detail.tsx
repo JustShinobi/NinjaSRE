@@ -16,7 +16,7 @@ import { areaFor, trailFor } from '@/shell/routes';
 import { rulerFromReplay } from '../changes';
 import type { SurfaceContext } from '../context';
 import { readFailure } from '../failures';
-import { eventTimes, panelLabels, transcriptLabels } from '../labels';
+import { eventTimes, narrations, panelLabels, transcriptLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -313,6 +313,7 @@ export async function RunDetailScreen(
                 events={events}
                 labels={transcriptLabels(locale, events)}
                 times={eventTimes(locale, events, now, zone)}
+                narrations={narrations(locale, events)}
               />
             )}
           </Panel>

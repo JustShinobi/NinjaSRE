@@ -64,6 +64,11 @@ const LABELS = {
     copy: 'Copy the raw payload',
     copied: 'Copied',
   },
+  view: {
+    narrated: 'Narrated',
+    raw: 'Raw',
+    payload: 'Raw payload',
+  },
 } as const;
 
 function events(count: number): readonly TranscriptEvent[] {
@@ -82,13 +87,13 @@ function events(count: number): readonly TranscriptEvent[] {
 }
 
 function renderTranscript(count: number): ReturnType<typeof render> {
-  return render(<Transcript events={events(count)} labels={LABELS} times={{}} />);
+  return render(<Transcript events={events(count)} labels={LABELS} times={{}} narrations={{}} />);
 }
 
 describe('a ten-thousand-event transcript', () => {
   it('draws the same number of entries as a hundred-event one', () => {
     const hundred = render(
-      <Transcript events={events(TRANSCRIPT_WINDOW)} labels={LABELS} times={{}} />,
+      <Transcript events={events(TRANSCRIPT_WINDOW)} labels={LABELS} times={{}} narrations={{}} />,
     );
     const drawn = screen.getAllByTestId('transcript-event').length;
     hundred.unmount();
@@ -105,7 +110,7 @@ describe('a ten-thousand-event transcript', () => {
     const prepared = events(10_000);
 
     const started = performance.now();
-    render(<Transcript events={prepared} labels={LABELS} times={{}} />);
+    render(<Transcript events={prepared} labels={LABELS} times={{}} narrations={{}} />);
     const spent = performance.now() - started;
 
     expect(
@@ -158,6 +163,7 @@ describe('every kind of event', () => {
         }))}
         labels={LABELS}
         times={{}}
+        narrations={{}}
       />,
     );
 
@@ -178,7 +184,7 @@ describe('every kind of event', () => {
   });
 
   it('says nothing when a run recorded nothing, rather than drawing a blank', () => {
-    render(<Transcript events={[]} labels={LABELS} times={{}} />);
+    render(<Transcript events={[]} labels={LABELS} times={{}} narrations={{}} />);
 
     expect(screen.getByTestId('transcript')).toHaveTextContent(LABELS.empty);
   });
@@ -213,6 +219,7 @@ describe('a reasoning entry that is the model’s final answer', () => {
         ]}
         labels={LABELS}
         times={{}}
+        narrations={{}}
       />,
     );
 

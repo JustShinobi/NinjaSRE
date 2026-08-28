@@ -7,6 +7,7 @@ import type { PayloadLabels, Bound } from './payload';
 import type { RowListLabels } from './rows';
 import type { EventTime, TranscriptLabels } from './transcript-view';
 import {
+  narrate,
   TRANSCRIPT_KINDS,
   type TranscriptEvent,
   type TranscriptKind,
@@ -136,7 +137,30 @@ export function transcriptLabels(
     result: message(locale, 'transcript.result'),
     note: message(locale, 'transcript.note'),
     payload: payloadLabels(locale, { total: 0, shown: 0 }),
+    view: {
+      narrated: message(locale, 'transcript.view.narrated'),
+      raw: message(locale, 'transcript.view.raw'),
+      payload: message(locale, 'transcript.view.payload'),
+    },
   };
+}
+
+/**
+ * Every event's narrated sentence, composed once, keyed by event id.
+ *
+ * The same shape `eventTimes` already has, for the same reason: a live view
+ * recomputes this on every render as events arrive, a replayed view computes
+ * it once on the server, and `narrate` itself is a pure function of the
+ * event's own fields — so the two callers cannot end up narrating the same
+ * event two different ways.
+ */
+export function narrations(
+  locale: Locale,
+  events: readonly TranscriptEvent[],
+): Readonly<Record<string, string>> {
+  const composed: Record<string, string> = {};
+  for (const event of events) composed[event.id] = narrate(event, locale);
+  return composed;
 }
 
 /** Each event's instant and duration, formatted once on the server. */

@@ -112,6 +112,15 @@ export interface TranscriptLabels {
   /** What the fold over a deployment-written note is called. */
   readonly note: string;
   readonly payload: PayloadLabels;
+  /** The Narrado/Bruto toggle's own two words, and what the disclosure is called. */
+  readonly view: TranscriptViewLabels;
+}
+
+export interface TranscriptViewLabels {
+  readonly narrated: string;
+  readonly raw: string;
+  /** What the closed-by-default disclosure over a payload is called. */
+  readonly payload: string;
 }
 
 export interface TranscriptProps {
@@ -119,20 +128,35 @@ export interface TranscriptProps {
   readonly labels: TranscriptLabels;
   /** Each event's instant, already formatted, keyed by event id. */
   readonly times: Readonly<Record<string, EventTime>>;
+  /** Each event's narrated sentence, already composed, keyed by event id. */
+  readonly narrations: Readonly<Record<string, string>>;
 }
+
+/** Which of the two views the transcript is drawn in — screen state, not data. */
+type TranscriptView = 'narrated' | 'raw';
 
 function Entry({
   event,
   labels,
   time,
+  narration,
+  view,
 }: {
   readonly event: TranscriptEvent;
   readonly labels: TranscriptLabels;
   readonly time: EventTime | undefined;
+  readonly narration: string;
+  readonly view: TranscriptView;
 }): ReactNode {
   const role = KIND_ROLE[event.kind];
   const Icon = KIND_ICON[event.kind];
   const guardrail = event.kind === 'guardrail';
+  // The reasoning and report kinds already render as the document they are —
+  // the model's own prose, or the run's own headline document — and folding a
+  // lead sentence into that markdown would print it as part of the document
+  // rather than beside it. Every other kind's `detail` is a short aside, and
+  // that is what the narrated sentence below replaces.
+  const document = DOCUMENT_KINDS.has(event.kind);
 
   return (
     <li
@@ -162,7 +186,6 @@ function Entry({
           >
             {labels.kinds[event.kind]}
           </span>
-          {event.title === '' ? null : <span className="font-mono">{event.title}</span>}
           {event.status === '' ? null : <Badge status={event.status} />}
           {time === undefined || time.duration === '' ? null : (
             <span className="tabular-nums">{time.duration}</span>
@@ -173,11 +196,21 @@ function Entry({
             </time>
           )}
         </span>
-        {event.detail === '' ? null : DOCUMENT_KINDS.has(event.kind) ? (
-          renderReport(event.detail)
+        {/* The narrated sentence is the primary content of every event but a
+            document one — never a JSON block, never the raw kind standing in
+            for a sentence nobody wrote. `data-testid="event-narration"` is
+            what the acceptance suite reads to prove it is there, on every
+            event, in both views: the toggle switches which of this and the
+            payload disclosure below opens by default, never which of them
+            exists. */}
+        {document ? (
+          event.detail === '' ? null : renderReport(event.detail)
         ) : (
-          <p className={cx('text-small', guardrail ? 'text-danger' : '')}>
-            {event.detail}
+          <p
+            data-testid="event-narration"
+            className={cx('text-small', guardrail ? 'text-danger' : '')}
+          >
+            {narration}
           </p>
         )}
         {event.note === '' ? null : (
@@ -199,11 +232,26 @@ function Entry({
           </details>
         )}
         {event.payload === '' ? null : (
-          <BoundedPayload
-            label={event.kind === 'call' ? labels.arguments : labels.result}
-            content={event.payload}
-            labels={labels.payload}
-          />
+          // Closed by default in Narrado, open by default in Bruto — the
+          // whole difference the toggle makes. `open` is driven by the
+          // screen's view rather than left to a first interaction, so
+          // switching to Bruto shows every payload at once rather than one
+          // click at a time.
+          <details
+            data-testid="event-payload-disclosure"
+            open={view === 'raw' ? true : undefined}
+          >
+            <summary className="text-meta text-muted cursor-pointer select-none">
+              {event.title === '' ? labels.view.payload : `${labels.view.payload} — ${event.title}`}
+            </summary>
+            <div className="mt-1">
+              <BoundedPayload
+                label={event.kind === 'call' ? labels.arguments : labels.result}
+                content={event.payload}
+                labels={labels.payload}
+              />
+            </div>
+          </details>
         )}
       </div>
     </li>
@@ -211,8 +259,18 @@ function Entry({
 }
 
 /** A run's account of itself, live or replayed, through one component. */
-export function Transcript({ events, labels, times }: TranscriptProps): ReactNode {
+export function Transcript({
+  events,
+  labels,
+  times,
+  narrations,
+}: TranscriptProps): ReactNode {
   const [first, setFirst] = useState(Math.max(0, events.length - TRANSCRIPT_WINDOW));
+  // Screen state, not data: switching views never re-fetches or re-derives
+  // the event list, so it can neither lose nor duplicate an event. Narrado
+  // is the default — the whole point of this feature is that a payload block
+  // is not the first thing an operator reads.
+  const [view, setView] = useState<TranscriptView>('narrated');
   const drawn = events.slice(first, first + TRANSCRIPT_WINDOW);
 
   if (events.length === 0) {
@@ -229,38 +287,78 @@ export function Transcript({ events, labels, times }: TranscriptProps): ReactNod
       data-total={events.length}
       className="flex flex-col gap-3"
     >
-      {events.length > TRANSCRIPT_WINDOW ? (
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
+        {events.length > TRANSCRIPT_WINDOW ? (
           <p data-testid="transcript-position" className="text-meta text-muted">
             {labels.position}
           </p>
+        ) : null}
+        {events.length > TRANSCRIPT_WINDOW ? (
+          <>
+            <Button
+              variant="quiet"
+              data-testid="earlier"
+              state={first === 0 ? 'disabled' : 'default'}
+              onClick={() => {
+                setFirst(Math.max(0, first - TRANSCRIPT_WINDOW));
+              }}
+            >
+              {labels.earlier}
+            </Button>
+            <Button
+              variant="quiet"
+              data-testid="later"
+              state={first + TRANSCRIPT_WINDOW >= events.length ? 'disabled' : 'default'}
+              onClick={() => {
+                setFirst(
+                  Math.min(events.length - TRANSCRIPT_WINDOW, first + TRANSCRIPT_WINDOW),
+                );
+              }}
+            >
+              {labels.later}
+            </Button>
+          </>
+        ) : null}
+        {/* Narrado/Bruto — a screen-level choice, applied to every entry drawn
+            below rather than asked of each one. `data-view` is what the
+            acceptance suite reads to know which view is current. */}
+        <span
+          data-testid="transcript-view-toggle"
+          data-view={view}
+          className="ml-auto flex items-center gap-1 rounded-full edge border-border bg-sunken p-1"
+        >
           <Button
-            variant="quiet"
-            data-testid="earlier"
-            state={first === 0 ? 'disabled' : 'default'}
+            variant={view === 'narrated' ? 'secondary' : 'quiet'}
+            data-testid="transcript-view-narrated"
+            aria-pressed={view === 'narrated'}
             onClick={() => {
-              setFirst(Math.max(0, first - TRANSCRIPT_WINDOW));
+              setView('narrated');
             }}
           >
-            {labels.earlier}
+            {labels.view.narrated}
           </Button>
           <Button
-            variant="quiet"
-            data-testid="later"
-            state={first + TRANSCRIPT_WINDOW >= events.length ? 'disabled' : 'default'}
+            variant={view === 'raw' ? 'secondary' : 'quiet'}
+            data-testid="transcript-view-raw"
+            aria-pressed={view === 'raw'}
             onClick={() => {
-              setFirst(
-                Math.min(events.length - TRANSCRIPT_WINDOW, first + TRANSCRIPT_WINDOW),
-              );
+              setView('raw');
             }}
           >
-            {labels.later}
+            {labels.view.raw}
           </Button>
-        </div>
-      ) : null}
+        </span>
+      </div>
       <ol className="flex flex-col">
         {drawn.map((event) => (
-          <Entry key={event.id} event={event} labels={labels} time={times[event.id]} />
+          <Entry
+            key={event.id}
+            event={event}
+            labels={labels}
+            time={times[event.id]}
+            narration={narrations[event.id] ?? ''}
+            view={view}
+          />
         ))}
       </ol>
     </div>

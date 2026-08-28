@@ -7,7 +7,7 @@ import { Button } from '@/components/action';
 import { formatCount } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { publishResolved } from '@/shell/attention';
-import { eventTimes, transcriptLabels } from '@/surfaces/labels';
+import { eventTimes, narrations, transcriptLabels } from '@/surfaces/labels';
 import { Transcript } from '@/surfaces/transcript-view';
 import { ConnectionBadge, StaleNotice } from './connection-state';
 import type { LiveEvent, RunPhase, Seed } from './reducer';
@@ -194,6 +194,7 @@ export function LiveRun({
           events={events}
           labels={transcriptLabels(locale, events)}
           times={eventTimes(locale, events, new Date(now), zone)}
+          narrations={narrations(locale, events)}
         />
       </div>
     </div>

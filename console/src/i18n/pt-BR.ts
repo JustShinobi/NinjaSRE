@@ -495,8 +495,50 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.events.one': '{count} evento',
   'transcript.empty.heading': 'Ainda não há transcrição',
   'transcript.empty.body':
-    'A transcrição aparece assim que a investigação dá o primeiro passo. Nada foi registado nesta.',
+    'A transcrição aparece assim que a investigação dá o primeiro passo. Nada foi registrado nesta.',
   'transcript.empty.action': 'Voltar às investigações',
+
+  // O alternador entre a frase narrada (padrão) e o payload bruto que todo
+  // evento carrega. Duas palavras, lidas só pelo próprio alternador.
+  'transcript.view.narrated': 'Narrado',
+  'transcript.view.raw': 'Bruto',
+  'transcript.view.payload': 'Payload bruto',
+
+  // Uma frase por tipo cru que o vocabulário do stream declara
+  // (`STREAM_KINDS`, `transcript.ts`). `{name}` só é preenchido com um nome
+  // real de capacidade ou subagente — nunca deixado como placeholder literal
+  // — e o `detail` do próprio evento é acrescentado depois da frase por
+  // `narrate`, nunca embutido no modelo.
+  'transcript.narration.runStarted': 'Objetivo aceito',
+  'transcript.narration.turnStarted': 'Um novo turno começou',
+  'transcript.narration.modelReasoned': 'O modelo raciocinou',
+  'transcript.narration.toolCalled': 'Chamou {name}',
+  'transcript.narration.toolSucceeded': '{name} retornou',
+  'transcript.narration.toolFailed': '{name} falhou',
+  'transcript.narration.observationRecorded': 'Uma observação foi registrada',
+  'transcript.narration.evidenceRetained': 'Uma evidência foi retida',
+  'transcript.narration.memoryRecalled': 'Uma memória foi recuperada',
+  'transcript.narration.subagentDispatched': 'Despachou {name}',
+  'transcript.narration.subagentReturned': '{name} retornou',
+  'transcript.narration.guardrailWithheld': 'Uma proteção reteve uma ação',
+  'transcript.narration.guardrailApplied': 'Uma proteção foi aplicada',
+  'transcript.narration.interactionOpened': 'A investigação está esperando uma pessoa',
+  'transcript.narration.interactionAnswered': 'A pergunta em aberto foi respondida',
+  'transcript.narration.runCompleted': 'A investigação foi concluída',
+  'transcript.narration.runFailed': 'A investigação falhou',
+  // O piso que todo evento tem: um tipo que esta versão nunca viu ainda se
+  // nomeia, numa frase, em vez de cair para um bloco de payload bruto.
+  'transcript.narration.unknown': 'Chegou um evento de tipo não reconhecido: {kind}',
+  'transcript.narration.unnamedCapability': 'uma capacidade',
+  'transcript.narration.unnamedSubagent': 'um subagente',
+
+  // --- O rail de estágios do run ---------------------------------------------------
+  'run.stage.rail.title': 'Pipeline',
+  'run.stage.future': 'Estágio {number}',
+  'run.usage.awaiting': 'O primeiro turno ainda não chegou.',
+  'run.links.watching': 'Observando os recursos que esta investigação toca.',
+  'run.findings.title': 'Descobertas até agora',
+  'run.findings.none': 'Nenhum estágio terminou com uma descoberta ainda.',
 
   'dashboard.attention.title': 'Precisa de si',
   'dashboard.attention.count': '{count} itens precisam de si',
