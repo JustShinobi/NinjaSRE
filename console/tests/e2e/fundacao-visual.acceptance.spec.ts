@@ -150,11 +150,24 @@ test.describe('the three type families paint, not only the fallback', () => {
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '0.0.0.0']);
 
-function trackExternal(page: Page): string[] {
+/**
+ * Every request the load made to somewhere this deployment does not serve.
+ *
+ * The origin has to come from the run rather than from a list of names. A
+ * hard-coded set of loopback hosts answers "did this reach a non-localhost
+ * host", which is the same question only while the console is served from a
+ * laptop: against a real deployment every stylesheet, chunk and self-hosted
+ * font counts as foreign, and the assertion fails while reporting its own
+ * origin back as the offender. The property under test is third-party egress,
+ * so the deployment's own host is what the list is measured against.
+ */
+function trackExternal(page: Page, baseURL: string | undefined): string[] {
   const external: string[] = [];
+  const home = baseURL === undefined ? '' : new URL(baseURL).host;
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.protocol === 'data:' || url.protocol === 'blob:') return;
+    if (url.host === home) return;
     if (!LOCAL_HOSTS.has(url.hostname)) external.push(request.url());
   });
   return external;
@@ -165,8 +178,8 @@ test.describe('no page load reaches a host this deployment does not run', () => 
     test(
       `the load of ${route} issues no request outside the origin`,
       { tag: STAGING_SAFE_TAG },
-      async ({ page }) => {
-        const external = trackExternal(page);
+      async ({ page, baseURL }) => {
+        const external = trackExternal(page, baseURL);
         await page.goto(route);
         await page.waitForLoadState('networkidle');
         expect(external, `${route} requested ${external.join(', ')}`).toEqual([]);
