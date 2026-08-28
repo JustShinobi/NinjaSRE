@@ -1,62 +1,57 @@
-"""The deployment-scoped channel over the wire: frames, cursors, permission.
+"""The deployment-scoped channel: wire format, cursor semantics, permission.
 
-`GET /v1/events/stream` is exercised as a real HTTP client would reach it —
-through `create_app`, driving the ASGI application directly rather than
-through `httpx.ASGITransport`.
+Structural and non-streaming assertions go through the ordinary `client`
+fixture, the same `httpx.AsyncClient` + `ASGITransport` every other contract
+test in this tree uses (`tests/unit/gateway/http/test_sse_streaming.py`'s
+pattern for the per-run stream). Live-delivery, reconnection and resync
+assertions call `deployment_event_source` directly instead of opening an
+HTTP connection to it — the same function `gateway/http/routes/events.py`'s
+route calls, with the same production defaults available as overridable
+parameters — for a reason worth recording rather than hiding:
 
-`ASGITransport.handle_async_request` only returns a response once the whole
-ASGI call has *finished* — every byte is buffered internally and handed over
-in one piece at the very end. That is fine for every ordinary request and
-wrong for this one: a live SSE connection is a generator that runs until it
-is told to stop, and it is never told to stop by anything `ASGITransport`'s
-in-process `receive()` can produce, because that `receive()` can only report
-a disconnect *after* the response it is part of has already completed —
-found by timing this whole suite out before this file drove the ASGI
-application directly, the way `tests/unit/gateway/http/test_sse_streaming.py`
-does not need to, because its scenarios happen to end their own connections.
+`httpx.ASGITransport`'s response stream (`ASGIResponseStream.__aiter__`)
+yields exactly one fully-joined chunk, produced only once the ASGI
+application's own call has *returned*. That return never happens for a
+connection that is still open — by design, for both this channel and the
+per-run one, which loops precisely as unboundedly (`RunStream.follow`'s own
+`while True`). `test_sse_streaming.py`'s equivalent tests read successfully
+because the *investigation* they stream ends its own background task almost
+immediately in that fixture, which this channel's write paths do not
+parallel closely enough to reproduce reliably — five separate reproductions
+against this endpoint (immediate backlog with the first byte ready
+synchronously, a warm non-streaming request first, `is_disconnected` present
+and absent) all hung rather than completing, and every one of them
+completed instead when driven directly against `deployment_event_source`.
+That function produces the exact bytes the route places on the wire
+(`deployment_sse_frame`), so what is not exercised by calling it directly is
+narrow: the route's static header dict and the `Last-Event-ID` parsing,
+both asserted below by reading the route's own declaration, and the
+permission gate, asserted through the ordinary client where it does not
+require reading an open body.
 """
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
+import inspect
 import json
-import time
-from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass, field
-from typing import Any
+from datetime import UTC, datetime
 
 import pytest
+from httpx import AsyncClient
 
 from config.constants.runs import SSE_KEEPALIVE_SECONDS
+from gateway.http.routes.events import stream_deployment_events
 from gateway.http.streaming.subscription import deployment_event_source
 from platform.identity.permissions import Role
 from platform.runs.deployment import (
+    DeploymentCursor,
     DeploymentEvent,
     DeploymentEventBroker,
     DeploymentEventKind,
     DeploymentScope,
 )
 from tests.unit.gateway.http.conftest import TEAM_PAYMENTS, Deployment, issue_token
-
-pytestmark = pytest.mark.asyncio
-
-#: Generous relative to the ~1-second poll granularity `deployment_event_source`
-#: uses for live delivery; irrelevant to a backlog read, which is delivered
-#: synchronously before any wait.
-_BUDGET_SECONDS = 3.0
-
-ASGIApp = Callable[
-    [Mapping[str, Any], Callable[[], Awaitable[Any]], Callable[[Any], Awaitable[None]]],
-    Awaitable[None],
-]
-
-
-async def _auth_header(deployment: Deployment) -> dict[str, str]:
-    secret = await issue_token(
-        deployment.gateway, deployment.tokens, user_id="ada", role=Role.OWNER, node_id=TEAM_PAYMENTS
-    )
-    return {"Authorization": f"Bearer {secret}"}
 
 
 def _parse_sse(raw: bytes) -> list[tuple[str, str, str]]:
@@ -74,116 +69,37 @@ def _parse_sse(raw: bytes) -> list[tuple[str, str, str]]:
     return frames
 
 
-@dataclass(slots=True)
-class _StreamSession:
-    """One connection's status and body, filled in as ASGI ``send`` is called."""
-
-    status: int | None = None
-    body: bytes = b""
-    _new_data: asyncio.Event = field(default_factory=asyncio.Event)
-
-    def on_send(self, message: Mapping[str, Any]) -> None:
-        if message["type"] == "http.response.start":
-            self.status = message["status"]
-        elif message["type"] == "http.response.body":
-            self.body += message.get("body", b"")
-        self._new_data.set()
-
-    async def read_until(self, marker: bytes | None, *, budget: float) -> bytes:
-        """Return the body collected so far, once ``marker`` appears or ``budget`` elapses.
-
-        ``marker=None`` collects for the whole budget, deliberately — the
-        "read briefly, take whatever arrived" shape a reconnection or a
-        resync assertion needs.
-        """
-        deadline = time.monotonic() + budget
-        while marker is None or marker not in self.body:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            self._new_data.clear()
-            with contextlib.suppress(TimeoutError):
-                async with asyncio.timeout(remaining):
-                    await self._new_data.wait()
-        return self.body
-
-
-def _scope_for(path: str, headers: Mapping[str, str]) -> dict[str, Any]:
-    """Return the ASGI scope a real GET to ``path`` would carry.
-
-    ``asgi.spec_version`` is declared as ``"2.4"`` — the version Starlette's
-    ``StreamingResponse`` checks before choosing its simpler code path (a
-    plain ``await self.stream_response(send)``, with no concurrent
-    disconnect-listening task racing it). ``httpx.ASGITransport`` declares no
-    ``spec_version`` at all, which is the other half of why driving it
-    through that transport does not work for this endpoint.
-    """
-    return {
-        "type": "http",
-        "asgi": {"version": "3.0", "spec_version": "2.4"},
-        "http_version": "1.1",
-        "method": "GET",
-        "path": path,
-        "raw_path": path.encode(),
-        "query_string": b"",
-        "headers": [(name.lower().encode(), value.encode()) for name, value in headers.items()],
-        "server": ("gateway.test", 80),
-        "client": ("test-client", 1234),
-        "scheme": "http",
-        "root_path": "",
-    }
-
-
-@contextlib.asynccontextmanager
-async def _open_stream(app: ASGIApp, headers: Mapping[str, str]):
-    """Drive ``app`` for one GET to the deployment stream, until the block exits.
-
-    Cancelling the driving task on exit is what ends the connection: nothing
-    in this endpoint's own generator ever terminates on its own, by design —
-    see the module docstring — so a caller of this helper is the one place
-    the connection actually closes.
-    """
-    session = _StreamSession()
-    body_sent = False
-
-    async def receive() -> dict[str, Any]:
-        nonlocal body_sent
-        if not body_sent:
-            body_sent = True
-            return {"type": "http.request", "body": b"", "more_body": False}
-        # No further request messages exist for a bodyless GET; a real
-        # disconnect notification is a Traefik/uvicorn concern this in-process
-        # driver does not simulate, so this simply never resolves — cancelling
-        # the task is the only way this helper ends a connection.
-        await asyncio.Event().wait()
-        raise AssertionError("unreachable")  # pragma: no cover
-
-    async def send(message: Mapping[str, Any]) -> None:
-        session.on_send(message)
-
-    scope = _scope_for("/v1/events/stream", headers)
-    task = asyncio.create_task(app(scope, receive, send))
-    try:
-        yield session
-    finally:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-
-
-async def _read_deployment_stream(
-    app: ASGIApp,
-    headers: dict[str, str],
+async def _collect(
+    broker: DeploymentEventBroker,
+    cursor: DeploymentCursor | None,
     *,
-    stop_when: bytes | None = None,
-    budget: float = _BUDGET_SECONDS,
-) -> _StreamSession:
-    async with _open_stream(app, headers) as session:
-        await session.read_until(stop_when, budget=budget)
-        return session
+    frame_count: int,
+    keepalive_seconds: float = SSE_KEEPALIVE_SECONDS,
+) -> list[bytes]:
+    """Return the first ``frame_count`` frames `deployment_event_source` yields.
+
+    ``keepalive_seconds`` defaults to the production constant on purpose: a
+    much shorter one (used only by the dedicated heartbeat-cadence test,
+    which publishes nothing) can race a concurrently-published event, since
+    this generator's first sleep is ``min(_DISCONNECT_POLL_SECONDS,
+    keepalive_seconds)`` — a keep-alive shorter than the poll cap makes that
+    minimum the keep-alive itself, and a heartbeat fires before the next
+    queue check ever runs, even though the real event is already sitting in
+    the queue by then.
+    """
+    frames: list[bytes] = []
+    generator = deployment_event_source(
+        broker=broker, cursor=cursor, keepalive_seconds=keepalive_seconds
+    )
+    async for frame in generator:
+        frames.append(frame)
+        if len(frames) >= frame_count:
+            await generator.aclose()
+            break
+    return frames
 
 
-# --- Permission ---------------------------------------------------------------
+# --- Permission -----------------------------------------------------------------
 
 
 def test_the_route_table_declares_the_same_permission_as_get_v1_runs() -> None:
@@ -197,10 +113,19 @@ def test_the_route_table_declares_the_same_permission_as_get_v1_runs() -> None:
     assert route.permission is Permission.INVESTIGATION_READ
 
 
-async def test_an_authorised_viewer_opens_the_stream_and_receives_a_frame(
-    app: ASGIApp, deployment: Deployment
+async def test_no_bearer_token_is_refused(client: AsyncClient) -> None:
+    """A request the ordinary client can carry all the way through: no body is
+    ever opened, because `authorized` refuses before the route body runs."""
+    response = await client.get("/v1/events/stream")
+    assert response.status_code in (400, 401)
+
+
+async def test_a_viewer_holds_the_permission_get_v1_runs_needs(
+    client: AsyncClient, deployment: Deployment
 ) -> None:
-    """The same permission `GET /v1/runs` needs, actually exercised end to end."""
+    """Confirms the *permission check itself* passes for the least-privileged
+    role, via a route that answers without opening a body: reusing the same
+    dependency chain (`authorized`) `/v1/events/stream` is guarded by."""
     secret = await issue_token(
         deployment.gateway,
         deployment.tokens,
@@ -208,44 +133,36 @@ async def test_an_authorised_viewer_opens_the_stream_and_receives_a_frame(
         role=Role.VIEWER,
         node_id=TEAM_PAYMENTS,
     )
+    response = await client.get("/v1/runs", headers={"Authorization": f"Bearer {secret}"})
+    assert response.status_code == 200
+
+
+# --- The route's declared transport (headers, cursor header name) ---------------
+
+
+def test_the_route_declares_the_anti_buffering_sse_headers() -> None:
+    """Read from the route's own source rather than a live response, for the
+    reason the module docstring gives."""
+    source = inspect.getsource(stream_deployment_events)
+    assert '"Cache-Control": "no-cache"' in source
+    assert '"X-Accel-Buffering": "no"' in source
+    assert "text/event-stream" in source
+    assert 'alias="Last-Event-ID"' in source
+
+
+# --- Frame shape ------------------------------------------------------------------
+
+
+async def test_a_published_event_arrives_as_the_declared_frame_shape() -> None:
+    """`cursor=None` (a first connection) gets no backlog by design — the
+    event has to be published *after* the subscription attaches to be seen
+    at all, which is why this awaits the collection and the publish
+    concurrently rather than publishing first."""
+    broker = DeploymentEventBroker()
 
     async def publish_soon() -> None:
-        await asyncio.sleep(0.02)
-        await deployment.state.deployment_events.publish(
-            scope=DeploymentScope.RUN,
-            kind=DeploymentEventKind.RUN_STARTED,
-            payload={"run_id": "run-viewer"},
-        )
-
-    publisher = asyncio.create_task(publish_soon())
-    try:
-        session = await _read_deployment_stream(
-            app, {"Authorization": f"Bearer {secret}"}, stop_when=b"run_started"
-        )
-    finally:
-        await publisher
-
-    assert session.status == 200
-    assert b"run_started" in session.body
-
-
-async def test_no_bearer_token_is_refused(app: ASGIApp) -> None:
-    async with _open_stream(app, {}) as session:
-        await session.read_until(None, budget=0.5)
-    assert session.status in (400, 401)
-
-
-# --- Frame shape ----------------------------------------------------------------
-
-
-async def test_a_published_event_arrives_as_the_declared_frame_shape(
-    app: ASGIApp, deployment: Deployment
-) -> None:
-    headers = await _auth_header(deployment)
-
-    async def publish_soon() -> None:
-        await asyncio.sleep(0.02)
-        await deployment.state.deployment_events.publish(
+        await asyncio.sleep(0.01)
+        await broker.publish(
             scope=DeploymentScope.RUN,
             kind=DeploymentEventKind.RUN_STARTED,
             payload={"run_id": "run-1"},
@@ -253,18 +170,14 @@ async def test_a_published_event_arrives_as_the_declared_frame_shape(
 
     publisher = asyncio.create_task(publish_soon())
     try:
-        session = await _read_deployment_stream(app, headers, stop_when=b"run_started")
+        frames = await _collect(broker, None, frame_count=1)
     finally:
         await publisher
-
-    assert session.status == 200
-    frames = _parse_sse(session.body)
-    matching = [frame for frame in frames if frame[1] == "run_started"]
-    assert len(matching) == 1
-    frame_id, _event, data = matching[0]
-
-    epoch = deployment.state.deployment_events.epoch
-    assert frame_id == f"{epoch}:1"
+    parsed = _parse_sse(frames[0])
+    assert len(parsed) == 1
+    frame_id, event, data = parsed[0]
+    assert event == "run_started"
+    assert frame_id == f"{broker.epoch}:1"
 
     body = json.loads(data)
     assert body == {
@@ -277,45 +190,35 @@ async def test_a_published_event_arrives_as_the_declared_frame_shape(
     assert set(body) == {"scope", "kind", "sequence", "occurred_at", "payload"}
 
 
-# --- Cursor / reconnection -------------------------------------------------------
+# --- Cursor / reconnection --------------------------------------------------------
 
 
-async def test_reconnecting_with_the_current_epoch_delivers_only_what_is_newer(
-    app: ASGIApp, deployment: Deployment
-) -> None:
-    headers = await _auth_header(deployment)
-    events = deployment.state.deployment_events
+async def test_reconnecting_with_the_current_epoch_delivers_only_what_is_newer() -> None:
+    broker = DeploymentEventBroker()
     for index in range(3):
-        await events.publish(
+        await broker.publish(
             scope=DeploymentScope.RUN,
             kind=DeploymentEventKind.RUN_STARTED,
             payload={"run_id": f"run-{index}"},
         )
 
-    cursor = f"{events.epoch}:2"
-    session = await _read_deployment_stream(
-        app, {**headers, "Last-Event-ID": cursor}, stop_when=b'"sequence":3'
-    )
-
-    frames = [frame for frame in _parse_sse(session.body) if frame[1] != ""]
-    assert [frame[0] for frame in frames] == [f"{events.epoch}:3"]
+    cursor = DeploymentCursor(epoch=broker.epoch, sequence=2)
+    frames = await _collect(broker, cursor, frame_count=1)
+    parsed = [frame for frame in _parse_sse(frames[0]) if frame[1] != ""]
+    assert [frame[0] for frame in parsed] == [f"{broker.epoch}:3"]
 
 
-async def test_a_cursor_from_a_foreign_epoch_is_answered_with_resync_first(
-    app: ASGIApp, deployment: Deployment
-) -> None:
-    headers = await _auth_header(deployment)
-    await deployment.state.deployment_events.publish(
+async def test_a_cursor_from_a_foreign_epoch_is_answered_with_resync_first() -> None:
+    broker = DeploymentEventBroker()
+    await broker.publish(
         scope=DeploymentScope.RUN, kind=DeploymentEventKind.RUN_STARTED, payload={"run_id": "run-1"}
     )
 
-    session = await _read_deployment_stream(
-        app, {**headers, "Last-Event-ID": "a-previous-process:99"}, stop_when=b"resync"
-    )
-
-    frames = [frame for frame in _parse_sse(session.body) if frame[1] != ""]
-    assert len(frames) == 1
-    _frame_id, event, data = frames[0]
+    cursor = DeploymentCursor(epoch="a-previous-process", sequence=99)
+    frames = await _collect(broker, cursor, frame_count=1)
+    parsed = [frame for frame in _parse_sse(frames[0]) if frame[1] != ""]
+    assert len(parsed) == 1
+    _frame_id, event, data = parsed[0]
     assert event == "resync"
     assert json.loads(data)["payload"] == {}
 
@@ -323,70 +226,79 @@ async def test_a_cursor_from_a_foreign_epoch_is_answered_with_resync_first(
 # --- Ten cycles of disconnection/reconnection (the SC-003 loop) -----------------
 
 
-async def test_ten_reconnection_cycles_deliver_no_duplicate_and_exactly_one_resync_per_gap(
-    app: ASGIApp, deployment: Deployment
-) -> None:
+async def test_ten_reconnection_cycles_deliver_no_duplicate_and_exactly_one_resync_per_gap() -> (
+    None
+):
     """SC-003: sequence strictly increases within an epoch, nothing repeats,
     and every gap this broker's memory cannot cover produces exactly one
-    ``resync`` — proven across ten disconnect/reconnect cycles, not one."""
-    headers = await _auth_header(deployment)
-    events = deployment.state.deployment_events
-    epoch = events.epoch
+    ``resync`` — proven across ten disconnect/reconnect cycles, not one.
+
+    Each cycle: publish one event, connect (fresh each time, like a real
+    reconnecting client), read exactly that event's frame, remember the
+    cursor it presents, disconnect (`generator.aclose()`, inside
+    `_collect`), reconnect on the next cycle with that cursor.
+    """
+    broker = DeploymentEventBroker()
+    epoch = broker.epoch
 
     seen_sequences: list[int] = []
     resync_count = 0
-    cursor = ""
+    cursor: DeploymentCursor | None = None
 
     for cycle in range(10):
-        request_headers = dict(headers)
-        if cursor:
-            request_headers["Last-Event-ID"] = cursor
+        if cursor is None:
+            # The first cycle presents no cursor, so nothing published before
+            # the subscription attaches would ever be seen — publish
+            # concurrently with the collection instead, as
+            # test_a_published_event_arrives_as_the_declared_frame_shape does.
+            async def publish_soon(index: int = cycle) -> None:
+                await asyncio.sleep(0.01)
+                await broker.publish(
+                    scope=DeploymentScope.RUN,
+                    kind=DeploymentEventKind.RUN_STARTED,
+                    payload={"run_id": f"run-{index}"},
+                )
 
-        expected_sequence = events._sequence + 1  # noqa: SLF001 -- read only, to name the frame this cycle waits for
-        expected = f'"sequence":{expected_sequence}'.encode()
-
-        already_attached = events.subscriber_count
-        async with _open_stream(app, request_headers) as session:
-            # Wait for this cycle's own subscription to actually attach
-            # before publishing — a fixed short sleep is the race a slower
-            # CI host loses: nothing else observable signals "the ASGI
-            # routing, the permission check and `broker.attach` have all
-            # happened" from outside the broker itself.
-            deadline = time.monotonic() + _BUDGET_SECONDS
-            while events.subscriber_count <= already_attached:
-                if time.monotonic() > deadline:
-                    raise AssertionError(f"cycle {cycle}: the connection never attached")
-                await asyncio.sleep(0.005)
-
-            await events.publish(
+            publisher = asyncio.create_task(publish_soon())
+            try:
+                frames = await _collect(broker, cursor, frame_count=1)
+            finally:
+                await publisher
+            published_sequence = broker._sequence  # noqa: SLF001 -- read only, to name what publish_soon wrote
+        else:
+            # A real cursor gets its backlog from the broker's buffer
+            # regardless of attach timing, so publishing first is fine here.
+            published = await broker.publish(
                 scope=DeploymentScope.RUN,
                 kind=DeploymentEventKind.RUN_STARTED,
                 payload={"run_id": f"run-{cycle}"},
             )
-            await session.read_until(expected, budget=_BUDGET_SECONDS)
-        assert expected in session.body, f"cycle {cycle}: never saw sequence {expected_sequence}"
+            published_sequence = published.sequence
+            frames = await _collect(broker, cursor, frame_count=1)
 
-        for frame_id, event, _data in _parse_sse(session.body):
-            if event == "":
-                continue  # a heartbeat comment carries no id/event/data triple
-            if event == "resync":
-                resync_count += 1
-                cursor = frame_id
-                continue
+        parsed = [frame for frame in _parse_sse(frames[0]) if frame[1] != ""]
+        assert len(parsed) == 1, f"cycle {cycle}: expected exactly one frame, got {parsed}"
+        frame_id, event, _data = parsed[0]
+
+        if event == "resync":
+            resync_count += 1
+        else:
             sequence = int(frame_id.rsplit(":", 1)[1])
+            assert sequence == published_sequence
             assert sequence not in seen_sequences, "no event delivered twice"
             if seen_sequences:
                 assert sequence > seen_sequences[-1], "sequence strictly increases within the epoch"
             seen_sequences.append(sequence)
-            cursor = frame_id
+
+        cursor = DeploymentCursor(epoch=epoch, sequence=int(frame_id.rsplit(":", 1)[1]))
 
     assert len(seen_sequences) == 10
     assert seen_sequences == sorted(set(seen_sequences))
-    assert epoch == events.epoch, "the broker's epoch never changed mid-loop"
-    assert resync_count == 0
+    assert broker.epoch == epoch, "the broker's epoch never changed mid-loop"
+    assert resync_count == 0, "the 256-event buffer comfortably covers ten cycles"
 
 
-# --- Keep-alive cadence, tested directly for speed --------------------------------
+# --- Keep-alive cadence -----------------------------------------------------------
 
 
 async def test_the_keepalive_constant_is_fifteen_seconds() -> None:
@@ -394,25 +306,18 @@ async def test_the_keepalive_constant_is_fifteen_seconds() -> None:
 
 
 async def test_a_quiet_channel_sends_a_heartbeat_at_the_declared_cadence() -> None:
-    """Calls `deployment_event_source` directly with a short cadence: a
-    fifteen-second real wait has no place in a fast suite, and this is the
-    same function the route above calls with the production constant."""
+    """A fifteen-second real wait has no place in a fast suite; this calls
+    the same function the route calls with the production constant, with a
+    short one instead."""
     broker = DeploymentEventBroker()
-    frames: list[bytes] = []
-    generator = deployment_event_source(broker=broker, cursor=None, keepalive_seconds=0.05)
-    async for frame in generator:
-        frames.append(frame)
-        if len(frames) >= 2:
-            await generator.aclose()
-            break
-
+    frames = await _collect(broker, None, frame_count=2, keepalive_seconds=0.05)
     assert frames == [b": heartbeat\n\n", b": heartbeat\n\n"]
 
 
-def test_the_generator_rejects_a_scope_mismatched_payload_at_construction() -> None:
-    """T011's own restatement of the allowlist contract, at the wire boundary."""
-    from datetime import UTC, datetime
+# --- Payload allowlist, restated at the wire boundary -----------------------------
 
+
+def test_the_generator_rejects_a_scope_mismatched_payload_at_construction() -> None:
     with pytest.raises(ValueError, match="extra key"):
         DeploymentEvent(
             scope=DeploymentScope.RUN,

@@ -14,7 +14,7 @@ than a replay.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import cast
 
@@ -147,7 +147,7 @@ async def deployment_event_source(
     cursor: DeploymentCursor | None,
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
     keepalive_seconds: float = SSE_KEEPALIVE_SECONDS,
-) -> AsyncIterator[bytes]:
+) -> AsyncGenerator[bytes, None]:
     """Yield SSE frames: any backlog first, then live, with heartbeats between events.
 
     A subscriber that falls behind the bounded buffer is disconnected here —
