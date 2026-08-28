@@ -168,3 +168,75 @@ describe('a run that failed before it started', () => {
     expect(within(links).queryByTestId('way-back')).toBeNull();
   });
 });
+
+/**
+ * A settled run whose own record carries the same evidence tally the run
+ * list's chip already reads — proof the findings panel's progress bar
+ * actually draws when the data is there, not just that it stays away when
+ * the data is not. None of the committed mock fixtures populate
+ * `evidence_assessed` for any run, so this is the only place in the suite
+ * that exercises the bar with real numbers.
+ */
+const ASSESSED_RUN = 'run-evidence-assessed';
+
+function serveAssessedRun(): void {
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    const bodies: Record<string, unknown> = {
+      '/auth/me': {
+        principal_id: 'user-operator',
+        display_name: 'Avery Lockhart',
+        kind: 'person',
+        roles: ['owner'],
+        permissions: ['investigation.read'],
+        team_node_id: 'org-northwind',
+        impersonating: false,
+        impersonated_by: null,
+      },
+      [`/v1/runs/${ASSESSED_RUN}`]: {
+        run_id: ASSESSED_RUN,
+        status: 'completed',
+        summary: 'The volume filled because a retained log grew unbounded.',
+        trigger: 'interactive',
+        started_at: '2026-08-07T13:52:00+00:00',
+        finished_at: '2026-08-07T13:52:03+00:00',
+        evidence_assessed: true,
+        evidence_backed: 3,
+        evidence_missing: 1,
+      },
+      [`/v1/runs/${ASSESSED_RUN}/replay`]: {
+        run_id: ASSESSED_RUN,
+        is_interrupted: false,
+        total_cost: 0,
+        total_tokens: 0,
+        turns: [],
+      },
+      '/v1/incidents': { incidents: [] },
+      [`/v1/investigations/${ASSESSED_RUN}/interactions`]: { interactions: [] },
+    };
+    const body = bodies[path];
+    return Promise.resolve(
+      new Response(JSON.stringify(body ?? {}), {
+        status: body === undefined ? 404 : 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+}
+
+describe('a run whose own record says its evidence was assessed', () => {
+  it('draws the findings panel’s progress bar with the run’s own backed-of-claims count', async () => {
+    serveAssessedRun();
+    render(await RunDetailScreen(await surfaceContext({}), ASSESSED_RUN));
+
+    const bar = screen.getByTestId('findings-evidence-progress');
+    expect(within(bar).getByText('3 of 4 claims backed')).toBeInTheDocument();
+  });
+
+  it('never draws the bar for a run whose record never assessed anything', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    expect(screen.queryByTestId('findings-evidence-progress')).not.toBeInTheDocument();
+  });
+});
