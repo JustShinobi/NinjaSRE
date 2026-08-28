@@ -93,7 +93,7 @@ export interface RunConnectionOptions {
 }
 
 /** The browser's own timer, for a connection nobody injected one into. */
-const wallClock: Scheduler = {
+export const wallClock: Scheduler = {
   after: (ms, run) => {
     const handle = setTimeout(run, ms);
     return () => {
@@ -103,7 +103,7 @@ const wallClock: Scheduler = {
 };
 
 /** The browser's own visibility, likewise. */
-const documentVisibility: Visibility = {
+export const documentVisibility: Visibility = {
   hidden: () =>
     typeof document !== 'undefined' && document.visibilityState === 'hidden',
   onChange: (listener) => {
