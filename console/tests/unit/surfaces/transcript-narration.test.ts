@@ -100,6 +100,39 @@ describe('an absent field is declared absent, never interpolated as undefined', 
   });
 });
 
+describe('the replay reader\'s own spelling of a call result narrates like the stream\'s', () => {
+  it('tool_returned — eventsFromReplay\'s rawKind for a call result — is not an unrecognised kind', () => {
+    // This is the gap a screenshot caught that a hand-built fixture did not:
+    // eventsFromReplay spells a call's outcome `tool_returned`, never
+    // `tool_succeeded`/`tool_failed`, and the narration table had only the
+    // stream's two spellings — so every capability result on every settled
+    // run fell back to "An event of an unrecognised kind arrived:
+    // tool_returned", visible on real fixture data and invisible to a test
+    // that only ever constructed STREAM_KINDS-shaped events by hand.
+    const [built] = eventsFromReplay({
+      run_id: 'run-z',
+      turns: [
+        {
+          turn_id: 'turn-1',
+          index: 0,
+          calls: [{ call_id: 'call-1', name: 'estate.storage_pressure' }],
+        },
+      ],
+    }).filter((event) => event.kind === 'result');
+
+    expect(built).toBeDefined();
+    if (built === undefined) throw new Error('unreachable');
+    expect(built.rawKind).toBe('tool_returned');
+
+    for (const locale of LOCALES) {
+      const sentence = narrate(built, locale);
+      expect(sentence).not.toContain('unrecognised');
+      expect(sentence).not.toContain('não reconhecido');
+      expect(sentence).toContain('estate.storage_pressure');
+    }
+  });
+});
+
 describe('one funnel: a replayed call and a streamed call of the same facts narrate identically', () => {
   it('the lead phrase for tool_called does not depend on which reader built the event', () => {
     const replayed = eventsFromReplay({

@@ -312,6 +312,14 @@ const NARRATION_LEAD: Readonly<Record<string, MessageKey>> = {
   tool_called: 'transcript.narration.toolCalled',
   tool_succeeded: 'transcript.narration.toolSucceeded',
   tool_failed: 'transcript.narration.toolFailed',
+  // `eventsFromReplay` spells a call's outcome `tool_returned` rather than
+  // splitting it into `tool_succeeded`/`tool_failed` the way the stream
+  // does — the replay reader already carries the outcome in `status`
+  // instead, which the Badge beside this sentence already draws. The lead
+  // is the stream's own success wording, deliberately status-neutral: it
+  // is true whichever way the call actually went, and is not the only
+  // signal the reader has for which.
+  tool_returned: 'transcript.narration.toolSucceeded',
   observation_recorded: 'transcript.narration.observationRecorded',
   evidence_retained: 'transcript.narration.evidenceRetained',
   memory_recalled: 'transcript.narration.memoryRecalled',
@@ -330,6 +338,7 @@ const NAMES_A_CAPABILITY: ReadonlySet<string> = new Set([
   'tool_called',
   'tool_succeeded',
   'tool_failed',
+  'tool_returned',
 ]);
 
 /** The raw kinds whose lead names a sub-agent, read from `event.title`. */
