@@ -45,7 +45,7 @@
   "completed_features": [
     "specs_v8/000-fundacao-visual"
   ],
-  "last_verdict": "PASS",
+  "last_verdict": "UNVERIFIED",
   "last_gate": {
     "name": "make verify (post visual repair)",
     "status": "PASS_AGAINST_PINNED_BASELINE",
@@ -70,9 +70,9 @@
       "owner": "Whoever takes /resources in 060."
     }
   ],
-  "last_checkpoint": "2026-08-28T03:06:44+00:00",
-  "next_action": "S1 analyze in flight for 010 and 030. Rule on findings, then dispatch spec-implementer per feature into its worktree. Orchestrator keeps 010 T001/T061/T062/T063 and 030 T003/T021/T022/T023.",
-  "fingerprint": "335466aa29ae9a85",
+  "last_checkpoint": "2026-08-28T05:42:56+00:00",
+  "next_action": "S1 stopped clean mid-implementation, both trees committed. Resume 010 from 09935108 and 030 from 05032d78, each spec-implementer in its existing worktree, briefed from its own controle.md. Nothing may be merged, deployed or verified until both are complete.",
+  "fingerprint": "6141aed20de97c5b",
   "features": [
     {
       "path": "specs_v8/000-fundacao-visual",
@@ -337,10 +337,10 @@
         "specs_v8/000-fundacao-visual"
       ],
       "phase": "implement",
-      "status": "pending",
+      "status": "UNVERIFIED",
       "runtime": "claude",
-      "last_checkpoint": "2026-08-28T03:06:44+00:00",
-      "next_action": "Dispatch spec-implementer into /srv/workspaces/v8-s1-010 after the worktree fast-forwards onto the analyze fixes.",
+      "last_checkpoint": "2026-08-28T05:34:55+00:00",
+      "next_action": "spec-implementer running in its isolated worktree. On return: merge slot commits, apply declared i18n keys, format the transversal suite, run boundary gates, deploy staging, Orca visual gate, then the independent verifier per feature.",
       "worktree": "/srv/workspaces/v8-s1-010",
       "lifecycle_results": {
         "analyze": {
@@ -400,7 +400,22 @@
           "stale_refs_checked": "All other cited file:line resolved exactly (stream.py:66/148/217, investigations.py:242, closure.py:154, auto-refresh.tsx:112, freshness.ts:49, store.ts:75, runs.py:160, proposals.py:96)."
         },
         "implement": {
-          "status": "pending"
+          "status": "INCOMPLETE_CLEAN_STOP",
+          "at": "2026-08-28T05:34:55+00:00",
+          "worktree": "/srv/workspaces/v8-s1-010",
+          "base_commit": "c01f8412",
+          "note": "Stopped for the budget window, not for a failure. Resume the same feature in the same worktree from its controle.md next action; never start a second implementation pass from an unverified report.",
+          "stopped_at": "09935108 docs(specs): close the control file under a budget stop",
+          "tree": "clean",
+          "commits_this_slot": 14,
+          "done": "Broker and its two write-path taps; the endpoint composed at the real gateway root with its contract green (11 tests); contract and TS client regenerated; the mock plane serving the deployment channel; the client connection and AutoRefresh demoted to fallback; the Next.js proxy route; three real bugs found and fixed (mockplane header flush, freshness counting attempts rather than state changes, spec timeout).",
+          "open": [
+            "T010 red-by-wire-cut not performed — the acceptance spec was written after the client existed, which the control file names as the deviation it is",
+            "T060 local gates not run in the closing session; the recorded gate results predate the last three commits and must be re-run before the merge",
+            "Two harness findings undiagnosed: the guardian-flight count does not rise after starting an investigation from the drawer (US1), and the planned simplification of the US2/US3 recovery assertions"
+          ],
+          "next_action": "Run T060's narrow gates, then perform T010's cut-the-wire red for the three user stories, then diagnose the two harness findings.",
+          "process_note": "The implementer fired three git commits in parallel, which collided in the index and produced one commit under the wrong message. It recovered with git reset --soft HEAD~1 and redid them sequentially, and reported the whole episode itself."
         },
         "converge": {
           "status": "pending",
@@ -479,19 +494,79 @@
       "dependencies": [
         "specs_v8/000-fundacao-visual"
       ],
-      "phase": "analyze",
-      "status": "pending",
+      "phase": "implement",
+      "status": "UNVERIFIED",
       "runtime": "claude",
-      "last_checkpoint": "2026-08-28T03:00:53+00:00",
-      "next_action": "speckit-analyze dispatched (read-only); implementer follows once findings are ruled on.",
+      "last_checkpoint": "2026-08-28T05:34:55+00:00",
+      "next_action": "spec-implementer running in its isolated worktree. On return: merge slot commits, apply declared i18n keys, format the transversal suite, run boundary gates, deploy staging, Orca visual gate, then the independent verifier per feature.",
       "worktree": "/srv/workspaces/v8-s1-030",
       "lifecycle_results": {
         "analyze": {
-          "status": "running",
-          "at": "2026-08-28T03:00:53+00:00"
+          "status": "PASS_WITH_FIXES",
+          "at": "2026-08-28T03:09:59+00:00",
+          "prerequisites": "tasks.md complete: 24 tasks (T001-T023 plus T016a), six phases, acceptance-first intact",
+          "findings": [
+            {
+              "id": "F1",
+              "sev": "HIGH",
+              "issue": "Spec and plan present stages[] as backend work to be exposed. GET /v1/runs/{run_id}/replay already serves it (platform/runs/replay.py, ReplayedStage/_stages_of), it is in the generated contract and TS client, and run-detail.tsx reads that body while ignoring the field. Verified directly against gateway/http/routes/runs.py:249-259.",
+              "resolution": "Fact 3 and FR-023 rewritten: T010 becomes a field-by-field confrontation of what the rail needs against what is served; T011 regenerates only if a field was added; T008 may legitimately start green for the finished-run path, with the red isolated to the live path.",
+              "status": "RESOLVED"
+            },
+            {
+              "id": "F2",
+              "sev": "MEDIUM_HIGH",
+              "issue": "AN-14, FR-021a and T016a name /investigations as the list to reform. It has been a legacy 302 redirect to /runs since the hybrid navigation; the list is console/src/surfaces/screens/runs.tsx.",
+              "resolution": "All three now name /runs and the surface file; the redirect stub declared untouched.",
+              "status": "RESOLVED"
+            },
+            {
+              "id": "F3",
+              "sev": "MEDIUM",
+              "issue": "Spec declared 1920x1080 normative while every screens.json entry uses 1440; T019 did not say which.",
+              "resolution": "1920 governs the acceptance spec and the staging capture; screens.json keeps the 1440 convention it already uses.",
+              "status": "RESOLVED"
+            },
+            {
+              "id": "F4",
+              "sev": "LOW",
+              "issue": "The wave README's 050 row omitted 030, though 050 consumes the stage data this feature surfaces. The slot DAG already sequences them correctly.",
+              "resolution": "README dependency row now reads 010, 020, 030, 040.",
+              "status": "RESOLVED"
+            },
+            {
+              "id": "F5",
+              "sev": "MEDIUM",
+              "issue": "T003 needs staging and the Orca Browser but sat in Phase 0 without the orchestrator annotation Phase 5 carries.",
+              "resolution": "T003 annotated as orchestrator-executed.",
+              "status": "RESOLVED"
+            }
+          ],
+          "orchestrator_owned_tasks": [
+            "T003",
+            "T021",
+            "T022",
+            "T023"
+          ],
+          "stale_refs_checked": "Every other cited file:line matched exactly (transcript.ts:114/126-144/147/269, run-detail.tsx:115/130/141, reducer.ts:99/269, lifecycle.py:176-192, streaming.py:329). The gap was an omission, not a wrong citation: platform/runs/replay.py is never named."
         },
         "implement": {
-          "status": "pending"
+          "status": "INCOMPLETE_CLEAN_STOP",
+          "at": "2026-08-28T05:34:55+00:00",
+          "worktree": "/srv/workspaces/v8-s1-030",
+          "base_commit": "c01f8412",
+          "note": "Stopped for the budget window, not for a failure. Resume the same feature in the same worktree from its controle.md next action; never start a second implementation pass from an unverified report.",
+          "stopped_at": "05032d78 wip(specs): close the control file at a budget-forced stopping point",
+          "tree": "clean",
+          "commits_this_slot": 17,
+          "task_ledger": "16 done, 7 closed without execution (each with its reason on the line), 1 open",
+          "done": "Acceptance spec red first and then green 19/19; narration of every transcript event with the payload behind a disclosure; the stage rail; the runs list grouped by status as the board draws it; the T017 board comparison written claim by claim with two deviations fixed; six visual baselines captured and confirmed real; the tool_returned narration bug found by reading a capture and fixed with a regression test.",
+          "open": [
+            "The newest-first reversal's blast radius is half-verified: 010-leitura-do-relato.acceptance.spec.ts and surfaces.spec.ts failed 6 of 29 when run together and have not been isolated as pre-existing or regression",
+            "Baselines not recaptured after the reversal",
+            "The pt-BR European Portuguese sweep not started"
+          ],
+          "next_action": "Rerun those two specs individually to separate regression from pre-existing failure; then recapture the baselines in their own commit; then the pt-BR sweep in its own commit."
         },
         "converge": {
           "status": "pending",
@@ -806,6 +881,50 @@
       "result": "PASS_WITH_FIXES",
       "findings": 6,
       "all_applied": true
+    },
+    {
+      "at": "2026-08-28T03:09:59+00:00",
+      "event": "analyze_complete",
+      "feature": "specs_v8/030-run-view-narrado",
+      "result": "PASS_WITH_FIXES",
+      "findings": 5,
+      "all_applied": true
+    },
+    {
+      "at": "2026-08-28T03:09:59+00:00",
+      "event": "implementers_dispatched",
+      "slot": "S1",
+      "features": [
+        "specs_v8/010-canal-vivo",
+        "specs_v8/030-run-view-narrado"
+      ],
+      "base_commit": "c01f8412",
+      "note": "Both worktrees fast-forwarded onto the analyze fixes before dispatch. Orchestrator retains 010 T001/T061/T062/T063 and 030 T003/T021/T022/T023."
+    },
+    {
+      "at": "2026-08-28T05:34:55+00:00",
+      "event": "clean_stop",
+      "slot": "S1",
+      "reason": "operator budget window ending",
+      "features": [
+        "specs_v8/010-canal-vivo",
+        "specs_v8/030-run-view-narrado"
+      ],
+      "note": "Both implementers instructed to finish the current step, commit, close both control-file copies, reconcile tasks.md, and answer in a few lines rather than a full report."
+    },
+    {
+      "at": "2026-08-28T05:40:25+00:00",
+      "event": "implementer_closed",
+      "feature": "specs_v8/010-canal-vivo",
+      "commit": "09935108",
+      "tree": "clean"
+    },
+    {
+      "at": "2026-08-28T05:42:56+00:00",
+      "event": "implementer_closed",
+      "feature": "specs_v8/030-run-view-narrado",
+      "commit": "05032d78",
+      "tree": "clean"
     }
   ],
   "baseline": {
@@ -850,6 +969,18 @@
       "evidence": "border-strong vs surface/sunken/raised/hover — dark 1.87/1.99/1.71/1.56, light 2.27/2.08/2.27/1.94. Artboard usage checked: .kpi:hover emphasis on an already-bordered card, and secondary chip outlines with high-contrast labels; never the sole identifier of a control.",
       "registered_in": "design/padrao-2026-08/DIVERGENCIAS.md item 7",
       "accepted_cost": "Neutral control boundaries sit near 1.9:1 on every dark ground. A real property of the approved board, recorded so it is not silently 'fixed'."
+    },
+    {
+      "at": "2026-08-28T05:34:55+00:00",
+      "id": "transcript-order",
+      "question": "Artboard draws the transcript newest-first; the console is chronological and asserts it in live.spec.ts. Reversing reaches every transcript consumer.",
+      "ruling": "Conform to the board — newest first. live.spec.ts updated to the new order; every consumer enumerated and reported."
+    },
+    {
+      "at": "2026-08-28T05:34:55+00:00",
+      "id": "ptbr-european-sweep",
+      "question": "pt-BR.ts carries pre-existing European Portuguese, outside the feature scope, in the file 030 owns this slot.",
+      "ruling": "Sweep it now, in 030, in its own commit — after the merge the ownership moves."
     }
   ],
   "commits": [
@@ -859,7 +990,99 @@
     "e8553738 cross-tier shell geometry + SC-001 claim",
     "c902d519 egress measured against origin",
     "2db19664 tinted destructive control",
-    "46c6fe24 baselines for the tinted control"
+    "46c6fe24 baselines for the tinted control",
+    "c01f8412 analyze fixes for the S1 specs"
   ],
-  "branch": "feat/000-fundacao-visual"
+  "branch": "feat/000-fundacao-visual",
+  "resume": {
+    "why_stopped": "Operator budget window ending. Both implementers told to stop at a clean boundary, commit, close their control files, and answer briefly. Nothing failed.",
+    "how_to_resume": [
+      "1. Read each feature controle.md (in the worktree AND the scratchpad mirror) — they are the ledger, not the chat.",
+      "2. git -C <worktree> log --oneline c01f8412..HEAD and git status --short to see where each stopped.",
+      "3. Re-dispatch spec-implementer per feature into the SAME worktree with the controle.md next-action as the brief. Do not start a second implementation pass from scratch.",
+      "4. Only after both are complete: merge both worktrees into the wave tree, apply declared single-write changes, format the transversal suite, run boundary gates, deploy staging, run the Orca visual gate, then a verifier per feature."
+    ],
+    "worktrees": {
+      "specs_v8/010-canal-vivo": "/srv/workspaces/v8-s1-010 (branch wt/v8-010-canal-vivo)",
+      "specs_v8/030-run-view-narrado": "/srv/workspaces/v8-s1-030 (branch wt/v8-030-run-view-narrado)"
+    },
+    "worktree_provisioning": "Each worktree has its own .venv (do NOT symlink it — uv repoints the editable install of the shared tree). console/node_modules is a real copy; console/.toolchain is a symlink to the shared pinned toolchain and is in .git/info/exclude.",
+    "control_mirrors": {
+      "010": "/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-010.md",
+      "030": "/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-030.md"
+    },
+    "orchestrator_retained_tasks": {
+      "010": [
+        "T001",
+        "T061",
+        "T062",
+        "T063"
+      ],
+      "030": [
+        "T003",
+        "T020",
+        "T021",
+        "T022",
+        "T023"
+      ]
+    }
+  },
+  "open_items": [
+    {
+      "id": "010-acceptance-red",
+      "feature": "specs_v8/010-canal-vivo",
+      "severity": "HIGH",
+      "issue": "T010, the Playwright acceptance spec, was deferred until after the client existed, so the wave-normative acceptance-first red was never confirmed in order.",
+      "ruling": "Recovery instructed: write the spec, then cut each of the three user stories' mechanism by hand and quote the real red — unwire the channel from AutoRefresh, break the fallback, interfere with resumption. A story that refuses to go red when its wire is cut is a finding, because the assertion is not measuring what it claims.",
+      "status": "instructed; verify it was actually done before any PASS."
+    },
+    {
+      "id": "010-fr006-gap",
+      "feature": "specs_v8/010-canal-vivo",
+      "severity": "MEDIUM",
+      "issue": "InteractionClosure/ClosurePublisher are constructed nowhere in production, so the decision tap could not register where FR-006 originally said. The implementer reported it instead of spreading the tap across call sites and decorated the approval store at the composition root.",
+      "ruling": "Accepted. The named gap stands: interaction_id is never populated by this feature. It belongs in the wave record, not a footnote.",
+      "status": "accepted; carry into CONFRONTO.md."
+    },
+    {
+      "id": "030-t017-deviations",
+      "feature": "specs_v8/030-run-view-narrado",
+      "severity": "MEDIUM",
+      "issue": "The artboard comparison found five differences. Item 3 (Assumir/Parar in the Control rail) is not a deviation — FR-020 freezes that placement and beats the artboard.",
+      "ruling": "Four to conform, since the standing operator decision is that the artboard is the source of truth and only diverging needs approval: the 340px fixed rail scoped to the run detail screen; the evidence-progress bar under the finding list; slide-in on a newly arrived transcript entry with an assertion added; the chip-sized toggle expressed locally without touching the frozen foundation.",
+      "status": "instructed; unfinished at the stop."
+    },
+    {
+      "id": "030-transcript-order",
+      "feature": "specs_v8/030-run-view-narrado",
+      "severity": "HIGH",
+      "issue": "The artboard draws the transcript newest-first with a caption saying so; the console is chronological and live.spec.ts asserts it. Reversing reaches every transcript consumer.",
+      "ruling": "OPERATOR DECISION 2026-08-28: conform to the board — newest first. live.spec.ts is updated to the new order. Every transcript consumer must be enumerated, and the control file must say which were changed and which already read correctly. A consumer where newest-first is actively wrong is to be named, not forced.",
+      "status": "instructed; in progress at the stop."
+    },
+    {
+      "id": "030-ptbr-sweep",
+      "feature": "specs_v8/030-run-view-narrado",
+      "severity": "MEDIUM",
+      "issue": "console/src/i18n/pt-BR.ts carries pre-existing European Portuguese — registada, Precisa de si, Objectivo — found while working, outside the feature's scope.",
+      "ruling": "OPERATOR DECISION 2026-08-28: sweep it now, in 030, in its own commit. It is the single-write owner this slot; after the merge the pen moves and the console would serve European Portuguese for another slot at least.",
+      "status": "instructed; unfinished at the stop."
+    },
+    {
+      "id": "030-transversal-preexisting",
+      "feature": "specs_v8/030-run-view-narrado",
+      "severity": "MEDIUM",
+      "issue": "12 transversal failures reported as pre-existing: 3 setup wizard, 9 getByTestId('row') never resolving. The implementer's evidence is that /incidents/{id} fails identically and that RunCard never carried data-testid=row at c01f8412.",
+      "ruling": "Plausible and evidenced, but unverified by me. Confirm against the base commit before accepting it at the merge — an allowlist entry removed or excused without the fix behind it is the suite lying.",
+      "status": "to verify at merge."
+    },
+    {
+      "id": "030-tool-returned-bug",
+      "feature": "specs_v8/030-run-view-narrado",
+      "severity": "INFO",
+      "issue": "eventsFromReplay spells a call's outcome tool_returned; the narration table only had the stream's tool_succeeded/tool_failed, so every capability result on every settled run narrated as an unrecognised kind.",
+      "ruling": "Found by reading a capture, not by a test — the single-funnel unit test built both sides from a stream-shaped fixture and never called eventsFromReplay. Fixed with a regression test. Worth keeping as the example of why a capture gets opened.",
+      "status": "fixed."
+    }
+  ]
 }
