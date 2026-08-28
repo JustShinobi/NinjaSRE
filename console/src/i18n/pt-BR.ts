@@ -15,8 +15,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'nav.label': 'Áreas',
   'nav.group.now': 'Agora',
-  'nav.group.environment': 'O ambiente',
-  'nav.group.settings': 'Ajustes',
+  'nav.group.environment': 'Ambiente',
+  'nav.group.settings': 'Configuração',
   'nav.firstRun': 'Configuração inicial',
   'nav.dashboard': 'Painel',
   'nav.incidents': 'Incidentes',

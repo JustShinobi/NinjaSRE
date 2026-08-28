@@ -20,7 +20,7 @@ export const EN = {
   'nav.label': 'Areas',
   'nav.group.now': 'Now',
   'nav.group.environment': 'The environment',
-  'nav.group.settings': 'Settings',
+  'nav.group.settings': 'Configuration',
   'nav.firstRun': 'Setup',
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',

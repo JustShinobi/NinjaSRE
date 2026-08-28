@@ -127,7 +127,7 @@ export function StatTile({
           // `rounded-2` is on both states rather than only on the placeholder:
           // a radius that appears while loading is a geometry change, which is
           // the shift this component exists to avoid.
-          'text-display tabular-nums rounded-2',
+          'font-display text-display tabular-nums rounded-2',
           state === 'loading' ? 'bg-neutral-bg text-transparent' : '',
         )}
       >

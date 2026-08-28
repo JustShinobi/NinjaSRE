@@ -87,7 +87,7 @@ describe('the sidebar', () => {
     // The number lives in the token table and the utility reads it, so this
     // asserts the sidebar names the token rather than what the token holds.
     expect(screen.getByTestId('sidebar').className).toContain('w-sidebar');
-    expect(SHELL.sidebar).toBe(236);
+    expect(SHELL.sidebar).toBe(232);
   });
 
   it('gives every entry an icon as well as a label', () => {
@@ -240,7 +240,7 @@ describe('the utility bar', () => {
   it('is as tall as the design draws it', () => {
     renderTopbar();
     expect(screen.getByTestId('topbar').className).toContain('h-topbar');
-    expect(SHELL.topbar).toBe(52);
+    expect(SHELL.topbar).toBe(60);
   });
 
   it('carries the deployment name, the theme switch, the centre and the account', () => {

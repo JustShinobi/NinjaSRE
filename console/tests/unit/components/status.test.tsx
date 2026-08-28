@@ -314,4 +314,90 @@ describe('the shape, as the stylesheet resolves it rather than as it was meant',
       );
     }
   });
+
+  /**
+   * A pinned, independent copy of the shape mark's own class tables, as they
+   * stood before this feature's chip-outline change — not read from
+   * `status.tsx`, which is what makes this a characterization rather than a
+   * tautology that would pass however the source changed. The chip outline
+   * this feature adds lives in `ROLE_SKIN`, which only ever reaches the
+   * *outer* chip; none of the three tables below is any part of that change,
+   * and this block is the proof that holds for both before and after it.
+   */
+  const PINNED_SHAPE_CLASS: Readonly<Record<Shape, string>> = {
+    'filled-circle': 'icon-inline rounded-full',
+    'hollow-circle': 'icon-inline rounded-full edge-ring',
+    'dimmed-circle': 'icon-inline rounded-full opacity-50',
+    square: 'icon-inline',
+    'rotated-square': 'icon-inline rotate-45',
+    triangle: 'icon-inline clip-triangle',
+    dash: 'icon-inline h-0 edge-ring rounded-full',
+  };
+  const PINNED_ROLE_FILL: Readonly<Record<SemanticRole, string>> = {
+    success: 'bg-success border-success',
+    warning: 'bg-warning border-warning',
+    danger: 'bg-danger border-danger',
+    info: 'bg-info border-info',
+    neutral: 'bg-neutral border-neutral',
+  };
+  const PINNED_ROLE_RING: Readonly<Record<SemanticRole, string>> = {
+    success: 'bg-transparent border-success',
+    warning: 'bg-transparent border-warning',
+    danger: 'bg-transparent border-danger',
+    info: 'bg-transparent border-info',
+    neutral: 'bg-transparent border-neutral',
+  };
+  const PINNED_HOLLOW_SHAPES: readonly Shape[] = ['hollow-circle'];
+
+  it.each(SHAPES)(
+    'the %s mark carries exactly its pinned classes, for every role — before and after the chip outline',
+    (shape) => {
+      for (const role of SEMANTIC_ROLES) {
+        const expected = [
+          ...PINNED_SHAPE_CLASS[shape].split(' '),
+          ...(PINNED_HOLLOW_SHAPES.includes(shape)
+            ? PINNED_ROLE_RING[role]
+            : PINNED_ROLE_FILL[role]
+          ).split(' '),
+          'edge',
+          'inline-block',
+          'shrink-0',
+        ].sort();
+        expect([...markOf(role, shape).classList].sort(), `${shape}/${role}`).toEqual(
+          expected,
+        );
+      }
+    },
+  );
+});
+
+describe('every status chip carries a role-coloured 1px border on its tint', () => {
+  /**
+   * FR-017's claim, confirmed red before `ROLE_SKIN` gains the border: today
+   * only `neutral` carries any boundary at all (`border-border`, a generic
+   * token rather than its own role's), and the other four roles carry none.
+   * After the change all five carry `edge` plus `border-{role}` — their own
+   * role's colour, `neutral` included, which is why this checks `neutral`
+   * exactly like the other four rather than exempting it.
+   */
+  it.each(SEMANTIC_ROLES)(
+    'the %s chip carries `edge` and its own border colour',
+    (role) => {
+      const { container } = render(
+        <ResolvedChip
+          role={role}
+          shape="filled-circle"
+          label="a word"
+          testId="probe-skin"
+        />,
+      );
+      const chip = container.querySelector('[data-testid="probe-skin"]');
+      if (chip === null) throw new Error(`${role} chip did not render`);
+      const classes = [...chip.classList];
+      expect(classes, `${role} chip classes: ${classes.join(' ')}`).toContain('edge');
+      expect(classes, `${role} chip classes: ${classes.join(' ')}`).toContain(
+        `border-${role}`,
+      );
+    },
+  );
 });

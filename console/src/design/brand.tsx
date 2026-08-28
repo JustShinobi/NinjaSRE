@@ -79,7 +79,7 @@ export function Lockup({ name, className }: LockupProps): ReactNode {
   return (
     <span className={cx('flex items-center gap-2', className)}>
       <Mark className="text-accent" />
-      <span className="text-strong">
+      <span className="font-display text-strong">
         <span className="sr-only">{name}</span>
         <span aria-hidden="true">
           {WORDMARK.name}

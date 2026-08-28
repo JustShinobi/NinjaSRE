@@ -29,6 +29,7 @@ import {
   SCROLL_HEIGHTS,
   SHADOWS,
   SHELL,
+  SHIMMER_SWEEP,
   SPACING,
   type Theme,
   TYPE_STEPS,
@@ -39,13 +40,14 @@ import {
  *
  * Four, matched to where an icon appears rather than to a doubling scale: an
  * icon beside body text, an icon in the navigation, an icon in a page header,
- * an icon in an empty state.
+ * an icon in an empty state. The design board's own sizes — its navigation is
+ * drawn at 18px and its empty states at 24px.
  */
 export const ICON_SIZES = {
-  inline: 13,
-  nav: 15,
-  head: 19,
-  empty: 20,
+  inline: 14,
+  nav: 18,
+  head: 20,
+  empty: 24,
 } as const;
 
 /** One custom property, on its own line so a colour can never share one. */
@@ -88,6 +90,8 @@ function scaleDeclarations(): readonly string[] {
   }
   lines.push(declaration('width-page', `${String(CONTENT_WIDTH)}px`));
   lines.push(declaration('width-reading', `${String(READING_WIDTH)}px`));
+  lines.push(declaration('shimmer-sweep', `${String(SHIMMER_SWEEP)}px`));
+  lines.push(declaration('family-display', FONT_STACKS.display));
   lines.push(declaration('family-sans', FONT_STACKS.sans));
   lines.push(declaration('family-mono', FONT_STACKS.mono));
   return lines;

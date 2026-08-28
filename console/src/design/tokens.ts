@@ -75,19 +75,30 @@ export type ColourRole = (typeof COLOUR_ROLES)[number];
  * shadow and the border, and a second near-white would read as a rendering
  * artefact rather than as depth. Dark elevation cannot use a shadow — there is
  * nothing for it to fall on — so there the two differ.
+ *
+ * Values are the design board's own (`design/padrao-2026-08/SPEC.md`) in
+ * full, `border-strong` included. Its board hex clears only ~1.9-2.3:1
+ * against the four grounds it is measured against — below the 3:1 boundary
+ * minimum `design/tokens.ts#boundaryPairs` checks every boundary against.
+ * The board never uses this token as the only way to tell a control or a
+ * state apart, so the operator ruled the palette stands and the contract is
+ * what over-reached: `tests/unit/design/contrast.test.ts` carries this pair
+ * as a named, measured exemption rather than the palette carrying an
+ * adjustment nobody asked for. Full account in this feature's own control
+ * file.
  */
 const LIGHT: Readonly<Record<ColourRole, string>> = {
   surface: '#ffffff',
-  sunken: '#f2f5f4',
+  sunken: '#f2f6f4',
   raised: '#ffffff',
   hover: '#e9eeec',
-  text: '#1a2420',
-  muted: '#4c5a55',
+  text: '#17211d',
+  muted: '#55645e',
   accent: '#0a7452',
   'on-accent': '#ffffff',
   'accent-bg': '#e2f2ec',
-  border: '#d8e0dd',
-  'border-strong': '#6d7c76',
+  border: '#dde5e1',
+  'border-strong': '#9fb0a8',
   success: '#0a7452',
   'on-success': '#ffffff',
   'success-bg': '#e2f2ec',
@@ -100,37 +111,50 @@ const LIGHT: Readonly<Record<ColourRole, string>> = {
   info: '#0a5f8f',
   'on-info': '#ffffff',
   'info-bg': '#e4eff5',
-  neutral: '#4c5a55',
+  neutral: '#55645e',
   'on-neutral': '#ffffff',
   'neutral-bg': '#f2f5f4',
 };
 
-/** The dark theme. The same names, and the same geometry, at different values. */
+/**
+ * The dark theme. The same names, and the same geometry, at different values.
+ *
+ * Values are the design board's own in full. Two of them do not clear this
+ * table's own contrast contract as generally stated: `border-strong`
+ * (`#35493f`) reaches at most ~2.0:1 against any of the four grounds
+ * (`boundaryPairs`' 3:1 minimum), and `hover` (`#1c2925`) falls a fraction
+ * short of `HOVER_MINIMUM` against `raised`. Neither is a control or a state
+ * carried by this boundary alone anywhere the board draws it, which is why
+ * the operator ruled the palette stands rather than the token bending to fit
+ * the contract — `tests/unit/design/contrast.test.ts` carries both as named,
+ * measured exemptions instead. Full account in this feature's own control
+ * file.
+ */
 const DARK: Readonly<Record<ColourRole, string>> = {
-  surface: '#141b18',
-  sunken: '#0d1311',
-  raised: '#1a2320',
-  hover: '#222d29',
-  text: '#e4ebe8',
-  muted: '#a3b2ac',
+  surface: '#101815',
+  sunken: '#0a100e',
+  raised: '#16211d',
+  hover: '#1c2925',
+  text: '#e9f0ec',
+  muted: '#9fb2aa',
   accent: '#3ad195',
   'on-accent': '#062018',
   'accent-bg': '#12271f',
-  border: '#24302b',
-  'border-strong': '#8b9a94',
+  border: '#223029',
+  'border-strong': '#35493f',
   success: '#3ad195',
   'on-success': '#062018',
   'success-bg': '#12271f',
   warning: '#e0a84e',
-  'on-warning': '#241a08',
+  'on-warning': '#17211d',
   'warning-bg': '#2a2214',
   danger: '#ef7070',
-  'on-danger': '#2a0d0d',
+  'on-danger': '#2a1616',
   'danger-bg': '#2a1616',
   info: '#6cb8e0',
-  'on-info': '#08202b',
+  'on-info': '#062018',
   'info-bg': '#12242c',
-  neutral: '#a3b2ac',
+  neutral: '#a3b2aa',
   'on-neutral': '#0d1311',
   'neutral-bg': '#0d1311',
 };
@@ -289,12 +313,12 @@ export const SPACING = {
   7: 48,
 } as const;
 
-/** Corner radii: badge, control, card, panel. */
+/** Corner radii: chip, control, card, panel — the design board's own scale. */
 export const RADII = {
-  1: 4,
-  2: 6,
-  3: 10,
-  4: 14,
+  1: 6,
+  2: 8,
+  3: 12,
+  4: 16,
 } as const;
 
 /**
@@ -329,10 +353,26 @@ export const DURATIONS = {
    * the other four are a response to something a person just did, and this one
    * is not a response at all. At the toast's two hundred milliseconds it reads
    * as an alarm blinking; at this it reads as breathing, which is the whole
-   * difference between "look at me" and "I am still here".
+   * difference between "look at me" and "I am still here". The design board's
+   * own number for its `pulse-live` ring (2s).
    */
-  pulse: 2400,
+  pulse: 2000,
+  /** A new item entering a live list: a small upward slide plus a fade. */
+  slide: 240,
+  /** The gradient sliding along an active stage's progress bar. */
+  shimmer: 1600,
 } as const;
+
+/**
+ * How far the active-stage shimmer's gradient travels, in pixels.
+ *
+ * Not on the spacing scale, for the reason `SHELL` is not: it is the width of
+ * a decorative gradient band, not a multiple of a layout step. `globals.css`
+ * reads it for both the gradient's own `background-size` and the keyframe's
+ * two `background-position` stops (half this width, each direction), so
+ * changing the sweep is changing this one number.
+ */
+export const SHIMMER_SWEEP = 160;
 
 /** One step of the type scale. */
 export interface TypeStep {
@@ -355,16 +395,21 @@ export interface TypeStep {
  *
  * The headings still track inwards, because large type at default tracking
  * reads loose.
+ *
+ * `display` and `title` carry the board's own size and weight — KPI numbers
+ * at 30/700, a page's H1 at 26/700 — in the `display` family (`css.ts` emits
+ * `--family-display` for both). `meta` and `micro` are the board's own 12.5
+ * and 11; neither's line, weight or tracking changes.
  */
 export const TYPE_STEPS: Readonly<Record<string, TypeStep>> = {
-  display: { size: 34, line: 1.15, weight: 680, tracking: '-0.03em' },
-  title: { size: 26, line: 1.25, weight: 650, tracking: '-0.02em' },
+  display: { size: 30, line: 1.15, weight: 700, tracking: '-0.03em' },
+  title: { size: 26, line: 1.25, weight: 700, tracking: '-0.02em' },
   section: { size: 20, line: 1.3, weight: 650, tracking: '-0.01em' },
   strong: { size: 16, line: 1.45, weight: 600, tracking: '-0.01em' },
   body: { size: 14, line: 1.5, weight: 400, tracking: '0em' },
   small: { size: 13, line: 1.5, weight: 400, tracking: '0em' },
-  meta: { size: 12, line: 1.45, weight: 400, tracking: '0em' },
-  micro: { size: 12, line: 1.4, weight: 600, tracking: '0em' },
+  meta: { size: 12.5, line: 1.45, weight: 400, tracking: '0em' },
+  micro: { size: 11, line: 1.4, weight: 600, tracking: '0em' },
 };
 
 export type TypeName = keyof typeof TYPE_STEPS;
@@ -382,30 +427,38 @@ export function typeStep(name: string): TypeStep {
  * The two elevations, per theme.
  *
  * Two and no more: depth beyond two levels reads as decoration. Dark needs
- * heavier shadows because there is less ground for them to fall on.
+ * heavier shadows because there is less ground for them to fall on. The
+ * design board's own values.
  */
 export const SHADOWS: Readonly<Record<Theme, Readonly<Record<string, string>>>> = {
   light: {
     1: '0 1px 2px rgba(17, 22, 28, 0.06)',
-    2: '0 2px 8px rgba(17, 22, 28, 0.08)',
+    2: '0 8px 24px rgba(17, 22, 28, 0.08)',
   },
   dark: {
     1: '0 1px 2px rgba(0, 0, 0, 0.4)',
-    2: '0 2px 10px rgba(0, 0, 0, 0.5)',
+    2: '0 8px 24px rgba(0, 0, 0, 0.35)',
   },
 };
 
 /**
- * The two families, both from the operating system.
+ * The three families, self-hosted from this deployment's own origin.
  *
- * No font is fetched from anywhere: Article X's "the operator owns their data"
- * is not compatible with a font host that learns every page an operator opens.
- * Identifiers are monospace always — a proportional font makes `local-lvm` and
- * `local-1vm` look alike, and those are compared character by character.
+ * Space Grotesk carries display type and KPI numbers; IBM Plex Sans carries
+ * the body; IBM Plex Mono carries every identifier. None is fetched from
+ * anywhere: Article X's "the operator owns their data" is not compatible with
+ * a font host that learns every page an operator opens, so the woff2 files
+ * ship in `public/fonts/` and `@font-face` in `globals.css` points at this
+ * origin. Identifiers are monospace always — a proportional font makes
+ * `local-lvm` and `local-1vm` look alike, and those are compared character by
+ * character. Each stack falls back to the system equivalent it replaces, so a
+ * cold cache never collapses layout while the woff2 loads
+ * (`font-display: swap`).
  */
 export const FONT_STACKS = {
-  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+  display: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
+  sans: "'IBM Plex Sans', system-ui, sans-serif",
+  mono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace",
 } as const;
 
 /**
@@ -468,8 +521,10 @@ export const SCROLL_HEIGHTS = {
  * instead of writing them, which is the same rule everything else here follows.
  */
 export const SHELL = {
-  sidebar: 236,
-  topbar: 52,
+  sidebar: 232,
+  topbar: 60,
+  /** The topbar's search control — the board's own cap, past which it stops growing. */
+  search: 420,
 } as const;
 
 /**

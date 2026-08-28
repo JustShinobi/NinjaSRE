@@ -7,8 +7,9 @@ import { cx } from './cx';
  *
  * Drawn here rather than depended upon for the reason Article X gives: an icon
  * package is a dependency an operator has to audit, and an icon CDN is a
- * request that tells somebody else which page they opened. These are paths on a
- * 24-unit grid with a 2-unit stroke, inheriting `currentColor`, so an icon is
+ * request that tells somebody else which page they opened. These are paths on
+ * a 20-unit grid with a 1.6-unit stroke, round caps and round joins — the
+ * design board's own drawing style — inheriting `currentColor`, so an icon is
  * whatever colour the thing around it is and no icon carries a colour of its
  * own.
  *
@@ -20,6 +21,21 @@ import { cx } from './cx';
  * An icon is never the only carrier of meaning. It is decorative by default —
  * `aria-hidden`, no accessible name — and a control that shows nothing else has
  * to give one, which `IconButton` requires rather than suggests.
+ *
+ * This feature (the visual foundation) redrew every path below to the board's
+ * grid and stroke; it renamed none of them and changed no export's props.
+ * Where the board draws the same concept this set already had a name for, the
+ * new path is the board's own coordinates; the rest keep their previous
+ * silhouette, redrawn at the new grid and stroke. Two nav-icon assignments
+ * moved to a better-fitting existing export instead of the board's exact
+ * concept being drawn under a new name: `routes.ts`'s Incidents entry now
+ * uses `ClockIcon` (the board draws a clock there) instead of
+ * `AlertCircleIcon`, and its Decisions entry uses `ShieldIcon` (the board
+ * draws a shield with a check inside) instead of `CheckIcon` — both were
+ * already exported, already unused at that call site, and neither gained or
+ * lost a signature. `console/tests/unit/design/icon-export-surface.test.tsx`
+ * is the proof that this file's export surface — names, order, prop shape —
+ * is unchanged by any of it.
  */
 
 /** Where the icon sits, which is what decides how big it is. */
@@ -44,7 +60,7 @@ export interface IconProps {
   readonly title?: string;
 }
 
-/** The frame every icon is drawn in. */
+/** The frame every icon is drawn in — the board's own grid and stroke. */
 function Glyph({
   size = 'inline',
   className,
@@ -53,10 +69,10 @@ function Glyph({
 }: IconProps & { readonly children: ReactNode }): ReactNode {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 20 20"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.6"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cx(SIZE_CLASS[size], 'shrink-0', className)}
@@ -72,7 +88,7 @@ function Glyph({
 export function CheckIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M20 6 9 17l-5-5" />
+      <path d="M16.5 5 7.5 14 3.5 10" />
     </Glyph>
   );
 }
@@ -80,7 +96,7 @@ export function CheckIcon(props: IconProps): ReactNode {
 export function CloseIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M18 6 6 18M6 6l12 12" />
+      <path d="M15 5 5 15M5 5l10 10" />
     </Glyph>
   );
 }
@@ -88,7 +104,7 @@ export function CloseIcon(props: IconProps): ReactNode {
 export function PlusIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M12 5v14M5 12h14" />
+      <path d="M10 4.5v11M4.5 10h11" />
     </Glyph>
   );
 }
@@ -96,7 +112,7 @@ export function PlusIcon(props: IconProps): ReactNode {
 export function MinusIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M5 12h14" />
+      <path d="M4.5 10h11" />
     </Glyph>
   );
 }
@@ -104,7 +120,7 @@ export function MinusIcon(props: IconProps): ReactNode {
 export function ChevronRightIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="m9 18 6-6-6-6" />
+      <path d="m7.5 15 5-5-5-5" />
     </Glyph>
   );
 }
@@ -112,7 +128,7 @@ export function ChevronRightIcon(props: IconProps): ReactNode {
 export function ChevronLeftIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="m15 18-6-6 6-6" />
+      <path d="m12.5 15-5-5 5-5" />
     </Glyph>
   );
 }
@@ -120,7 +136,7 @@ export function ChevronLeftIcon(props: IconProps): ReactNode {
 export function ChevronDownIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="m6 9 6 6 6-6" />
+      <path d="m5 7.5 5 5 5-5" />
     </Glyph>
   );
 }
@@ -128,8 +144,8 @@ export function ChevronDownIcon(props: IconProps): ReactNode {
 export function AlertTriangleIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
-      <path d="M12 9v4M12 17h.01" />
+      <path d="M8.6 3.3 1.5 15a1.7 1.7 0 0 0 1.4 2.5h14.2a1.7 1.7 0 0 0 1.4-2.5L11.4 3.3a1.7 1.7 0 0 0-2.8 0Z" />
+      <path d="M10 7.5v3.3M10 14.2h.01" />
     </Glyph>
   );
 }
@@ -137,8 +153,8 @@ export function AlertTriangleIcon(props: IconProps): ReactNode {
 export function AlertCircleIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v4M12 16h.01" />
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 6.7v3.3M10 13.3h.01" />
     </Glyph>
   );
 }
@@ -146,26 +162,28 @@ export function AlertCircleIcon(props: IconProps): ReactNode {
 export function InfoIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 16v-4M12 8h.01" />
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 13.3v-3.3M10 6.7h.01" />
     </Glyph>
   );
 }
 
+/** The board's own clock, drawn for the concept it names — "relógio de incidentes". */
 export function ClockIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 6.2v4.2l2.6 1.6" />
     </Glyph>
   );
 }
 
+/** The board's own search lens — the topbar's search box and the "Investigações" nav entry. */
 export function SearchIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
+      <circle cx="8.6" cy="8.6" r="5.6" />
+      <path d="m13 13 4.4 4.4" />
     </Glyph>
   );
 }
@@ -173,18 +191,19 @@ export function SearchIcon(props: IconProps): ReactNode {
 export function RefreshIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M21 12a9 9 0 1 1-2.6-6.4" />
-      <path d="M21 3v6h-6" />
+      <path d="M17.5 10a7.5 7.5 0 1 1-2.2-5.3" />
+      <path d="M17.5 2.5v5h-5" />
     </Glyph>
   );
 }
 
+/** The board's own server rack — "servidor de recursos". */
 export function ServerIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <rect x="3" y="4" width="18" height="7" rx="1" />
-      <rect x="3" y="13" width="18" height="7" rx="1" />
-      <path d="M7 7.5h.01M7 16.5h.01" />
+      <rect x="2.5" y="3" width="15" height="5.5" rx="1.5" />
+      <rect x="2.5" y="11.5" width="15" height="5.5" rx="1.5" />
+      <path d="M5.6 5.75h.01M5.6 14.25h.01" />
     </Glyph>
   );
 }
@@ -192,25 +211,28 @@ export function ServerIcon(props: IconProps): ReactNode {
 export function DatabaseIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <ellipse cx="12" cy="5.5" rx="8" ry="3" />
-      <path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13" />
-      <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+      <ellipse cx="10" cy="4.6" rx="6.7" ry="2.5" />
+      <path d="M3.3 4.6v10.8c0 1.4 3 2.5 6.7 2.5s6.7-1.1 6.7-2.5V4.6" />
+      <path d="M3.3 10c0 1.4 3 2.5 6.7 2.5s6.7-1.1 6.7-2.5" />
     </Glyph>
   );
 }
 
+/** The board's own pulse line — "pulso do agente". */
 export function ActivityIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M3 12h4l3 8 4-16 3 8h4" />
+      <path d="M2.5 10h3l2-4.5 3 9 2-4.5h5" />
     </Glyph>
   );
 }
 
+/** The board's own shield with a check inside — "escudo de decisões". */
 export function ShieldIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6l-8-3Z" />
+      <path d="M10 2.5l6.5 3v4.7c0 4-2.8 6.6-6.5 7.8-3.7-1.2-6.5-3.8-6.5-7.8V5.5l6.5-3z" />
+      <path d="M7.2 10l2 2 3.6-3.8" />
     </Glyph>
   );
 }
@@ -218,26 +240,30 @@ export function ShieldIcon(props: IconProps): ReactNode {
 export function LayersIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="m12 3 9 5-9 5-9-5 9-5Z" />
-      <path d="m3 13 9 5 9-5" />
+      <path d="M7 3v4a3 3 0 0 0 6 0V3" />
+      <path d="M10 10v3.5" />
+      <path d="M6.5 17h7" />
+      <path d="M10 13.5c-2 0-3.5 1.5-3.5 3.5h7c0-2-1.5-3.5-3.5-3.5z" />
     </Glyph>
   );
 }
 
+/** The board's own gear — "engrenagem de ajustes". */
 export function SettingsIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M10 2.8v2.2M10 15v2.2M2.8 10H5M15 10h2.2M4.9 4.9l1.6 1.6M13.5 13.5l1.6 1.6M15.1 4.9l-1.6 1.6M6.5 13.5l-1.6 1.6" />
     </Glyph>
   );
 }
 
+/** The board's own open book — "livro de conhecimento". */
 export function BookIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5V4.5Z" />
-      <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v4H6.5A2.5 2.5 0 0 1 4 20.5Z" />
+      <path d="M10 4.5c-1.6-1.4-3.8-1.6-6-1v12c2.2-.6 4.4-.4 6 1 1.6-1.4 3.8-1.6 6-1v-12c-2.2-.6-4.4-.4-6 1z" />
+      <path d="M10 4.5v12" />
     </Glyph>
   );
 }
@@ -245,7 +271,7 @@ export function BookIcon(props: IconProps): ReactNode {
 export function ArrowRightIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M4 12h15M13 6l6 6-6 6" />
+      <path d="M3.3 10h12.5M10.8 5l5 5-5 5" />
     </Glyph>
   );
 }
@@ -253,8 +279,8 @@ export function ArrowRightIcon(props: IconProps): ReactNode {
 export function CopyIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <rect x="9" y="9" width="12" height="12" rx="2" />
-      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+      <rect x="7.5" y="7.5" width="10" height="10" rx="1.7" />
+      <path d="M4.2 12.5V4.2a1.7 1.7 0 0 1 1.7-1.7h6.7" />
     </Glyph>
   );
 }
@@ -262,7 +288,7 @@ export function CopyIcon(props: IconProps): ReactNode {
 export function TrashIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13" />
+      <path d="M3.3 5.8h13.3M8.3 5.8V4.2h3.3v1.7M5 5.8l.8 10.8h8.3l.8-10.8" />
     </Glyph>
   );
 }
@@ -270,8 +296,8 @@ export function TrashIcon(props: IconProps): ReactNode {
 export function InboxIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M3 13h5l1.5 3h5L16 13h5" />
-      <path d="M5.5 5h13l2.5 8v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5l2.5-8Z" />
+      <path d="M2.5 10.8h4.2l1.25 2.5h4.2l1.25-2.5h4.2" />
+      <path d="M4.6 4.2h10.8l2.1 6.7v4.2a1.7 1.7 0 0 1-1.7 1.7H4.2a1.7 1.7 0 0 1-1.7-1.7v-4.2l2.1-6.7Z" />
     </Glyph>
   );
 }
@@ -279,30 +305,30 @@ export function InboxIcon(props: IconProps): ReactNode {
 /*
  * The shell's own shapes.
  *
- * Each of the eight below is drawn from the navigation the design reference
- * draws, on the same 24-unit grid at the same 2-unit stroke as the rest of the
- * set. They are here rather than in the shell because a shape used by one
- * surface today is used by three next month, and the second copy is the one
- * that is subtly different.
+ * Each is drawn from the navigation the design board draws, on the same
+ * 20-unit grid at the same 1.6-unit stroke as the rest of the set. They are
+ * here rather than in the shell because a shape used by one surface today is
+ * used by three next month, and the second copy is the one that is subtly
+ * different.
  */
 
-/** The overview: four panels, which is what a dashboard is. */
+/** The board's own four-panel grid — "grade do painel". */
 export function GridIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <rect x="3" y="3" width="7" height="9" rx="1" />
-      <rect x="14" y="3" width="7" height="5" rx="1" />
-      <rect x="14" y="12" width="7" height="9" rx="1" />
-      <rect x="3" y="16" width="7" height="5" rx="1" />
+      <rect x="2.5" y="2.5" width="6" height="6" rx="1.5" />
+      <rect x="11.5" y="2.5" width="6" height="6" rx="1.5" />
+      <rect x="2.5" y="11.5" width="6" height="6" rx="1.5" />
+      <rect x="11.5" y="11.5" width="6" height="6" rx="1.5" />
     </Glyph>
   );
 }
 
-/** A list: what a run log is before it is anything else. */
+/** A list: rows, for wherever this console still needs one (the density toggle). */
 export function ListIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M4 6h16M4 12h16M4 18h10" />
+      <path d="M3.3 5h13.3M3.3 10h13.3M3.3 15h8.3" />
     </Glyph>
   );
 }
@@ -311,8 +337,8 @@ export function ListIcon(props: IconProps): ReactNode {
 export function UsersIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="9" cy="8" r="3" />
-      <path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5M18 20a5 5 0 0 0-2-4" />
+      <circle cx="7.5" cy="6.7" r="2.5" />
+      <path d="M2.5 16.7a5 5 0 0 1 10 0M13.3 4.6a2.5 2.5 0 0 1 0 4.2M15 16.7a4.2 4.2 0 0 0-1.7-3.3" />
     </Glyph>
   );
 }
@@ -321,10 +347,10 @@ export function UsersIcon(props: IconProps): ReactNode {
 export function SitemapIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="5" r="2.5" />
-      <circle cx="5" cy="19" r="2.5" />
-      <circle cx="19" cy="19" r="2.5" />
-      <path d="M12 7.5v4M10 13l-3.5 3.5M14 13l3.5 3.5" />
+      <circle cx="10" cy="4.2" r="2.1" />
+      <circle cx="4.2" cy="15.8" r="2.1" />
+      <circle cx="15.8" cy="15.8" r="2.1" />
+      <path d="M10 6.3v3.3M8.3 10.8l-2.9 2.9M11.7 10.8l2.9 2.9" />
     </Glyph>
   );
 }
@@ -333,7 +359,7 @@ export function SitemapIcon(props: IconProps): ReactNode {
 export function BrainIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M12 3a4 4 0 0 0-4 4c-1.7.6-3 2.2-3 4a4 4 0 0 0 2 3.5V17a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-2.5A4 4 0 0 0 19 11c0-1.8-1.3-3.4-3-4a4 4 0 0 0-4-4Z" />
+      <path d="M10 2.5a3.3 3.3 0 0 0-3.3 3.3c-1.4.5-2.5 1.8-2.5 3.3a3.3 3.3 0 0 0 1.7 2.9v2.3a2.5 2.5 0 0 0 2.5 2.5h3.3a2.5 2.5 0 0 0 2.5-2.5v-2.1a3.3 3.3 0 0 0 1.7-2.9c0-1.5-1.1-2.8-2.5-3.3a3.3 3.3 0 0 0-3.4-3.3Z" />
     </Glyph>
   );
 }
@@ -342,29 +368,29 @@ export function BrainIcon(props: IconProps): ReactNode {
 export function ClipboardIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3" />
-      <rect x="8" y="2" width="8" height="4" rx="1" />
-      <path d="M8 11h8M8 15h5" />
+      <path d="M6.7 2.5H4.2a1.7 1.7 0 0 0-1.7 1.7v11.7a1.7 1.7 0 0 0 1.7 1.7h11.7a1.7 1.7 0 0 0 1.7-1.7V4.2a1.7 1.7 0 0 0-1.7-1.7h-2.5" />
+      <rect x="6.7" y="1.7" width="6.7" height="3.3" rx=".8" />
+      <path d="M6.7 9.2h6.7M6.7 12.5h4.2" />
     </Glyph>
   );
 }
 
-/** The notification centre, which is a bell whether or not it rings. */
+/** The board's own bell — "sino". */
 export function BellIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
-      <path d="M10 21h4" />
+      <path d="M10 3a4.6 4.6 0 0 0-4.6 4.6c0 3.2-1.1 4.6-1.9 5.4h13c-.8-.8-1.9-2.2-1.9-5.4A4.6 4.6 0 0 0 10 3z" />
+      <path d="M8.4 16a1.7 1.7 0 0 0 3.2 0" />
     </Glyph>
   );
 }
 
-/** The theme switch: a disc with rays, which is the same shape in both themes. */
+/** The board's own theme disc with rays — "tema". */
 export function ContrastIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+      <circle cx="10" cy="10" r="3.4" />
+      <path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M15.2 4.8l-1.3 1.3M6.1 13.9l-1.3 1.3" />
     </Glyph>
   );
 }
@@ -373,8 +399,8 @@ export function ContrastIcon(props: IconProps): ReactNode {
 export function CompassIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m15 9-2 5-4 1 2-5 4-1Z" />
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="m12.5 7.5-1.7 4.2-3.3.8 1.7-4.2 3.3-.8Z" />
     </Glyph>
   );
 }
@@ -383,7 +409,7 @@ export function CompassIcon(props: IconProps): ReactNode {
 export function MenuIcon(props: IconProps): ReactNode {
   return (
     <Glyph {...props}>
-      <path d="M4 6h16M4 12h16M4 18h16" />
+      <path d="M3.3 5h13.3M3.3 10h13.3M3.3 15h13.3" />
     </Glyph>
   );
 }

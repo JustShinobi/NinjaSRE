@@ -72,7 +72,7 @@ export function PageHeader({
           page name is a screen that will not say where it is. Two lines of
           heading cost less than that.
         */}
-        <h1 className="text-title break-words" title={titleTooltip}>
+        <h1 className="font-display text-title break-words" title={titleTooltip}>
           {title}
         </h1>
         <p className="text-meta text-muted">{context}</p>

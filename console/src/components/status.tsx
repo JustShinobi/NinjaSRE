@@ -50,22 +50,25 @@ export const CHIP_SHAPE =
   'inline-flex items-center gap-2 px-2 py-1 rounded-full text-meta';
 
 /**
- * The tint and foreground each role wears.
+ * The tint, foreground and outline each role wears.
  *
- * The pair is `${role}` on `${role}-bg`, which the contrast proof already
- * measures at 4.5:1 in both themes — so losing the border costs no legibility
- * and WCAG 1.4.11 does not apply to a chip that is not a control.
- *
- * Neutral is the one exception and keeps a boundary. Its tint is the page
- * ground in the dark theme, so an unbordered neutral chip on a raised card
- * reads as a hole punched through it rather than as an object on it.
+ * The tint pair is `${role}` on `${role}-bg`, which the contrast proof already
+ * measures at 4.5:1 in both themes, and WCAG 1.4.11 does not apply to a chip
+ * that is not a control — so the outline below is the design board's own
+ * choice rather than an accessibility floor. Every role carries `edge` plus a
+ * `border-{role}` in its own colour, `neutral` included: before this it was
+ * the one exception, bordered in the generic `border` token because its tint
+ * is the page ground in the dark theme and an unbordered neutral chip on a
+ * raised card read as a hole punched through it. It is no longer an
+ * exception — the board draws a contoured chip everywhere — so its border is
+ * now `border-neutral` like every other role's is its own.
  */
 const ROLE_SKIN: Readonly<Record<SemanticRole, string>> = {
-  success: 'bg-success-bg text-success',
-  warning: 'bg-warning-bg text-warning',
-  danger: 'bg-danger-bg text-danger',
-  info: 'bg-info-bg text-info',
-  neutral: 'bg-neutral-bg text-neutral edge border-border',
+  success: 'bg-success-bg text-success edge border-success',
+  warning: 'bg-warning-bg text-warning edge border-warning',
+  danger: 'bg-danger-bg text-danger edge border-danger',
+  info: 'bg-info-bg text-info edge border-info',
+  neutral: 'bg-neutral-bg text-neutral edge border-neutral',
 };
 
 /** The fill each role gives a solid shape. */
