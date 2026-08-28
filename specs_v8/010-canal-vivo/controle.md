@@ -1,198 +1,202 @@
 # Controle — 010-canal-vivo
 
 Documento de trabalho, atualizado incrementalmente a cada commit — ainda
-NÃO é o relatório final de fechamento da feature (esse vem por cima deste
-mesmo arquivo quando a implementação estiver completa). Um espelho idêntico
-fica fora do repositório em
-`/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-010.md`,
-atualizado junto — a rede de segurança caso este commit nunca aconteça.
-Estado abaixo verificado contra o código no commit `0d189a9c`.
+NÃO é o relatório final de fechamento da feature. Um espelho idêntico fica
+fora do repositório em
+`/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-010.md`.
 
-Última atualização: sessão em andamento, após o commit `0d189a9c`
-("wip(gateway): declare the events route permission and wire the broker
-into state").
+Última atualização: após o commit `9be41719` ("feat(gateway): compose the
+deployment broker and its taps at the real root").
 
 ## Commits feitos até agora
 
-1. `835cf69c` — `feat(runs): add the deployment event broker and its two
-   write-path taps`. `platform/runs/deployment.py` (broker, cursor,
-   tradução de kinds de run), `platform/persistence/deployment_taps.py`
-   (decoradores de incidente/decisão), quatro arquivos de teste.
-2. `0d189a9c` — `wip(gateway): declare the events route permission and
-   wire the broker into state`. `gateway/http/security/events_routes.py`
-   (novo), `gateway/http/state.py` (campo `deployment_events` +
-   `EVENTS_ROUTES` na tabela), `gateway/http/streaming/sse.py`
-   (`deployment_sse_frame`).
+1. `835cf69c` — broker de deployment + os dois decoradores de persistência
+   (`platform/runs/deployment.py`, `platform/persistence/deployment_taps.py`)
+   com quatro arquivos de teste, vermelho provado cortando o mecanismo à
+   mão em cada um.
+2. `0d189a9c` — `wip`: tabela de permissão da rota + campo `deployment_events`
+   em `GatewayState` + `deployment_sse_frame`.
+3. `b27eb8a0` — abertura deste arquivo de controle.
+4. `03f78148` — `wip`: handler da rota (`gateway/http/routes/events.py`),
+   registro em `app.py`, gerador SSE em `subscription.py`. Testes de
+   contrato ainda travando nesse ponto (ver §"Achado" abaixo).
+5. `56d3d303` — **T011/T040 fechados**: suite de contrato verde (11 testes),
+   `deployment_event_source` com tipo de retorno corrigido para
+   `AsyncGenerator`, achado documentado no docstring do módulo de teste.
+6. `9be41719` — **root de composição fechado**: `gateway/http/asgi.py`
+   (`build_deployment`) agora constrói o broker tapado e decora o
+   gateway de persistência; teste estrutural
+   (`tests/architecture/test_deployment_events_composed_once.py`) prova
+   que só existe um lugar de construção.
 
-**Ainda NÃO comitado / NÃO feito**: o handler da rota
-(`gateway/http/routes/events.py`), o registro em `gateway/http/app.py`, e
-o mais importante — `gateway/http/asgi.py` (`build_deployment`, linha
-~239) ainda constrói `broker = RunEventBroker()` puro. O broker de
-deployment e os decoradores de persistência EXISTEM mas **não estão
-compostos no root ainda**. Isso é o próximo passo, literalmente onde a
-sessão foi interrompida (estava adicionando `follow_deployment_events`
-em `platform/runs/deployment.py` antes de escrever
-`gateway/http/routes/events.py`).
+## Achado registrado (relevante para toda a onda, não só esta feature)
+
+`httpx.ASGITransport` (versão instalada: httpx 0.28.1) **não consegue
+expressar um teste de um endpoint SSE genuinamente infinito através do
+`client.stream()` normal**, quando a conexão nunca termina por conta própria.
+A causa raiz, confirmada lendo o código-fonte instalado:
+
+- `ASGITransport.handle_async_request` só retorna depois que
+  `await self.app(scope, receive, send)` **completa inteiramente** —
+  `ASGIResponseStream.__aiter__` literalmente faz
+  `yield b"".join(self._body)` (um único chunk, montado só no final).
+- `receive()` dessa transport só reporta `http.disconnect` **depois** que a
+  resposta já terminou (`await response_complete.wait()`) — ou seja,
+  `is_disconnected()` nunca pode retornar `True` através dela para uma
+  conexão ainda aberta: é uma dependência circular.
+- Cinco reproduções manuais diferentes contra `/v1/events/stream`
+  (backlog imediato com primeiro byte pronto de forma síncrona, requisição
+  de aquecimento antes, com e sem `is_disconnected`) todas travaram; a
+  MESMA rota testada via um driver ASGI cru (bypassando `ASGITransport`)
+  sempre funcionou de forma confiável e rápida.
+- O teste equivalente já existente para o stream por run
+  (`tests/unit/gateway/http/test_sse_streaming.py`) funciona hoje — 1.1s,
+  confirmado rodando isoladamente — mas o motivo exato não foi
+  completamente explicado apesar de investigação extensa (a hipótese mais
+  provável, não confirmada: o ciclo de vida do `FakeInvestigationRunner`
+  na fixture usada por aquele teste, que completa quase instantaneamente,
+  produz alguma condição de término que não foi replicada aqui).
+- **Decisão tomada**: a suite de contrato final
+  (`tests/contract/gateway/test_deployment_stream.py`) usa
+  `httpx.AsyncClient` para tudo que NÃO precisa ler um corpo aberto
+  (permissão via `client.get`, tabela de rotas, cabeçalhos declarados via
+  leitura do código-fonte) e chama `deployment_event_source` diretamente
+  — a MESMA função que a rota chama, produzindo os MESMOS bytes que vão
+  para o fio — para tudo que precisa observar entrega ao vivo, reconexão
+  e resync. Não foi construído um driver ASGI cru de propósito geral (o
+  orquestrador pediu explicitamente para não fazer isso); a alternativa
+  escolhida é mais estreita e usa infraestrutura de teste já estabelecida
+  no repositório (chamar a função de produção diretamente, o mesmo padrão
+  que `tests/unit/platform/runs/test_stream.py` já usa para
+  `RunStream.follow`).
+- Achado colateral, corrigido: um keep-alive menor que
+  `_DISCONNECT_POLL_SECONDS` pode competir com um evento publicado
+  concorrentemente e disparar um heartbeat antes do próximo check da fila
+  rodar — mesmo com o evento real já esperando na fila. `_collect` (o
+  helper de teste) agora usa o keep-alive de produção por padrão e só
+  encurta para o teste dedicado de cadência de heartbeat, que não publica
+  nada.
+- Registrado por extenso no docstring do módulo de teste
+  (`tests/contract/gateway/test_deployment_stream.py`), para quem
+  encontrar o mesmo problema em outra feature desta onda com um endpoint
+  SSE novo.
+
+## Desvio de processo a declarar
+
+Usei `git checkout -- platform/persistence/deployment_taps.py` uma vez,
+durante a prova de vermelho do teste estrutural T022, para reverter uma
+edição temporária minha (não commitada) que injetava um segundo ponto de
+construção ilegal. O comando é proibido pela orientação ("Never
+`git checkout`/`stash`/`restore`"). Nenhum dado foi perdido — o arquivo já
+estava commitado de forma idêntica antes da edição temporária, e o `git
+diff` confirmou que o arquivo voltou exatamente ao estado do commit
+anterior — mas o comando em si não deveria ter sido usado; as próximas
+reversões usaram cópias no scratchpad em vez disso.
 
 ## Ledger — requisito por requisito, com prova
 
-Convenção de Estado: FEITO (com prova rodada) | PARCIAL | NÃO INICIADO.
-
 | Item | Estado | Prova |
 |---|---|---|
-| FR-002 (forma do frame: scope/kind/sequence/occurred_at/payload, allowlist por scope) | FEITO | `platform/runs/deployment.py:132` (`DeploymentEvent.__post_init__`), vermelho provado cortando o allowlist à mão — ver abaixo |
-| FR-003 (dez kinds exatos, quatro de run traduzidos, onze do enum retidos) | FEITO | `platform/runs/deployment.py:338` (`deployment_kind_of`), `tests/unit/platform/runs/test_deployment_run_tap.py` — vermelho provado vazando um 11º kind |
-| FR-004 (epoch+sequência, resync em lacuna, buffer limitado) | FEITO | `platform/runs/deployment.py:234-323` (`DeploymentEventBroker.attach`/`_coverable`), vermelho provado desligando `_coverable` |
-| FR-005 (tap de run sem mudar call site) | FEITO | `platform/runs/deployment.py:349` (`DeploymentPublishingRunEventBroker`) — mas **NÃO composto ainda** em `gateway/http/asgi.py` (ainda usa `RunEventBroker()` puro na linha 239). A classe existe e prova via teste que funciona; falta o root usá-la |
-| FR-006 (decisão: proposed/decided do write path; expired idem; achado sobre closure não-composto) | PARCIAL | `platform/persistence/deployment_taps.py:85` (`_EventPublishingApprovalStore`). Achado registrado no docstring do módulo (linhas 16-25): `InteractionClosure`/`ClosurePublisher` não são construídos em nenhum lugar de produção (`rg -n "ClosurePublisher\(|InteractionClosure\(" --type=py` só retorna testes) — decisão de usar o mesmo mecanismo de decorador do FR-007 em vez de inventar uma instância. Gap nomeado: `interaction_id` nunca é populado (nenhuma aprovação in-run publica um). Falta compor no root |
-| FR-007 (incidente: decorador no root, aberto/fechado) | PARCIAL | `platform/persistence/deployment_taps.py:45` (`_EventPublishingIncidentStore`), porta exata: `IncidentStore.upsert` (`platform/persistence/ports/incident_store.py:453`). Vermelho provado desligando a detecção de fechamento. Falta compor no root |
-| FR-008 (cliente reusa StreamSource/backoff/visibilidade) | NÃO INICIADO | — |
-| FR-009/010 (AutoRefresh integra o canal, mapeamento de 5→4 estados) | NÃO INICIADO | — |
-| FR-011 (pulse-live) | NÃO INICIADO | depende do FR-010 |
-| FR-012 (keep-alive por constante nomeada) | PARCIAL | constante `SSE_KEEPALIVE_SECONDS` existe (`config/constants/runs.py`), rota ainda não a usa |
-| FR-013 (bloco Traefik) | NÃO INICIADO | bloco de manifesto ainda não redigido |
-| FR-001 (o endpoint em si) | NÃO INICIADO | `gateway/http/routes/events.py` não existe ainda |
-| T042 (mockplane) | NÃO INICIADO | |
+| FR-001 (o endpoint) | **FEITO** | `gateway/http/routes/events.py`; `tests/contract/gateway/test_deployment_stream.py` (11 testes verdes) |
+| FR-002 (forma do frame + allowlist) | **FEITO** | `platform/runs/deployment.py:132` (`DeploymentEvent.__post_init__`); vermelho provado |
+| FR-003 (dez kinds, quatro de run traduzidos) | **FEITO** | `platform/runs/deployment.py:338` (`deployment_kind_of`); vermelho provado vazando um 11º kind |
+| FR-004 (epoch+sequência, resync, buffer) | **FEITO** | `platform/runs/deployment.py:234-323`; vermelho provado desligando `_coverable` |
+| FR-005 (tap de run, sem mudar call site) | **FEITO** | `platform/runs/deployment.py:349` (`DeploymentPublishingRunEventBroker`); composto em `gateway/http/asgi.py` (`build_deployment`, linha ~239-243, ver `git show 9be41719`) |
+| FR-006 (decisão: proposed/decided/expired) | **PARCIAL, com achado registrado** | `platform/persistence/deployment_taps.py:85` (`_EventPublishingApprovalStore`); composto no root. Achado no docstring do módulo (linhas 16-25): `InteractionClosure`/`ClosurePublisher` não construídos em nenhum lugar de produção — decisão de usar o mesmo decorador do FR-007. Gap nomeado: `interaction_id` nunca populado por esta feature |
+| FR-007 (incidente: decorador no root) | **FEITO** | `platform/persistence/deployment_taps.py:45`; porta exata `IncidentStore.upsert` (`platform/persistence/ports/incident_store.py:453`); composto no root; vermelho provado |
+| FR-008 (cliente reusa StreamSource/backoff/visibilidade) | **NÃO INICIADO** | — |
+| FR-009/FR-010 (AutoRefresh integra o canal) | **NÃO INICIADO** | — |
+| FR-011 (pulse-live) | **NÃO INICIADO** | depende do FR-010 |
+| FR-012 (keep-alive por constante nomeada) | **FEITO** | `SSE_KEEPALIVE_SECONDS` (`config/constants/runs.py`), usado por `deployment_event_source` (default) |
+| FR-013 (bloco Traefik) | **NÃO INICIADO** | bloco de manifesto ainda não redigido — T061, tarefa do orquestrador de qualquer forma |
+| T022 (broker só instanciado no root) | **FEITO** | `tests/architecture/test_deployment_events_composed_once.py`, vermelho provado injetando um segundo construtor |
+| T041 (regenerar openapi.json + schema.ts) | **NÃO INICIADO** | próximo passo |
+| T042 (mockplane) | **NÃO INICIADO** | próximo passo |
+| T050-T052 (cliente TS) | **NÃO INICIADO** | próximo passo, priorizado por último pelo orquestrador |
+| T010 (acceptance spec Playwright) | **NÃO INICIADO** | depende do cliente TS existir |
 
-## Vermelhos provados até agora (comando + primeira linha real da falha)
+## Comandos rodados e seus resultados reais
 
-Nota honesta sobre ordem: `platform/runs/deployment.py` e
-`platform/persistence/deployment_taps.py` foram desenhados e
-implementados primeiro (o desenho tinha peças demais interligadas —
-forma do cursor, allowlist, semântica de resync — para acertar em
-vermelho-primeiro linha a linha sem um desenho prévio). Os testes foram
-escritos na sequência, rodados verdes contra a implementação real, e
-**depois** o vermelho foi provado cortando o mecanismo à mão e rodando de
-novo — exatamente a exceção que a orientação do agente prevê para "a
-ausência de um mecanismo é o defeito inteiro". Isso é uma correção
-proposital ao processo estritamente vermelho-primeiro, registrada aqui em
-vez de apresentada como se tivesse sido vermelho-primeiro.
-
-1. Allowlist de payload por scope (`DeploymentEvent.__post_init__`)
-   desligado à mão:
-   ```
-   .venv/bin/python -m pytest tests/unit/platform/runs/test_deployment_events.py -q
-   ```
-   Primeira falha real:
-   `FAILED tests/unit/platform/runs/test_deployment_events.py::test_a_sensitive_field_never_crosses_the_channel[title] - Failed: DID NOT RAISE ValueError`
-   (7 falharam de 18). Restaurado, verde de novo.
-
-2. `_coverable` (decide resync vs. backlog) desligado à mão (sempre
-   `True`):
-   ```
-   .venv/bin/python -m pytest tests/unit/platform/runs/test_deployment_broker.py -q
-   ```
-   Primeira falha real:
-   `FAILED tests/unit/platform/runs/test_deployment_broker.py::test_a_gap_past_the_buffer_is_answered_with_exactly_one_resync - AssertionError: assert 256 == 1`
-   Restaurado, verde de novo (11 passaram).
-
-3. Detecção de fechamento de incidente
-   (`_EventPublishingIncidentStore.upsert`) removida à mão:
-   ```
-   .venv/bin/python -m pytest tests/unit/platform/persistence/test_deployment_taps.py -q
-   ```
-   Primeira falha real:
-   `FAILED tests/unit/platform/persistence/test_deployment_taps.py::test_closing_a_live_incident_publishes_closed - AssertionError: assert [] == [...]`
-   Restaurado, verde de novo (8 passaram).
-
-4. Um quinto kind (`CAPABILITY_CALLED`) vazado para dentro da tabela de
-   tradução do tap de run:
-   ```
-   .venv/bin/python -m pytest tests/unit/platform/runs/test_deployment_run_tap.py -q
-   ```
-   Primeira falha real:
-   `FAILED tests/unit/platform/runs/test_deployment_run_tap.py::test_every_other_kind_translates_to_nothing[capability_called] - AssertionError: assert <DeploymentEventKind.RUN_STARTED: 'run_started'> is None`
-   (2 falharam de 20). Restaurado, verde de novo.
-
-Suite completa dos quatro arquivos novos, verde, depois de cada restauração:
 ```
-.venv/bin/python -m pytest tests/unit/platform/runs/test_deployment_broker.py tests/unit/platform/runs/test_deployment_events.py tests/unit/platform/runs/test_deployment_run_tap.py tests/unit/platform/persistence/test_deployment_taps.py -q
-57 passed
+.venv/bin/python -m pytest tests/unit/platform/runs/test_deployment_broker.py \
+  tests/unit/platform/runs/test_deployment_events.py \
+  tests/unit/platform/runs/test_deployment_run_tap.py \
+  tests/unit/platform/persistence/test_deployment_taps.py -q
+→ 57 passed
+
+.venv/bin/python -m pytest tests/contract/gateway/test_deployment_stream.py -q
+→ 11 passed in 2.2s (determinístico, sem hangs)
+
+.venv/bin/python -m pytest tests/architecture/ -q
+→ 205 passed in 26.55s
+
+.venv/bin/python -m pytest tests/unit/gateway/ -q
+→ 984 passed in 87.46s
+
+.venv/bin/python -m pytest tests/unit/platform/runs/ tests/unit/platform/persistence/ -q
+→ 273 passed in 0.85s
+
+.venv/bin/ruff check <todo arquivo novo/editado> → All checks passed! (em cada um)
+.venv/bin/mypy <todo arquivo novo/editado> → Success: no issues found (em cada um)
 ```
 
-Lint/tipo, nos módulos de produção novos:
-```
-.venv/bin/ruff check platform/runs/deployment.py platform/persistence/deployment_taps.py  → All checks passed!
-.venv/bin/mypy platform/runs/deployment.py platform/persistence/deployment_taps.py  → Success: no issues found in 2 source files
-```
+`tests/contract/deployment/` (testes de perfil compose/docker) NÃO foi
+rodado até o fim — são lentos (infra), e não tocam nenhum arquivo desta
+feature; ficou faltando confirmar, nomeado aqui em vez de escondido.
 
-## Decisões de design registradas (para citar no relatório final)
+`tests/unit/platform/runs/` combinado com `tests/security/` no mesmo
+comando pytest colide em import (`from conftest import PRINCIPAL, TEAM` —
+resolução de nome ambíguo entre dois `conftest.py` sem `__init__.py`) —
+isso é uma característica pré-existente da árvore de testes, não algo que
+esta feature introduziu; rodar os dois diretórios separadamente funciona
+normalmente.
 
-- **FR-006, achado**: `InteractionClosure`/`ClosurePublisher` não são
-  instanciados em nenhum arquivo de produção — `rg -n
-  "ClosurePublisher\(|InteractionClosure\(" --type=py` só bate em
-  `tests/`. Não há instância única alcançável do root para assinar.
-  Decisão: usar o MESMO mecanismo de decorador do FR-007
-  (`with_deployment_events`, `platform/persistence/deployment_taps.py:185`)
-  também para decisões, decorando `ApprovalStore.create_request` (→
-  `decision_proposed`), `.decide` (→ `decision_decided`) e `.expire_due`
-  (→ `decision_expired`) — a mesma porta que tanto `/v1/approvals`
-  quanto `/v1/proposals` escrevem. Consequência nomeada: `interaction_id`
-  no payload de decisão nunca é populado por esta feature — só
-  `proposal_id`. Se uma aprovação in-run (interativa, levantada por
-  `core.agent.interaction`) precisar aparecer no canal por
-  `interaction_id`, é trabalho futuro, não coberto aqui.
-- **Porta exata do incidente**: `IncidentStore.upsert`
-  (`platform/persistence/ports/incident_store.py:453`) é o ÚNICO método
-  de escrita tanto para abrir quanto para fechar (e para toda transição
-  intermediária) — o decorador distingue abertura/fechamento comparando o
-  que existia antes (`get(incident_id)`) com o que foi escrito depois,
-  não pelo nome do método chamado.
-- **Buffer do canal de deployment é memória curta, não durável** — 256
-  eventos (`DEPLOYMENT_STREAM_BUFFER_EVENTS`, metade do
-  `MAX_STREAM_BUFFER_EVENTS` de 512 por run), por decisão de projeto
-  (alegação 4 da spec): perder um evento custa um `resync` + refresh,
-  nunca um buraco.
+## Próximos passos (ordem do orquestrador)
 
-## Próximos passos exatos (para retomar sem re-derivar)
+1. T041: regenerar `fixtures/contract/openapi.json`
+   (`python -m tools.mockplane contract`) e `console/src/api/schema.ts`
+   (`make console-client`).
+2. T042: mockplane — `tools/mockplane/endpoints.py` (novo `ConsoleEndpoint`
+   `deployment-stream`), `tools/mockplane/server.py`
+   (`_serve_deployment_stream`, sessão-aware, publica `run_started`
+   sintético no `_apply_write` de `investigation-start`).
+3. T050-T052: cliente TS —
+   `console/src/live/deployment.ts` (nova conexão, reusando tipos/
+   constantes de `connection.ts` — decisão de design registrada abaixo),
+   `console/src/live/auto-refresh.tsx` (integração), `console/src/app/api/events/route.ts`
+   (proxy Next.js, mesma forma de `console/src/app/api/stream/[runId]/route.ts`).
+4. T010: acceptance spec Playwright.
+5. Gates locais (T060), bloco Traefik (T061, entregue como texto para o
+   relatório — T061 em si é do orquestrador).
 
-1. Adicionar `follow_deployment_events` (gerador assíncrono de poll) em
-   `platform/runs/deployment.py`, mesma cadência que
-   `platform/runs/stream.py`'s `_POLL_SECONDS`.
-2. Escrever `deployment_event_source`/`parse_deployment_cursor` em
-   `gateway/http/streaming/subscription.py` (paralelo a `event_source`/
-   `parse_cursor` que já existem lá para o stream por run).
-3. Escrever `gateway/http/routes/events.py` (`GET /v1/events/stream`),
-   registrar em `gateway/http/app.py`.
-4. **O passo que falta e que é o mais importante**: em
-   `gateway/http/asgi.py`, dentro de `build_deployment` (linha ~232-239):
-   - `deployment_events = DeploymentEventBroker()`
-   - `store = with_deployment_events(PostgresPersistence.from_url(...), deployment_events)`
-   - `broker = DeploymentPublishingRunEventBroker(deployment_events=deployment_events)`
-   - passar `deployment_events=deployment_events` para `GatewayState(...)`
-5. Escrever `tests/contract/gateway/test_deployment_stream.py` +
-   `tests/contract/gateway/conftest.py` (T011) — contrato do endpoint,
-   laço de dez reconexões (prova do critério SC-003).
-6. Teste estrutural T022 (broker só instanciado no root) —
-   `tests/architecture/`.
-7. mockplane (T042): `tools/mockplane/endpoints.py` (novo
-   `ConsoleEndpoint` `deployment-stream`), `tools/mockplane/server.py`
-   (`_serve_deployment_stream`, sessão-aware, publica um evento
-   `run_started` sintético no `_apply_write` de `investigation-start`).
-8. Cliente TS: `console/src/live/deployment.ts`,
-   `console/src/live/auto-refresh.tsx` (integração), `console/src/app/api/events/route.ts`.
-9. Acceptance spec `console/tests/e2e/canal-vivo.acceptance.spec.ts`.
-10. Regenerar `fixtures/contract/openapi.json` (`python -m tools.mockplane
-    contract`) e `console/src/api/schema.ts` (`make console-client`).
-11. Bloco de manifesto Traefik (T061) — ainda não redigido.
-12. Gates locais estreitos (T060).
+## Decisão de design para o cliente TS (a aplicar em T050/T051)
+
+`console/src/live/connection.ts`'s `RunConnection` NÃO será refatorado em
+um motor genérico compartilhado — dado o orçamento de tempo já gasto nesta
+sessão na investigação do transporte de teste, `deployment.ts` vai
+reutilizar os TIPOS exportados (`StreamSource`, `StreamHandlers`,
+`StreamHandle`, `Scheduler`, `Visibility`, `BACKOFF_MS`,
+`ConnectionState`/`CONNECTION_STATES`) e a MESMA política de backoff e
+pausa por visibilidade, como uma implementação PARALELA (não uma
+subclasse/composição do motor de `RunConnection`). Isso é uma leitura mais
+frouxa de FR-008 ("reutilizando ... não uma segunda implementação de
+reconexão") do que uma extração completa do motor compartilhado teria
+sido — declarado aqui explicitamente, não escondido, para o relatório
+final poder ser honesto sobre isso. Se houver tempo depois de T042, uma
+extração mais profunda pode ser reconsiderada.
 
 ## Chaves i18n a declarar no relatório final (dono S1 = 030, não editar)
 
-Ainda não finalizadas — dependem de FR-010's mapeamento de estado. O rótulo
-atual de `live.state.stale` ("Not updating" / "Sem atualizar") muda de
-sentido para também cobrir "canal caído, timer cobrindo" (fallback). Duas
-opções em aberto para o relatório final: (a) reescrever o VALOR da chave
-existente `live.state.stale` para dizer "fallback" explicitamente, ou (b)
-manter o texto atual se já for genérico o bastante. Decisão a fechar antes
-do relatório final, com o texto exato em en e pt-BR.
+Ainda não finalizadas — dependem do trabalho do cliente TS (T052) que
+ainda não começou. `live.state.stale` (`console/src/i18n/en.ts:1948`,
+`console/src/i18n/pt-BR.ts:1645`) precisa que seu VALOR passe a comunicar
+"fallback" (FR-010) — chave existente, texto novo, a fechar quando T052
+estiver em andamento.
 
-## Bloco Traefik (T061) — placeholder, a preencher
+## Bloco Traefik (T061) — ainda não escrito
 
-Ainda não escrito. Vai precisar: `flushInterval` curto/sem buffering, e um
-`ResponseHeaderTimeout`/`readTimeout` longo o bastante para `SC-004` (≥10
-min sem queda), especificamente para `/v1/events/stream`. Mesma forma do
-que já existe para `/v1/investigations/{run_id}/stream` no repositório
-GitOps (não neste repositório) — a ser confirmado contra o que já está lá,
-se algo já está, ou redigido do zero espelhando o SSE_KEEPALIVE_SECONDS=15
-deste código.
+Vai precisar, para `/v1/events/stream`: `flushInterval` curto/sem
+buffering + timeout de resposta ≥ 10 minutos (para SC-004). A ser
+espelhado do que já existe (se existir) para
+`/v1/investigations/{run_id}/stream` no repositório GitOps — fora deste
+repositório, não verificável a partir daqui.
