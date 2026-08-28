@@ -31,7 +31,7 @@ from tools.mockplane.anonymise.pipeline import ProcessedCapture, process
 from tools.mockplane.anonymise.pseudonyms import PseudonymBook
 from tools.mockplane.capture.projection import estate, project
 from tools.mockplane.dataset import profile, served
-from tools.mockplane.dataset.stream import stream_records
+from tools.mockplane.dataset.stream import deployment_stream_records, stream_records
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS, endpoint_by_slug
 from tools.mockplane.identifiers import IdentifierList
 from tools.mockplane.paths import scenario_dir
@@ -237,6 +237,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
         *estate_records,
         *project(reading),
         *stream_records(),
+        *deployment_stream_records(),
         *_write_responses(),
         _gemini_models_record(),
         _gemini_verify_record(),

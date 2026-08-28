@@ -30,12 +30,16 @@ import asyncio
 import contextlib
 import json
 import socket
+import time
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, MutableMapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
 from config.constants.fixtures import (
+    MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
+    MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
     MOCK_SERVER_DEFAULT_PORT,
     MOCK_STREAM_EVENTS_PER_SECOND,
 )
@@ -139,15 +143,29 @@ def no_outbound_network() -> Iterator[None]:
         socket.create_connection = original_create
 
 
+#: The epoch every mock process's deployment stream reports itself as. A fixed
+#: string rather than one generated at start-up: the real gateway's epoch
+#: changes across process restarts and a reconnecting client is expected to
+#: notice, but the mock never restarts mid-scenario, and a fixed epoch is one
+#: a fixture or a test can name without reading it back first.
+DEPLOYMENT_STREAM_EPOCH: Final = "mockplane"
+
+
 @dataclass(slots=True)
 class Session:
     """One client's writes, on top of the scenario's records."""
 
     written: dict[tuple[str, str], CapturedRecord] = field(default_factory=dict)
+    #: The deployment-scoped channel's events this session has published,
+    #: oldest first. Session-scoped rather than shared across sessions for the
+    #: same reason `written` is: a test's writes must not leak into another
+    #: test's mock, and a session that reset must start this empty too.
+    deployment_events: list[dict[str, Any]] = field(default_factory=list)
 
     def clear(self) -> None:
         """Forget everything this session wrote."""
         self.written.clear()
+        self.deployment_events.clear()
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,6 +340,41 @@ class MockPlane:
             if isinstance(event, dict) and int(event.get("sequence", -1)) > after
         )
 
+    def deployment_events_for(self, session: str, *, after: int = -1) -> tuple[dict[str, Any], ...]:
+        """Return this session's deployment-channel events, resuming after a sequence number.
+
+        Session-scoped, unlike `events_for`: the deployment channel has no
+        fixture recording to replay — every event on it exists because
+        `_publish_deployment_event` put it there, in reaction to a write this
+        session made, and a session that never wrote sees nothing here.
+        """
+        return tuple(
+            event
+            for event in self.session(session).deployment_events
+            if int(event.get("sequence", -1)) > after
+        )
+
+    def _publish_deployment_event(
+        self, session: str, *, scope: str, kind: str, payload: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Append one deployment-channel event to ``session`` and return it.
+
+        The allowlist FR-002 declares for the real channel is not re-enforced
+        here: this is a fixture-authoring seam, not the contract under test —
+        `tests/contract/gateway/test_deployment_stream.py` holds the real
+        broker to that allowlist directly.
+        """
+        events = self.session(session).deployment_events
+        event = {
+            "scope": scope,
+            "kind": kind,
+            "sequence": len(events) + 1,
+            "occurred_at": datetime.now(UTC).isoformat(),
+            "payload": dict(payload),
+        }
+        events.append(event)
+        return event
+
     # --- The ASGI shell -------------------------------------------------------
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -345,7 +398,16 @@ class MockPlane:
 
         resolved = match_request(method, path)
         if resolved is not None and resolved[0].streaming:
-            await self._serve_stream(resolved[0], resolved[1], headers, send)
+            # The deployment channel is not scoped by a run_id, carries
+            # several scopes' events and uses an epoch:sequence cursor
+            # instead of `_serve_stream`'s plain integer — declaring it
+            # streaming in the catalogue is not sufficient on its own, so it
+            # gets its own serving path rather than falling into the one
+            # built for a single run's canned replay.
+            if resolved[0].slug == "deployment-stream":
+                await self._serve_deployment_stream(resolved[0], headers, session, send)
+            else:
+                await self._serve_stream(resolved[0], resolved[1], headers, send)
             return
 
         payload = await self._read_body(receive)
@@ -467,6 +529,85 @@ class MockPlane:
             if delay:
                 await asyncio.sleep(delay)
 
+    async def _serve_deployment_stream(
+        self,
+        endpoint: ConsoleEndpoint,
+        headers: Mapping[str, str],
+        session: str,
+        send: Send,
+        *,
+        max_seconds: float = MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
+        poll_seconds: float = MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
+    ) -> None:
+        """Serve the deployment-wide channel: no run_id, several scopes, a live poll.
+
+        Genuinely live, unlike `_serve_stream`'s canned replay: a write this
+        same session makes through `answer` while the connection is open —
+        `_apply_write`'s `investigation-start` case, for one — reaches this
+        generator on its next poll, which is what lets an acceptance spec
+        start an investigation through the UI on one page and see the
+        deployment channel carry it to another. Bounded by
+        `MOCK_DEPLOYMENT_STREAM_MAX_SECONDS` because this ASGI shell is never
+        handed `receive`, so it has no transport-level signal that the client
+        went away — see that constant's own docstring.
+        """
+        epoch, after = _deployment_cursor_of(headers.get("last-event-id", ""))
+        override = self._data.scenario.override_for(endpoint.slug)
+        if override is not None and override.status is not None:
+            body = self._problem_body(override.status, endpoint)
+            encoded = dumps(body).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": override.status,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send({"type": "http.response.body", "body": encoded})
+            return
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    (b"content-type", b"text/event-stream"),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+
+        if epoch != "" and epoch != DEPLOYMENT_STREAM_EPOCH:
+            # A cursor from a foreign epoch: the same confession the real
+            # broker makes, and nothing this mock can honestly replay past.
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": _deployment_sse_frame({"kind": "resync", "sequence": 0, "payload": {}}),
+                    "more_body": True,
+                }
+            )
+            after = -1
+
+        emitted = 0
+        deadline = time.monotonic() + max_seconds
+        while time.monotonic() < deadline:
+            for event in self.deployment_events_for(session, after=after):
+                if self._stream.disconnect_after and emitted >= self._stream.disconnect_after:
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    return
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": _deployment_sse_frame(event),
+                        "more_body": True,
+                    }
+                )
+                after = int(event["sequence"])
+                emitted += 1
+            await asyncio.sleep(poll_seconds)
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
     # --- Internals ------------------------------------------------------------
 
     def _lookup(
@@ -510,6 +651,11 @@ class MockPlane:
             case "investigation-start":
                 started = answer.body if isinstance(answer.body, Mapping) else {}
                 amend("runs", {}, lambda document: _prepend(document, "runs", dict(started)))
+                run_id = str(started.get("run_id", ""))
+                if run_id:
+                    self._publish_deployment_event(
+                        session, scope="run", kind="run_started", payload={"run_id": run_id}
+                    )
             case "investigation-cancel":
                 run_id = arguments.get("run_id", "")
                 amend(
@@ -623,6 +769,37 @@ def _sequence_of(cursor: str) -> int:
         return -1
 
 
+def _deployment_sse_frame(event: Mapping[str, Any]) -> bytes:
+    """Return one deployment-channel event as an ``id``/``event``/``data`` frame.
+
+    ``id`` is ``epoch:sequence`` — always this mock's own fixed epoch, never
+    a run id, because the deployment channel has no single run every frame is
+    a position within.
+    """
+    payload = json.dumps(event, separators=(",", ":"), sort_keys=True)
+    return (
+        f"id: {DEPLOYMENT_STREAM_EPOCH}:{event.get('sequence', 0)}\n"
+        f"event: {event.get('kind', '')}\n"
+        f"data: {payload}\n\n"
+    ).encode()
+
+
+def _deployment_cursor_of(cursor: str) -> tuple[str, int]:
+    """Return the ``(epoch, sequence)`` a ``Last-Event-ID`` header spells.
+
+    ``("", -1)`` for an absent or unparsable header, which a first connection
+    presents no cursor at all and reads the same way a malformed one does:
+    nothing to resume from.
+    """
+    epoch, separator, raw = cursor.rpartition(":")
+    if not separator or not epoch:
+        return "", -1
+    try:
+        return epoch, int(raw)
+    except ValueError:
+        return "", -1
+
+
 def _emptied(body: Any, endpoint: ConsoleEndpoint) -> Any:
     """Return ``body`` with its records removed and its shape kept."""
     if not isinstance(body, Mapping):
@@ -710,6 +887,7 @@ __all__ = [
     "CONTROL_PATH_PREFIX",
     "DEFAULT_DISCONNECT_AFTER",
     "DEFAULT_SESSION",
+    "DEPLOYMENT_STREAM_EPOCH",
     "REQUEST_COUNTS_PATH",
     "SESSION_HEADER",
     "Answer",

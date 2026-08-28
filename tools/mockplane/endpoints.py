@@ -144,6 +144,15 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="a run's events, live",
         streaming=True,
     ),
+    # --- The deployment-wide event channel ---------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/events/stream",
+        slug="deployment-stream",
+        source=_GATEWAY,
+        summary="runs, incidents and decisions changing anywhere in the deployment, live",
+        streaming=True,
+    ),
     # --- Interactions -----------------------------------------------------------
     ConsoleEndpoint(
         method="GET",

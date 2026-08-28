@@ -143,6 +143,23 @@ MOCK_SERVER_DEFAULT_PORT: Final = 8422
 #: otherwise. Slow enough to watch, fast enough not to bore a reviewer.
 MOCK_STREAM_EVENTS_PER_SECOND: Final = 4.0
 
+#: How often the deployment-scoped stream mock checks for a newly published
+#: event, in seconds. Unlike the per-run stream — a canned recording replayed
+#: at a fixed rate — this channel is genuinely live: a test drives a write
+#: through the mock while the connection is open, and this is how soon after
+#: that write the stream notices it.
+MOCK_DEPLOYMENT_STREAM_POLL_SECONDS: Final = 0.05
+
+#: How long the deployment-scoped stream mock keeps a quiet connection open
+#: before ending it on its own, in seconds. A real deployment's channel stays
+#: open until the client disconnects; this mock has no transport-level
+#: disconnect signal to wait on (`tools.mockplane.server`'s ASGI shell is
+#: never handed `receive`), so a bound here is what keeps an unattended
+#: connection — an e2e harness that never closes it, a test client that
+#: fully buffers a response the way `httpx.ASGITransport` does — from
+#: running forever instead of failing loudly.
+MOCK_DEPLOYMENT_STREAM_MAX_SECONDS: Final = 30.0
+
 
 __all__ = [
     "DEFAULT_FIXTURE_SCENARIO",
@@ -159,6 +176,8 @@ __all__ = [
     "FIXTURE_SCENARIO_LOAD_BUDGET_SECONDS",
     "FIXTURE_SCENARIO_NAMES",
     "GENERATED_FIXTURE_SCENARIOS",
+    "MOCK_DEPLOYMENT_STREAM_MAX_SECONDS",
+    "MOCK_DEPLOYMENT_STREAM_POLL_SECONDS",
     "MOCK_SERVER_DEFAULT_PORT",
     "MOCK_STREAM_EVENTS_PER_SECOND",
     "NINJASRE_CAPTURE_ENDPOINT_ENV",
