@@ -12158,6 +12158,70 @@
         ]
       }
     },
+    "/v1/events/stream": {
+      "get": {
+        "description": "Stream the deployment's runs, incidents and decisions changing, live.\n\n``auth`` is required and checked against the route table (the same\npermission `GET /v1/runs` needs) but otherwise unused: this channel is not\nscoped to a tenant, a run, or anything else the caller names — it is one\nprocess-wide feed, and what each viewer may read of any given id is still\ndecided, as always, by the read route they ask for it with.",
+        "operationId": "stream_deployment_events_v1_events_stream_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Deployment Events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/v1/incidents": {
       "get": {
         "description": "Return the incidents matching every filter given, most recent first.",

@@ -1332,6 +1332,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Deployment Events
+         * @description Stream the deployment's runs, incidents and decisions changing, live.
+         *
+         *     ``auth`` is required and checked against the route table (the same
+         *     permission `GET /v1/runs` needs) but otherwise unused: this channel is not
+         *     scoped to a tenant, a run, or anything else the caller names — it is one
+         *     process-wide feed, and what each viewer may read of any given id is still
+         *     decided, as always, by the read route they ask for it with.
+         */
+        get: operations["stream_deployment_events_v1_events_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/incidents": {
         parameters: {
             query?: never;
@@ -9441,6 +9467,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnresolvedTargetListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_deployment_events_v1_events_stream_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Last-Event-ID"?: string | null;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
