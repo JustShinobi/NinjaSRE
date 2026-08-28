@@ -282,8 +282,8 @@ CONSOLE_SESSION_ENDPOINT: Final = "/api/session"
 CONSOLE_SIDEBAR_BREAKPOINT_PX: Final = 768
 
 #: The sidebar's width and the utility bar's height, as the design draws them.
-CONSOLE_SIDEBAR_WIDTH_PX: Final = 236
-CONSOLE_TOPBAR_HEIGHT_PX: Final = 52
+CONSOLE_SIDEBAR_WIDTH_PX: Final = 232
+CONSOLE_TOPBAR_HEIGHT_PX: Final = 60
 
 #: The locales the console carries, in the order the catalogue declares them.
 CONSOLE_LOCALES: Final[tuple[str, ...]] = ("en", "pt-BR")
