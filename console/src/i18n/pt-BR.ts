@@ -282,7 +282,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Como o parque está ligado, tal como a plataforma o entende.',
   'page.detectors.title': 'Detectores',
   'page.detectors.context':
-    'O que está a ser observado, com que frequência, e o que disparou.',
+    'O que está sendo observado, com que frequência, e o que disparou.',
   'page.memory.title': 'Memória',
   'page.memory.context':
     'O que as investigações anteriores deixaram, e o que foi aprendido com elas.',
@@ -348,12 +348,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // --- The emergency stop ------------------------------------------------------
   'stop.engage': 'Parar a automação',
   'stop.consequence':
-    'Isto pára toda escrita automática, imediatamente, em tudo o que este deployment faz. As investigações continuam a correr e a propor; nada é aplicado até alguém libertar.',
+    'Isto para toda escrita automática, imediatamente, em tudo o que este deployment faz. As investigações continuam rodando e propondo; nada é aplicado até alguém liberar.',
   'stop.confirm': 'Parar tudo agora',
   'stop.cancel': 'Deixar a correr',
   'stop.release': 'Deixar a automação correr de novo',
   'stop.engaged':
-    'As escritas automáticas estão paradas. As investigações continuam a correr e a propor; nada é aplicado.',
+    'As escritas automáticas estão paradas. As investigações continuam rodando e propondo; nada é aplicado.',
   'stop.engaged.by': 'Parado por {by}, {since}.',
   'stop.engaged.unknown': 'Parado antes de esta tela poder dizer quem ou quando.',
   'stop.engaged.howToRelease':
@@ -363,7 +363,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'stop.refused': 'O deployment recusou mudar a paragem.',
   'stop.unreachable': 'Não foi possível alcançar o deployment. Pare-o à mão.',
 
-  'shell.guardian.active': 'Guardião activo',
+  'shell.guardian.active': 'Guardião ativo',
   'shell.guardian.silent': 'Guardião silencioso',
   'shell.guardian.state': '{liveness} · {posture}',
   'shell.guardian.posture.propose': 'apenas propõe',
@@ -372,7 +372,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.guardian.tooltip':
     'O que a postura significa: "apenas propõe" mostra cada mudança e o seu raio de impacto, e não aplica nada até você aprovar. Abra Autonomia para ver ou mudar.',
 
-  'notifications.title': 'Precisa de si',
+  'notifications.title': 'Precisa de você',
   'notifications.open': 'Notificações',
   'notifications.unread': '{count} por ler',
   'notifications.empty': 'Nada está à espera de uma pessoa.',
@@ -391,7 +391,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'failure.store.title': 'Este deployment não alcança a própria base de dados',
   'failure.store.action':
     'Nada neste console resolve isto — quem opera o deployment precisa de olhar.',
-  'failure.migrations.title': 'Este deployment está a correr um esquema antigo',
+  'failure.migrations.title': 'Este deployment está rodando um esquema antigo',
   'failure.migrations.action':
     'A base de dados está atrás do código. Quem opera o deployment precisa de aplicar as migrações.',
   'failure.unknown.title': 'Algo correu mal que este console não sabe explicar',
@@ -409,15 +409,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'palette.group.found-runs': 'Investigações correspondentes',
   'palette.group.navigate': 'Ir para',
   'palette.group.runs': 'Investigações recentes',
-  'palette.group.actions': 'Acções',
+  'palette.group.actions': 'Ações',
   'palette.close': 'Fechar a paleta',
 
   'noAdministrator.title': 'Este deployment ainda não tem administrador',
   'noAdministrator.body': 'Rode o comando abaixo no host para criar um.',
   'signIn.title': 'Entrar',
-  'signIn.context': 'Esta consola contacta a sua instalação e mais nada.',
-  'signIn.username': 'Utilizador',
-  'signIn.password': 'Palavra-passe',
+  'signIn.context': 'Este console contata a sua instalação e mais nada.',
+  'signIn.username': 'Usuário',
+  'signIn.password': 'Senha',
   'signIn.submit': 'Entrar',
   'signIn.rejected': 'Esse usuário e essa senha não foram aceitos.',
   'signIn.unreachable': 'Não foi possível contatar a instalação.',
@@ -426,14 +426,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'session.expiring': 'Esta sessão termina em {duration}.',
   'session.expiring.action': 'Continuar com sessão iniciada',
   'session.impersonation.label': 'Personificação',
-  'session.impersonation.banner': '{actor} está a agir como {subject}.',
+  'session.impersonation.banner': '{actor} está agindo como {subject}.',
 
   'error.title': 'Não foi possível mostrar esta página',
   'error.context':
-    'O resto da consola continua a funcionar. Tentar de novo recarrega apenas esta página.',
+    'O resto do console continua funcionando. Tentar de novo recarrega apenas esta página.',
   'error.retry': 'Tentar de novo',
   'notFound.title': 'Não existe essa página',
-  'notFound.context': 'O endereço não corresponde a nenhuma área desta consola.',
+  'notFound.context': 'O endereço não corresponde a nenhuma área deste console.',
   'notFound.action': 'Ir para a visão geral',
 
   'breadcrumb.label': 'Trilho',
@@ -455,14 +455,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'surface.loading': 'A carregar {panel}…',
   'surface.error.heading': 'Não foi possível preencher este painel',
   'surface.error.detail':
-    'não respondeu. O resto desta página não é afectado e apenas este painel será tentado de novo.',
+    'não respondeu. O resto desta página não é afetado e apenas este painel será tentado de novo.',
   'surface.error.retry': 'Tentar este painel de novo',
   'surface.open': 'Abrir',
   'surface.sort.ascending': 'ordenar por {column}, do menor para o maior',
   'surface.sort.descending': 'ordenar por {column}, do maior para o menor',
   'surface.filter.any': 'Qualquer',
   'surface.showing': 'A mostrar {shown} de {total}.',
-  'surface.none': 'Não registado',
+  'surface.none': 'Não registrado',
   'surface.export': 'Exportar',
   'surface.payload.bounded':
     '{total} linhas no conteúdo; a mostrar as primeiras {shown}.',
@@ -472,7 +472,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'surface.payload.copied': 'Copiado',
 
   'transcript.title': 'Transcrição da investigação',
-  'transcript.kind.objective': 'Objectivo',
+  'transcript.kind.objective': 'Objetivo',
   'transcript.kind.reasoning': 'Raciocínio',
   'transcript.kind.call': 'Chamada de capacidade',
   'transcript.kind.result': 'Resultado da capacidade',
@@ -541,14 +541,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.findings.title': 'Descobertas até agora',
   'run.findings.none': 'Nenhum estágio terminou com uma descoberta ainda.',
 
-  'dashboard.attention.title': 'Precisa de si',
-  'dashboard.attention.count': '{count} itens precisam de si',
-  'dashboard.attention.count.one': '{count} item precisa de si',
+  'dashboard.attention.title': 'Precisa de você',
+  'dashboard.attention.count': '{count} itens precisam de você',
+  'dashboard.attention.count.one': '{count} item precisa de você',
   'dashboard.attention.oldest': 'À espera há mais tempo: {age}',
   'dashboard.attention.empty.heading': 'Nada está à espera de uma pessoa',
   'dashboard.attention.empty.body':
     'Aprovações, perguntas do agente e investigações falhadas aparecem aqui assim que existirem. Não existe nenhuma.',
-  'dashboard.attention.empty.action': 'Ver o que está a correr',
+  'dashboard.attention.empty.action': 'Ver o que está rodando',
   'dashboard.stat.watched': 'Recursos vigiados',
   'dashboard.stat.watched.context': '{kinds}',
   'dashboard.stat.healthy': 'Saudáveis',
@@ -566,7 +566,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.timeToCause.context': 'mediana de {settled} · mais lenta {slowest}',
   'dashboard.stat.timeToCause.context.none': 'Nenhuma investigação terminou ainda.',
   'dashboard.stat.drill': 'Ver a lista por trás deste número',
-  'dashboard.activity.title': 'Actividade recente',
+  'dashboard.activity.title': 'Atividade recente',
   'dashboard.activity.empty.heading': 'Ainda não aconteceu nada',
   'dashboard.activity.empty.body':
     'Investigações, incidentes e varreduras aparecem aqui à medida que acontecem. Ligue uma fonte de infra-estrutura e a primeira varredura começa dentro de um minuto.',
@@ -577,22 +577,22 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.hero.action': 'Continuar a configuração',
   'dashboard.hero.empty.heading': 'O estado da configuração não pôde ser lido',
   'dashboard.hero.empty.body':
-    'Isto é lido a partir da checklist de configuração da própria instalação, e ela não respondeu. O resto desta página não é afectado.',
+    'Isto é lido a partir da checklist de configuração da própria instalação, e ela não respondeu. O resto desta página não é afetado.',
   'dashboard.hero.empty.action': 'Abrir os primeiros passos',
-  'dashboard.quickActions.title': 'Acções rápidas',
+  'dashboard.quickActions.title': 'Ações rápidas',
   'dashboard.quickActions.empty.heading': 'Nada a fazer a partir daqui',
   'dashboard.quickActions.empty.body':
-    'Estes são os destinos que a checklist de configuração está a pedir. Não está a pedir nenhum.',
+    'Estes são os destinos que a checklist de configuração está pedindo. Não está pedindo nenhum.',
   'dashboard.quickActions.empty.action': 'Ir para a visão geral',
   'dashboard.guardian.title': 'Guardião',
   'dashboard.guardian.posture': 'Postura',
   'dashboard.guardian.liveness': 'Vivacidade',
-  'dashboard.guardian.detectors': 'Detectores activos',
+  'dashboard.guardian.detectors': 'Detectores ativos',
   'dashboard.guardian.detectors.value': '{live} de {total}',
   'dashboard.guardian.review': 'Rever a postura',
   'dashboard.guardian.empty.heading': 'O guardião não reportou',
   'dashboard.guardian.empty.body':
-    'Um guardião que parou é exactamente igual a um cluster sem problemas, por isso este painel diz-lho em vez de ficar calado.',
+    'Um guardião que parou é exatamente igual a um cluster sem problemas, por isso este painel avisa em vez de ficar calado.',
   'dashboard.guardian.empty.action': 'Ver a instalação',
 
   'runs.column.run': 'Investigação',
@@ -609,17 +609,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'runs.trigger.alert': 'Alerta',
   'runs.trigger.scheduled': 'Agendada',
   'runs.trigger.specialist': 'Especialista',
-  'runs.list.caption': 'Todas as investigações registadas por esta instalação',
+  'runs.list.caption': 'Todas as investigações registradas por esta instalação',
   'runs.live.title': 'Vivas agora',
   'runs.live.count.one': '{count} em voo',
   'runs.live.count': '{count} em voo',
   'runs.empty.heading': 'Ainda não há investigações',
   'runs.empty.body':
-    'Uma investigação é registada quando um alerta, um horário ou uma pessoa inicia uma. Nenhuma foi registada.',
+    'Uma investigação é registrada quando um alerta, um horário ou uma pessoa inicia uma. Nenhuma foi registrada.',
   'runs.empty.action': 'Iniciar uma investigação',
   'runs.filtered.heading': 'Nenhuma investigação corresponde a esses filtros',
   'runs.filtered.body':
-    'Todos os filtros estão no endereço, por isso limpá-los é uma navegação e a vista que tinha continua partilhável.',
+    'Todos os filtros estão no endereço, por isso limpá-los é uma navegação e a vista que tinha continua compartilhável.',
   'runs.filtered.action': 'Limpar os filtros',
   'run.summary.title': 'O que esta investigação encontrou',
   'run.usage.title': 'Custo e tokens',
@@ -633,9 +633,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.unpriced.short': 'sem preço',
   'run.usage.apportioned':
     'A investigação reporta um total; a divisão abaixo é esse total repartido pelos seus passos.',
-  'run.usage.empty.heading': 'Nenhum custo registado',
+  'run.usage.empty.heading': 'Nenhum custo registrado',
   'run.usage.empty.body':
-    'O custo e os tokens são registados por passo. Esta investigação ainda não deu nenhum.',
+    'O custo e os tokens são registrados por passo. Esta investigação ainda não deu nenhum.',
   'run.usage.empty.action': 'Voltar às investigações',
   'run.changes.title': 'O que mudou, na mesma régua',
   'run.changes.body':
@@ -761,7 +761,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.empty.heading': 'Nenhum incidente aberto',
   'incidents.empty.body':
     'Um detector abre um incidente quando o que vigia ultrapassa o seu limiar. Nenhum o fez.',
-  'incidents.empty.action': 'Ver o que está a ser vigiado',
+  'incidents.empty.action': 'Ver o que está sendo vigiado',
   'incidents.preview.link': 'Ver um incidente de exemplo',
   'incidents.preview.title': 'Como é um incidente',
   'incidents.preview.body':
@@ -782,14 +782,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.derivation.lead':
     'Derivado de {count} sinais — não de uma cadeia de texto do fornecedor.',
   'incident.derivation.retained': 'O estado em bruto do fornecedor é conservado.',
-  'incident.derivation.empty.heading': 'Nenhuma derivação registada',
+  'incident.derivation.empty.heading': 'Nenhuma derivação registrada',
   'incident.derivation.empty.body':
-    'A saúde é derivada de sinais nomeados contra limiares nomeados. Nenhum foi registado para este assunto.',
+    'A saúde é derivada de sinais nomeados contra limiares nomeados. Nenhum foi registrado para este assunto.',
   'incident.derivation.empty.action': 'Ver os detectores',
   'incident.timeline.title': 'Cronologia',
   'incident.timeline.empty.heading': 'Ainda não aconteceu nada',
   'incident.timeline.empty.body':
-    'As mudanças de estado são registadas aqui à medida que acontecem. Este incidente não teve nenhuma desde que abriu.',
+    'As mudanças de estado são registradas aqui à medida que acontecem. Este incidente não teve nenhuma desde que abriu.',
   'incident.timeline.empty.action': 'Voltar à lista de incidentes',
 
   // --- A tela do incidente (M6) -------------------------------------------------
@@ -869,7 +869,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'approvals.empty.heading': 'Nada está à espera de uma decisão',
   'approvals.empty.body':
     'Uma mudança que precisa de uma pessoa aparece aqui com o seu raio de impacto e o seu plano de reversão. Nenhuma aparece.',
-  'approvals.empty.action': 'Ver o que está a correr',
+  'approvals.empty.action': 'Ver o que está rodando',
   'approvals.otherInbox': 'Para mudanças que o agente propôs para o deployment:',
   'approvals.empty.rule':
     'A regra ativa pede aprovação para ações em {threshold} e acima.',
@@ -889,7 +889,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'proposal.autonomy': 'Autonomia',
   'proposal.approve': 'Aprovar',
   'proposal.reject': 'Rejeitar',
-  'proposal.reason': 'Porque está a ser rejeitada',
+  'proposal.reason': 'Porque está sendo rejeitada',
   'proposal.reason.required': 'É obrigatório indicar um motivo para rejeitar.',
   'proposal.norollback': 'Sem plano de reversão — esta mudança é irreversível.',
   'proposal.queued': 'Esta mudança é posta em fila em vez de aplicada.',
@@ -1005,10 +1005,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // --- Schedules -------------------------------------------------------------------------
   'schedules.title': 'Investigações agendadas',
   'schedules.caption':
-    'Cada investigação recorrente que esta equipa agendou, e em que corre',
+    'Cada investigação recorrente que esta equipe agendou, e em que corre',
   'schedules.empty.heading': 'Ainda não há investigações agendadas',
   'schedules.empty.body':
-    'Um agendamento corre uma investigação segundo uma expressão cron, por si só, sem que alguém a inicie. Ainda não há nenhum configurado para esta equipa.',
+    'Um agendamento corre uma investigação segundo uma expressão cron, por si só, sem que alguém a inicie. Ainda não há nenhum configurado para esta equipe.',
   'schedules.empty.action': 'Criar um abaixo',
   'schedules.column.name': 'Nome',
   'schedules.column.cron': 'Cron',
@@ -1098,7 +1098,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.strategies.edit': 'Editar esta estratégia',
   'memory.strategies.empty.heading': 'Ainda não há estratégias',
   'memory.strategies.empty.body':
-    'Uma estratégia é sintetizada quando episódios suficientes concordam sobre o que resultou. Não foram registados que cheguem.',
+    'Uma estratégia é sintetizada quando episódios suficientes concordam sobre o que resultou. Não foram registrados que cheguem.',
   'memory.strategies.empty.action': 'Ver os episódios',
 
   'knowledge.documents.title': 'Documentos',
@@ -1141,7 +1141,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'topology.bounded':
     'A mostrar {shown} de {total} vizinhos; a lista abaixo tem todos.',
   'topology.select': 'Escolher um nó',
-  'topology.empty.heading': 'Nenhuma topologia registada',
+  'topology.empty.heading': 'Nenhuma topologia registrada',
   'topology.empty.body':
     'O grafo é construído a partir do que as investigações observam. Nada foi observado sobre este nó.',
   'topology.empty.action': 'Ver o parque',
@@ -1233,7 +1233,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.bounds.title': 'Limites e exceções de nível',
   'autonomy.preview.title': 'Pré-visualizar antes de aplicar',
   'autonomy.preview.lead':
-    'O que a mudança pendente teria feito contra o histórico registado.',
+    'O que a mudança pendente teria feito contra o histórico registrado.',
   'autonomy.preview.apply': 'Aplicar esta postura',
   'autonomy.empty.heading': 'Nenhuma política registrada',
   'autonomy.empty.body':
@@ -1290,7 +1290,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Salvar isto põe a mudança em fila em vez de a aplicar.',
   'configuration.preview.title': 'O que salvar iria resolver',
   'configuration.preview.lead':
-    'Foi a instalação que calculou isto, não a consola. Uma junção do lado do cliente que concorda hoje é uma que discorda depois da próxima mudança.',
+    'Foi a instalação que calculou isto, não o console. Uma junção do lado do cliente que concorda hoje é uma que discorda depois da próxima mudança.',
   'configuration.preview.before': 'Agora',
   'configuration.preview.after': 'Depois de salvar',
   'configuration.preview.empty.heading': 'Nada mudaria',
@@ -1666,7 +1666,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.sso.notConfigured': 'Ainda não configurado',
   'admin.sso.configure': 'Configurar o início de sessão único',
   'admin.sso.state': 'Estado',
-  'admin.empty.heading': 'Ninguém além de si',
+  'admin.empty.heading': 'Ninguém além de você',
   'admin.empty.body':
     'Identidades, atribuições e tokens aparecem aqui à medida que são emitidos. Só existe a conta com que iniciou sessão.',
   'admin.empty.action': 'Emitir um token',
@@ -1680,9 +1680,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'audit.column.outcome': 'Desfecho',
   'audit.filter.actor': 'Identidade',
   'audit.filter.action': 'Ação',
-  'audit.empty.heading': 'Nada foi registado',
+  'audit.empty.heading': 'Nada foi registrado',
   'audit.empty.body':
-    'Todas as ações com consequência são escritas aqui quando acontecem. Nenhuma aconteceu no período que está a ver.',
+    'Todas as ações com consequência são escritas aqui quando acontecem. Nenhuma aconteceu no período que está vendo.',
   'audit.empty.action': 'Alargar o período',
 
   // --- Live -----------------------------------------------------------------------------------------
