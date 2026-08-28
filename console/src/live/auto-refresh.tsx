@@ -9,7 +9,7 @@ import { CHIP_SHAPE } from '@/components/status';
 import { cx } from '@/design/cx';
 import type { ConnectionState, StreamSource } from './connection';
 import { DeploymentConnection } from './deployment';
-import { delayAfter, type Freshness } from './freshness';
+import { STALE_AFTER_FAILURES, delayAfter, type Freshness } from './freshness';
 import { fetchStreamSource } from './transport';
 
 /**
@@ -45,22 +45,41 @@ import { fetchStreamSource } from './transport';
  * up on it. `freshnessOf` (three consecutive *timer* failures means stale)
  * only ever runs during that fallback window now; `freshnessFromConnection`
  * is what the chip reads while the channel is the one in charge.
+ *
+ * **Why the chip does not simply wait for `disconnected`.** `BACKOFF_MS` and
+ * `MAX_RECONNECTIONS` are `connection.ts`'s own — ten attempts, the last
+ * five capped at eight seconds apiece — and a connection that keeps
+ * retrying does not reach `disconnected` until roughly fifty-five seconds
+ * have passed. Mapping `reconnecting` to `refreshing` for the whole of that
+ * window, as a literal reading of the five-states-to-four table would, is
+ * what a real run of this feature's own acceptance spec against the local
+ * mock harness caught: the chip stayed on `refreshing` for the full
+ * thirty-second budget the spec (and SC-002) allow, never once reaching
+ * `stale`. `STALE_AFTER_FAILURES` — the same three-failures threshold
+ * `freshnessOf` already uses for the timer-only mechanism — is reused here
+ * as the point past which a `reconnecting` channel is shown as `stale`
+ * rather than `refreshing`: real trouble, not a first blip, and well inside
+ * thirty seconds (`BACKOFF_MS[0] + BACKOFF_MS[1]` is under two seconds
+ * before the third attempt even starts).
  */
 
 /**
  * The four `Freshness` states the five `ConnectionState` values collapse
  * onto — no new chip state, as the decision that governs every indicator on
  * this console requires. `connecting` reads the same as `reconnecting`
- * (`refreshing`): both are "not delivering yet, trying to be", and the chip
- * has never distinguished a first attempt from a retry.
+ * below `STALE_AFTER_FAILURES` attempts (`refreshing`): both are "not
+ * delivering yet, trying to be", and the chip has never distinguished a
+ * first attempt from an early retry. Past that many attempts, `reconnecting`
+ * reads as `stale` instead — see the module docstring for why the plain
+ * one-to-one mapping is not what this returns.
  */
-function freshnessFromConnection(state: ConnectionState): Freshness {
+function freshnessFromConnection(state: ConnectionState, attempts: number): Freshness {
   switch (state) {
     case 'connected':
       return 'live';
     case 'connecting':
     case 'reconnecting':
-      return 'refreshing';
+      return attempts >= STALE_AFTER_FAILURES ? 'stale' : 'refreshing';
     case 'idle':
       return 'paused';
     case 'disconnected':
@@ -159,10 +178,11 @@ export function AutoRefresh({ locale, deploymentSource = fetchStreamSource }: Au
   const [visible, setVisible] = useState(true);
   const [tick, setTick] = useState(0);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connection = useRef<DeploymentConnection | null>(null);
 
-  const state = freshnessFromConnection(connectionState);
+  const state = freshnessFromConnection(connectionState, connectionAttempts);
 
   const refresh = useCallback(() => {
     // A reachability probe rather than a guess: `router.refresh()` returns
@@ -210,6 +230,17 @@ export function AutoRefresh({ locale, deploymentSource = fetchStreamSource }: Au
     const opened = new DeploymentConnection({
       source: deploymentSource,
       onState: setConnectionState,
+      // Not read from inside `onState`: a second, third, ... consecutive
+      // failure leaves the connection state as `reconnecting` both before
+      // and after, and `connection.ts`'s own `#setState` drops a call that
+      // would not change the state string — `onState` would fire exactly
+      // once per retry *sequence*, not once per attempt. `onAttempt` is the
+      // hook that does fire every time, which is what lets the chip notice
+      // the third failure and switch to `stale` instead of staying on
+      // `refreshing` for the whole of a ten-attempt backoff — found by
+      // running this feature's own acceptance spec for real and watching
+      // the chip never leave `refreshing` despite five failed attempts.
+      onAttempt: setConnectionAttempts,
       onEvents: () => {
         refreshRef.current();
       },

@@ -117,6 +117,17 @@ export interface DeploymentConnectionOptions {
   /** A batch of real events — never includes a `resync`, which is its own callback. */
   readonly onEvents: (events: readonly DeploymentEvent[]) => void;
   readonly onResync: () => void;
+  /**
+   * Called on every failed attempt, with the running count — including a
+   * second, third, ... failure that leaves the state as `reconnecting` both
+   * before and after. `onState` is not that signal: it fires on *change*
+   * (`connection.ts`'s own `#setState` drops a call that would not change
+   * the state string), so a caller reading how many attempts have failed —
+   * this channel's own chip does, to decide when a retry has gone on long
+   * enough to call it `stale` rather than `refreshing` — needs its own hook
+   * rather than reading `.attempts` from inside `onState`.
+   */
+  readonly onAttempt?: (attempts: number) => void;
   readonly scheduler?: Scheduler;
   readonly visibility?: Visibility;
 }
@@ -265,6 +276,7 @@ export class DeploymentConnection {
     }
 
     this.#attempts += 1;
+    this.#options.onAttempt?.(this.#attempts);
     if (this.#attempts > MAX_RECONNECTIONS) {
       this.#exhausted = true;
       this.#setState('disconnected');
