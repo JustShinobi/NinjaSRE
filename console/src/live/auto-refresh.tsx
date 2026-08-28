@@ -7,7 +7,10 @@ import { useRouter } from 'next/navigation';
 import { message, type Locale } from '@/i18n/messages';
 import { CHIP_SHAPE } from '@/components/status';
 import { cx } from '@/design/cx';
-import { delayAfter, freshnessOf, type Freshness } from './freshness';
+import type { ConnectionState, StreamSource } from './connection';
+import { DeploymentConnection } from './deployment';
+import { delayAfter, type Freshness } from './freshness';
+import { fetchStreamSource } from './transport';
 
 /**
  * The screen keeping itself current, and saying whether it is.
@@ -29,7 +32,41 @@ import { delayAfter, freshnessOf, type Freshness } from './freshness';
  * shorten its interval under failure. And it does not claim to be current when
  * it is not: three consecutive failures and the indicator says so, which is
  * the one property that makes the indicator worth having at all.
+ *
+ * **The deployment channel is now the trigger; the timer is the fallback.**
+ * While `DeploymentConnection` reports `connected`, the timer below is
+ * suspended — every event (or batch, inside `DEPLOYMENT_REFRESH_BATCH_MS`)
+ * calls the same `refresh()` the timer used to call on its own schedule, and
+ * a `resync` calls it immediately, unbatched. The instant the channel is
+ * anything other than `connected` — attempting to open, backed off and
+ * retrying, or given up — the timer resumes exactly as it always has,
+ * `delayAfter(failures)` and all: SC-002's thirty-second bound is met by the
+ * timer covering from the first sign of trouble, not from the channel giving
+ * up on it. `freshnessOf` (three consecutive *timer* failures means stale)
+ * only ever runs during that fallback window now; `freshnessFromConnection`
+ * is what the chip reads while the channel is the one in charge.
  */
+
+/**
+ * The four `Freshness` states the five `ConnectionState` values collapse
+ * onto — no new chip state, as the decision that governs every indicator on
+ * this console requires. `connecting` reads the same as `reconnecting`
+ * (`refreshing`): both are "not delivering yet, trying to be", and the chip
+ * has never distinguished a first attempt from a retry.
+ */
+function freshnessFromConnection(state: ConnectionState): Freshness {
+  switch (state) {
+    case 'connected':
+      return 'live';
+    case 'connecting':
+    case 'reconnecting':
+      return 'refreshing';
+    case 'idle':
+      return 'paused';
+    case 'disconnected':
+      return 'stale';
+  }
+}
 
 const SKIN: Readonly<Record<Freshness, string>> = {
   live: 'border-accent bg-accent-bg text-accent',
@@ -106,26 +143,34 @@ export interface AutoRefreshProps {
   readonly locale: Locale;
   /** Injected so the suite can drive the clock without waiting on one. */
   readonly now?: () => number;
+  /**
+   * Where the deployment channel's connection actually reads from. Defaults
+   * to the real `fetch`-backed transport every screen uses; a test replaces
+   * it with a fake so this component never makes a real network request —
+   * `RunConnection`'s own tests inject the identical seam for the same reason.
+   */
+  readonly deploymentSource?: StreamSource;
 }
 
-/** Re-reads the current route while the tab is watched, and says how it is going. */
-export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
+/** Re-reads the current route while the deployment channel is quiet, and always says how it is going. */
+export function AutoRefresh({ locale, deploymentSource = fetchStreamSource }: AutoRefreshProps): ReactNode {
   const router = useRouter();
   const [failures, setFailures] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
   const [visible, setVisible] = useState(true);
   const [tick, setTick] = useState(0);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connection = useRef<DeploymentConnection | null>(null);
 
-  const state = freshnessOf({ visible, refreshing, failures });
+  const state = freshnessFromConnection(connectionState);
 
   const refresh = useCallback(() => {
-    setRefreshing(true);
     // A reachability probe rather than a guess: `router.refresh()` returns
     // nothing and reports nothing, so the failure count has to come from
     // somewhere that can actually fail. This asks the console's own origin for
     // the cheapest thing it serves, which is exactly the hop that breaks when
-    // the deployment is unreachable.
+    // the deployment is unreachable. Also what the deployment channel calls,
+    // on every event batch and on every resync: one mechanism, two triggers.
     fetch('/api/reachable', { cache: 'no-store' })
       .then((answer) => {
         if (!answer.ok) throw new Error(String(answer.status));
@@ -136,7 +181,6 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
         setFailures((count) => count + 1);
       })
       .finally(() => {
-        setRefreshing(false);
         setTick((current) => current + 1);
       });
   }, [router]);
@@ -152,8 +196,47 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
     };
   }, []);
 
+  // Read through a ref rather than closed over directly, so the effect below
+  // can declare an empty dependency array honestly: the connection opens
+  // once, on mount, and must not be torn down and reopened merely because
+  // `refresh` was recreated (`useRouter()`'s own router reference is not
+  // guaranteed stable across every render this component sees).
+  const refreshRef = useRef(refresh);
   useEffect(() => {
-    if (!visible) {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
+  useEffect(() => {
+    const opened = new DeploymentConnection({
+      source: deploymentSource,
+      onState: setConnectionState,
+      onEvents: () => {
+        refreshRef.current();
+      },
+      onResync: () => {
+        refreshRef.current();
+      },
+    });
+    connection.current = opened;
+    opened.open();
+    return () => {
+      opened.close();
+      connection.current = null;
+    };
+    // `deploymentSource` is a test-only override; in production it is
+    // `fetchStreamSource`, a module-level constant, so this effect only ever
+    // re-runs (tearing down and reopening the connection) in a test that
+    // deliberately swaps the source.
+  }, [deploymentSource]);
+
+  useEffect(() => {
+    // The timer is the fallback. Suspended for as long as the channel is
+    // actually delivering (`connected`) — resumed the instant it is not,
+    // which includes the first attempt to reconnect, not only the moment it
+    // gives up: SC-002's thirty-second bound is measured from the channel
+    // dropping, and waiting for full exhaustion (worst case, tens of
+    // seconds of backoff) would blow well past it.
+    if (!visible || connectionState === 'connected') {
       if (timer.current !== null) clearTimeout(timer.current);
       return;
     }
@@ -161,7 +244,7 @@ export function AutoRefresh({ locale }: AutoRefreshProps): ReactNode {
     return () => {
       if (timer.current !== null) clearTimeout(timer.current);
     };
-  }, [visible, failures, tick, refresh]);
+  }, [visible, failures, tick, refresh, connectionState]);
 
   return (
     <span
