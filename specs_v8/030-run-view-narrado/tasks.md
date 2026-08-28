@@ -44,9 +44,10 @@ envergonhado.
 - [ ] T002 Registrar a contagem e o resultado da suíte de cenários sintéticos
       — o "antes" da medição que test-first exige. "Sem efeito" é resposta
       aceitável ao final; "não medido" não é.
-- [ ] T003 Capturar o estado atual da tela no staging como evidência do
-      "antes": run vivo e run encerrado, dois temas, via Orca browser, para
-      `evidence/visual/antes/`.
+- [ ] T003 **Executada pelo orquestrador** (a worktree não alcança staging
+      nem o Orca browser): capturar o estado atual da tela no staging como
+      evidência do "antes" — run vivo e run encerrado, dois temas, via Orca
+      browser, para `evidence/visual/antes/`.
 
 ## Phase 1: Vermelho primeiro
 
@@ -69,21 +70,28 @@ envergonhado.
       (recursos) no estado; eventos fora de ordem passam pelo `held` sem
       dupla contagem. Confirmar vermelho.
 - [ ] T008 [P] Teste de contrato (pytest): o corpo servido para um run com
-      trace gravado carrega os estágios com nome, início, fim, duração e
-      falha, na ordem executada — reconstruídos do trace, não de lista fixa.
-      Confirmar vermelho.
+      trace gravado carrega os estágios com nome, duração, finding e falha, na
+      ordem executada — reconstruídos do trace, não de lista fixa. O corpo de
+      replay já serve `stages[]`, então este teste pode nascer **verde** para o
+      run encerrado: registrar isso como o resultado real, e isolar o vermelho
+      no que de fato falta (o caminho vivo, e qualquer campo do rail ausente).
+      Um vermelho fabricado é pior que um verde honesto.
 - [ ] T009 Caracterização (verde, protege o que fica): o painel de report da
       v7 (headline, markdown renderizado, copiar) e os controles de condução
       renderizam como hoje nos dois estados do run.
 
 ## Phase 2: O gateway serve os estágios
 
-- [ ] T010 Expor os estágios do run no corpo que a tela já lê, usando a
-      reconstrução existente do trace no backend; run sem trace serve lista
-      vazia, nunca erro.
-- [ ] T011 Regenerar documento de API e cliente TS; dataset simulado passa a
-      servir estágios em todo run que descreve (vivo com estágio ativo,
-      encerrado completo, um com estágio falhado). T008 fica verde.
+- [ ] T010 Confrontar `stages[]` já servido por
+      `GET /v1/runs/{run_id}/replay` (`platform/runs/replay.py`) contra o que o
+      rail do artboard precisa. Acrescentar somente o campo que faltar, no
+      mesmo caminho de reconstrução; run sem trace serve lista vazia, nunca
+      erro. Registrar no controle o confronto campo a campo — inclusive
+      "nada faltou", se for o caso.
+- [ ] T011 Regenerar documento de API e cliente TS **se** T010 acrescentou
+      campo; dataset simulado passa a servir estágios em todo run que descreve
+      (vivo com estágio ativo, encerrado completo, um com estágio falhado).
+      T008 verde em todos os caminhos.
 
 ## Phase 3: O console narra
 
@@ -108,7 +116,9 @@ envergonhado.
       não; "Descobertas até agora" lista findings dos estágios concluídos com
       forma de status; empty states vivos substituídos pela linha honesta.
       T007 e AN-06/07/08 ficam verdes.
-- [ ] T016a Reformar a lista de `/investigations` conforme
+- [ ] T016a Reformar a lista de runs — `/runs`, em
+      `console/src/surfaces/screens/runs.tsx`; `/investigations` é
+      redirecionamento legado e fica intocado — conforme
       `design/padrao-2026-08/Investigations.dc.html` (AN-14/FR-021a): vivos
       como cards com barra de estágios, completados com headline inteira e
       chip de alegações com forma, falhados com estágio e link, filtros como

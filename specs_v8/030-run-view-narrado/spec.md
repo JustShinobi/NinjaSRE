@@ -22,7 +22,11 @@ mockups **normativos** — decisão 1 da onda: desvio não registrado em
 exemplo; a comparação do gate visual é estrutural (layout, tokens, ícones,
 formas, motion), nunca de dado.
 
-**Viewport normativo de medição**: 1920×1080.
+**Viewport normativo de medição**: 1920×1080 para o acceptance Playwright e
+para a captura no staging pelo Orca browser. As baselines de
+`console/visual/screens.json` seguem a convenção que o arquivo já usa — 1440,
+mais 768/320 nas checagens responsivas — e não mudam de largura por esta
+feature.
 
 **Evidência**: auditoria de uso do staging em 2026-08-27, run
 `0951c31e19e24c609e41b17d509f3205`, disparado pela UI com o objetivo "Procure
@@ -53,9 +57,13 @@ anomalias no cluster proxmos"; specs_v8/README.md, "Evidências de partida".
    por estágio (`core/pipeline/lifecycle.py:176-192`) com detail carregando
    `finding`, `llm_calls`, `prompt_tokens`, `completion_tokens`
    (`config/constants/runs.py`, constantes `STAGE_DETAIL_*`), e
-   `replay(events)` (`core/pipeline/streaming.py:329`) já reconstrói
-   `InvestigationView.stages` com início, fim e falha por estágio. Nada disso
-   chega à tela: o operador viu "Reasoning stage_completed" seguido do JSON.
+   `replay(events)` (`core/pipeline/streaming.py:329`) reconstrói
+   `InvestigationView.stages` em processo. E o gateway **já serve** os
+   estágios: `GET /v1/runs/{run_id}/replay` devolve `stages[]` — nome, duração,
+   finding, tokens, chamadas, falha — montado por `platform/runs/replay.py`
+   (`ReplayedStage`, `_stages_of`) e presente no contrato gerado e no cliente
+   TS. Nada disso chega à tela: `run-detail.tsx` lê esse mesmo corpo e ignora
+   `stages`; o operador viu "Reasoning stage_completed" seguido do JSON.
 4. **A tela é `RunDetailScreen`**
    (`console/src/surfaces/screens/run-detail.tsx:66`), servida por
    `console/src/app/(shell)/runs/[runId]/page.tsx`. Ela lê 4 rotas
@@ -120,7 +128,8 @@ feature, conforme o protocolo da onda).
   em run vivo e não existem em run encerrado. **[staging]**
 - **AN-13** Nos dois temas, a tela corresponde estruturalmente ao artboard —
   veredito do gate visual da onda, por captura no staging. **[staging]**
-- **AN-14** A LISTA de `/investigations` é reformada conforme
+- **AN-14** A LISTA de runs — rota `/runs`, servida por
+  `console/src/surfaces/screens/runs.tsx` — é reformada conforme
   `design/padrao-2026-08/Investigations.dc.html` (acrescentado ao board em
   2026-08-27 pela decisão 8 da onda): runs vivos primeiro como cards com
   losango pulsante, barra de seis estágios e tempo decorrido; completados
@@ -320,17 +329,25 @@ o mesmo run mostrou vivo (fixture com os mesmos eventos).
 - **FR-021**: O painel de relatório da v7 (headline, report renderizado,
   copiar markdown) DEVE permanecer; num run encerrado ele continua sendo o
   primeiro painel.
-- **FR-021a**: A lista de `/investigations` DEVE renderizar conforme AN-14,
-  no mesmo arquivo de surface que a serve hoje; nenhuma rota nova — a
-  reforma é de apresentação sobre a resposta existente da listagem.
+- **FR-021a**: A lista de runs DEVE renderizar conforme AN-14 em
+  `console/src/surfaces/screens/runs.tsx`, o arquivo que serve `/runs` hoje;
+  nenhuma rota nova — a reforma é de apresentação sobre a resposta existente da
+  listagem. `/investigations` é um redirecionamento legado para `/runs` e não é
+  tocado.
 - **FR-022**: Esta feature NÃO DEVE tocar `console/src/live/` além do que a
   acumulação de custo/tocados exigir do redutor, e NÃO DEVE tocar gateway de
   stream — o canal do deployment é da feature par do slot.
 
 ### Contrato e artefatos
 
-- **FR-023**: O detalhe/replay DEVE expor a sequência detalhada `stages[]`,
-  com duração e finding, pelo contrato regenerado e pelo dataset simulado.
+- **FR-023**: O corpo de replay já expõe `stages[]` com duração, finding,
+  tokens e falha (`platform/runs/replay.py`, servido por
+  `GET /v1/runs/{run_id}/replay`). A tarefa desta feature é **verificar** que
+  esses campos bastam para o rail do artboard e acrescentar somente o que
+  faltar, nomeando no controle o campo acrescentado e por quê; se nada faltar,
+  "nada faltou" é o resultado, com o comando que mostrou isso. O dataset
+  simulado DEVE descrever um run vivo com estágio ativo, um encerrado completo
+  e um com estágio falhado.
   Os campos sumários `last_completed_stage` e `stage_index` continuam sendo
   os campos da 020; esta feature não os duplica nem cria outra fonte.
 - **FR-024**: O registro de telas visuais DEVE cobrir o detalhe de run vivo e

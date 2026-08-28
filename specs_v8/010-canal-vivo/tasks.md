@@ -39,7 +39,10 @@
   frames JSON com `scope/kind/sequence/occurred_at/payload`, `id:
   <epoch>:<sequence>`, keep-alive ≤ 15 s, `Last-Event-ID` corrente entrega
   só o posterior, época estranha ⇒ primeiro frame `resync`, rota exige a
-  permissão de `GET /v1/runs`. O contrato também rejeita payload com chave
+  permissão de `GET /v1/runs`. Inclui o laço de dez ciclos de
+  desconexão/reconexão: `sequence` estritamente crescente dentro da época,
+  nenhum evento entregue duas vezes, e exatamente um `resync` por lacuna —
+  é esta a prova do critério das dez reconexões. O contrato também rejeita payload com chave
   fora da allowlist do `scope` e exige `payload == {}` em `resync`. Vermelho
   registrado.
 - [ ] T012 Escrever `tests/unit/platform/runs/test_deployment_broker.py`:
@@ -93,7 +96,11 @@
   que o merge do slot regenera de novo (EXECUCAO v7).
 - [ ] T042 Mockplane: o endpoint novo entra em `tools/mockplane/endpoints`
   como streaming (mesma marca do run-stream), gerado dos eventos do cenário —
-  o harness e2e precisa dele para US1/US3 sem staging.
+  o harness e2e precisa dele para US1/US3 sem staging. Declarar não basta:
+  `_serve_stream` hoje é escopado por run (procura `run_id` nos argumentos e
+  lê o cursor como inteiro simples), então o endpoint novo precisa do seu
+  próprio caminho de servir — sem `run_id`, com eventos de vários escopos e
+  cursor `época:sequência`. Registrar no controle qual caminho foi escolhido.
 
 ## Phase 5: O cliente
 
@@ -142,6 +149,6 @@
 
 - 000-fundacao-visual mergeada (S0) — tokens do chip e `pulse-live`.
 - v7-001 no ar (recorder publica RunEvents) — já entregue.
-- T010–T012 antes de qualquer implementação; T020→T030; T040 depois de
+- T010–T013 antes de qualquer implementação; T020→T030; T040 depois de
   T020/T030; T052 depois de T051 e T040 (o harness mock cobre a ordem
   inversa no e2e local).

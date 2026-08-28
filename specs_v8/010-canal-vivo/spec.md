@@ -44,7 +44,7 @@
   (`gateway/http/routes/proposals.py:96`).
 - O chart neste repositório é um stub (`chart/Chart.yaml` apenas); o ingress
   do staging (Traefik, k3s) vive no repositório GitOps que o
-  `make deploy-stg` (Makefile:617) publica via Argo. A rota SSE por run já
+  `make deploy-stg` publica via Argo. A rota SSE por run já
   atravessa esse Traefik hoje — com o indicador do transcript oscilando para
   "Reconnecting" no staging (observado 2026-08-27).
 
@@ -180,9 +180,14 @@ desconecta e volta com o cursor; asserção de não-duplicação e do evento
   `state.broker`, filtrando os quatro kinds de FR-003. Nenhum call site de
   gravação muda.
 - **FR-006**: eventos de decisão nascem de uma `InteractionSurface` registrada
-  via `InteractionClosure.subscribe` (`core/agent/interaction/closure.py:154`)
-  para expiração/decisão, e do caminho de escrita de propostas para
-  `decision_proposed` — decorado na composition root, não nos handlers.
+  no ponto de assinatura do fechamento de interação — `InteractionClosure.subscribe`
+  ou o publicador que o embrulha em `platform/approvals/closure.py` — para
+  expiração/decisão, e do caminho de escrita de propostas para
+  `decision_proposed`. A tarefa de implementação localiza a instância alcançável
+  uma única vez a partir da composition root do gateway e registra `arquivo:linha`
+  no controle; o mecanismo — registro no root, jamais espalhado por handlers — é
+  normativo. Se nenhuma instância única for alcançável do root, isso é achado a
+  reportar, não um registro por call site.
 - **FR-007**: eventos de incidente nascem de um decorador do store de
   incidentes na composition root do gateway, nos writes de abertura e
   fechamento. (A tarefa de implementação localiza o port exato e o registra
@@ -198,9 +203,11 @@ desconecta e volta com o cursor; asserção de não-duplicação e do evento
   cada evento (ou lote em ≤ 250 ms) dispara `router.refresh()`; com o canal
   caído, o timer atual volta exatamente como está escrito hoje
   (`delayAfter(failures)`); `resync` dispara um refresh imediato.
-- **FR-010**: o chip único (`auto-refresh.tsx`) mapeia: conectado→`live`,
-  reconectando→`refreshing`, caído-com-timer→`stale`, aba oculta→`paused` —
-  os quatro `Freshness` existentes, sem estado novo; o rótulo do estado
+- **FR-010**: o chip único (`auto-refresh.tsx`) mapeia os cinco estados de
+  conexão sobre os quatro `Freshness` existentes, sem estado novo:
+  `connected`→`live`, `reconnecting`→`refreshing`, `connecting` (antes da
+  primeira abertura)→`refreshing`, `idle` (aba oculta)→`paused`,
+  `disconnected`-com-timer→`stale`; o rótulo do estado
   `stale` passa a dizer fallback. Chaves i18n novas são declaradas no
   relatório (dono dos arquivos i18n no S1 é a 030).
 - **FR-011**: o pulso visual do estado `live` é o `pulse-live` da fundação

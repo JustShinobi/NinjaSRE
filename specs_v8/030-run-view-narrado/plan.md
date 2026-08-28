@@ -14,10 +14,11 @@ antes da implementação. Viewport normativo: 1920×1080.
 Quatro movimentos sobre uma tela que já existe e um vocabulário que já é
 fechado:
 
-1. **Estágios visíveis.** O gateway passa a servir, no detalhe do run, os
-   estágios reconstruídos do trace (`replay()` de
-   `core/pipeline/streaming.py` já devolve `InvestigationView.stages` com
-   início/fim/falha); o console desenha o rail do artboard e, em run vivo,
+1. **Estágios visíveis.** O gateway **já serve** os estágios reconstruídos do
+   trace: `GET /v1/runs/{run_id}/replay` devolve `stages[]` por
+   `platform/runs/replay.py`, e o console lê esse corpo sem usar o campo. O
+   movimento é do lado do console — o rail do artboard — e o backend só entra
+   se algum campo do rail faltar; o console desenha o rail e, em run vivo,
    move o estágio ativo pelos eventos `stage_completed` que o stream por run
    já entrega.
 2. **Narração no funil único.** A frase narrada nasce dentro do vocabulário
@@ -52,7 +53,8 @@ borda do gateway que expõe os estágios do trace já gravado.
 `console/src/live/reducer.ts` + `console/src/live/store.ts` (acumulação live),
 `console/src/i18n/*.ts` (frases, en + pt-BR — single-write desta feature no
 slot), `gateway/http/routes/` rota de detalhe/replay do run,
-`core/pipeline/streaming.py::replay` (fonte dos estágios),
+`platform/runs/replay.py` + `gateway/http/routes/runs.py::replay` (os
+estágios já servidos),
 `config/constants/runs.py` (chaves de detail dos estágios),
 `console/visual/screens.json` (telas do gate visual — single-write desta
 feature no slot).
