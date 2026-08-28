@@ -89,8 +89,26 @@ export function railOf(
   });
 }
 
-/** The well each state draws, and what sits inside it. */
-function StageMark({ state }: { readonly state: RailState }): ReactNode {
+/**
+ * The well each state draws, and what sits inside it.
+ *
+ * A future stage's own number is drawn *inside* its circle — the artboard's
+ * own composition (`RunView.dc.html`'s numbered wells carry the digit as the
+ * circle's own text content, not a caption underneath it); only a settled or
+ * active stage gets a line below the circle, for its duration or its elapsed
+ * time. `font-display` because the artboard sets the digit in Space Grotesk
+ * (`class="sg"`), the same family every other number-as-a-glyph on this
+ * board is set in.
+ */
+function StageMark({
+  state,
+  position,
+  locale,
+}: {
+  readonly state: RailState;
+  readonly position: number;
+  readonly locale: Locale;
+}): ReactNode {
   if (state === 'done') {
     return (
       <span className="flex items-center justify-center size-7 rounded-full bg-success text-on-success">
@@ -114,7 +132,12 @@ function StageMark({ state }: { readonly state: RailState }): ReactNode {
     );
   }
   return (
-    <span className="flex items-center justify-center size-7 rounded-full edge border-border bg-sunken text-muted" />
+    <span
+      data-testid="stage-number"
+      className="flex items-center justify-center size-7 rounded-full edge border-border bg-sunken text-muted font-display text-meta"
+    >
+      {formatNumber(locale, position)}
+    </span>
   );
 }
 
@@ -211,7 +234,7 @@ export function StageRail({ locale, stages, running }: StageRailProps): ReactNod
             role="listitem"
             className="flex flex-col items-center gap-1 w-column-word shrink-0"
           >
-            <StageMark state={item.state} />
+            <StageMark state={item.state} position={item.position} locale={locale} />
             <span
               className={cx(
                 'text-meta text-center',
@@ -226,13 +249,6 @@ export function StageRail({ locale, stages, running }: StageRailProps): ReactNod
                 className="font-mono text-micro text-muted tabular-nums"
               >
                 {formatDuration(locale, item.durationMs / 1000)}
-              </span>
-            ) : item.state === 'future' ? (
-              <span
-                data-testid="stage-number"
-                className="font-sans text-micro text-muted tabular-nums"
-              >
-                {formatNumber(locale, item.position)}
               </span>
             ) : null}
           </div>

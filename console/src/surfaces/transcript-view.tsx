@@ -347,11 +347,15 @@ export function Transcript({
         ) : null}
         {/* Narrado/Bruto — a screen-level choice, applied to every entry drawn
             below rather than asked of each one. `data-view` is what the
-            acceptance suite reads to know which view is current. */}
+            acceptance suite reads to know which view is current. Two
+            independent chips, not one shared segmented pill — the artboard
+            draws each with its own outline (bordered when it is the current
+            view, transparent when it is not) rather than housing both in a
+            single enclosing well. */}
         <span
           data-testid="transcript-view-toggle"
           data-view={view}
-          className="ml-auto flex items-center gap-1 rounded-full edge border-border bg-sunken p-1"
+          className="ml-auto flex items-center gap-2"
         >
           <Button
             variant={view === 'narrated' ? 'secondary' : 'quiet'}
