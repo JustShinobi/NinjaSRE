@@ -70,8 +70,8 @@
       "owner": "Whoever takes /resources in 060."
     }
   ],
-  "last_checkpoint": "2026-08-28T06:09:19+00:00",
-  "next_action": "030 implementation complete at 1a58cda5. 010 remains open at 09935108: T010 red-by-wire-cut for the three user stories, T060 narrow gates, two undiagnosed harness findings. Nothing merges, deploys or verifies until 010 closes.",
+  "last_checkpoint": "2026-08-28T06:26:46+00:00",
+  "next_action": "Resume 010 from 09935108 in /srv/workspaces/v8-s1-010. Brief the implementer from specs_v8/RETOMADA-S1.md section 4 and its controle.md: T010 red-by-wire-cut, T060 narrow gates, and the two named harness findings whose hypotheses are already written down. 030 is complete at 1a58cda5. Nothing merges, deploys or verifies until 010 closes.",
   "fingerprint": "4f63d7b61bc475cf",
   "features": [
     {
@@ -936,6 +936,12 @@
       "weekly_resets_in_minutes": 3291,
       "session_used_percent": 31,
       "decision": "Do not dispatch the second implementer. 010 needs an undiagnosed harness finding chased, which is open-ended work, and starting it at 99% would strand it mid-turn."
+    },
+    {
+      "at": "2026-08-28T06:26:46+00:00",
+      "event": "handoff_written",
+      "document": "specs_v8/RETOMADA-S1.md",
+      "reason": "progress.json holds state and controle.md holds proof; neither held what the implementers learned about operating the slot."
     }
   ],
   "baseline": {
@@ -1009,6 +1015,7 @@
     "why_stopped": "Operator budget window ending. Both implementers told to stop at a clean boundary, commit, close their control files, and answer briefly. Nothing failed.",
     "how_to_resume": [
       "1. Read each feature controle.md (in the worktree AND the scratchpad mirror) — they are the ledger, not the chat.",
+      "1b. Read specs_v8/RETOMADA-S1.md. The acquired context is there, not in the code.",
       "2. git -C <worktree> log --oneline c01f8412..HEAD and git status --short to see where each stopped.",
       "3. Re-dispatch spec-implementer per feature into the SAME worktree with the controle.md next-action as the brief. Do not start a second implementation pass from scratch.",
       "4. Only after both are complete: merge both worktrees into the wave tree, apply declared single-write changes, format the transversal suite, run boundary gates, deploy staging, run the Orca visual gate, then a verifier per feature."
@@ -1036,7 +1043,8 @@
         "T022",
         "T023"
       ]
-    }
+    },
+    "handoff_document": "specs_v8/RETOMADA-S1.md — read it after this file and before the feature controle.md. It carries what the implementers learned about operating the slot: the worktree provisioning traps, the two undiagnosed harness findings in 010 with the hypotheses already formed, the looser FR-008 reading awaiting a verifier judgement, and what the orchestrator retained."
   },
   "open_items": [
     {

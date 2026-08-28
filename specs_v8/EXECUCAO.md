@@ -123,3 +123,13 @@ LLM somente pelo Orca Browser; `make verify` nos checkpoints e no fim; evidênci
 antes de avançar; confronto final da onda com a coluna "quem constrói isso em
 produção?". Paralelizar muda quando as coisas rodam, nunca o que precisa
 passar.
+
+## 6. Retomada
+
+O que a execução de um slot ensina não cabe no `progress.json`, que guarda
+estado, nem no `controle.md`, que guarda prova. Fica em
+[RETOMADA-S1.md](RETOMADA-S1.md): as armadilhas de provisionar worktree
+isolada, o comportamento do teto de turnos, os achados ainda abertos com as
+hipóteses já formadas, e o que o orquestrador reteve por não caber numa
+worktree. Quem retomar o slot — outro agente, outro runtime — lê o
+`progress.json`, depois esse arquivo, depois o controle da feature.
