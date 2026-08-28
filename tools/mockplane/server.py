@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from config.constants.fixtures import (
+    MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS,
     MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
     MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
     MOCK_SERVER_DEFAULT_PORT,
@@ -538,6 +539,7 @@ class MockPlane:
         *,
         max_seconds: float = MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
         poll_seconds: float = MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
+        keepalive_seconds: float = MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS,
     ) -> None:
         """Serve the deployment-wide channel: no run_id, several scopes, a live poll.
 
@@ -550,6 +552,18 @@ class MockPlane:
         `MOCK_DEPLOYMENT_STREAM_MAX_SECONDS` because this ASGI shell is never
         handed `receive`, so it has no transport-level signal that the client
         went away — see that constant's own docstring.
+
+        Sends a keep-alive comment every `keepalive_seconds` while quiet, for
+        the reason that constant's own docstring gives: a real ASGI server
+        driving this (`python -m tools.mockplane serve`, which is what the
+        e2e harness this feature's acceptance spec runs against actually
+        uses — unlike this module's own unit tests, which call this method
+        directly and never exercise the gap) does not necessarily flush
+        `http.response.start` to the socket before the first body chunk
+        follows. A connection with nothing to report for the length of this
+        method's own `max_seconds` bound would otherwise never be observed
+        as open at all — found by running this feature's acceptance spec
+        for real and watching `fetch()` never resolve.
         """
         epoch, after = _deployment_cursor_of(headers.get("last-event-id", ""))
         override = self._data.scenario.override_for(endpoint.slug)
@@ -591,7 +605,15 @@ class MockPlane:
 
         emitted = 0
         deadline = time.monotonic() + max_seconds
+        last_sent = time.monotonic()
+        # A frame goes out immediately, once, before the first wait — the fix
+        # for the gap this whole method's own docstring names: without this,
+        # a session with nothing queued yet sends nothing at all until the
+        # first keep-alive interval elapses, and some ASGI servers hold
+        # `http.response.start` back until it does.
+        await send({"type": "http.response.body", "body": b": open\n\n", "more_body": True})
         while time.monotonic() < deadline:
+            delivered = False
             for event in self.deployment_events_for(session, after=after):
                 if self._stream.disconnect_after and emitted >= self._stream.disconnect_after:
                     await send({"type": "http.response.body", "body": b"", "more_body": False})
@@ -605,6 +627,15 @@ class MockPlane:
                 )
                 after = int(event["sequence"])
                 emitted += 1
+                delivered = True
+            now = time.monotonic()
+            if delivered:
+                last_sent = now
+            elif now - last_sent >= keepalive_seconds:
+                await send(
+                    {"type": "http.response.body", "body": b": heartbeat\n\n", "more_body": True}
+                )
+                last_sent = now
             await asyncio.sleep(poll_seconds)
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
