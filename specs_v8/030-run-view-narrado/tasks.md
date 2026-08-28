@@ -43,7 +43,7 @@ envergonhado.
       verde, parar e reportar. Resultado pinado: exit 2, 12972 passed, 9 failed
       (todos o mesmo teste de rede real, fora do escopo de arquivo desta
       feature), 39 skipped.
-- [ ] T002 Registrar a contagem e o resultado da suíte de cenários sintéticos
+- [x] T002 Registrar a contagem e o resultado da suíte de cenários sintéticos
       — o "antes" da medição que test-first exige. "Sem efeito" é resposta
       aceitável ao final; "não medido" não é.
 - [~] T003 **Executada pelo orquestrador** (a worktree não alcança staging
