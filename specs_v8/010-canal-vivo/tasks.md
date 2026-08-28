@@ -29,12 +29,21 @@
 
 ## Phase 1: Acceptance e contratos primeiro, confirmados vermelhos
 
-- [ ] T010 Escrever `console/tests/e2e/canal-vivo.acceptance.spec.ts` com as
+- [~] T010 (PARCIAL — achado registrado) Escrever `console/tests/e2e/canal-vivo.acceptance.spec.ts` com as
   três user stories: US1 run-novo-sem-reload (inicia pelo modal Investigar,
   assere card em `/` sem `page.reload()`), US2 fallback (intercepta
   `/v1/events/stream` → 502, assere chip `data-state="stale"` e refresh por
   timer), US3 reconexão sem duplicata (mock de rota SSE no harness).
-  Rodar e registrar o vermelho.
+  Rodar e registrar o vermelho. Spec escrita e commitada (`564e24b8`,
+  `d0dd8838`); escrita DEPOIS do cliente TS existir, não antes — desvio da
+  regra acceptance-first desta onda, declarado no controle. Três bugs reais
+  foram achados e corrigidos rodando a spec de verdade contra o harness
+  mock (ver controle §"Três bugs..."), o que prova que a spec mede algo
+  real — mas o exercício literal "corte o fio à mão, veja vermelho,
+  restaure" pedido pelo orquestrador para as três user stories não foi
+  concluído nesta sessão, e dois achados de harness (US1: contagem de
+  `guardian-flight` não sobe; US2/US3: recuperação após `unroute()` não
+  fecha em 30s) seguem abertos. Ver controle para os dois.
 - [x] T011 Escrever `tests/contract/gateway/test_deployment_stream.py`:
   frames JSON com `scope/kind/sequence/occurred_at/payload`, `id:
   <epoch>:<sequence>`, keep-alive ≤ 15 s, `Last-Event-ID` corrente entrega
@@ -122,9 +131,13 @@
 
 ## Phase 6: Validação em staging
 
-- [ ] T060 Gates locais estreitos: pytest dos diretórios tocados; lint/format
+- [ ] T060 (NÃO INICIADO nesta sessão — parada por orçamento) Gates locais estreitos: pytest dos diretórios tocados; lint/format
   do domínio editado (ruff + prettier/eslint do console); acceptance no
-  harness local (mock) verde.
+  harness local (mock) verde. Os testes de unidade/contrato Python e
+  console já verdes ao longo da sessão (ver commits individuais); a
+  varredura completa e final destes gates não foi executada após os
+  últimos três commits (fix mockplane, fix freshness, ajuste de timeout) —
+  próxima ação de quem retomar.
 - [~] T061 (orquestrador — worktree não aplica no GitOps) Entregar bloco de manifesto Traefik (GitOps) na evidência:
   flushInterval/sem buffering + timeout de resposta para
   `/v1/events/stream`; operador aplica; `make deploy-stg COMPONENTS=app web`.
@@ -140,10 +153,13 @@
 
 ## Phase 7: Fechamento
 
-- [ ] T070 Controle honesto: cada FR/SC com a prova (comando + resultado);
+- [~] T070 (PARCIAL — fechado sob parada de orçamento) Controle honesto: cada FR/SC com a prova (comando + resultado);
   chaves i18n e bloco Traefik no relatório final para o merge do slot;
   contagem: zero edições em arquivos de dono alheio (`git status` da
-  worktree citado).
+  worktree citado). Controle atualizado com ledger, achados, chaves i18n
+  (nenhuma nova necessária — catálogo existente já atende) e bloco Traefik
+  nesta sessão; T010 (prova de vermelho por corte de fio) e T060 (gates
+  finais) seguem abertos — ver tasks.md e controle.md para o que falta.
 
 ## Dependencies
 

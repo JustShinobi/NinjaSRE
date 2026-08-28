@@ -5,8 +5,11 @@ NÃO é o relatório final de fechamento da feature. Um espelho idêntico fica
 fora do repositório em
 `/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-010.md`.
 
-Última atualização: após o commit `9be41719` ("feat(gateway): compose the
-deployment broker and its taps at the real root").
+Última atualização: após o commit `d0dd8838` ("wip(console): widen the
+acceptance spec's first live-state timeout"), fechado sob instrução de
+parada de orçamento do orquestrador — ver §"Fechamento sob parada de
+orçamento" ao final deste arquivo, que é a seção normativa para quem
+retomar.
 
 ## Commits feitos até agora
 
@@ -104,16 +107,16 @@ reversões usaram cópias no scratchpad em vez disso.
 | FR-005 (tap de run, sem mudar call site) | **FEITO** | `platform/runs/deployment.py:349` (`DeploymentPublishingRunEventBroker`); composto em `gateway/http/asgi.py` (`build_deployment`, linha ~239-243, ver `git show 9be41719`) |
 | FR-006 (decisão: proposed/decided/expired) | **PARCIAL, com achado registrado** | `platform/persistence/deployment_taps.py:85` (`_EventPublishingApprovalStore`); composto no root. Achado no docstring do módulo (linhas 16-25): `InteractionClosure`/`ClosurePublisher` não construídos em nenhum lugar de produção — decisão de usar o mesmo decorador do FR-007. Gap nomeado: `interaction_id` nunca populado por esta feature |
 | FR-007 (incidente: decorador no root) | **FEITO** | `platform/persistence/deployment_taps.py:45`; porta exata `IncidentStore.upsert` (`platform/persistence/ports/incident_store.py:453`); composto no root; vermelho provado |
-| FR-008 (cliente reusa StreamSource/backoff/visibilidade) | **NÃO INICIADO** | — |
-| FR-009/FR-010 (AutoRefresh integra o canal) | **NÃO INICIADO** | — |
-| FR-011 (pulse-live) | **NÃO INICIADO** | depende do FR-010 |
-| FR-012 (keep-alive por constante nomeada) | **FEITO** | `SSE_KEEPALIVE_SECONDS` (`config/constants/runs.py`), usado por `deployment_event_source` (default) |
-| FR-013 (bloco Traefik) | **NÃO INICIADO** | bloco de manifesto ainda não redigido — T061, tarefa do orquestrador de qualquer forma |
+| FR-008 (cliente reusa StreamSource/backoff/visibilidade) | **PARCIAL, declarado** | `console/src/live/deployment.ts:24-36` (docstring do módulo) — reusa TIPOS/constantes/transporte de `connection.ts` (`StreamSource`, `Scheduler`, `Visibility`, `ConnectionState`, `BACKOFF_MS`, `wallClock`, `documentVisibility`, `fetchStreamSource`), mas `DeploymentConnection` é uma segunda máquina de estados, não uma subclasse/composição do motor de `RunConnection` — extração completa não tentada, declarada como leitura mais frouxa de FR-008 |
+| FR-009/FR-010 (AutoRefresh integra o canal) | **FEITO** | `console/src/live/auto-refresh.tsx:76-88` (`freshnessFromConnection`), `:229-261` (abertura da conexão no mount); dois bugs reais achados rodando a acceptance de verdade e corrigidos — ver §"Três bugs..." |
+| FR-011 (pulse-live) | **FEITO** | `console/src/live/auto-refresh.tsx:123-133` (`Mark`, estado `live` usa `pulse-live`/`pulse-live-ring` da 000) |
+| FR-012 (keep-alive por constante nomeada) | **FEITO** | `SSE_KEEPALIVE_SECONDS` (`config/constants/runs.py`), usado por `deployment_event_source` (default); mock plane usa a própria constante nomeada equivalente, `MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS` (`config/constants/fixtures.py:171`) |
+| FR-013 (bloco Traefik) | **Entregue como texto** | ver §"Bloco Traefik" ao final — T061 (aplicar) é do orquestrador |
 | T022 (broker só instanciado no root) | **FEITO** | `tests/architecture/test_deployment_events_composed_once.py`, vermelho provado injetando um segundo construtor |
-| T041 (regenerar openapi.json + schema.ts) | **NÃO INICIADO** | próximo passo |
-| T042 (mockplane) | **NÃO INICIADO** | próximo passo |
-| T050-T052 (cliente TS) | **NÃO INICIADO** | próximo passo, priorizado por último pelo orquestrador |
-| T010 (acceptance spec Playwright) | **NÃO INICIADO** | depende do cliente TS existir |
+| T041 (regenerar openapi.json + schema.ts) | **FEITO** | `fixtures/contract/openapi.json`, `console/src/api/schema.ts` regenerados pelo caminho de geração (commit `c0820323`) |
+| T042 (mockplane) | **FEITO** | `tools/mockplane/server.py` (`_serve_deployment_stream`, `_publish_deployment_event`); caminho de servir próprio (sem `run_id`, cursor `época:sequência`) — ver decisão já registrada acima; bug de flush de cabeçalho achado e corrigido nesta sessão (commit `1195afdf`) |
+| T050-T052 (cliente TS) | **FEITO** | `console/src/live/deployment.ts` (T050/T051, commit `d19b2cdd`), `console/src/live/auto-refresh.tsx` (T052, commit `244c7149`, corrigido em `7e583605`), `console/src/app/api/events/route.ts` (proxy Next.js, commit `6b2dcc31`) |
+| T010 (acceptance spec Playwright) | **PARCIAL, achado registrado** | `console/tests/e2e/canal-vivo.acceptance.spec.ts` escrita e commitada (`564e24b8`, ajustada em `d0dd8838`) — DEPOIS do cliente existir, não antes (desvio nomeado); prova de vermelho por corte de fio à mão NÃO concluída nesta sessão; dois achados de harness em aberto — ver §"Três bugs..." e §"Achados de harness ainda abertos" |
 
 ## Comandos rodados e seus resultados reais
 
@@ -185,18 +188,185 @@ sido — declarado aqui explicitamente, não escondido, para o relatório
 final poder ser honesto sobre isso. Se houver tempo depois de T042, uma
 extração mais profunda pode ser reconsiderada.
 
-## Chaves i18n a declarar no relatório final (dono S1 = 030, não editar)
+## Chaves i18n — final
 
-Ainda não finalizadas — dependem do trabalho do cliente TS (T052) que
-ainda não começou. `live.state.stale` (`console/src/i18n/en.ts:1948`,
-`console/src/i18n/pt-BR.ts:1645`) precisa que seu VALOR passe a comunicar
-"fallback" (FR-010) — chave existente, texto novo, a fechar quando T052
-estiver em andamento.
+**Nenhuma chave nova.** As quatro chaves que `auto-refresh.tsx` lê
+(`live.state.live`, `live.state.refreshing`, `live.state.stale`,
+`live.state.paused`) já existiam antes desta feature
+(`console/src/i18n/en.ts:1946-1949`, `console/src/i18n/pt-BR.ts:1643-1646`)
+e o valor de `live.state.stale` já comunica o fallback exigido por FR-010
+sem precisar de mudança:
 
-## Bloco Traefik (T061) — ainda não escrito
+| Chave | Inglês (atual) | pt-BR (atual) | Arquivo |
+|---|---|---|---|
+| `live.state.live` | `Live` | `Ao vivo` | `console/src/i18n/en.ts:1946` / `pt-BR.ts:1643` |
+| `live.state.refreshing` | `Refreshing` | `Atualizando` | `console/src/i18n/en.ts:1947` / `pt-BR.ts:1644` |
+| `live.state.stale` | `Not updating` | `Sem atualizar` | `console/src/i18n/en.ts:1948` / `pt-BR.ts:1645` |
+| `live.state.paused` | `Paused` | `Pausado` | `console/src/i18n/en.ts:1949` / `pt-BR.ts:1646` |
 
-Vai precisar, para `/v1/events/stream`: `flushInterval` curto/sem
-buffering + timeout de resposta ≥ 10 minutos (para SC-004). A ser
-espelhado do que já existe (se existir) para
-`/v1/investigations/{run_id}/stream` no repositório GitOps — fora deste
-repositório, não verificável a partir daqui.
+Verificado nesta sessão (`grep -n "'live.state" console/src/i18n/en.ts
+console/src/i18n/pt-BR.ts`) — a dona destes arquivos (030) não precisa
+editar nada por conta desta feature.
+
+## Bloco Traefik (T061) — final, texto para o orquestrador aplicar
+
+Para `/v1/events/stream`, o mesmo tratamento que a rota por-run
+(`/v1/investigations/{run_id}/stream`) já deve ter no GitOps, espelhado —
+verificar o bloco existente daquela rota antes de aplicar este, e manter
+os dois consistentes se divergirem:
+
+```yaml
+# IngressRoute (ou Middleware equivalente) para o serviço do gateway,
+# especificamente na rota /v1/events/stream:
+traefik.http.middlewares.deployment-events-stream.headers.customresponseheaders.X-Accel-Buffering: "no"
+# Sem buffer no proxy — cada chunk do gerador SSE precisa sair no fio
+# assim que o `send()` do ASGI o produzir, não quando o corpo fechar.
+traefik.http.services.gateway.loadbalancer.responseforwarding.flushinterval: "100ms"
+# Timeout de resposta acima do keep-alive de produção (`SSE_KEEPALIVE_SECONDS
+# = 15`, config/constants/runs.py) por uma margem larga — a conexão fica
+# aberta indefinidamente do lado do gateway (é um gerador sem fim, fechado
+# só quando o cliente desconecta), então o limite aqui é o do PROXY, não o
+# do endpoint. Mínimo sugerido, para cobrir SC-004 (10 minutos) com folga:
+traefik.http.services.gateway.loadbalancer.responseforwarding.flushinterval: "100ms"
+traefik.http.routers.deployment-events-stream.middlewares: "deployment-events-stream"
+# read/write timeout do lado do Traefik (nome exato da chave depende de como
+# o GitOps já declara isso para a rota por-run — replicar a mesma forma):
+# idleTimeout / responseHeaderTimeout ≥ 900s (15 min), nunca menor que o
+# dobro de SC-004.
+```
+
+Não verificável a partir deste worktree isolado (o GitOps é outro
+repositório) — o texto acima é o requisito funcional traduzido para as
+chaves Traefik prováveis; quem aplica (T061, orquestrador) deve conferir
+os nomes exatos de chave contra o manifesto real da rota por-run antes de
+copiar.
+
+## Três bugs reais achados e corrigidos rodando a acceptance de verdade
+
+T010 foi escrita depois do cliente já existir — desvio já declarado acima
+e nas tarefas. Para compensar, a spec foi rodada de verdade contra
+`python -m tools.mockplane serve` (não só lida), o que achou três bugs
+reais, todos corrigidos na origem, não contornados no teste:
+
+1. **Mapeamento `reconnecting → refreshing` incondicional (SC-002).**
+   `BACKOFF_MS` somado por `MAX_RECONNECTIONS` tentativas passa de 30s —
+   o chip nunca alcançava `stale` dentro do orçamento de fallback da
+   spec/SC-002. Corrigido em `auto-refresh.tsx:76-88`
+   (`freshnessFromConnection` agora consulta `attempts`, reusando
+   `STALE_AFTER_FAILURES`). Commit `7e583605`.
+2. **`onState` não reporta cada tentativa.** `connection.ts`'s `#setState`
+   descarta uma chamada que não muda a string de estado — uma segunda,
+   terceira... falha consecutiva não disparava `onState` de novo. Corrigido
+   adicionando `onAttempt` a `DeploymentConnectionOptions`
+   (`deployment.ts:130`, chamado incondicionalmente em `#failed()`,
+   linha 279) e ligando `AutoRefresh` a ele. Commit `7e583605`.
+3. **Mockplane nunca fazia flush dos cabeçalhos com a conexão quieta.**
+   Confirmado com `curl -N -i` manual: zero bytes recebidos por vários
+   segundos apesar do uvicorn já ter processado a requisição (log de
+   acesso mostrando 200). Corrigido enviando um frame de comentário
+   imediato após os cabeçalhos e heartbeats periódicos por
+   `MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS`. Commit `1195afdf`.
+
+Isso prova que a spec mede comportamento real — mas **não é** o exercício
+literal que o orquestrador pediu (desligar o mecanismo de cada user story,
+rodar, ver vermelho pela razão certa, restaurar, citar a linha real de
+falha). Esse exercício não foi concluído nesta sessão; ver a seção
+seguinte para o estado exato em que cada user story ficou.
+
+## Achados de harness ainda abertos (não resolvidos, nomeados)
+
+1. **US1 — a contagem de `guardian-flight` não sobe.** Depois dos três
+   bugs acima corrigidos, a primeira asserção de US1 (`data-state="live"`)
+   passa. A segunda — a contagem subir depois de iniciar uma investigação
+   pela gaveta na segunda página — não foi observada subindo no harness
+   local. Não diagnosticado: hipótese não confirmada é que o registro do
+   fixture de `investigation-start` no mockplane não marca `status` como
+   `"running"` (o Guardian filtra por
+   `record => text(record, 'status') === 'running'`), ou alguma outra
+   forma de dado não bate. Nenhuma investigação adicional feita depois
+   desta hipótese.
+2. **US2/US3 — recuperação após `unroute()` não fecha em 30s.** Depois de
+   `page.unroute('**/api/events/stream')`, log de depuração (removido)
+   mostrou `DeploymentConnection` continuando corretamente seu laço de
+   retentativa internamente (tentativas subindo 4, 5, 6, 7, 8+ com timing
+   de backoff correto), mas o `fetch()` subjacente continuava falhando —
+   confirmado que o contador de "hits" do próprio handler do Playwright
+   ficava parado em 3, provando que o Playwright já não estava mais
+   interceptando, mas a conexão ainda não conseguia ter sucesso. Hipótese
+   não confirmada: exaustão do pool de conexões HTTP do Node/undici na
+   rota proxy Next.js (`console/src/app/api/events/route.ts`) acumulando
+   conexões obsoletas/não fechadas contra o mock sob reconexões rápidas
+   repetidas. Não diagnosticado nem corrigido — decisão explícita de
+   parar de investigar este ponto específico dado o orçamento de tempo,
+   documentar como achado nomeado (aqui) em vez de mascarar, e não deixar
+   a spec afirmar uma recuperação que não foi observada fechando.
+   `console/tests/e2e/canal-vivo.acceptance.spec.ts` ainda contém as
+   asserções de recuperação em US2/US3 tal como escritas — **não foram
+   simplificadas nesta sessão** (a simplificação planejada não chegou a
+   ser feita antes da parada de orçamento); quem retomar deve rodar a
+   spec primeiro para confirmar se este achado ainda se reproduz antes de
+   decidir entre corrigir a causa raiz ou afrouxar a asserção.
+
+Nenhuma instrumentação de depuração ficou no código — conferido
+(`grep -n "DBGDC" console/src/live/deployment.ts` → não encontrado;
+`git diff --stat console/src/live/deployment.ts` contra o commit anterior
+mostrou só a adição legítima de `onAttempt`).
+
+## FR-006 — o gap, declarado sem eufemismo
+
+`InteractionClosure`/`ClosurePublisher` não são construídos em nenhum
+lugar de produção hoje — não há root de composição que os ligue. A escolha
+feita foi decorar o mesmo `ApprovalStore` que FR-007 decora
+(`platform/persistence/deployment_taps.py:85`,
+`_EventPublishingApprovalStore`), publicando a partir das escritas do
+store (`create_request` → `decision_proposed`, `decide` →
+`decision_decided`, `expire_due` → `decision_expired` por item) em vez de
+a partir do closure de domínio que a spec nomeia. Isso funciona — os três
+kinds de decisão são publicados corretamente — mas **`interaction_id`
+nunca é populado por esta feature**: o payload allowlist para `scope`
+decisão inclui o campo, mas nada nesta feature tem uma fonte para
+preenchê-lo, porque essa fonte seria o `InteractionClosure` que não existe
+em produção. Isso vai para o registro da onda, não para uma nota de
+rodapé.
+
+## Fechamento sob parada de orçamento
+
+O orquestrador mandou parar (mensagem recebida com o worktree neste
+estado: cinco arquivos modificados, não commitados). Os quatro passos
+pedidos foram feitos nesta ordem:
+
+1. Terminado o passo em andamento (nenhuma edição nova iniciada).
+2. Os cinco arquivos foram commitados em três commits coerentes e
+   descritos — `1195afdf` (fix mockplane), `7e583605` (fix freshness/
+   onAttempt), `d0dd8838` (wip: ajuste de timeout da spec). Um erro de
+   processo ocorreu no meio: três `git commit` foram disparados em
+   paralelo (violando a regra de nunca correr comandos git dependentes ao
+   mesmo tempo), o que colidiu no índice e produziu um único commit com
+   os cinco arquivos sob a mensagem errada. Corrigido com
+   `git reset --soft HEAD~1` (não destrutivo — nada foi perdido, tudo
+   ficou de volta staged) e os três commits refeitos sequencialmente,
+   verificando `git status --short` entre cada um. Nenhum `checkout`,
+   `stash` ou `restore` usado desta vez.
+3. Este arquivo (e o espelho no scratchpad) fechados agora com: ledger
+   atualizado, os três bugs reais achados+corrigidos, os dois achados de
+   harness ainda abertos, as chaves i18n (nenhuma nova), o bloco Traefik,
+   e o gap do FR-006 restated sem eufemismo.
+4. `tasks.md` reconciliado: T010/T060/T070 marcados `[~]` com o motivo
+   exato na própria linha; T042/T050/T051/T052 já estavam `[x]` de sessões
+   anteriores (confirmado, não precisou de nova marcação).
+
+**Não feito por causa da parada**, nomeado para quem retomar:
+
+- O exercício literal "corte o fio à mão" para as três user stories de
+  T010 (ver §"Achados de harness ainda abertos").
+- A simplificação planejada das asserções de recuperação em US2/US3.
+- T060: nenhum gate foi rodado NESTA sessão de fechamento (os gates
+  citados em §"Comandos rodados..." acima são de sessões anteriores, antes
+  dos últimos três commits) — pytest dos diretórios tocados, ruff, lint/
+  testes de unidade do console, e a spec de aceite contra o harness local
+  precisam rodar antes do merge do slot.
+- Diagnóstico das duas causas-raiz nomeadas em §"Achados de harness ainda
+  abertos".
+
+**Estado da árvore**: limpo (`git status --short` vazio) depois do
+commit `d0dd8838`, HEAD nesse commit.
