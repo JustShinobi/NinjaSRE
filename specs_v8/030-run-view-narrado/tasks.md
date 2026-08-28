@@ -133,10 +133,13 @@ envergonhado.
 
 ## Phase 4: Gates locais
 
-- [x] T018 Suítes de unidade do console e do gateway verdes; acceptance verde
-      no harness local (mock backing); a suíte transversal da onda passa (sem
-      JSON primário, sem hash como título — regressões de outras features não
-      introduzidas aqui).
+- [~] T018 Suítes de unidade do console e do gateway verdes; acceptance verde
+      no harness local (mock backing) — confirmado após a reversão newest-first
+      (19/19). A suíte transversal da onda: `010-leitura-do-relato.acceptance.spec.ts`
+      e `surfaces.spec.ts`, rodados juntos (não isoladamente, por corte de
+      orçamento), deram 6 falhas ainda não isoladas como pré-existentes,
+      interferência entre arquivos ou regressão real — ver `controle.md`.
+      Reabrir para `[x]` só depois de rodar os dois arquivos isoladamente.
 - [ ] T019 `console/visual/screens.json`: detalhe de run vivo e encerrado nos
       dois temas; recapturar baselines na imagem pinada
       (`tools/console_visual.py accept`) e commitar o aceite como revisão.

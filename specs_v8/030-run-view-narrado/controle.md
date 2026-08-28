@@ -225,3 +225,146 @@ duplicado.
   `/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/red-run-1.log`
 - Mirror deste arquivo, fora do repositório:
   `/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-030.md`
+
+## Segunda rodada de decisões do operador — estado no encerramento por orçamento
+
+Sessão interrompida por limite de orçamento antes de recapturar baselines e
+antes da varredura de pt-BR. Commit `df1dfffa` (`wip`) carrega tudo abaixo,
+sem baseline nova e sem a varredura.
+
+### As quatro decisões do T017, disposição final
+
+1. **Rail fixo de 340px** — Não aplicado como largura fixa: `grid-cols-[1fr_340px]`
+   é rejeitado pelo lint (`design/no-design-literals` bane qualquer utilitário
+   de valor arbitrário, não só o sufixo numérico). Não existe token declarado
+   próximo de 340px (`w-sidebar` é a barra de navegação do shell, sem relação).
+   Revertido para o grid proporcional original (`lg:grid-cols-3`/`lg:col-span-2`)
+   em `console/src/surfaces/screens/run-detail.tsx`, com comentário no código
+   nomeando a necessidade. **Nenhuma outra tela de detalhe foi tocada** — não
+   havia nada a evitar tocar, porque a mudança não chegou a ser aplicada.
+   Necessidade declarada para o orquestrador aplicar via 000: um token de
+   largura fixa para o rail lateral de `run-detail`, escopado a esta tela.
+2. **Evidence-progress bar** — Feito. Rodapé do painel de achados usa a chave
+   `run.evidence.backed` já existente e uma largura de porcentagem inline
+   (mesmo padrão já usado no "change ruler" do mesmo arquivo). Ver
+   `console/src/surfaces/screens/run-detail.tsx`.
+3. **Slide-in na entrada recém-chegada** — Feito, mas com mudança de estratégia
+   de teste. Implementado com rastreador baseado em efeito
+   (`console/src/surfaces/transcript-view.tsx`) que distingue montagem inicial,
+   catch-up ao vivo (primeira entrega não-vazia) e chegada genuína subsequente
+   — necessário porque `react-hooks/refs` proíbe ler `ref.current` durante o
+   render, e o padrão "ajustar estado durante o render" do React descarta o
+   próprio render em que o valor seria exibido. O teste E2E do "slide-in"
+   provou-se estruturalmente não confiável contra o harness mock (entrega do
+   backlog inteiro de forma essencialmente atômica; nunca observado um estado
+   intermediário entre <11 e 12 eventos, mesmo com polling). Removido e
+   substituído por dois testes de unidade determinísticos em
+   `console/tests/unit/surfaces/transcript.test.tsx`
+   (`render()`+`rerender()`), que controlam exatamente quando a prop `events`
+   muda. 21/21 passando nessa suíte isoladamente.
+4. **Toggle Narrado/Bruto em formato de chip** — Feito localmente, sem tocar
+   `console/src/design/**`: dois `<button>` simples usando `CHIP_SHAPE` e o
+   vocabulário de cor de estado já exportado por `components/status.tsx`
+   (consumo, não edição, do arquivo congelado).
+5. **Ordenação newest-first (segunda decisão do operador)** — Feito. A
+   inversão é interna ao componente `Transcript`
+   (`console/src/surfaces/transcript-view.tsx`: `[...events].reverse()`);
+   `eventsFromReplay`, `eventsFromStream` e `LiveState.events` continuam
+   cronológicos. Legenda de posição recalculada em
+   `console/src/surfaces/labels.ts` para o novo sentido. Nova chave
+   `transcript.newestFirst` (EN "newest first" / PT-BR "o mais novo
+   primeiro") deliberadamente **não** dobrada em `transcript.events`/`.one`
+   porque essa chave também é consumida por `settings/audit.tsx`, uma tela
+   sem relação e sem ordem invertida.
+
+### Levantamento de consumidores do transcript (ordenação)
+
+- **`console/src/surfaces/transcript-view.tsx`** — alterado (a própria
+  inversão).
+- **`console/src/surfaces/labels.ts`** — alterado (fórmula da legenda de
+  posição).
+- **`console/src/live/live-run.tsx`** (`LiveEventCount`) — alterado (legenda
+  "o mais novo primeiro" acrescentada).
+- **`console/src/surfaces/screens/run-detail.tsx`** — alterado (mesma
+  legenda no cabeçalho da tela).
+- **`console/tests/e2e/live.spec.ts`** — alterado: teste renomeado para "the
+  transcript fills as frames arrive, newest event on top", agora afirma que
+  o último elemento do DOM é `run_started` (o mais antigo) e que o primeiro
+  elemento muda ao chegarem mais eventos. Rodado isoladamente: 4 passou / 1
+  falhou — a falha é a pré-existente e sem relação (`getByTestId('row')` em
+  `/runs`, confirmada em rodadas anteriores desta sessão via
+  `git show c01f8412:console/src/surfaces/run-card.tsx`, e reproduzida
+  identicamente em `/incidents/{id}`, que esta feature nunca tocou).
+- **`console/tests/unit/surfaces/transcript.test.tsx`** — alterado: o teste
+  "every kind of event > is drawn, and is distinguishable" agora afirma
+  `[...TRANSCRIPT_KINDS].reverse()`, com comentário explicando por quê.
+- **`console/src/surfaces/run-card.tsx`** — **intencionalmente não tocado**.
+  É o caso "lê como sequência, não como feed": o card de run na lista
+  (`/runs`) usa `railOf`/`StageBar` para desenhar a esteira de estágios em
+  ordem de execução (etapa 1 → etapa 6), que é uma linha do tempo de
+  progresso, não uma lista de eventos recentes-primeiro. Inverter essa
+  ordem quebraria a leitura do rail como "quanto já andou": o pipeline
+  precisa ler da esquerda (início) para a direita (fim) para fazer sentido
+  como progresso, exatamente o motivo pelo qual esta reversão foi escalada
+  para o operador em vez de decidida sozinha.
+- **`console/src/surfaces/screens/runs.tsx`** — verificado, sem mudança
+  necessária: não lê `events`/transcript, só o resumo de estágios já coberto
+  pelo caso acima via `run-card.tsx`.
+
+### Lacuna de verificação aberta, não escondida
+
+Rodando `010-leitura-do-relato.acceptance.spec.ts` e `surfaces.spec.ts`
+juntos (não isoladamente, por pressão de orçamento), 6 testes falharam:
+
+- `010-leitura-do-relato...spec.ts:83` (cabeçalho/aba/célula concordam sobre
+  headline sem markdown)
+- `010-leitura-do-relato...spec.ts:133` (run sem headline mostra trigger+id)
+- `010-leitura-do-relato...spec.ts:229` (relatório em disclosure fechado)
+- `010-leitura-do-relato...spec.ts:366` (staging-safe: headline sem
+  markdown, ≤120 caracteres)
+- `surfaces.spec.ts:45` (lista filtrada sobrevive a reload)
+- `surfaces.spec.ts:57` (ordenação como navegação com endereço)
+
+**Não foi possível isolar se isso é pré-existente, interferência entre
+arquivos (já observada nesta sessão ao rodar múltiplos specs juntos) ou uma
+regressão real da reversão.** Nenhum desses arquivos foi tocado por esta
+feature. Nenhuma dessas asserções fala de ordem de transcript. Mas nem
+`010-leitura-do-relato.acceptance.spec.ts` nem `surfaces.spec.ts` foram
+rodados isoladamente nesta sessão para confirmar. **Isto é o primeiro passo
+de quem retomar**: rodar cada arquivo sozinho
+(`uv run python -m tools.console_e2e run -- tests/e2e/010-leitura-do-relato.acceptance.spec.ts --reporter=line`,
+depois o mesmo para `surfaces.spec.ts`) antes de qualquer outra coisa.
+
+### O que NÃO foi feito neste encerramento
+
+- **Baselines visuais não recapturadas** para nenhuma mudança desta segunda
+  rodada (grid revertido, evidence bar, slide-in, toggle em chip, ordem
+  invertida). T019 continua `[ ]`. Todas as baselines existentes no repo são
+  da rodada anterior (grid ainda com a tentativa `[1fr_340px]` revertida
+  depois da captura, ou seja: **as baselines atuais podem já estar
+  desatualizadas mesmo antes desta rodada — não confirmado**).
+- **Varredura de português europeu em `pt-BR.ts` não iniciada.** A única
+  mudança no arquivo nesta sessão foi a chave nova `transcript.newestFirst`,
+  já em pt-BR correto ("o mais novo primeiro"). As ocorrências já
+  identificadas em rodadas anteriores desta sessão e ainda não corrigidas:
+  `registada`/`registadas` (`runs.list.caption`, `runs.empty.body` —
+  conferir texto exato antes de corrigir), `'Precisa de si'`
+  (`dashboard.attention.title`), `'Objectivo'` (`transcript.kind.objective`).
+  Estas três são conhecidas; **o arquivo não foi varrido exaustivamente** —
+  quem retomar deve ler `console/src/i18n/pt-BR.ts` inteiro, não só essas
+  três chaves. Fica pendente, em commit próprio, separado da feature, como
+  pedido.
+- **`tasks.md` T017 permanece `[x]`** (já estava marcado antes desta rodada;
+  as correções desta rodada são a conclusão do que T017 já cobria, não uma
+  tarefa nova). **T019 permanece `[ ]`** — nenhuma baseline nova capturada.
+
+### Estado exato no encerramento
+
+- Último commit: `df1dfffa` — `wip(console): apply the T017 round-2 rulings and reverse transcript order`.
+- Árvore de trabalho: limpa (nada não commitado) além deste próprio arquivo de controle e seu espelho, ainda sendo escritos.
+- Suítes confirmadas isoladamente após esta rodada: acceptance da feature
+  19/19, `live.spec.ts` 4/5 (a falha é pré-existente e sem relação),
+  `transcript.test.tsx` 21/21.
+- Próximo passo para quem retomar: rodar `010-leitura-do-relato.acceptance.spec.ts`
+  e `surfaces.spec.ts` isoladamente para decidir a lacuna acima; só depois
+  recapturar baselines; só depois a varredura de pt-BR, em commit separado.
