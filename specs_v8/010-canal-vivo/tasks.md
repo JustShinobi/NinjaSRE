@@ -104,14 +104,14 @@
 
 ## Phase 5: O cliente
 
-- [ ] T050 Teste de unidade `console/tests/unit/live/deployment.test.ts`
+- [x] T050 Teste de unidade `console/tests/unit/live/deployment.test.ts`
   (vermelho primeiro): conecta, entrega lote, `resync` chama o callback,
   backoff/visibilidade herdados; e `auto-refresh` com canal vivo NÃO agenda
   timer, com canal caído agenda `delayAfter(failures)` como hoje.
-- [ ] T051 `console/src/live/deployment.ts`: conexão do canal reutilizando
+- [x] T051 `console/src/live/deployment.ts`: conexão do canal reutilizando
   `StreamSource`/`Scheduler`/`Visibility` de `connection.ts`; expõe
   `onEvents`, `onResync`, `state`.
-- [ ] T052 `console/src/live/auto-refresh.tsx`: integrar — eventos em lote de
+- [x] T052 `console/src/live/auto-refresh.tsx`: integrar — eventos em lote de
   `DEPLOYMENT_REFRESH_BATCH_MS` ⇒ `router.refresh()`; `resync` ⇒ refresh
   imediato; mapa ConnectionState→Freshness (conectado `live`, reconectando
   `refreshing`, caído `stale`, oculto `paused`); pulso `pulse-live` da 000 no
