@@ -1,9 +1,15 @@
 {
   "schema_version": 1,
   "wave": "specs_v8",
-  "status": "pending",
-  "runtime": null,
-  "active_run": null,
+  "status": "in_progress",
+  "runtime": "claude",
+  "active_run": {
+    "run_id": "v8-run-001",
+    "lead": "claude",
+    "claimed_at": "2026-08-28T00:18:52+00:00",
+    "baseline_commit": "6a463c90af657942fc8ef657c731126110746504",
+    "baseline_status_empty": true
+  },
   "feature_order": [
     "specs_v8/000-fundacao-visual",
     "specs_v8/010-canal-vivo",
@@ -15,38 +21,141 @@
     "specs_v8/070-iniciar-investigacao"
   ],
   "slots": {
-    "S0": ["specs_v8/000-fundacao-visual"],
-    "S1": ["specs_v8/010-canal-vivo", "specs_v8/030-run-view-narrado"],
-    "S2": ["specs_v8/040-decisoes-estruturadas", "specs_v8/060-telas-de-area"],
-    "S3": ["specs_v8/020-titulo-vivo", "specs_v8/050-painel-vivo"],
-    "S4": ["specs_v8/070-iniciar-investigacao"],
+    "S0": [
+      "specs_v8/000-fundacao-visual"
+    ],
+    "S1": [
+      "specs_v8/010-canal-vivo",
+      "specs_v8/030-run-view-narrado"
+    ],
+    "S2": [
+      "specs_v8/040-decisoes-estruturadas",
+      "specs_v8/060-telas-de-area"
+    ],
+    "S3": [
+      "specs_v8/020-titulo-vivo",
+      "specs_v8/050-painel-vivo"
+    ],
+    "S4": [
+      "specs_v8/070-iniciar-investigacao"
+    ],
     "S5": []
   },
-  "current_feature": null,
+  "current_feature": "specs_v8/000-fundacao-visual",
   "completed_features": [],
   "last_verdict": "pending",
-  "last_gate": null,
+  "last_gate": {
+    "name": "baseline make verify",
+    "status": "KNOWN_RED",
+    "at": "2026-08-28T00:26:07+00:00",
+    "exit_code": 2
+  },
   "open_questions": [],
-  "last_checkpoint": null,
-  "next_action": "Run analyze for specs_v8/000-fundacao-visual before dispatching an implementer.",
-  "fingerprint": null,
+  "last_checkpoint": "2026-08-28T01:41:31+00:00",
+  "next_action": "T023 make verify running (orchestrator). Then: re-confirm acceptance on final build, speckit-converge, deploy-stg, Orca visual gate, verifier.",
+  "fingerprint": "d454b52d2f4012ae",
   "features": [
     {
       "path": "specs_v8/000-fundacao-visual",
       "slot": "S0",
       "dependencies": [],
-      "phase": "initialize",
-      "status": "pending",
-      "runtime": null,
-      "last_checkpoint": null,
-      "next_action": "Run speckit-analyze.",
-      "worktree": null,
+      "phase": "implement",
+      "status": "in_progress",
+      "runtime": "claude",
+      "last_checkpoint": "2026-08-28T00:18:52+00:00",
+      "next_action": "Await implementer report; then speckit-converge.",
+      "worktree": "shared-tree",
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "PASS_WITH_FIXES",
+          "at": "2026-08-28T00:24:08+00:00",
+          "prerequisites": "tasks.md complete (27 tasks, 8 phases)",
+          "findings": [
+            {
+              "id": "E1",
+              "severity": "HIGH",
+              "status": "RESOLVED",
+              "issue": "FR-004 fixed on-* hex for four board-unnamed roles but left on-success/success-bg with no spec-level source, while SC-007 demands all 26x2 cells be traceable.",
+              "resolution": "Verified against FR-003, which equates success to accent in both themes; the accent pair therefore determines both. FR-004 patched to state it explicitly (dark #062018/#12271f, light #ffffff/#e2f2ec). No new value invented."
+            },
+            {
+              "id": "E2",
+              "severity": "MEDIUM",
+              "status": "RESOLVED",
+              "issue": "T015 claimed icon export/signature preservation is proven by T007, whose scope is the chip, not icons. FR-022 had no covering test.",
+              "resolution": "Added T007b (icon export-surface characterization: ordered export names + prop shapes, green before and after). T015 cross-reference corrected."
+            },
+            {
+              "id": "E3",
+              "severity": "MEDIUM",
+              "status": "OPEN_FOR_OPERATOR",
+              "issue": "The board contradicts itself on H1 weight: design SPEC.md prose says 600, Main.dc.html renders 700. Feature FR-014 follows the artboard (700).",
+              "resolution": "Implementer records the resolution in controle.md; flagged to the operator, since only they can amend the board."
+            },
+            {
+              "id": "E4",
+              "severity": "LOW",
+              "status": "RESOLVED",
+              "issue": "FR-035 (do not touch area screens, routes, data, gateway) had no verifying task.",
+              "resolution": "T023 extended with a diff-scope check against the plan's allowed file list, recorded in controle.md."
+            },
+            {
+              "id": "E5",
+              "severity": "LOW",
+              "status": "NOTED",
+              "issue": "Board prose names 4 status shapes; the frozen console implementation has 7. Not a defect of this feature; spec already treats the shapes as unchanged."
+            }
+          ],
+          "coverage": {
+            "requirements": 35,
+            "success_criteria": 7,
+            "normative_claims": 16,
+            "tasks_before": 27,
+            "tasks_after": 28,
+            "requirements_without_task": 0
+          },
+          "blocking": false
+        },
+        "implement": {
+          "status": "complete_pending_gate",
+          "at": "2026-08-28T01:41:31+00:00",
+          "agent": "spec-implementer",
+          "turn_ceilings_hit": 2,
+          "subagent_tokens": 736873,
+          "ledger": {
+            "done": 21,
+            "closed_without_execution": 2,
+            "open": 5
+          },
+          "closed_without_execution": {
+            "T001": "baseline run by orchestrator",
+            "T017": "pulse-live already existed from an earlier wave; characterized, not built"
+          },
+          "open": {
+            "T023": "orchestrator owns the full gate",
+            "T024-T027": "orchestrator: staging deploy, staging acceptance, Orca visual capture, verdict"
+          },
+          "notes": [
+            "Local harness serves a prebuilt .next/standalone/server.js and never rebuilds: acceptance after a source change silently re-tests the old build. `console_gate build` must precede it. Two runs were misread this way before the implementer caught it.",
+            "Background-task notifications reported exit 0 for runs that exited 1, at least three times. Every recorded result came from the real log."
+          ]
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "PASS",
+        "backing": "mock",
+        "at": "2026-08-28T01:41:31+00:00",
+        "tests": [
+          "console/tests/e2e/fundacao-visual.acceptance.spec.ts",
+          "console/tests/e2e/network.spec.ts"
+        ],
+        "detail": "20 passed on the acceptance spec (fresh build), exit 0 read from the log; network.spec.ts 2 passed, identical to the Phase 0 'before'."
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -55,13 +164,30 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
-      "fingerprint": null
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
+      "fingerprint": null,
+      "visual_baselines": {
+        "status": "PARTIAL",
+        "recaptured": 36,
+        "total": 38,
+        "failed": [
+          "resources-1440-light",
+          "resources-320-light"
+        ],
+        "attribution": "Inherited, not this feature. Verified independently by the orchestrator: rows.tsx (maxBlockSize cap), window.ts (ROW_HEIGHT=44) and capture.ts are all untouched here; the overflow is structural (row count x 44 against a 660px cap, ~3160px excess), not typographic; a dozen commits have changed fixtures since those two baselines were last captured. Both PNGs are unmodified. The repair belongs to whoever touches /resources — the area-screens feature.",
+        "review": "Seven captures opened and inspected individually across both themes, not stamped."
+      }
     },
     {
       "path": "specs_v8/010-canal-vivo",
       "slot": "S1",
-      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -69,11 +195,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -82,13 +220,19 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
       "path": "specs_v8/020-titulo-vivo",
       "slot": "S3",
-      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -96,11 +240,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -109,13 +265,19 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
       "path": "specs_v8/030-run-view-narrado",
       "slot": "S1",
-      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -123,11 +285,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -136,13 +310,19 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
       "path": "specs_v8/040-decisoes-estruturadas",
       "slot": "S2",
-      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -150,11 +330,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -163,7 +355,11 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
@@ -181,11 +377,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -194,13 +402,19 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
       "path": "specs_v8/060-telas-de-area",
       "slot": "S2",
-      "dependencies": ["specs_v8/000-fundacao-visual"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -208,11 +422,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -221,13 +447,20 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     },
     {
       "path": "specs_v8/070-iniciar-investigacao",
       "slot": "S4",
-      "dependencies": ["specs_v8/000-fundacao-visual", "specs_v8/010-canal-vivo"],
+      "dependencies": [
+        "specs_v8/000-fundacao-visual",
+        "specs_v8/010-canal-vivo"
+      ],
       "phase": "initialize",
       "status": "pending",
       "runtime": null,
@@ -235,11 +468,23 @@
       "next_action": "Wait for dependencies, then run speckit-analyze.",
       "worktree": null,
       "lifecycle_results": {
-        "analyze": { "status": "pending" },
-        "implement": { "status": "pending" },
-        "converge": { "status": "pending", "rounds_used": 0, "rounds": [] }
+        "analyze": {
+          "status": "pending"
+        },
+        "implement": {
+          "status": "pending"
+        },
+        "converge": {
+          "status": "pending",
+          "rounds_used": 0,
+          "rounds": []
+        }
       },
-      "playwright_result": { "status": "pending", "backing": null, "tests": [] },
+      "playwright_result": {
+        "status": "pending",
+        "backing": null,
+        "tests": []
+      },
       "visual_result": {
         "status": "pending",
         "reviewer": "orca-browser",
@@ -248,9 +493,101 @@
         "viewports": [],
         "evidence": []
       },
-      "verifier_result": { "status": "pending", "findings": [], "commands": [] },
+      "verifier_result": {
+        "status": "pending",
+        "findings": [],
+        "commands": []
+      },
       "fingerprint": null
     }
   ],
-  "history": []
+  "history": [
+    {
+      "at": "2026-08-28T00:18:52+00:00",
+      "event": "run_claimed",
+      "run_id": "v8-run-001",
+      "baseline_commit": "6a463c90af657942fc8ef657c731126110746504",
+      "slot": "S0"
+    },
+    {
+      "at": "2026-08-28T00:24:08+00:00",
+      "event": "analyze_complete",
+      "feature": "specs_v8/000-fundacao-visual",
+      "verdict": "PASS_WITH_FIXES",
+      "spec_patched": [
+        "FR-004"
+      ],
+      "tasks_patched": [
+        "T007b added",
+        "T015",
+        "T023"
+      ]
+    },
+    {
+      "at": "2026-08-28T00:26:07+00:00",
+      "event": "baseline_captured",
+      "exit_code": 2,
+      "verdict": "KNOWN_RED (9 environmental, out of scope)",
+      "passed": 12972
+    },
+    {
+      "at": "2026-08-28T00:26:52+00:00",
+      "event": "implementer_dispatched",
+      "feature": "specs_v8/000-fundacao-visual",
+      "scope": "T001-T023"
+    },
+    {
+      "at": "2026-08-28T01:22:16+00:00",
+      "event": "operator_ruling",
+      "decisions": [
+        "E3-h1-weight",
+        "contrast-border-strong"
+      ],
+      "effect": "Board palette restored; contrast contract to carry a measured divergence registry."
+    }
+  ],
+  "baseline": {
+    "command": "make verify",
+    "at": "2026-08-28T00:26:07+00:00",
+    "exit_code": 2,
+    "totals": {
+      "passed": 12972,
+      "failed": 9,
+      "skipped": 39,
+      "duration_s": 113.67
+    },
+    "note": "Not green. All 9 failures are one parametrized test across 9 providers, outside this feature's file scope.",
+    "cause": "The test expects FailureClass.UNKNOWN, the classification produced when a provider extra is absent and no client can be built. On this machine every provider instead reached the network and returned a real classified failure (TRANSIENT connection-refused, or AUTH). google_gemini returned 'API key not valid' from the live endpoint, so egress and at least one key are present here. The test's premise is CI's environment (no egress, no credentials), not this host.",
+    "side_observation": "That test performs real outbound calls to third-party LLM endpoints during make verify. Out of scope for this wave; worth raising separately.",
+    "known_red": [
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[anthropic]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[nvidia_nim]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[ollama]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[aws_bedrock]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[google_gemini]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[openai]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[azure_openai]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[google_vertex_ai]",
+      "tests/contract/llm/test_transport_equivalence.py::test_a_missing_extra_becomes_a_classified_failure_not_an_exception[openrouter]"
+    ],
+    "decision": "Characterized as known-red and pinned. T023 must reproduce exactly these 9 and no others; any additional failure is this feature's defect."
+  },
+  "operator_decisions": [
+    {
+      "at": "2026-08-28T01:22:16+00:00",
+      "id": "E3-h1-weight",
+      "question": "Board self-contradicts on H1 weight: SPEC.md prose 600 vs Main.dc.html 700.",
+      "ruling": "Artboard wins — 700. Implementation already builds 700; recorded so it is not reopened as a defect."
+    },
+    {
+      "at": "2026-08-28T01:22:16+00:00",
+      "id": "contrast-border-strong",
+      "question": "Board palette fails the contrast contract: border-strong reaches 3:1 against no ground in either theme; dark hover over raised is 1.098 vs an internal 1.1.",
+      "ruling": "Operator: 'o artboard e a fonte da verdade, nao e o board que esta errado, e o que foi feito.' Board hexes stand intact; the contract is the defect.",
+      "implementation": "Implementer instructed to revert all three token adjustments (#68776f->#35493f, #7c8983->#9fb0a8, #1e2b27->#1c2925) and to add a named divergence registry to the contrast suite that keeps every pair generated and measured with its ratio pinned as a literal, rather than deleting pairs or lowering HOVER_MINIMUM.",
+      "evidence": "border-strong vs surface/sunken/raised/hover — dark 1.87/1.99/1.71/1.56, light 2.27/2.08/2.27/1.94. Artboard usage checked: .kpi:hover emphasis on an already-bordered card, and secondary chip outlines with high-contrast labels; never the sole identifier of a control.",
+      "registered_in": "design/padrao-2026-08/DIVERGENCIAS.md item 7",
+      "accepted_cost": "Neutral control boundaries sit near 1.9:1 on every dark ground. A real property of the approved board, recorded so it is not silently 'fixed'."
+    }
+  ]
 }

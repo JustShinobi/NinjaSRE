@@ -54,3 +54,47 @@ O board desenha a UI em pt-BR. O console é i18n (en, pt-BR) via `message()`;
 a implementação continua i18n — as strings do board entram como pt-BR e
 ganham par em inglês. Não é conflito, é nota: ninguém deve hardcodar as
 strings do mockup.
+
+## 7. O contrato de contraste tratava `border-strong` como limite obrigatório
+
+Decidido pelo operador em 2026-08-27, ao aplicar a paleta na fundação visual:
+**o artboard é a fonte da verdade; o board não está errado, o que estava
+errado é o que foi feito.** O registro do que isso significa, medido:
+
+`console/src/design/tokens.ts` gera em `boundaryPairs()` um par
+`border-strong` contra cada um dos quatro fundos, e a suíte
+(`tests/unit/design/contrast.test.ts`) exige 3:1 em cada um, por WCAG 1.4.11.
+Com a paleta do board, nenhum dos oito pares alcança esse número:
+
+| Fundo | dark (`#35493f`) | light (`#9fb0a8`) |
+|---|---|---|
+| `surface` | 1.87:1 | 2.27:1 |
+| `sunken` | 1.99:1 | 2.08:1 |
+| `raised` | 1.71:1 | 2.27:1 |
+| `hover` | 1.56:1 | 1.94:1 |
+
+E `hover` sobre `raised` no dark mede 1.098:1 contra o mínimo interno de 1.1
+(`HOVER_MINIMUM`, que não é WCAG) — reprova na terceira casa decimal.
+
+O que os artboards de fato fazem com esse token decide a questão. Ele aparece
+como `.kpi:hover { border-color: #35493f }`, uma ênfase de hover num cartão
+que já tem a própria borda `1px solid #223029`, e como contorno de chips
+secundários ("Recusar", "Ver plano →") cujos rótulos vêm em `#e9f0ec` ou
+`#9fb2aa`. Em nenhum artboard `border-strong` é a única coisa que identifica
+um controle ou um estado — que é a condição em que 1.4.11 se aplica. O
+contrato foi calibrado contra a paleta anterior, que passava por acaso, e
+descreve uma exigência que a linguagem visual deste board nunca teve: ela não
+possui limite neutro de alto contraste, e isso é a estética escura e discreta
+que o operador aprovou, não um descuido.
+
+**O que vale agora**: os hexes do board entram intactos. Os pares continuam
+sendo gerados e medidos, com as razões acima fixadas como literais na suíte —
+um número que some do teste é pior que um número que falha, e a regra "gate
+não é afrouxado" existe contra exatamente esse sumiço. Qualquer par fora
+deste registro continua reprovando normalmente, e qualquer um destes que se
+mover do valor tabelado também.
+
+**O custo, dito por inteiro**: limites neutros de controle nesta paleta ficam
+perto de 1.9:1 sobre todo fundo escuro. É uma propriedade real do padrão
+aprovado, não um efeito colateral desta feature, e fica aqui para que
+ninguém a redescubra como defeito nem a "conserte" em silêncio.
