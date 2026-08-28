@@ -85,6 +85,23 @@ const ROLE_WELL: Readonly<Record<string, string>> = {
 const DOCUMENT_KINDS: ReadonlySet<TranscriptKind> = new Set(['reasoning', 'report']);
 
 /**
+ * The raw kinds that are genuinely documents, as opposed to the ones that
+ * merely *default* to a document-shaped semantic kind.
+ *
+ * `turn` is `eventsFromReplay`'s own rawKind for a turn's reasoning; the
+ * other three are what the stream vocabulary itself spells
+ * (`STREAM_KINDS`, `transcript.ts`). Nothing outside this set is a document,
+ * however `kindOf` happened to classify it — the distinction the narration
+ * table needs and `TranscriptKind` alone cannot make.
+ */
+const DOCUMENT_RAW_KINDS: ReadonlySet<string> = new Set([
+  'turn',
+  'model_reasoned',
+  'run_completed',
+  'run_failed',
+]);
+
+/**
  * One event's instant and its duration, formatted on the server.
  *
  * On the server because the absolute form is rendered in the *deployment's*
@@ -156,7 +173,16 @@ function Entry({
   // lead sentence into that markdown would print it as part of the document
   // rather than beside it. Every other kind's `detail` is a short aside, and
   // that is what the narrated sentence below replaces.
-  const document = DOCUMENT_KINDS.has(event.kind);
+  //
+  // Keyed by `rawKind`, not by `event.kind`: `kindOf` defaults every kind it
+  // does not recognise to `reasoning` (`transcript.ts`), which is the right
+  // default for *icon and colour* — an event the vocabulary has never heard
+  // of drawn as an aside rather than dropped — and the wrong one for *this*
+  // check. A kind this build has never met is not a document; it is the
+  // narration table's own floor, the generic sentence that names it, and
+  // `DOCUMENT_KINDS.has(event.kind)` alone would have swallowed it into
+  // `renderReport('')` and shown nothing at all.
+  const document = DOCUMENT_KINDS.has(event.kind) && DOCUMENT_RAW_KINDS.has(event.rawKind);
 
   return (
     <li

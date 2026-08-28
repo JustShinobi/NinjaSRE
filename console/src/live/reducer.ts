@@ -95,6 +95,31 @@ export interface Decision {
   readonly at: string;
 }
 
+/**
+ * One of the six stages, as the live rail draws it once it has finished.
+ *
+ * Written only from a `stage_completed` event — the deployment never records
+ * a stage as having started, because a run that stopped inside one leaves it
+ * unrecorded rather than claiming it completed on the strength of having been
+ * seen to start (`platform/runs/recorder.py::record_stage`). There is
+ * therefore no live signal for "this stage began"; the rail's own active slot
+ * is derived from which canonical stage has not appeared here yet, while the
+ * run is still running.
+ */
+export interface LiveStage {
+  /** The trace's own name — `gather_evidence`, not a label. */
+  readonly stage: string;
+  readonly finding: string;
+  readonly durationMs: number;
+  readonly failed: boolean;
+}
+
+/** What a live run has spent, from the turns that have actually finished. */
+export interface LiveUsage {
+  readonly tokens: number;
+  readonly turns: number;
+}
+
 /** One run, as everything that has arrived so far leaves it. */
 export interface LiveState {
   readonly runId: string;
@@ -110,6 +135,11 @@ export interface LiveState {
   readonly decided: readonly Decision[];
   /** How many events have been applied, which is what a burst test counts. */
   readonly applied: number;
+  /** The stages this run has finished, in the order they finished. */
+  readonly stages: readonly LiveStage[];
+  readonly usage: LiveUsage;
+  /** The resources this run has named, in the order they were first named. */
+  readonly touched: readonly string[];
 }
 
 /** What a screen already knows before the stream is opened. */
@@ -139,6 +169,9 @@ export function openRun(runId: string, seed: Seed = {}): LiveState {
     waiting: seed.waiting ?? [],
     decided: [],
     applied: 0,
+    stages: [],
+    usage: { tokens: 0, turns: 0 },
+    touched: [],
   };
 }
 
@@ -171,6 +204,15 @@ function text(record: unknown, name: string): string {
   return typeof found === 'string' ? found : '';
 }
 
+function count(record: unknown, name: string): number {
+  const found = field(record, name);
+  return typeof found === 'number' && Number.isFinite(found) ? found : 0;
+}
+
+function boolean(record: unknown, name: string): boolean {
+  return field(record, name) === true;
+}
+
 /**
  * The interaction an event is about.
  *
@@ -183,6 +225,96 @@ function subjectOf(payload: unknown): string {
     if (found !== '') return found;
   }
   return '';
+}
+
+/**
+ * `stages` with the stage `event` names appended, when it is a
+ * `stage_completed` event and that stage has not already been recorded.
+ *
+ * The payload keys mirror the ones `platform/runs/recorder.py::record_stage`
+ * writes into the trace event this wire event carries verbatim
+ * (`config/constants/runs.py`: `STAGE_EVENT_NAME`, `STAGE_EVENT_DURATION_MS`,
+ * `STAGE_DETAIL_FINDING`, `STAGE_EVENT_FAILED`) — read by their raw string
+ * here because a TypeScript module cannot import a Python one, the same way
+ * `eventFromStream` already reads `name`/`detail`/`status`/`duration_ms` by
+ * hand rather than through a shared schema.
+ *
+ * Once, never twice: a `stage_completed` event replayed on reconnection
+ * would otherwise double the stage in the rail exactly the way a duplicated
+ * transcript event would double a line in it.
+ */
+function stagesAfter(
+  stages: readonly LiveStage[],
+  event: StreamEvent,
+): readonly LiveStage[] {
+  if (event.kind !== 'stage_completed') return stages;
+  const name = text(event.payload, 'stage');
+  if (name === '' || stages.some((stage) => stage.stage === name)) return stages;
+  return [
+    ...stages,
+    {
+      stage: name,
+      finding: text(event.payload, 'finding'),
+      durationMs: count(event.payload, 'duration_ms'),
+      failed: boolean(event.payload, 'failed'),
+    },
+  ];
+}
+
+/**
+ * `usage` with one more turn folded in, when `event` is a `turn_completed`.
+ *
+ * Summed from what each turn actually reported rather than apportioned the
+ * way a settled run's replay divides one total across its turns — a live
+ * run has the real per-turn figure the moment the turn ends, and reads it
+ * rather than dividing later. This is a running total, not the final one: it
+ * converges on what the replay serves once the run settles, and is not
+ * expected to match it turn for turn while the run is still going.
+ */
+function usageAfter(usage: LiveUsage, event: StreamEvent): LiveUsage {
+  if (event.kind !== 'turn_completed') return usage;
+  return {
+    tokens: usage.tokens + count(event.payload, 'tokens'),
+    turns: usage.turns + 1,
+  };
+}
+
+/**
+ * The argument keys a capability call's arguments might name a resource
+ * with — mirrors `platform/runs/replay.py::_RESOURCE_ARGUMENT_KEYS` exactly,
+ * for the same reason: the capability catalogue does not share one name for
+ * "the thing this call is about" across its schemas, so every key any of
+ * them might use is tried.
+ */
+const RESOURCE_ARGUMENT_KEYS: readonly string[] = [
+  'resource_id',
+  'resource',
+  'instance',
+  'node',
+  'host',
+  'pod',
+  'vmid',
+  'vm_id',
+];
+
+/**
+ * `touched` with the resource a `tool_called` event's arguments name, when
+ * there is one and it is not already in the list.
+ *
+ * Read from the call's own arguments, never from anything an alert declared
+ * — the same discipline `touched_resources_of` on the backend already
+ * follows, and for the same reason: a resource this list names is a resource
+ * a capability was actually invoked with, not one somebody's alert happened
+ * to mention.
+ */
+function touchedAfter(touched: readonly string[], event: StreamEvent): readonly string[] {
+  if (event.kind !== 'tool_called') return touched;
+  const args = field(event.payload, 'arguments');
+  for (const key of RESOURCE_ARGUMENT_KEYS) {
+    const value = text(args, key);
+    if (value !== '' && !touched.includes(value)) return [...touched, value];
+  }
+  return touched;
 }
 
 function phaseAfter(phase: RunPhase, event: StreamEvent): RunPhase {
@@ -290,6 +422,9 @@ export function applyEvents(
   let phase = state.phase;
   let waiting = state.waiting;
   let decided = state.decided;
+  let stages = state.stages;
+  let usage = state.usage;
+  let touched = state.touched;
   const appended: LiveEvent[] = [];
 
   // Released in order, and only while the next one is actually there.
@@ -304,6 +439,9 @@ export function applyEvents(
     phase = phaseAfter(phase, next);
     waiting = waitingAfter(waiting, next);
     decided = decidedAfter(decided, next);
+    stages = stagesAfter(stages, next);
+    usage = usageAfter(usage, next);
+    touched = touchedAfter(touched, next);
   }
 
   if (appended.length === 0 && pool.size === before) return state;
@@ -318,6 +456,9 @@ export function applyEvents(
     waiting,
     decided,
     applied: state.applied + appended.length,
+    stages,
+    usage,
+    touched,
   };
 }
 

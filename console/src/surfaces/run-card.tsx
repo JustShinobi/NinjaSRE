@@ -468,8 +468,15 @@ export function unplacedTurns(body: RunCardBody): readonly RunCardTurn[] {
   return body.turns.filter((turn) => !placed.has(turn.index));
 }
 
-/** The six the pipeline runs, and the only names this console has a label for. */
-const STAGE_NAMES = [
+/**
+ * The six the pipeline runs, in order, and the only names this console has a
+ * label for.
+ *
+ * Exported for `stage-rail.tsx`, which draws the same six as boxes rather
+ * than as rows — one vocabulary, two presentations, so a stage renamed here
+ * cannot drift between the list's card and the run's own page.
+ */
+export const STAGE_NAMES = [
   'resolve_integrations',
   'intake',
   'plan_evidence',

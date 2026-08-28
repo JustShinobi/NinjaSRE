@@ -31,10 +31,20 @@ import {
 } from '../read';
 import { CopyReport } from '../copy-report';
 import { Report } from '../report';
+import { stagesFrom } from '../run-card';
+import { StageRail } from '../stage-rail';
 import { subjectOf } from '../run-subject';
 import { isLiveRun } from '@/design/status';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
 import { LiveEventCount, LiveRun } from '@/live/live-run';
+import {
+  FindingItem,
+  LiveFindings,
+  LiveStageRail,
+  LiveTouched,
+  LiveUsage,
+  TouchedChip,
+} from '@/live/live-run-rail';
 import type { Seed } from '@/live/reducer';
 import { may } from '@/session/viewer';
 import { eventsFromReplay, usageFrom } from '../transcript';
@@ -113,6 +123,11 @@ export async function RunDetailScreen(
   // undisclosed copy styled as the transcript's own concluding word.
   const events = eventsFromReplay(replayed);
   const usage = usageFrom(replayed);
+  // The rail's own reading of the same replay body — `stages[]`, already
+  // served by the route this screen was already calling. A live run ignores
+  // this and reads the stream instead (`LiveStageRail`); a settled one has
+  // nothing else to read from.
+  const stages = stagesFrom(replayed);
 
   // Nothing: a live run's transcript is the stream, whose catch-up read carries
   // the whole log, and seeding it with the replay as well would put every event
@@ -188,6 +203,17 @@ export async function RunDetailScreen(
           icon={<Icon size="head" />}
           actions={<Badge status={text(run, 'status')} />}
         />
+      </div>
+
+      {/* The pipeline, on top and full width — never a title of its own,
+          because a card that just repeats "Pipeline" over six boxes already
+          named by the page's own header is a line nobody reads twice. */}
+      <div className="bg-raised edge border-border rounded-3 shadow-1 p-4 overflow-x-auto">
+        {running ? (
+          <LiveStageRail runId={runId} locale={locale} seed={liveSeed} />
+        ) : (
+          <StageRail locale={locale} stages={stages} running={false} />
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -373,15 +399,50 @@ export async function RunDetailScreen(
           ))}
 
           <Panel
+            title={message(locale, 'run.findings.title')}
+            state="ready"
+            labels={panelLabels(locale, message(locale, 'run.findings.title'))}
+            empty={{
+              heading: message(locale, 'run.findings.title'),
+              body: message(locale, 'run.findings.none'),
+              actionLabel: message(locale, 'transcript.empty.action'),
+              href: '/runs',
+            }}
+          >
+            {running ? (
+              <LiveFindings runId={runId} locale={locale} seed={liveSeed} />
+            ) : stages.filter((stage) => stage.finding !== '').length === 0 ? (
+              <p data-testid="run-findings-none" className="text-small text-muted">
+                {message(locale, 'run.findings.none')}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {stages
+                  .filter((stage) => stage.finding !== '')
+                  .map((stage) => (
+                    <FindingItem
+                      key={stage.stage}
+                      finding={stage.finding}
+                      failed={stage.failed}
+                    />
+                  ))}
+              </div>
+            )}
+          </Panel>
+
+                    <Panel
             title={message(locale, 'run.usage.title')}
-            // A run that failed before it began has nothing to break down, and
-            // that is not this panel's error to report — the empty state below
-            // is for a read that came back empty, not for a run that never spent
-            // anything. Collapsing it here keeps the CTA for the read failure
-            // this panel actually depends on, and drops it for the one it does
-            // not.
-            state={stateOf(replay, usage.byTurn.length === 0 && !failedBeforeStart)}
-            dependency={dependencyOf(replay)}
+            // A live run never sits in the settled `empty` chrome: it either
+            // has a turn to show or says so in one honest line inside a
+            // `ready` body (`LiveUsage`) — the empty state with its
+            // call-to-action is for a *read* that came back empty, and a run
+            // still writing has not failed to read anything.
+            state={
+              running
+                ? 'ready'
+                : stateOf(replay, usage.byTurn.length === 0 && !failedBeforeStart)
+            }
+            dependency={running ? '' : dependencyOf(replay)}
             labels={panelLabels(locale, message(locale, 'run.usage.title'))}
             empty={{
               heading: message(locale, 'run.usage.empty.heading'),
@@ -390,10 +451,13 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
           >
-            {failedBeforeStart && usage.byTurn.length === 0 ? (
+            {running ? (
+              <LiveUsage runId={runId} locale={locale} seed={liveSeed} />
+            ) : failedBeforeStart && usage.byTurn.length === 0 ? (
               // One line, not a call to action pointing back at the list this
-              // run was already opened from.
-              <p className="text-small text-muted">
+              // run was already opened from — true and settled, unlike the
+              // live "awaiting" line, which is why it keeps the older key.
+              <p data-testid="run-usage-none" className="text-small text-muted">
                 {message(locale, 'run.usage.empty.heading')}
               </p>
             ) : (
@@ -402,7 +466,7 @@ export async function RunDetailScreen(
                   <span className="text-muted">
                     {message(locale, 'run.usage.tokens')}
                   </span>
-                  <span className="ml-auto tabular-nums">
+                  <span data-testid="usage-tokens" className="ml-auto tabular-nums">
                     {formatNumber(locale, usage.tokens)}
                   </span>
                 </div>
@@ -508,12 +572,18 @@ export async function RunDetailScreen(
             // began is not a read that came back empty either, and does not
             // need that read's call to action.
             state={
-              linksReadFailed
-                ? 'error'
-                : stateOf(detail, linksEmpty && !failedBeforeStart)
+              running
+                ? 'ready'
+                : linksReadFailed
+                  ? 'error'
+                  : stateOf(detail, linksEmpty && !failedBeforeStart)
             }
             dependency={
-              linksReadFailed ? dependencyOf(incidents) : dependencyOf(detail)
+              running
+                ? ''
+                : linksReadFailed
+                  ? dependencyOf(incidents)
+                  : dependencyOf(detail)
             }
             labels={panelLabels(locale, message(locale, 'run.links.title'))}
             empty={{
@@ -523,12 +593,36 @@ export async function RunDetailScreen(
               href: '/resources',
             }}
           >
-            {linksEmpty ? (
+            {running ? (
+              <dl className="flex flex-col gap-3 text-small">
+                {incident === undefined ? null : (
+                  <div className="flex items-center gap-3">
+                    <dt className="text-muted">
+                      {message(locale, 'run.links.incident')}
+                    </dt>
+                    <dd className="ml-auto min-w-0 truncate">
+                      <Link
+                        data-testid="run-incident-link"
+                        href={`/incidents/${text(incident, 'public_id')}`}
+                      >
+                        {text(incident, 'title')}
+                      </Link>
+                    </dd>
+                  </div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <dt className="text-muted">{message(locale, 'run.links.resources')}</dt>
+                  <dd>
+                    <LiveTouched runId={runId} locale={locale} seed={liveSeed} />
+                  </dd>
+                </div>
+              </dl>
+            ) : linksEmpty ? (
               <p className="text-small text-muted">
                 {message(locale, 'run.links.empty.heading')}
               </p>
             ) : (
-              <dl className="flex flex-col gap-2 text-small">
+              <dl className="flex flex-col gap-3 text-small">
                 {incident === undefined ? null : (
                   <div className="flex items-center gap-3">
                     <dt className="text-muted">
@@ -549,16 +643,17 @@ export async function RunDetailScreen(
                     <dt className="text-muted">
                       {message(locale, 'run.links.resources')}
                     </dt>
-                    {touchedResources.map((resource) => (
-                      <dd key={resource} className="min-w-0 truncate">
-                        <Link href={`/resources?selected=${resource}`}>{resource}</Link>
-                      </dd>
-                    ))}
+                    <dd className="flex flex-wrap gap-2">
+                      {touchedResources.map((resource) => (
+                        <TouchedChip key={resource} resource={resource} />
+                      ))}
+                    </dd>
                   </div>
                 )}
               </dl>
             )}
           </Panel>
+
         </div>
       </div>
 
