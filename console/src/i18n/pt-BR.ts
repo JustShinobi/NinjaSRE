@@ -493,6 +493,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} eventos',
   'transcript.events.one': '{count} evento',
+  'transcript.newestFirst': 'o mais novo primeiro',
   'transcript.empty.heading': 'Ainda não há transcrição',
   'transcript.empty.body':
     'A transcrição aparece assim que a investigação dá o primeiro passo. Nada foi registrado nesta.',

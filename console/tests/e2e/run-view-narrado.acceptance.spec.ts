@@ -311,6 +311,20 @@ test.describe('AN-10/AN-11 — replay and stream narrate the same vocabulary the
   });
 });
 
+// The artboard's own `.newRow` annotation on a transcript entry that just
+// arrived has no AN number of its own — a gap in the normative list, not a
+// reason to skip it — but it is proved as a unit test
+// (`tests/unit/surfaces/transcript.test.tsx`, describe block "an entry that
+// arrives after the transcript already rendered"), not here. The local mock
+// plane serves a live run's whole catch-up read as one HTTP response with no
+// observable delay before the last of it, so there is no in-between instant
+// this suite can poll for between "eleven events" and "twelve" — every
+// attempt at that either raced the poll against a burst that already
+// finished, or asserted nothing a browser could disagree with. What a
+// browser test cannot time reliably, a unit test controls exactly: it
+// renders the component, then re-renders it with one appended event, and
+// reads the same `data-just-arrived` attribute this spec would have.
+
 // =============================================================================
 // AN-12 — conduct controls live, absent settled
 // =============================================================================

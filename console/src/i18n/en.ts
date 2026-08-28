@@ -465,6 +465,11 @@ export const EN = {
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
   'transcript.events.one': '{count} event',
+  // The board's own second half of this caption (`RunView.dc.html`:
+  // "31 eventos · o mais novo primeiro") — its own key, not folded into
+  // `transcript.events` above, because that key is shared with the audit
+  // log's own count (`settings/audit.tsx`), which is not ordered this way.
+  'transcript.newestFirst': 'newest first',
   'transcript.empty.heading': 'No transcript yet',
   'transcript.empty.body':
     'A transcript appears as soon as the investigation takes its first turn. Nothing has been recorded for this one.',

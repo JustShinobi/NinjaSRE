@@ -88,6 +88,9 @@ export function LiveEventCount({
         'transcript.events.one',
         'transcript.events',
       )}
+      {snapshot.live.events.length === 0
+        ? ''
+        : ` · ${message(locale, 'transcript.newestFirst')}`}
     </span>
   );
 }

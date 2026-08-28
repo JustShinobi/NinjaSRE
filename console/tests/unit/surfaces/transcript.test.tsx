@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -169,9 +169,13 @@ describe('every kind of event', () => {
 
     const drawn = screen.getAllByTestId('transcript-event');
     expect(drawn).toHaveLength(TRANSCRIPT_KINDS.length);
-    expect(drawn.map((entry) => entry.getAttribute('data-kind'))).toEqual([
-      ...TRANSCRIPT_KINDS,
-    ]);
+    // Newest first: `Transcript` draws the array it is given in reverse
+    // (`RunView.dc.html`'s "o mais novo primeiro"), so the events built here
+    // in `TRANSCRIPT_KINDS` order are rendered in the opposite one — the
+    // last one built is the "newest" and lands on top.
+    expect(drawn.map((entry) => entry.getAttribute('data-kind'))).toEqual(
+      [...TRANSCRIPT_KINDS].reverse(),
+    );
 
     // Semantically distinct, not only visually: each entry says what kind it is
     // in words, and the roles separate the ones that matter most.
@@ -399,6 +403,71 @@ describe('what a run cost', () => {
 
     expect(usage.byTurn[0]?.turn).toBe(1);
     expect(usage.priced).toBe(true);
+  });
+});
+
+describe('an entry that arrives after the transcript already rendered', () => {
+  // The board draws the newest event on top and annotates it with its own
+  // arrival motion (`RunView.dc.html`'s `.newRow`) — proved here rather than
+  // in the acceptance suite, which found no instant it could reliably poll
+  // for between "the catch-up read landed" and "one more event arrived": the
+  // local mock plane serves a live run's whole backlog in one response, so a
+  // browser test racing a poll against it either caught the burst already
+  // finished or asserted nothing meaningful. A synchronous re-render with
+  // one appended event is exactly the instant this needs, and this is the
+  // one place that can hold it still.
+  it('marks only the newly appended event as just arrived, never the ones already drawn', async () => {
+    const initial = events(3);
+    const { rerender } = render(
+      <Transcript events={initial} labels={LABELS} times={{}} narrations={{}} />,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByTestId('transcript-event')).toHaveLength(3);
+    });
+    // The catch-up read itself is never an arrival to animate — nothing is
+    // marked once the first render (and the effect it triggers) has settled.
+    expect(document.querySelectorAll('[data-just-arrived="true"]')).toHaveLength(0);
+
+    const appended: TranscriptEvent = {
+      id: 'event-new',
+      kind: 'evidence',
+      rawKind: 'observation_recorded',
+      at: '2026-08-07T11:56:00+00:00',
+      title: '',
+      detail: 'a genuinely new observation',
+      note: '',
+      payload: '',
+      status: '',
+      durationMs: 0,
+    };
+    rerender(
+      <Transcript events={[...initial, appended]} labels={LABELS} times={{}} narrations={{}} />,
+    );
+
+    await waitFor(() => {
+      const marked = document.querySelectorAll('[data-just-arrived="true"]');
+      expect(marked).toHaveLength(1);
+    });
+    const marked = document.querySelector('[data-just-arrived="true"]');
+    expect(marked?.getAttribute('data-raw-kind')).toBe('observation_recorded');
+
+    // Nothing already on screen before the append picked up the marker —
+    // the newest one alone did.
+    const stillUnmarked = screen
+      .getAllByTestId('transcript-event')
+      .filter((entry) => entry.getAttribute('data-raw-kind') !== 'observation_recorded');
+    expect(stillUnmarked).toHaveLength(3);
+    for (const entry of stillUnmarked) {
+      expect(entry.getAttribute('data-just-arrived')).toBe('false');
+    }
+  });
+
+  it('settles a settled run\'s own transcript without marking anything, ever', () => {
+    // A replayed run's `events` never changes after mount — the effect
+    // fires exactly once, sees the whole transcript already there, and
+    // exempts it the same way the live run's own catch-up burst is exempt.
+    render(<Transcript events={events(5)} labels={LABELS} times={{}} narrations={{}} />);
+    expect(document.querySelectorAll('[data-just-arrived="true"]')).toHaveLength(0);
   });
 });
 

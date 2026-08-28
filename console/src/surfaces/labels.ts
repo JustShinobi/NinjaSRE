@@ -118,7 +118,13 @@ export function transcriptLabels(
   locale: Locale,
   events: readonly TranscriptEvent[],
 ): TranscriptLabels {
-  const first = Math.max(1, events.length - TRANSCRIPT_WINDOW + 1);
+  // The transcript now draws newest first (`Transcript`,
+  // `transcript-view.tsx`), so the default window — before either paging
+  // button has been pressed — is the *first* `TRANSCRIPT_WINDOW` of the
+  // reversed list, not the tail of the recorded one. This caption describes
+  // that default; it does not track the client's own paging state, the same
+  // limitation it already had before the order changed.
+  const last = Math.min(TRANSCRIPT_WINDOW, events.length);
   const kinds = Object.fromEntries(
     TRANSCRIPT_KINDS.map((kind) => [kind, message(locale, `transcript.kind.${kind}`)]),
   ) as Record<TranscriptKind, string>;
@@ -126,8 +132,8 @@ export function transcriptLabels(
   return {
     kinds,
     position: message(locale, 'transcript.position', {
-      first: formatNumber(locale, first),
-      last: formatNumber(locale, events.length),
+      first: formatNumber(locale, events.length === 0 ? 0 : 1),
+      last: formatNumber(locale, last),
       total: formatNumber(locale, events.length),
     }),
     earlier: message(locale, 'transcript.earlier'),

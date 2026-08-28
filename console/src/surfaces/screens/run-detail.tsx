@@ -33,6 +33,7 @@ import { CopyReport } from '../copy-report';
 import { Report } from '../report';
 import { stagesFrom } from '../run-card';
 import { StageRail } from '../stage-rail';
+import { evidenceOf } from '../run-evidence';
 import { subjectOf } from '../run-subject';
 import { isLiveRun } from '@/design/status';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
@@ -128,6 +129,17 @@ export async function RunDetailScreen(
   // this and reads the stream instead (`LiveStageRail`); a settled one has
   // nothing else to read from.
   const stages = stagesFrom(replayed);
+  // The same evidence assessment the run list's own chip already reads
+  // (`evidenceOf`, `run-evidence.tsx`) — carried on the single-run read too
+  // (`linked_summary`, `gateway/http/routes/investigations.py`), not
+  // recomputed. What the board draws as a bar under "Descobertas até
+  // agora" rather than as a chip beside a subject.
+  const evidence = evidenceOf({
+    evidence_assessed: field(run, 'evidence_assessed'),
+    evidence_backed: field(run, 'evidence_backed'),
+    evidence_missing: field(run, 'evidence_missing'),
+  });
+  const claimsAssessed = evidence.backed + evidence.missing;
 
   // Nothing: a live run's transcript is the stream, whose catch-up read carries
   // the whole log, and seeding it with the replay as well would put every event
@@ -216,6 +228,21 @@ export async function RunDetailScreen(
         )}
       </div>
 
+      {/* The board fixes the rail's own width (`RunView.dc.html`:
+          `grid-template-columns: 1fr 340px`) rather than giving it a
+          fraction of whatever the viewport happens to be. This screen wants
+          that as its own grid — not the `lg:grid-cols-3` convention
+          `dashboard.tsx`, `incident-detail.tsx`, `first-run.tsx`,
+          `team-context.tsx` and `topology.tsx` still use, none of which has
+          an artboard in this wave — but `340px` is a value outside the
+          declared spacing scale (`design/no-design-literals`'s closed set
+          tops out at step 7) and this feature does not get to add a step to
+          it or reach for an arbitrary-value utility, which the same rule
+          refuses categorically. Declared in the feature's report rather than
+          worked around: a fixed-rail-width utility (or a `--rail-width`
+          token `w-sidebar` already has the pattern for) is a 000 addition,
+          not one this file can make for itself. Left as the proportional
+          grid until that exists. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
           <Panel
@@ -322,6 +349,7 @@ export async function RunDetailScreen(
                     'transcript.events.one',
                     'transcript.events',
                   )}
+                  {events.length === 0 ? '' : ` · ${message(locale, 'transcript.newestFirst')}`}
                 </span>
               )
             }
@@ -409,15 +437,15 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
           >
-            {running ? (
-              <LiveFindings runId={runId} locale={locale} seed={liveSeed} />
-            ) : stages.filter((stage) => stage.finding !== '').length === 0 ? (
-              <p data-testid="run-findings-none" className="text-small text-muted">
-                {message(locale, 'run.findings.none')}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {stages
+            <div className="flex flex-col gap-3">
+              {running ? (
+                <LiveFindings runId={runId} locale={locale} seed={liveSeed} />
+              ) : stages.filter((stage) => stage.finding !== '').length === 0 ? (
+                <p data-testid="run-findings-none" className="text-small text-muted">
+                  {message(locale, 'run.findings.none')}
+                </p>
+              ) : (
+                stages
                   .filter((stage) => stage.finding !== '')
                   .map((stage) => (
                     <FindingItem
@@ -425,9 +453,31 @@ export async function RunDetailScreen(
                       finding={stage.finding}
                       failed={stage.failed}
                     />
-                  ))}
-              </div>
-            )}
+                  ))
+              )}
+              {/* The board's own footer under this list: how many of the
+                  claims the run assessed are actually backed. Read from the
+                  same evidence assessment the run list's chip already reads
+                  — never recomputed, never shown when the run never
+                  assessed anything or named zero claims either way, the same
+                  floor `EvidenceChip` already holds. */}
+              {evidence.assessed && claimsAssessed > 0 ? (
+                <div data-testid="findings-evidence-progress" className="flex items-center gap-3 mt-1">
+                  <div className="flex-1 h-1 rounded-full bg-sunken overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-success"
+                      style={{ width: `${String((evidence.backed / claimsAssessed) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-micro text-muted shrink-0">
+                    {message(locale, 'run.evidence.backed', {
+                      backed: String(evidence.backed),
+                      claims: String(claimsAssessed),
+                    })}
+                  </span>
+                </div>
+              ) : null}
+            </div>
           </Panel>
 
                     <Panel

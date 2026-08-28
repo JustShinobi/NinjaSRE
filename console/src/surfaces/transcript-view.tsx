@@ -1,11 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/action';
-import { Badge } from '@/components/status';
+import { Badge, CHIP_SHAPE } from '@/components/status';
 import { cx } from '@/design/cx';
+import { DURATIONS } from '@/design/tokens';
 import {
   ActivityIcon,
   ArrowRightIcon,
@@ -158,12 +159,18 @@ function Entry({
   time,
   narration,
   view,
+  justArrived,
 }: {
   readonly event: TranscriptEvent;
   readonly labels: TranscriptLabels;
   readonly time: EventTime | undefined;
   readonly narration: string;
   readonly view: TranscriptView;
+  /** Whether this event was appended by the render that just happened —
+   * the artboard's own `.newRow` on the transcript's newest line
+   * (`RunView.dc.html`), never true for a replayed run, which has nothing
+   * still arriving to distinguish. */
+  readonly justArrived: boolean;
 }): ReactNode {
   const role = KIND_ROLE[event.kind];
   const Icon = KIND_ICON[event.kind];
@@ -190,7 +197,8 @@ function Entry({
       data-kind={event.kind}
       data-raw-kind={event.rawKind}
       data-role={role}
-      className="flex gap-3 min-w-0"
+      data-just-arrived={justArrived}
+      className={cx('flex gap-3 min-w-0', justArrived ? 'slide-in' : '')}
     >
       <span
         aria-hidden="true"
@@ -291,13 +299,76 @@ export function Transcript({
   times,
   narrations,
 }: TranscriptProps): ReactNode {
-  const [first, setFirst] = useState(Math.max(0, events.length - TRANSCRIPT_WINDOW));
+  // The board draws the newest event at the top ("31 eventos · o mais novo
+  // primeiro", `RunView.dc.html`). `events` itself stays in the order
+  // `eventsFromReplay`/`eventsFromStream` already build it in — the order
+  // the deployment recorded it, oldest first, which is what a
+  // `sequence`-ordered structure like `LiveState` needs — only how this
+  // component *draws* the list is reversed, in one place, so every reader of
+  // `events` itself (the header count, the failed-before-start check, the
+  // reducer) is untouched by this.
+  const displayed = [...events].reverse();
+  const [first, setFirst] = useState(0);
+  // Which events this render should mark as just arrived, by id rather than
+  // by position — order-agnostic on purpose, since "the newest one" is now
+  // the head of `displayed` and not the tail of `events`.
+  //
+  // Held in state and computed in an effect rather than derived during
+  // render: React discards a render that adjusts state inside itself and
+  // retries immediately with the new state already applied
+  // (react.dev/learn/you-might-not-need-an-effect), which is exactly right
+  // for "remember the previous value" but throws away a value meant to be
+  // *drawn* on the render where it changed — so a set computed and stored
+  // that way is never the one that reaches the DOM. Cleared again after the
+  // slide primitive's own duration (`DURATIONS.slide`, `design/tokens.ts` —
+  // consumed, not edited, the same as any other component reading a
+  // declared token), so an entry that arrived stays "just arrived" for
+  // exactly as long as the animation actually runs and not a render cycle
+  // longer.
+  const seenIds = useRef<ReadonlySet<string>>(new Set());
+  // A settled run's `events` is complete from its very first render, and a
+  // live run's is empty at mount and filled by its own catch-up read a
+  // moment later — neither of those two arrivals is one to animate, and
+  // they need two different flags to rule out: `initialized` skips the
+  // mount-time call itself (whatever `events` already holds, including a
+  // settled run's whole transcript), and `caughtUp` additionally skips the
+  // live run's own first non-empty update, which is its catch-up burst
+  // rather than a single event a person is watching land.
+  const initialized = useRef(false);
+  const caughtUp = useRef(false);
+  const [justArrivedIds, setJustArrivedIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(events.map((event) => event.id));
+    if (!initialized.current) {
+      initialized.current = true;
+      caughtUp.current = events.length > 0;
+      seenIds.current = currentIds;
+      return;
+    }
+    if (!caughtUp.current) {
+      caughtUp.current = true;
+      seenIds.current = currentIds;
+      return;
+    }
+    const arrived = new Set(
+      events.filter((event) => !seenIds.current.has(event.id)).map((event) => event.id),
+    );
+    seenIds.current = currentIds;
+    if (arrived.size === 0) return;
+    setJustArrivedIds(arrived);
+    const clear = setTimeout(() => {
+      setJustArrivedIds(new Set());
+    }, DURATIONS.slide);
+    return () => {
+      clearTimeout(clear);
+    };
+  }, [events]);
   // Screen state, not data: switching views never re-fetches or re-derives
   // the event list, so it can neither lose nor duplicate an event. Narrado
   // is the default — the whole point of this feature is that a payload block
   // is not the first thing an operator reads.
   const [view, setView] = useState<TranscriptView>('narrated');
-  const drawn = events.slice(first, first + TRANSCRIPT_WINDOW);
+  const drawn = displayed.slice(first, first + TRANSCRIPT_WINDOW);
 
   if (events.length === 0) {
     return (
@@ -321,12 +392,19 @@ export function Transcript({
         ) : null}
         {events.length > TRANSCRIPT_WINDOW ? (
           <>
+            {/* "Earlier" and "Later" name a chronological direction, not a
+                screen position — with the newest event now at the top,
+                moving toward the ones that happened earlier means moving
+                deeper into `displayed` (a higher `first`), and the reverse
+                for "later". The window itself is still a plain slice; only
+                which direction each button moves it has swapped from the
+                chronological rendering this replaced. */}
             <Button
               variant="quiet"
               data-testid="earlier"
-              state={first === 0 ? 'disabled' : 'default'}
+              state={first + TRANSCRIPT_WINDOW >= displayed.length ? 'disabled' : 'default'}
               onClick={() => {
-                setFirst(Math.max(0, first - TRANSCRIPT_WINDOW));
+                setFirst(Math.min(displayed.length - TRANSCRIPT_WINDOW, first + TRANSCRIPT_WINDOW));
               }}
             >
               {labels.earlier}
@@ -334,11 +412,9 @@ export function Transcript({
             <Button
               variant="quiet"
               data-testid="later"
-              state={first + TRANSCRIPT_WINDOW >= events.length ? 'disabled' : 'default'}
+              state={first === 0 ? 'disabled' : 'default'}
               onClick={() => {
-                setFirst(
-                  Math.min(events.length - TRANSCRIPT_WINDOW, first + TRANSCRIPT_WINDOW),
-                );
+                setFirst(Math.max(0, first - TRANSCRIPT_WINDOW));
               }}
             >
               {labels.later}
@@ -351,32 +427,56 @@ export function Transcript({
             independent chips, not one shared segmented pill — the artboard
             draws each with its own outline (bordered when it is the current
             view, transparent when it is not) rather than housing both in a
-            single enclosing well. */}
+            single enclosing well.
+
+            Sized like the artboard's own chip rather than like `Button`
+            (`h-control`, built for a control with room for an icon and a
+            longer label): a plain button carrying `CHIP_SHAPE`, the same
+            small pill geometry `Badge`/`StatusDot` already draw a status in
+            — the one part of that shared shape this toggle borrows, because
+            it already exists and a second declaration of "small pill" here
+            is how the two drift. Everything about *state* (the border, the
+            colour) is this toggle's own, because a view toggle is not a
+            status. */}
         <span
           data-testid="transcript-view-toggle"
           data-view={view}
           className="ml-auto flex items-center gap-2"
         >
-          <Button
-            variant={view === 'narrated' ? 'secondary' : 'quiet'}
+          <button
+            type="button"
             data-testid="transcript-view-narrated"
             aria-pressed={view === 'narrated'}
             onClick={() => {
               setView('narrated');
             }}
+            className={cx(
+              CHIP_SHAPE,
+              'edge motion-hover',
+              view === 'narrated'
+                ? 'border-border-strong text-text'
+                : 'border-transparent text-muted hover:text-text',
+            )}
           >
             {labels.view.narrated}
-          </Button>
-          <Button
-            variant={view === 'raw' ? 'secondary' : 'quiet'}
+          </button>
+          <button
+            type="button"
             data-testid="transcript-view-raw"
             aria-pressed={view === 'raw'}
             onClick={() => {
               setView('raw');
             }}
+            className={cx(
+              CHIP_SHAPE,
+              'edge motion-hover',
+              view === 'raw'
+                ? 'border-border-strong text-text'
+                : 'border-transparent text-muted hover:text-text',
+            )}
           >
             {labels.view.raw}
-          </Button>
+          </button>
         </span>
       </div>
       <ol className="flex flex-col">
@@ -388,6 +488,7 @@ export function Transcript({
             time={times[event.id]}
             narration={narrations[event.id] ?? ''}
             view={view}
+            justArrived={justArrivedIds.has(event.id)}
           />
         ))}
       </ol>
