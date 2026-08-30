@@ -415,6 +415,13 @@ export const EN = {
   'status.credential.degraded': 'Degraded',
   'status.credential.failing': 'Failing',
   'status.credential.unknown': 'Unknown',
+  'status.resource.healthy': 'healthy',
+  'status.resource.degraded': 'degraded',
+  'status.resource.unhealthy': 'unhealthy',
+  'status.resource.unknown': 'unknown',
+  'status.resource.stale': 'stale',
+  'status.resource.maintenance': 'in maintenance',
+  'status.resource.absent': 'absent',
   'status.credential.unknown.explain':
     "This deployment's gateway could not be reached, so the real state could not be read.",
 
@@ -1183,6 +1190,17 @@ export const EN = {
   'resources.none.action': 'Declare them',
   'resources.summary.watched': 'watched',
   'resources.summary.unaccounted': 'unaccounted for',
+  'resources.summary.legend': '{count} {health}',
+  'resources.card.lastSeen': 'seen {when}',
+  'resources.card.unhealthySince': '{since} out',
+  'resources.filter.kind.any': 'All',
+  'resources.node.none': 'No node declared',
+  'resources.node.count': '{count} resources on this node',
+  'resources.node.unhealthyCount': '{count} unhealthy',
+  'resources.synthesis.line':
+    '{count} {kind} unhealthy since {since} — all on {node}, same start window',
+  'resources.synthesis.action': 'investigate as a batch →',
+  'resources.synthesis.objective': 'What took down {count} {kind} on {node} since {since}?',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':

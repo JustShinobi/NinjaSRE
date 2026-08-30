@@ -449,6 +449,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'status.credential.degraded': 'Degradada',
   'status.credential.failing': 'Falhando',
   'status.credential.unknown': 'Desconhecida',
+  'status.resource.healthy': 'saudável',
+  'status.resource.degraded': 'degradado',
+  'status.resource.unhealthy': 'não saudável',
+  'status.resource.unknown': 'desconhecido',
+  'status.resource.stale': 'desatualizado',
+  'status.resource.maintenance': 'em manutenção',
+  'status.resource.absent': 'ausente',
   'status.credential.unknown.explain':
     'O gateway deste deployment não pôde ser contatado, então o estado real não pôde ser lido.',
 
@@ -954,6 +961,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.none.action': 'Declarar',
   'resources.summary.watched': 'observados',
   'resources.summary.unaccounted': 'sem estado',
+  'resources.summary.legend': '{count} {health}',
+  'resources.card.lastSeen': 'visto {when}',
+  'resources.card.unhealthySince': '{since} fora',
+  'resources.filter.kind.any': 'Todos',
+  'resources.node.none': 'Sem nó declarado',
+  'resources.node.count': '{count} recursos neste nó',
+  'resources.node.unhealthyCount': '{count} não saudáveis',
+  'resources.synthesis.line':
+    '{count} {kind} não saudáveis há mais de {since} — todos em {node}, mesma janela de início',
+  'resources.synthesis.action': 'investigar em lote →',
+  'resources.synthesis.objective': 'O que derrubou {count} {kind} em {node} desde {since}?',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.divergent.hint':
