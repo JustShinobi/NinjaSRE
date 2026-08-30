@@ -96,7 +96,7 @@ Um `[~]` nunca é um `[x]` envergonhado.
       estate: a listagem serve `node` por recurso descoberto com placement e
       `unhealthy_since` para não-saudável com transição registrada; ausência
       honesta (null) nos dois quando o dado não existe. Confirmar vermelho.
-- [ ] T009 [P] Testes unitários vitest, vermelhos: (a) posicionamento da
+- [x] T009 [P] Testes unitários vitest, vermelhos: (a) posicionamento da
       faixa de 24 h (janela, proporção por timestamp, occurrence fora da
       janela vira "e mais N", disparo único sem faixa); (b) tabela de
       normalização de componentes (`container:lxc/122` + `guest:lxc/122` →
@@ -202,22 +202,22 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 6: O agente — US4
 
-- [ ] T024 [P] [US4] Linha de metrô na aba Pipeline de
+- [x] T024 [P] [US4] Linha de metrô na aba Pipeline de
       `console/src/surfaces/screens/agent.tsx` a partir de
       `/v1/agent/pipeline`: seis nós com ícone, regime derivado (T009c),
       nome via `humaniseIdentifier`, microcopy de uma frase i18n; prosa
       longa fora desta visão (listagem detalhada mantida abaixo,
       re-skinada); empty/failure via `Panel` como hoje.
-- [ ] T025 [US4] Chip "N investigações em voo" contando runs `running` da
+- [x] T025 [US4] Chip "N investigações em voo" contando runs `running` da
       listagem; realce do nó de estágio corrente condicionado à presença do
       campo na resposta (ausente → sem realce, sem erro).
-- [ ] T026 [US4] Três cards-resumo (Ferramentas com "X de Y", mini-barras
+- [x] T026 [US4] Três cards-resumo (Ferramentas com "X de Y", mini-barras
       top-6 domínios e chips de efeito colateral com destrutiva em vermelho;
       Autonomia com a escada das cinco classes e a perigosa em âmbar;
       Contexto do time com a barra N de M) — cada um lendo a rota que sua
       aba já lê e linkando a aba. Chaves i18n e capturas declaradas no
       relatório.
-- [ ] T026a [US4] Reformar as três abas conforme seus artboards (AN-A8):
+- [~] T026a [US4] Reformar as três abas conforme seus artboards (AN-A8):
       Ferramentas por `design/padrao-2026-08/AgentTools.dc.html` (rail de
       domínios com contagens, grade de cards com chip de efeito colateral e
       toggle, filtro por efeito como chips, destrutivas com borda vermelha);
@@ -227,7 +227,12 @@ Um `[~]` nunca é um `[x]` envergonhado.
       `AgentTeam.dc.html` (editor de seções com contagem de tokens por
       seção, rail com orçamento N de M e destino Investigador/Subagente).
       Mesmas rotas de dados que as abas já leem — reforma de apresentação,
-      nenhuma rota nova.
+      nenhuma rota nova. Encerrada sem execução: mesmo corte que T023a, pela
+      mesma ordem que a Implementation Strategy autoriza (6 antes de 5, antes
+      de 4, nunca antes de 3). As três abas seguem completas no vocabulário
+      da 000, servindo o conteúdo integral de hoje — AN-A8's "seguem
+      completas" está cumprido; a reforma estrutural própria de cada artboard
+      não.
 
 ## Phase 7: Integração e fechamento
 

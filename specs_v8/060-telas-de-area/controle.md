@@ -12,14 +12,15 @@ intenção. Cada linha cita `file:line` ou o comando que a comprova.
 | T003 — capturas "antes" no staging | `[~]` do lead | Sem alcance a staging/Orca desta worktree; o lead confirmou as oito capturas já comitadas em `evidence/visual/antes/`. |
 | T004–T007 — os quatro acceptance specs, red-first | FEITO | Todos os quatro escritos e confirmados vermelhos contra o build real (`tools.console_e2e`, não o `tools.mockplane console` que este relatório usou por engano nas primeiras corridas — ver nota de método abaixo). Dois blocos de Agent passavam medindo zero elementos; corrigidos para exigir contagem mínima antes de iterar, reconfirmados vermelhos isolados. |
 | T008 — contrato pytest (node/unhealthy_since) | FEITO | `tests/contract/persistence/test_estate_repository.py`, `tests/unit/platform/estate/test_estate_service.py` (novo), `tests/unit/gateway/http/test_estate_routes.py` — vermelho confirmado, depois verde. 328 testes de estate verdes, mypy limpo. |
-| T009 — unitários vitest das cinco derivações | PARCIAL | (a) `incident-timeline.ts` — FEITO, testado. (b) `component-normalisation.ts` — FEITO, testado, com a correção do valor canônico (ver "achado do slot" abaixo). (e) síntese de Recursos — FEITO, dentro de `resources-grouping.ts`, testado. (c) regime do estágio e (d) contagens de efeito colateral — NÃO INICIADO, pertencem à fase de O agente que não foi alcançada. |
+| T009 — unitários vitest das cinco derivações | FEITO | (a) `incident-timeline.ts`. (b) `component-normalisation.ts`, com a correção do valor canônico (achado do slot, abaixo). (c) `stageRegime` em `agent-pipeline-metro.ts`. (d) `toolSummary` (as três contagens de efeito colateral) no mesmo módulo, testado; o agrupamento por domínio (top 6) é real e exercitado pelo acceptance (`domain-bar`), mas ficou inline no componente — não isolado como função pura própria, diferente dos outros quatro. (e) síntese de Recursos em `resources-grouping.ts`. Todos os cinco testados e verdes, exceto a ressalva de (d). |
 | T010/T011 — contrato do estate + regeneração | FEITO | Porta, Postgres (`DISTINCT ON`), fake — todos com paridade testada. `openapi.json`/`schema.ts` regenerados pelos geradores. |
 | T012–T015a — Incidentes (US1) | FEITO | `incident-group-list.tsx` reescrito: `data-testid="row"` com título como link para `/incidents/{publicId}` da occurrence mais nova (FR-001/T015a), faixa 24h, bloco de causa/link ao vivo (uma leitura de `/v1/runs` por página via `subjectOf`, o módulo canônico já existente — nunca uma segunda fonte de nome), strip de recorrência. `incidents.tsx`: segmented controls (só aparecem quando há escolha real — regra "mobília" preservada), cartão de achados sem detector. **Prova**: `incidents-by-subject.acceptance.spec.ts` 11 de 14 verdes isolado (3 pulados nomeadamente, sem assunto recorrente local). `transversal-rules.spec.ts` para `/incidents/{id}`: 4 de 4 verdes isolado — as três falhas herdadas do S1 (markdown, identifier-as-name, two-placeholders) e a quarta regra (negative-assertion) todas fecham de verdade, sem allowlist. |
 | T016 — i18n single-write das quatro telas | PARCIAL | Chaves de Incidentes/Recursos/Conhecimento aplicadas em `en.ts`+`pt-BR.ts`, paridade mantida (`catalogue.test.ts` verde). Chaves de O agente pendentes — fase não alcançada. |
 | T017–T019 — Recursos (US2) | FEITO | `resources-grouping.ts` (novo, testado): `healthSegments`, `groupByNode`, `unhealthySynthesis`. `resources.tsx` reescrito: barra de saúde segmentada com "N vigiados" + legenda clicável, busca compacta, chips de tipo com contagem, seções por nó (não-saudáveis primeiro, dentro e entre seções), síntese em lote, aviso de zona/criticidade no rodapé, painel `undeclared` (achado de divergência que o grid de cards não tinha mais onde marcar por linha — ver "achado do slot"). **Prova**: `resources-by-node.acceptance.spec.ts` 9 de 13 verdes isolado (4 pulados nomeadamente: quatro estados simultâneos e `unhealthy_since` são fatos que só staging tem). |
 | T020–T023 — Conhecimento (US3) | FEITO | `component-normalisation.ts` (novo, testado, com a correção de valor canônico). `memory.tsx` reescrito: Aprendido como aba padrão (`knowledge.tsx` `tabFrom`), episódios como cards com chip de resultado moldado, filtro de componente agrupado por tipo (consulta ao servidor por spelling bruto real, nunca sintetizado — ver achado abaixo), painel "o que o agente aprendeu" lendo `/v1/proposals` filtrado a `proposal_type==='knowledge'`, faixa inferior com Documentos/Topologia. **Prova**: `learned-knowledge.acceptance.spec.ts` 13 de 14 verdes isolado (1 pulado nomeadamente). |
 | T023a — reforma de Documentos/Topologia | `[~]` cortado | Onda autoriza este corte primeiro, antes de tocar Incidentes (Implementation Strategy do tasks.md). Documentos/Topologia continuam com o vocabulário da 000 (tokens/chips/ícones), sem a reforma estrutural do artboard próprio — inclusive o `<select>` de "kind" do Documents, que `AN-T1` por isso mede só em Aprendido. |
-| T024–T026a — O agente (US4) | NÃO INICIADO | Não alcançado neste ciclo — ver "o que fica pendente". |
+| T024–T026 — O agente, núcleo (US4) | FEITO | `agent-pipeline-metro.ts` (novo, testado: `stageRegime`, `toolSummary`). `agent.tsx`: linha de metrô acima do que já existia (grafo hierárquico + lista de estágios — intactos, sem artboard que os reforme, ficam abaixo da dobra), seis nós na ordem servida com ícone/regime/nome/microcopy, chip "N em voo" lendo `/v1/runs`, três cards-resumo (Ferramentas/Autonomia/Contexto do time) cada um lendo a mesma rota que sua aba já lê, uma vez a mais só na aba Pipeline. **Prova real**: `agent-pipeline.acceptance.spec.ts` — 13 de 14 verdes na primeira corrida real, 1 pulado nomeadamente (a figura auditada 63 de 80 é staging-only). `tests/unit/surfaces/agent.test.tsx` sem regressão (66 de 66). |
+| T026a — reforma de Ferramentas/Autonomia/Contexto do time | `[~]` cortado | Mesma ordem de corte que T023a autoriza (6 antes de 5, antes de 4, nunca antes de 3). As três abas seguem completas no vocabulário da 000 (AN-A8's "seguem completas" cumprido), sem a reforma estrutural do artboard próprio de cada uma. |
 | T027–T033 — integração e fechamento | PARCIAL | Ver tabela de gates abaixo; T031/T032 são do lead. |
 
 ## Gates rodados, com o resultado real
@@ -92,16 +93,15 @@ intenção. Cada linha cita `file:line` ou o comando que a comprova.
 
 ## O que fica pendente, nomeado, não escondido
 
-- **T024–T026a (O agente, US4) — não iniciado.** A linha de metrô, o chip
-  "N investigações em voo", os três cards-resumo e a reforma das três abas
-  (Ferramentas/Autonomia/Contexto do time) não foram construídos. O
-  `agent-pipeline.acceptance.spec.ts` (T007) existe e está vermelho — não
-  fechado.
-- **T023a (Documentos/Topologia) — cortado deliberadamente**, primeiro na
-  ordem que a própria tasks.md autoriza.
-- **T009 (c)/(d)** — regime do estágio e contagens de efeito colateral —
-  pertencem a O agente, não feitas.
-- **T016 parcial** — chaves de O agente pendentes.
-- **T027–T030, T033** — integração final, re-baseline visual local e relatório
-  do fan-out não feitos; dependem de T024–T026a existirem primeiro.
+- **T023a e T026a — cortados deliberadamente**, na ordem que a própria
+  tasks.md autoriza (Documentos/Topologia primeiro, depois as três abas de O
+  agente), nunca tocando a 3 (Incidentes). Nenhum artboard próprio aplicado
+  a essas cinco superfícies; todas seguem completas no vocabulário da 000.
+- **O agrupamento por domínio (top 6) do card Ferramentas** não tem função
+  pura própria testada — está inline no componente, único ponto das cinco
+  derivações do T009 sem essa forma. Comportamento real, exercitado pelo
+  acceptance, não uma lacuna funcional.
+- **T027–T030, T033** — integração final (aplicar qualquer chave/variante
+  ainda solta), re-baseline visual local e relatório final do fan-out não
+  feitos nesta passada — ver a seção de fechamento abaixo.
 - **T031/T032** — do lead (staging, Orca browser).
