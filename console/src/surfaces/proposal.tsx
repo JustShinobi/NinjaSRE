@@ -75,6 +75,10 @@ export interface DecisionCardProps {
   readonly originLabel?: string;
   readonly category: string;
   readonly risk: DecisionRisk;
+  /** "Risk 3 of 5", already phrased with the served score (AN-03) — the
+   * gauge's own visible caption, distinct from `labels.risk`'s generic
+   * section word. */
+  readonly riskLabel: string;
   readonly steps: readonly ActionStep[];
   readonly rollback: readonly ActionStep[];
   readonly reversible: boolean;
@@ -266,6 +270,7 @@ export function DecisionCard({
   originLabel,
   category,
   risk,
+  riskLabel,
   steps,
   rollback,
   reversible,
@@ -315,7 +320,7 @@ export function DecisionCard({
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3 shrink-0">
-          <RiskGauge risk={risk} label={labels.risk} />
+          <RiskGauge risk={risk} label={riskLabel} />
           <span data-testid="decision-state">
             <Badge status={state} />
           </span>

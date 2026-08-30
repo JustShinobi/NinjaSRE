@@ -29,6 +29,7 @@ function baseProps(overrides: Partial<DecisionCardProps> = {}): DecisionCardProp
     originLabel: 'RedisExporterDown',
     category: 'remediation',
     risk: RISK,
+    riskLabel: 'Risk 3 of 5',
     steps: [
       { ordinal: 1, summary: 'Start the guest via Proxmox', capability: 'proxmox_start_guest' },
     ],
@@ -237,6 +238,12 @@ describe('a field the document never named', () => {
 });
 
 describe('the risk gauge', () => {
+  it('shows the served risk label as visible text, not just the section word', () => {
+    render(<DecisionCard {...baseProps({ riskLabel: 'Risk 4 of 5' })} />);
+
+    expect(screen.getByTestId('decision-risk')).toHaveTextContent('Risk 4 of 5');
+  });
+
   it('fills exactly the served score, out of the served scale', () => {
     render(<DecisionCard {...baseProps({ risk: { class: 'high', score: 4, scale: 5 } })} />);
 

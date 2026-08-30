@@ -237,6 +237,9 @@ function cardPropsFrom(
       score: number(risk, 'score') || 1,
       scale: number(risk, 'scale') || 5,
     },
+    riskLabel: message(locale, 'proposal.risk', {
+      level: String(number(risk, 'score') || 1),
+    }),
     steps: stepsOf(record, 'steps'),
     rollback: stepsOf(record, 'rollback'),
     reversible: flag(field(record, 'autonomy'), 'reversible'),
