@@ -53,7 +53,7 @@ describe('the tab bar', () => {
   it('defaults to Actions — what the agent wants to do now', async () => {
     await render_();
 
-    expect(screen.getAllByTestId('approval-group').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('decision-card').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('proposal-item')).toBeNull();
   });
 
@@ -61,7 +61,7 @@ describe('the tab bar', () => {
     await render_('tab=changes');
 
     expect(screen.getAllByTestId('proposal-item').length).toBeGreaterThan(0);
-    expect(screen.queryByTestId('approval-group')).toBeNull();
+    expect(screen.queryByTestId('decision-card')).toBeNull();
   });
 
   it('marks the requested tab current in the tab bar itself', async () => {
@@ -75,7 +75,7 @@ describe('the tab bar', () => {
   it('falls back to Actions for a tab name the address does not carry', async () => {
     await render_('tab=nonsense');
 
-    expect(screen.getAllByTestId('approval-group').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('decision-card').length).toBeGreaterThan(0);
   });
 });
 
