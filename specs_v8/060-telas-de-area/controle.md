@@ -39,6 +39,31 @@ intenção. Cada linha cita `file:line` ou o comando que a comprova.
 | `transversal-rules.spec.ts` completo | `console_e2e run ... -- transversal-rules` | Isolado por rota: `/incidents/{id}` 4 de 4 verdes. Numa corrida combinada de ~2m40s junto com as outras três specs, 10 falharam por timeout de 15s — **todas reproduzidas como falso-negativo de contenção**, não defeito: refeitas isoladas (`/incidents/{id}` sozinho, `incidents-by-subject` sozinho) e todas passaram. A máquina builda a feature pareada (040) ao mesmo tempo, exatamente o aviso que o despacho já dava. Nenhum veredito deste controle vem da corrida combinada. |
 | `make console-client` / `python -m tools.mockplane contract` | rodados após a mudança de contrato | `openapi.json` (+12 linhas) e `schema.ts` (+2 linhas) — diffs mínimos, gerados, nunca editados à mão. |
 
+## Verificação final, limpa (sem contenção)
+
+Depois de todas as fases acima, nesta ordem, sem nada mais rodando ao mesmo
+tempo:
+
+- `make verify` — **exit 0**, Python inteiro verde (13118 selecionados nos
+  módulos tocados + a amostra de benchmarks, 0 falhas), `console_gate static`
+  verde (prettier + eslint + tsc + 3151 testes vitest + build + orçamentos de
+  bundle).
+- Os quatro acceptance specs juntos (`console_e2e run ... --
+  incidents-by-subject resources-by-node learned-knowledge agent-pipeline`):
+  **46 passaram, 9 pulados nomeadamente, 0 falharam, exit 0.**
+- `transversal-rules.spec.ts` completo, isolado: **39 passaram, 7 pulados,
+  6 falharam — as mesmas seis de sempre** (`/runs/{id}` × 4, herdadas do S1
+  e atribuídas a quem reformar `/runs`; a regra de progresso do setup × 2,
+  sem relação com esta feature). **Nenhuma falha em `/incidents`,
+  `/resources`, `/knowledge` ou `/agent`.**
+
+A corrida anterior deste mesmo arquivo, com dez falhas por timeout de 15s
+numa corrida combinada, foi contenção real: aconteceu com um `make verify`
+rodando ao mesmo tempo em segundo plano (meu próprio, não o da feature
+pareada) — refeita depois que ele terminou, limpa, com o resultado acima.
+Fica registrado como confirmação de que a hipótese de contenção era
+verificável, não uma desculpa.
+
 ## Achados do slot, registrados para não se perderem
 
 1. **`tools.mockplane console` não serve o console React.** Serve
