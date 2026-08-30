@@ -171,6 +171,65 @@ export function TabLinks({ tabs, selected, label }: TabLinksProps): ReactNode {
   );
 }
 
+/** One choice in a segmented control, and the address it navigates to. */
+export interface SegmentedOption {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+  /** Drawn before the label — a severity's shape, a state's mark. */
+  readonly icon?: ReactNode;
+}
+
+export interface SegmentedLinksProps {
+  readonly options: readonly SegmentedOption[];
+  readonly selected: string;
+  readonly label: string;
+}
+
+/**
+ * A row of mutually exclusive choices, as links, none of them a `<select>`.
+ *
+ * Same reasoning as `TabLinks`: whichever choice is active belongs in the
+ * address, not in component state, so a filtered view can be sent to a
+ * colleague and reload to the same rows. Unlike a tab list this is not a
+ * single-purpose landmark — a screen may show more than one segmented group
+ * side by side (state, severity, view) — so it carries its own accessible
+ * name rather than assuming `nav` is unique on the page.
+ */
+export function SegmentedLinks({
+  options,
+  selected,
+  label,
+}: SegmentedLinksProps): ReactNode {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      data-testid="segmented"
+      className="inline-flex items-center gap-0.5 rounded-2 bg-sunken edge border-border p-0.5"
+    >
+      {options.map((option) => (
+        <a
+          key={option.id}
+          href={option.href}
+          data-testid="segmented-option"
+          data-option={option.id}
+          aria-current={option.id === selected ? 'true' : undefined}
+          className={cx(
+            'flex items-center gap-1.5 rounded-2 px-3 py-1 text-small font-medium motion-hover',
+            option.id === selected
+              ? 'bg-accent-bg text-accent'
+              : 'text-muted hover:text-text',
+          )}
+        >
+          {option.icon}
+          {option.label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export interface Crumb {
   readonly label: string;
   readonly href?: string;
