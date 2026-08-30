@@ -83,9 +83,12 @@ async def _expired(plane: _Plane, deployment: Deployment) -> str:
 
 
 async def _row_count(deployment: Deployment) -> int:
+    # MAX_QUERY_PAGE_SIZE bounds every listing read at the store, and this
+    # suite queues far fewer than that — the bound itself is respected
+    # rather than raised, exactly as a caller outside this test must.
     async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
-        pending = await uow.approvals.list_pending(limit=1000)
-        decided = await uow.approvals.list_decided(limit=1000)
+        pending = await uow.approvals.list_pending(limit=200)
+        decided = await uow.approvals.list_decided(limit=200)
     return len(pending) + len(decided)
 
 
