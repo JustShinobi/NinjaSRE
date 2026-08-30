@@ -42,18 +42,24 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar `make verify` na árvore intacta e guardar o log fora do
+- [x] T001 Rodar `make verify` na árvore intacta e guardar o log fora do
       repositório: exit code, contagem, falhas. Se não estiver verde, parar e
       reportar antes de escrever qualquer coisa.
-- [ ] T002 Capturar o "antes" no staging, fora do repositório:
+      Feito — 13077 passed, 31 skipped, 0 failed, EXIT=0. Log fora do repositório.
+- [~] T002 Capturar o "antes" no staging, fora do repositório:
       `GET /v1/approvals` completo (a expirada real), o badge renderizado da
       sidebar (screenshot), e a contagem de linhas da tabela de aprovações
       (SQL fixado em T004). São os números contra os quais SC-002/SC-003 e a
       regra "nada é apagado" são medidos.
-- [ ] T003 Registrar a contagem e o resultado atuais da suíte de cenários
+      Encerrada sem execução por mim — é a tarefa do líder (worktree isolada
+      não alcança o cluster nem o banco). Feita pelo líder; números recebidos
+      e registrados em `controle.md`: 3 approved, 1 pending já expirada por
+      relógio, 4 linhas no total.
+- [x] T003 Registrar a contagem e o resultado atuais da suíte de cenários
       sintéticos — o "antes" da medição exigida de toda mudança que possa
       afetar investigação. "Sem efeito" é resposta aceitável no fim; "não
       medido" não é.
+      Feito — 267 passed, 0 failed, EXIT=0 (`tests/synthetic`).
 - [x] T004 Cravar com codegraph e registrar no controle, com `file:line`:
       (a) o arquivo do gateway que serve `GET/POST /v1/approvals*`
       (`gateway/http/routes/approvals.py`, incluindo `decide_approval` em
@@ -78,11 +84,13 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 1: Acceptance e contratos primeiro, confirmados vermelhos
 
-- [ ] T005 Escrever
+- [x] T005 Escrever
       `console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts` com uma
       asserção por alegação normativa (AN-01…AN-14), viewport 1440×1040,
       staging-safe marcadas conforme a spec (AN-08 propose-only). Confirmar
       vermelho e registrar a mensagem real de cada alegação.
+      Feito — 8 failed, 6 skipped, 1 passed, EXIT=1; mensagens reais em
+      `controle.md`.
 - [ ] T006 [P] Contrato pytest da listagem: `GET /v1/approvals` devolve, por
       decisão, cada campo do shape do plano (nomes literais), com ausência
       declarada e nunca chave omitida; `state=pending` (default) exclui

@@ -204,12 +204,13 @@ esta onda já achou duas vezes. Corrigido para o seletor real
 
 | Peça | Estado | Detalhe |
 |---|---|---|
-| T001 baseline `make verify` | Em andamento | rodado em segundo plano; log fora do repositório em `/tmp/claude-999/.../scratchpad/t001-make-verify.log` |
-| T002 antes do staging | Feito pelo líder | ver seção acima |
-| T003 baseline sintética | Pendente | depende de T001 terminar |
+| T001 baseline `make verify` | FEITO | 13077 passed, 31 skipped, 0 failed, EXIT=0 — ver seção acima |
+| T002 antes do staging | Feito pelo líder | ver seção acima; números: 3 approved, 1 pending (na verdade já expirada por relógio) |
+| T003 baseline sintética | FEITO | 267 passed, 0 failed, EXIT=0 — ver seção acima |
 | T004(a) rota gateway | FEITO | `gateway/http/routes/approvals.py` |
 | T004(b) raiz de composição | FEITO | ver acima |
 | T004(c) migração | FEITO — decisão: nenhuma | ver acima |
 | T004(d) SQL de contagem | FEITO | ver acima |
+| T005 acceptance vermelho | FEITO | `console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts` — 8 failed, 6 skipped, 1 passed (AN-14, honesto — nenhuma chave nova referenciada ainda), EXIT=1 |
 
 *(preenchido incrementalmente conforme as fases avançam — ver commits)*
