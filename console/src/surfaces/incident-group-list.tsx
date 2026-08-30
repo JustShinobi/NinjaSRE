@@ -42,8 +42,13 @@ export interface IncidentGroupListProps {
    * A headline per run id, resolved once for the whole page rather than once
    * per row — the "last cause found" block reads this map instead of making
    * its own request.
+   *
+   * Optional, and empty when absent: a caller that never fetched runs (the
+   * dashboard's own mini-timeline, which is a different feature's screen)
+   * still gets a correct render, with no "last cause found" block on any
+   * row instead of a prop it would have had to fabricate.
    */
-  readonly runHeadlines: ReadonlyMap<string, string>;
+  readonly runHeadlines?: ReadonlyMap<string, string>;
 }
 
 /** How much of an opaque identifier is enough to recognise it by. */
@@ -258,7 +263,7 @@ export function IncidentGroupList({
   locale,
   now,
   zone,
-  runHeadlines,
+  runHeadlines = new Map(),
 }: IncidentGroupListProps): ReactNode {
   const firings = groups.reduce((total, group) => total + group.count, 0);
   return (

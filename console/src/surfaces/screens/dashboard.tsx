@@ -637,11 +637,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             locale={locale}
             now={new Date(now)}
             zone={zone}
-            // The Panel's own investigation-cause block belongs to
-            // /incidents (feature 060), which owns the headline read this
-            // needs; the dashboard's mini-timeline does not fetch runs for
-            // it, so no group here ever has a headline to show.
-            runHeadlines={new Map()}
           />
         </Panel>
       </div>
