@@ -243,7 +243,9 @@ test.describe('AN-I6 — a live subject links to its investigation; a resolved o
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openIncidents(page);
-      const live = page.getByTestId('incident-group').filter({ has: page.locator('[data-live="true"]') });
+      // Self-referential: data-live lives on the same <details> the testid
+      // is on, not on a descendant.
+      const live = page.locator('[data-testid="incident-group"][data-live="true"]');
       const total = await live.count();
       test.skip(total === 0, 'no live subject in this dataset');
       if (total === 0) return;

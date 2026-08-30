@@ -317,7 +317,7 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             <NextLink
               href={hrefFor('/resources', withFilter(state, 'kind', ''), RESOURCE_FILTERS)}
               prefetch={false}
-              data-testid="type-chip"
+              data-testid="type-chip-any"
               className={`rounded-full px-3 py-1 text-small edge ${state.filters.kind === undefined ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
             >
               {message(locale, 'resources.filter.kind.any')}

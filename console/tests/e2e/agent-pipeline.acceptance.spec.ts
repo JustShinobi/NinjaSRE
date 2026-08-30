@@ -79,13 +79,12 @@ test.describe('AN-A1/AN-A2 — the Pipeline tab opens with a six-node metro line
     page,
   }) => {
     await page.goto('/agent');
-    const intake = page.getByTestId('pipeline-metro-node').filter({
-      has: page.locator('[data-stage="intake"]'),
-    });
+    // Self-referential: data-stage lives on the node itself.
+    const intake = page.locator('[data-testid="pipeline-metro-node"][data-stage="intake"]');
     await expect(intake.getByTestId('pipeline-metro-regime')).toContainText('intake');
-    const resolve = page.getByTestId('pipeline-metro-node').filter({
-      has: page.locator('[data-stage="resolve_integrations"]'),
-    });
+    const resolve = page.locator(
+      '[data-testid="pipeline-metro-node"][data-stage="resolve_integrations"]',
+    );
     const resolveRegime = (await resolve.getByTestId('pipeline-metro-regime').innerText()).toLowerCase();
     expect(resolveRegime).not.toContain('intake');
   });

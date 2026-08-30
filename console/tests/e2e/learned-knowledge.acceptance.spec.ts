@@ -74,9 +74,8 @@ test.describe('AN-C3 — every episode is a card: title-phrase, outcome shape, c
     page,
   }) => {
     await page.goto('/knowledge');
-    const resolved = page.getByTestId('episode-card').filter({
-      has: page.locator('[data-outcome="resolved"]'),
-    });
+    // Self-referential: data-outcome lives on the card itself.
+    const resolved = page.locator('[data-testid="episode-card"][data-outcome="resolved"]');
     expect(await resolved.count()).toBeGreaterThan(0);
     await expect(resolved.first().getByTestId('episode-time')).toBeVisible();
   });
