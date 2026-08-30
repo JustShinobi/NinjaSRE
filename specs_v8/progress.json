@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "wave": "specs_v8",
-  "status": "in_progress",
+  "status": "slot_S1_closed",
   "runtime": "claude",
   "active_run": {
     "run_id": "v8-run-001",
@@ -43,16 +43,18 @@
   },
   "current_feature": null,
   "completed_features": [
-    "specs_v8/000-fundacao-visual"
+    "specs_v8/000-fundacao-visual",
+    "specs_v8/010-canal-vivo",
+    "specs_v8/030-run-view-narrado"
   ],
-  "last_verdict": "UNVERIFIED",
+  "last_verdict": "PASS",
   "last_gate": {
-    "name": "make verify (post visual repair)",
-    "status": "PASS_AGAINST_PINNED_BASELINE",
-    "at": "2026-08-28T02:32:23+00:00",
-    "passed": 12972,
-    "failed": 9,
-    "console_tests": 3058
+    "name": "make verify (merged S1)",
+    "status": "PASS",
+    "at": "2026-08-30T18:15:53+00:00",
+    "passed": 13077,
+    "failed": 0,
+    "skipped": 31
   },
   "open_questions": [
     {
@@ -70,9 +72,9 @@
       "owner": "Whoever takes /resources in 060."
     }
   ],
-  "last_checkpoint": "2026-08-28T06:26:46+00:00",
-  "next_action": "Resume 010 from 09935108 in /srv/workspaces/v8-s1-010. Brief the implementer from specs_v8/RETOMADA-S1.md section 4 and its controle.md: T010 red-by-wire-cut, T060 narrow gates, and the two named harness findings whose hypotheses are already written down. 030 is complete at 1a58cda5. Nothing merges, deploys or verifies until 010 closes.",
-  "fingerprint": "4f63d7b61bc475cf",
+  "last_checkpoint": "2026-08-30T20:44:46+00:00",
+  "next_action": "S1 closed: 000, 010 and 030 all PASS with independent verification. Open S2 — 040-decisoes-estruturadas and 060-telas-de-area in isolated worktrees cut from this tip, with 060 owning the single-write console files. Read specs_v8/CONFRONTO.md sections 5 to 7 first: the inherited transversal failures need an owner, the cost panel needs one of its two destinations, and staging still has no live or failed run, which is what blocks real evidence for any liveness claim.",
+  "fingerprint": "50877fd1bbfc860c",
   "features": [
     {
       "path": "specs_v8/000-fundacao-visual",
@@ -336,11 +338,11 @@
       "dependencies": [
         "specs_v8/000-fundacao-visual"
       ],
-      "phase": "implement",
-      "status": "UNVERIFIED",
+      "phase": "complete",
+      "status": "PASS",
       "runtime": "claude",
-      "last_checkpoint": "2026-08-28T05:34:55+00:00",
-      "next_action": "spec-implementer running in its isolated worktree. On return: merge slot commits, apply declared i18n keys, format the transversal suite, run boundary gates, deploy staging, Orca visual gate, then the independent verifier per feature.",
+      "last_checkpoint": "2026-08-30T20:44:46+00:00",
+      "next_action": "Resumed at 09935108 by spec-implementer in /srv/workspaces/v8-s1-010, briefed from RETOMADA-S1 section 4. Scope: T010 wire-cut red plus the two open harness findings (US1 guardian-flight count, US2/US3 recovery after unroute), T060 narrow gates, T070 honest control file. On return: merge both slot branches, format the transversal suite, boundary gates, deploy staging with every component, warm routes, staging acceptance, Orca visual gate, then a verifier per feature against the merged tree.",
       "worktree": "/srv/workspaces/v8-s1-010",
       "lifecycle_results": {
         "analyze": {
@@ -441,7 +443,47 @@
         "findings": [],
         "commands": []
       },
-      "fingerprint": null
+      "fingerprint": null,
+      "resume": {
+        "dispatched_at": "2026-08-30T16:12:41+00:00",
+        "worktree": "/srv/workspaces/v8-s1-010",
+        "branch": "wt/v8-010-canal-vivo",
+        "head": "269e1dae",
+        "open_tasks": [],
+        "control_mirror": "/tmp/claude-999/-srv-workspaces-NinjaSRE/60cf856a-6ca3-49e5-8d04-7b25ca5315ea/scratchpad/controle-010-resume.md",
+        "ceiling_hits": 2,
+        "last_ceiling_at": "2026-08-30T17:06:38+00:00",
+        "progress_observed": [
+          "48cae5e6 fix(console): serve the deployment courier at the path the client requests — the route file sat at api/events/route.ts while the client requested /api/events/stream.",
+          "Uncommitted at the ceiling (81 lines, since resumed): a __mockplane__/drop-deployment-stream control route plus a spec docstring establishing why page.route() governs only requests made after registration and context.setOffline() does not sever an already-established mock response. Reads as the US2/US3 harness finding diagnosed at its cause rather than loosened."
+        ],
+        "t010": {
+          "status": "DONE_WITH_ONE_ADDITION_REQUESTED",
+          "root_cause": "Both harness findings from RETOMADA-S1 sections 4.2 and 4.3 were one defect: the deployment courier was served at /api/events while the client requested /api/events/stream, so no real connection could ever succeed. Fixed in 48cae5e6. US1's guardian-flight count then rose on its own.",
+          "hypothesis_corrected_by_implementer": "RETOMADA section 4.2 guessed the investigation-start fixture failed to set status running. It was read: investigation-start.json:9 already had \"status\": \"running\". The hypothesis was wrong and the implementer said so.",
+          "mockplane_race_found_and_fixed": "US3 opens two pages sharing one mockplane session, and a closed page's stream loop keeps running because the ASGI shell is never handed receive. The zombie consumed the drop intended for the live connection. A decrementing counter was replaced by a monotonic clock window (DEPLOYMENT_STREAM_DISRUPTION_SECONDS), which concurrent readers answer identically because it is not a finite resource. Commit 0b395c85.",
+          "wire_cuts": [
+            "US1 — auto-refresh.tsx:245 onEvents cut to a no-op. Red: guardian-flight stuck at 1, chip assertion still passing. Right reason.",
+            "US2 — auto-refresh.tsx:82 freshnessFromConnection forced to 'refreshing'. Red: chip never admits stale across the full 30s. Right reason.",
+            "US3 — deployment.ts:295-297 reconnect scheduled but never called. Red identical to US2's chip message, so the run never reached the duplication claim US3 exists to prove. Accepted as a second reading only; a cut of the ID reconciliation itself was requested."
+          ],
+          "restoration": "Each cut restored byte for byte, git diff --stat and git status empty between cuts.",
+          "stability": "15 individual executions green across 5 spec runs, no flakiness observed."
+        },
+        "closed": "T010, T060 and T070 closed. Four wire cuts, both harness findings root-caused to one routing defect, narrow gates green, control file honest."
+      },
+      "verification": {
+        "verdict": "PASS",
+        "cycle": 1,
+        "at": "2026-08-30T20:44:46+00:00",
+        "extraction": "The verifier diffed the extraction against its parent: ReconnectingChannel's method bodies are byte for byte the old RunConnection bodies, with only the address and decoder parametrised. One implementation, not two wearing a shared name.",
+        "behaviour_preserved": "Not taken on report. It ran the whole console suite: 190 files, 3138 tests, real exit 0, coverage 93.41% statements and 89.66% branches — which exercises store.ts, connection-state.tsx, use-run.ts and auto-refresh.tsx downstream.",
+        "pins_reverted_by_hand": "It reverted each fix itself rather than trusting the implementer's red. Commenting out connection.ts:348 failed exactly the three claimed tests with the expected assertions; forcing auto-refresh.tsx:82 unconditional failed exactly one. Restored and re-ran green each time. Coverage confirmed at BRDA:82,1,0,1.",
+        "sc001": "timeout 5_000 at line 109, US1 measured at 1.1s, and it checked the rest of the file for compensating loosening — none.",
+        "judgement_seconded": "It agreed that onAttempt should not be wired into the run badge, on its own evidence: ConnectionBadge has one word per state and no numeric slot, store.ts never passes onAttempt, and FR-010 is a five-to-four state mapping and nothing more.",
+        "chip_confirmed": "It reproduced the Refreshing-then-Live transition on two separate reloads, and found pulse-live genuinely applied in the markup rather than merely claimed.",
+        "still_open_by_its_own_account": "It dispatched a transversal-suite run on its own initiative that had not finished when it reported. It declined to revise the verdict speculatively and said so — the suite is outside the diff under review, and the merge checkpoint already records that result as inherited."
+      }
     },
     {
       "path": "specs_v8/020-titulo-vivo",
@@ -494,10 +536,10 @@
       "dependencies": [
         "specs_v8/000-fundacao-visual"
       ],
-      "phase": "implement",
-      "status": "IMPLEMENTED_UNVERIFIED",
+      "phase": "complete",
+      "status": "PASS",
       "runtime": "claude",
-      "last_checkpoint": "2026-08-28T05:34:55+00:00",
+      "last_checkpoint": "2026-08-30T20:34:56+00:00",
       "next_action": "spec-implementer running in its isolated worktree. On return: merge slot commits, apply declared i18n keys, format the transversal suite, run boundary gates, deploy staging, Orca visual gate, then the independent verifier per feature.",
       "worktree": "/srv/workspaces/v8-s1-030",
       "lifecycle_results": {
@@ -588,7 +630,18 @@
         "findings": [],
         "commands": []
       },
-      "fingerprint": null
+      "fingerprint": null,
+      "verification": {
+        "verdict": "PASS",
+        "cycle": 1,
+        "at": "2026-08-30T20:34:56+00:00",
+        "decisive_evidence": "The verifier reproduced both paths side by side on the same staging deployment. The old hardcoded /runs/run-0003: title falls back to the raw id, four panels read 'did not answer', and all six stage-items still render with data-state \"future\" — the vacuous pass, demonstrated rather than argued. The discovered real id: real title, zero occurrences of 'did not answer', six stage-items with data-state \"done\" and real durations, populated findings, cost table and touched-resource chip.",
+        "skips_checked_both_ways": "Each guard is a live DOM query, not a hardcoded true. They fire for a real reason — staging holds 50 completed runs, 0 live, 0 failed, confirmed independently. And run against the mock backing, where run-0003 is live and run-0004 is failed, all three of those same tests pass for real rather than skipping: the same code path fed different data, not a second implementation.",
+        "counts_verified": "mock exit 0 19 passed; staging exit 0, 5 passed 3 skipped; typecheck exit 0 — each run by the verifier, not trusted",
+        "allowlist": "EXCEPTIONS still empty — no allowlist debt was created to buy the staging green",
+        "optional_hardening": "Asserting that stage-item[data-state=\"future\"] is not the full six would make AN-01 self-defending even if a listed run's own detail read ever raced or failed. The verifier called it optional and passed without it; worth carrying to the wave record because a test that measures nothing is this wave's recurring defect.",
+        "still_unproven_named": "AN-06 and AN-12 remain proven only against the mock, untagged and commented in-file, until a real deployment carries a live run. The feature's own documented boundary, not a gap in the repair."
+      }
     },
     {
       "path": "specs_v8/040-decisoes-estruturadas",
@@ -1111,5 +1164,291 @@
       "ruling": "Not this slot's to fix, and not to be excused into an allowlist either. It belongs to whichever feature reformed /runs; raise it at the wave confrontation so it gets an owner rather than a shrug.",
       "status": "open, owner unassigned"
     }
-  ]
+  ],
+  "orchestrator_findings": [
+    {
+      "id": "t061-traefik-premise-wrong",
+      "at": "2026-08-30T16:14:00+00:00",
+      "task": "specs_v8/010-canal-vivo T061",
+      "finding": "The Traefik block was written against a premise the cluster does not hold. Read from the cluster: namespace k3s-stg-ninjasre, ingress `console`, class traefik-prod, and it routes exactly two paths — /webhooks to `app` and / to `web`. There is no /v1 path on the ingress at all, so /v1/events/stream never traverses Traefik as itself: the browser reaches the Next.js route console/src/app/api/events/route.ts on `web`, which proxies to the gateway inside the cluster. The per-run stream the block says to mirror has the same shape (console/src/app/api/stream/[runId]/route.ts) and carries no Traefik configuration of its own — the ingress has no annotations.",
+      "second_finding": "Traefik CRDs are not installed on this cluster (`middlewares.traefik.io` is not a resource type), so the Middleware/label form the block proposes cannot be applied as written.",
+      "why_it_probably_needs_nothing": "traefik:v3.6.17 runs with no responding/forwarding timeout overrides, so defaults apply: flushInterval 100ms (no response buffering), writeTimeout 0 (unbounded), and idleTimeout governs idle keep-alive connections rather than an active streaming response — which a 15s keep-alive frame would keep non-idle regardless. The 10-minute hold SC-004 requires is within defaults.",
+      "status": "HYPOTHESIS_NOT_YET_MEASURED",
+      "how_it_gets_settled": "T062's `curl -N` 10-minute hold against https://stg-ninjasre.lan.kyo.ninja measures it end to end. Only if that fails does a Traefik change have a subject; if it passes, T061 closes as 'no change required, and here is the measurement', not as applied.",
+      "components_for_the_deploy": [
+        "app",
+        "web",
+        "proxy"
+      ],
+      "components_note": "Read from the cluster, not inferred from the diff: staging runs three deployments. `proxy` is the credential proxy the staging acceptance depends on."
+    }
+  ],
+  "slot_merge": {
+    "slot": "S1",
+    "at": "2026-08-30T17:45:39+00:00",
+    "merge_commits": [
+      "cfdf50b7 (010)",
+      "c93eee34 (030)"
+    ],
+    "conflicts": "none — the declared file disjointness held, intersection empty",
+    "single_write_reconciliation": "empty: 010 declared no new i18n keys, and 030 owned the i18n files outright",
+    "transversal_allowlist": "EXCEPTIONS in console/tests/e2e/transversal-rules.spec.ts is empty, so S1 carries no allowlist debt",
+    "post_merge_format": {
+      "commit": "e49a4028",
+      "files": 14,
+      "why": "both worktrees ran console_gate typecheck/lint/test but never format-check, so Prettier disagreed with 14 files on arrival",
+      "proof": "whitespace only — the diff ignoring whitespace was empty"
+    },
+    "gate_runs": [
+      {
+        "name": "make verify",
+        "at": "2026-08-30T17:45:39+00:00",
+        "real_exit": 2,
+        "notification_claimed": 0,
+        "failure": "console format-check, 14 files",
+        "resolution": "fixed by e49a4028"
+      },
+      {
+        "name": "make verify (after format)",
+        "at": "2026-08-30T17:45:39+00:00",
+        "real_exit": 2,
+        "notification_claimed": 0,
+        "results": "1 failed, 13065 passed, 31 skipped, 1 error",
+        "defects": [
+          {
+            "id": "fixture-reproducibility",
+            "test": "tests/contract/fixtures/test_dataset_coherence.py::test_rebuilding_the_dataset_reproduces_what_is_committed",
+            "cause": "Feature 030 added run-0004 stages to run-replay.json and four run-0003 stage_completed events to run-stream.json by editing the JSON directly (commit 2f979fc7). The generator was never taught to produce them, so the rebuild removes them. A fixture here is generated, never hand-edited — the rule this wave already paid for once.",
+            "repair": "move the data into tools/mockplane/dataset/served.py (_STAGES and the stream events), never accept the weaker rebuild",
+            "owner": "dispatched repair on the merged tree"
+          },
+          {
+            "id": "test-basename-collision",
+            "error": "import file mismatch between tests/contract/gateway/test_deployment_stream.py and tests/unit/tools/mockplane/test_deployment_stream.py",
+            "cause": "Feature 010 added both. No __init__.py in either directory, so pytest resolves a test module by basename. Invisible in the worktree because the implementer ran the two directories in separate invocations; only a run collecting both reproduces it.",
+            "repair": "rename the mockplane module to a unique descriptive basename",
+            "owner": "dispatched repair on the merged tree"
+          }
+        ]
+      },
+      {
+        "name": "make verify (after repairs)",
+        "at": "2026-08-30T18:15:53+00:00",
+        "real_exit": 0,
+        "notification_agreed": true,
+        "results": "13077 passed, 31 skipped, 0 failed, 0 errors",
+        "status": "PASS"
+      }
+    ],
+    "notification_reliability": "Twice today a background make verify notification reported exit code 0 for a run whose real exit was 2. Every status recorded here was read from the log.",
+    "repairs": {
+      "at": "2026-08-30T18:15:53+00:00",
+      "commits": [
+        "5a590601 rename the mockplane deployment-stream test off the gateway basename",
+        "7c525669 teach the generator the stage data a prior fixture hand-edit added",
+        "70033e36 let run-0004 event total follow the stages it records"
+      ],
+      "fixture_repair_detail": "The data moved into tools/mockplane/dataset/served.py (_STAGES['run-0004']) and dataset/stream.py (SHORT_STREAM splices three stage_completed milestones before the first turn and one after the last; LONG_STREAM builds from an untouched private base so incident-live is unaffected). The implementer discovered empirically that these events pass through anonymise/timeshift.py, so hardcoding the committed post-shift literals shifted them twice — caught by rebuilding and diffing rather than assumed, and fixed by computing the milestones from the same served.at() anchor every other timestamp in the dataset uses.",
+      "implementer_finding_accepted": {
+        "what": "run-0004 committed total_events: 2 while the generator's formula produces 5.",
+        "why_accepted": "The formula is one event, plus one per stage, per turn, plus calls, plus one for finishing. Unchanged, it reproduces run-0001 at 15, run-0003 at 8 and run-0005 at 11 byte for byte. For run-0004 — finished, no turns, no calls — three stages make 5. The committed 2 was what the fixture held before the hand-edit added the stages and left the derived total behind, so the fixture disagreed with itself. Nothing asserts the old literal, confirmed by grep across tests and console.",
+        "handling": "The implementer refused to edit the JSON to force a green and reported instead. Correct call; the orchestrator accepted the regenerated value in 70033e36."
+      }
+    }
+  },
+  "staging": {
+    "at": "2026-08-30T18:55:04+00:00",
+    "deploy": {
+      "components": [
+        "app",
+        "web",
+        "proxy"
+      ],
+      "real_exit": 0,
+      "gitops": "24202704d6e8",
+      "argo": "Synced/Healthy"
+    },
+    "rollout_lesson": "Argo reported Synced/Healthy while the new pods were seven seconds old and 0/1 ready, with the two-day-old pods still serving. Measured with kubectl rollout status per deployment before anything read the environment — Synced+Healthy is not the application answering.",
+    "sse_hold": {
+      "sc": "SC-004",
+      "held_seconds": 631,
+      "from": "18:42:32",
+      "to": "18:53:03",
+      "keepalives": 43,
+      "interval_seconds": 15,
+      "headers": "HTTP/2 200, content-type text/event-stream, x-accel-buffering no, flushed immediately",
+      "verdict": "PASS — the stream survives the real Traefik untouched"
+    },
+    "t061": {
+      "status": "CLOSED_AS_MEASURED_NO_CHANGE_REQUIRED",
+      "why": "The ingress routes only /webhooks to app and / to web; there is no /v1 path, so the stream never crosses Traefik as itself. Traefik CRDs are not installed, so the Middleware form could not be applied anyway. The ten-minute hold proves nothing needs changing."
+    },
+    "transversal": {
+      "staging": "7 failed, 12 passed",
+      "local_mock": "9 failed, 36 passed, 7 skipped",
+      "attribution": "INHERITED, not S1",
+      "proof": "data-testid=\"row\" is absent from runs.tsx at both c01f8412 and HEAD, and S1 touched neither incidents.tsx nor transversal-rules.spec.ts (git diff --name-only over both returns nothing). The failures therefore cannot have been introduced by this slot.",
+      "owner": "whoever reformed /runs and /incidents away from the generic table; goes to the wave CONFRONTO"
+    },
+    "acceptance": {
+      "010": {
+        "status": "COULD_NOT_RUN",
+        "why": "The spec carries no @staging-safe tag and US3 needs the mockplane control route __mockplane__/drop-deployment-stream, which staging has no equivalent of. Mock-only by construction, so T062's staging acceptance could not run as written."
+      },
+      "030": {
+        "status": "7 failed, 3 passed",
+        "why": "Two causes, separated: tests tagged @staging-safe hardcode the mock dataset ids run-0001 and run-0003 (LIVE_RUN/SETTLED_RUN at spec lines 27-28) and navigate /runs/{id} with them, which cannot resolve on staging; and others need a live run that never existed, because the slot's run fixture was 010's T062 and that spec turned out to be mock-only. Sent to the verifier to attribute."
+      }
+    },
+    "visual_gate": {
+      "reviewer": "orca-browser",
+      "routes": [
+        "/",
+        "/runs",
+        "/runs/{id}"
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ],
+      "theme_switched_by": "the topbar button, confirmed each time by reading the computed body background",
+      "010": "CONFORME in scope — the single freshness chip is present, reads Live, and was observed reading Refreshing on a run route, so the label is not pinned",
+      "030": "CONFORME with one named deviation — the cost and tokens panel renders as a table where the artboard draws a display figure with per-turn bars; attribution declared uncertain and sent to the verifier",
+      "not_attributed_to_s1": "Three Painel differences belong to 050-painel-vivo, which has not run: no sparklines on the stat tiles, no firing strip in What keeps happening, and no live-activity panel with a stream chip.",
+      "not_deviations": "the English UI against a pt-BR board is covered by DIVERGENCIAS.md section 6; a completed run against a live-run artboard is a data difference",
+      "verdict_files": [
+        "specs_v8/010-canal-vivo/evidence/visual/VEREDITO.md",
+        "specs_v8/030-run-view-narrado/evidence/visual/VEREDITO.md"
+      ]
+    },
+    "credential_handling": "The operator explicitly authorised the staging password in argv for the Orca sign-in. For the SSE hold it was not needed: the secret went to curl through stdin via --data @-, and the browser session cookies were exported from the signed-in tab. No secret is recorded here."
+  },
+  "verifiers": {
+    "at": "2026-08-30T19:25:02+00:00",
+    "010-canal-vivo": {
+      "verdict": "FAIL",
+      "driver": "FR-008",
+      "findings": [
+        {
+          "id": "FR-008",
+          "severity": "MAJOR",
+          "verdict": "rejected even under the looser reading",
+          "evidence": "RunConnection (connection.ts:118-332) and DeploymentConnection (deployment.ts:135-323) share the same private fields and the same ten methods with the same bodies. What FR-008 asks to be reused — the backoff and the visibility pause — is exactly what was copied. Reusing the types and two browser-API singletons is the smaller part.",
+          "clinching_argument": "The duplication has already cost something. The #setState defect that dropped a repeated onState call was fixed only in the copy, via a parallel onAttempt channel. connection.ts:194-198 still carries the identical defect and RunConnectionOptions has no onAttempt. Dormant only because nothing reads RunConnection.attempts today — which is precisely the failure a shared engine prevents.",
+          "repair": "extract the shared engine, parametrised over address, decoder, batch delay and the extra hooks"
+        },
+        {
+          "id": "FR-006",
+          "severity": "REAL_NOT_BLOCKING",
+          "verdict": "gap confirmed, correctly declared",
+          "evidence": "No production construction of ClosurePublisher or InteractionClosure anywhere (rg over non-test Python, no matches). The substitute _EventPublishingApprovalStore is genuinely composed at the serving root via with_deployment_events (asgi.py:244), so Article XIV's demand is met for what is delivered. But interaction_id is in FR-002's allowlist and no write path has a source for it, and no test exercises it.",
+          "destination": "wave CONFRONTO.md as a delivery gap on FR-006"
+        },
+        {
+          "id": "US3-mechanism",
+          "severity": "EVIDENCE_GAP",
+          "verdict": "the orchestrator hypothesis is wrong",
+          "correction": "I proposed that React collapses two siblings sharing a key. It does not: duplicate keys warn in dev, but each element still gets its own fiber and its own DOM node — on mount keys are not consulted at all, and on update the key map only fails to match the second occurrence, still creating a fiber for it. So the suppression of a confirmed API-level duplicate is still unexplained.",
+          "consequence": "US3's assertion can fail for the case it names. It passes today only because the write paths do not produce a duplicate run_id, not because anything in the render chain reconciles by id."
+        },
+        {
+          "id": "regression-coverage",
+          "severity": "MODERATE",
+          "evidence": "Both bug fixes are in the merged tree but neither has unit-level cover. Fresh coverage over the two files: branches 75%, and lcov shows BRDA:82,1,0,0 — auto-refresh.tsx:82's stale branch never hit. No test mentions onAttempt or .attempts. Only the 30-second Playwright US2 exercises either true branch.",
+          "repair": "unit regression pins for both fixes"
+        },
+        {
+          "id": "SC-001",
+          "severity": "MINOR_MODERATE",
+          "evidence": "SC-001 claims the run appears within 5s. The US1 assertion polls with a 10,000ms timeout and only fails if the condition is never met inside it, so a regression to 8s would still pass. SC-002's timeout, by contrast, is correctly set at exactly its 30s bound.",
+          "repair": "assert the bound the criterion states"
+        }
+      ],
+      "confirmed_clean": [
+        "scope and single-write (the check returned empty)",
+        "71 pytest passed",
+        "console typecheck exit 0",
+        "27 vitest passed",
+        "the no-secret-crosses-the-channel test is real and parametrised",
+        "the structural composition test is a genuine source scan, not a tautology"
+      ],
+      "visual": "PASS — reproduced independently, exactly one role=status chip reading Live, and the three Painel differences confirmed as 050 territory"
+    },
+    "030-run-view-narrado": {
+      "verdict": "FAIL",
+      "driver": "@staging-safe tagging",
+      "findings": [
+        {
+          "id": "staging-safe-ids",
+          "severity": "HIGH",
+          "evidence": "Six @staging-safe tests navigate /runs/run-0003 and /runs/run-0001, mock dataset ids. Five fail. The sixth PASSES VACUOUSLY: AN-01/02 asserts the rail shows six stages, and on staging every panel reports the run did not answer while the rail still renders all six, because a run stopped before its first stage is specified to show them as future. The assertion cannot tell a real run from a total read failure.",
+          "doctrine_violated": "transversal-rules.spec.ts:586-588, in the same directory: an id literal in a test file is a dataset dependency in disguise",
+          "extra_finding": "staging holds no failed runs either, not only no live one — 50 runs, all completed",
+          "repair": "discover the run from the list as openNowLabel does, or drop the tag and name what is unproven"
+        },
+        {
+          "id": "cost-panel-attribution",
+          "severity": "MEDIUM",
+          "verdict": "settled, exonerating",
+          "correction": "I left this uncertain in VEREDITO.md. The verifier settled it: c01f8412's run-detail.tsx already carries the same table, the same run.usage.* keys and the same byTurn map byte for byte. 030's diff only changes the panel's live/settled state and adds one test id. The deviation is inherited.",
+          "action_taken": "VEREDITO.md corrected; the deviation goes to the wave CONFRONTO, not to 030"
+        }
+      ],
+      "confirmed_clean": [
+        "the fixture repair does not weaken coverage",
+        "the six declined e2e failures were rightly declined",
+        "the tool_returned regression test can no longer miss the bug",
+        "the transcript reversal is display-only with no consumer regressed",
+        "no frozen or single-write file touched",
+        "the evidence-bar test is real behavioural proof, adequate as correctness cover"
+      ],
+      "visual": "PASS — reproduced independently, no structural deviation beyond the one already named"
+    }
+  },
+  "repair_cycle_1": {
+    "at": "2026-08-30T20:24:12+00:00",
+    "tip": "f17d8b68",
+    "cycles_used": 1,
+    "cycles_allowed": 2,
+    "010": {
+      "commits": [
+        "46274987 extract the reconnecting-channel engine",
+        "638a5529 pin the onAttempt and stale-mapping fixes",
+        "3dbfdb50 tighten SC-001 to the 5s it states",
+        "1d021b56 record the repair"
+      ],
+      "engine": "ReconnectingChannel<E> at connection.ts:177 is now the single implementation of all ten methods and eleven fields. RunConnection and DeploymentConnection supply only what differs: an address thunk re-read each attempt, the decoder, the batch delay, and an isImmediate/onImmediate pair used only by resync.",
+      "latent_twin": "RunConnectionOptions gained onAttempt, fired from the one shared #failed(). Deliberately not wired into store.ts or connection-state.tsx: the run badge shows one word per state, never a count, and no requirement asks it to distinguish a third consecutive failure from a first. Wiring it would be an unrequested UI change. Sent to the re-verifier for a second opinion.",
+      "order_of_proof": "The full unmodified 170-test suite passed BEFORE any new test was added — the refactor was proven observably identical first.",
+      "pins": "Each proved red by hand: reverting connection.ts:348 failed all three; forcing auto-refresh.tsx:82 unconditional failed exactly one. Coverage moved from BRDA:82,1,0,0 to BRDA:82,1,0,1.",
+      "sc001": "Poll tightened 10s to 5s; US1 measured closing at 1.2s across three runs, roughly four seconds of margin. Nothing widened elsewhere."
+    },
+    "030": {
+      "commits": [
+        "39361b79 discover run ids instead of naming them",
+        "f17d8b68 skip the two AN-14 checks instead of timing out"
+      ],
+      "method": "Each test judged against spec.md's own wording rather than its title. AN-01 and AN-03 discover a run and keep the tag; AN-06 and AN-12 are unconditionally about liveness, so the tag was dropped with the gap named; AN-09's live half deliberately refuses to fall back to a settled run because it exists to prove the reducer's dedupe path a static replay never exercises, and skips visibly instead.",
+      "staging": "exit 0, 5 passed, 3 named skips, on the redeployed build — was 7 failed, 3 passed",
+      "mock": "19 passed, exit 0, unchanged — nothing weakened to buy the staging green",
+      "implementer_correction": "It re-measured my baseline rather than trusting it: I wrote 'the ten failures' where the real figure was 7 failed of 10 tests."
+    },
+    "gate": {
+      "name": "make verify",
+      "real_exit": 0,
+      "results": "13077 passed, 31 skipped, 0 failed"
+    },
+    "redeploy": {
+      "components": [
+        "app",
+        "web",
+        "proxy"
+      ],
+      "real_exit": 0,
+      "gitops": "c449e33c9f3a",
+      "rollout": "confirmed per deployment",
+      "routes": "warmed"
+    },
+    "chip_check": "Measured rather than assumed: the Painel freshness chip reads Refreshing on first paint and settles to Live within about ten seconds. That is the connecting state behaving as designed, not a regression from the engine extraction."
+  }
 }
