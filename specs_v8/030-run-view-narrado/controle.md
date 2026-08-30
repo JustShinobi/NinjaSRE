@@ -688,3 +688,80 @@ tarefa que abriu este reparo pediu explicitamente para não tocar essas duas
 própria pessoa que audita não pediu, por menor que pareça, é exatamente o
 tipo de decisão que deveria ser tomada por quem está olhando o quadro
 inteiro, não por quem só tem este arquivo na frente.
+
+## Segundo reparo — as duas AN-14 que ficaram de fora, agora aplicado (2026-08-30)
+
+O orquestrador liberou explicitamente a recomendação da seção anterior: "you
+had already made it correctly: give them the same treatment as AN-09's live
+side." Antes de tocar o arquivo, conferi que a árvore havia se movido sob
+este trabalho — quatro commits de outro implementador
+(`46274987`,`638a5529`,`3dbfdb50`,`1d021b56`) extraindo um motor
+`ReconnectingChannel` compartilhado de `connection.ts`/`deployment.ts`,
+com testes de unidade novos e um aperto no poll do SC-001 de
+`canal-vivo.acceptance.spec.ts` — confirmado por `git diff 39361b79 HEAD --
+console/tests/e2e/run-view-narrado.acceptance.spec.ts` sem saída nenhuma:
+nada nesses quatro commits toca este arquivo.
+
+### O que mudou
+
+Os dois testes de AN-14 que a rodada anterior deixou falhando de propósito
+(`run-live-card`, linha 470 na numeração de então; a linha de status
+falhado, linha 507) ganharam o mesmo tratamento que o lado vivo de AN-09 já
+tinha: leem a lista uma vez e chamam `test.skip(...)`, nomeando a ausência,
+em vez de deixar a asserção estourar em timeout de 5s.
+
+- **"a live run is drawn as a card…"** (`console/tests/e2e/run-view-narrado.acceptance.spec.ts:473`
+  na numeração atual) passou a reusar o próprio `discoverLiveRunPath` já
+  escrito para o lado vivo de AN-09 — sem duplicar a leitura de `/runs`, só
+  o `test.skip(livePath === null, 'no live run on this environment to draw
+  a card for')` antes das asserções.
+- **"a failed run is drawn distinctly…"** (linha 507) não tinha um helper
+  equivalente para "primeira linha falhada" — este teste já navega para
+  `/runs?status=failed` e filtra por `data-status="failed"`, uma consulta
+  diferente da que os helpers de descoberta fazem. Acrescentei uma espera
+  pelo `page-header` (mesma disciplina de `discoverRunPath`/`discoverLiveRunPath`,
+  para não contar antes da lista assentar) e
+  `test.skip((await failedRow.count()) === 0, 'no failed run on this
+  environment to draw a row for')` antes das asserções.
+- O comentário de topo do arquivo (linhas 8-21) ganhou uma frase nomeando
+  que essas duas checagens de AN-14 agora pulam pela mesma razão que o lado
+  vivo de AN-09 — documentação, não comportamento novo.
+
+Nenhuma tag `@staging-safe` mudou aqui — as duas continuam marcadas, porque
+a alegação em si (AN-14, `spec.md` linha 131) é sobre o que a lista desenha
+quando existe um run vivo ou falhado, e nada nessa alegação deixou de ser
+verdade; só a forma honesta de dizer "esta amostra não existe aqui agora"
+mudou de um timeout estourado para um skip nomeado.
+
+### Antes e depois desta segunda rodada, medidos
+
+`--backing staging` (mesmo comando das rodadas anteriores, credenciais pela
+mesma shell):
+
+- **Antes desta rodada** (herdado do primeiro reparo): exit 1 — **2 failed,
+  1 skipped, 5 passed**, de 8 selecionados. As 2 falhas eram exatamente
+  estas duas AN-14.
+- **Depois desta rodada**: exit **0** — **0 failed, 3 skipped, 5 passed**,
+  dos mesmos 8 selecionados. As 3 skips: o lado vivo de AN-09 (já existia) e
+  as duas AN-14 agora tratadas. Os 5 que passam são os mesmos cinco de
+  antes, inalterados.
+
+`--backing mock` (mesmo comando): exit **0** — **19 passed**, mesma contagem
+de sempre. As duas AN-14 recém-tratadas continuam passando de verdade sob o
+mock (269ms e 239ms na medição desta rodada) porque o mock tem `run-0003`
+(vivo) e `run-0004` (`status=failed`) — o `test.skip` nunca dispara ali, só
+quando de fato falta o dado, exatamente como projetado.
+
+### Gates desta segunda rodada, resultado real
+
+| Gate | Resultado |
+|---|---|
+| Prettier (`--check` → `--write` → `--check`) | 1 → 0 → **0** |
+| `uv run python -m tools.console_gate typecheck` | exit **0** |
+| `uv run python -m tools.console_gate lint` | exit **0** |
+| Acceptance, mock | exit **0**, 19 passed |
+| Acceptance, staging | exit **0**, 0 failed / 3 skipped / 5 passed |
+
+`specs_v8/progress.json` e as duas pastas `evidence/` continuam intocadas
+por este trabalho, por instrução explícita — não fazem parte deste commit.
+
