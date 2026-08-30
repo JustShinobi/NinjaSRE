@@ -209,16 +209,21 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       (só aprovações, ignorando propostas) e foi corrigida para a soma
       real que o badge sempre computou — achado registrado no relatório
       final. Verde contra AN-09.
-- [ ] T026 Aba Mudanças re-vestida: pills do padrão, empty state de uma linha
+- [x] T026 Aba Mudanças re-vestida: pills do padrão, empty state de uma linha
       + link; cartões de proposta de mudança na mesma anatomia quando houver.
-      PARCIAL — o empty state (uma linha + link) e os cartões de proposta já
+      Feito — o empty state (uma linha + link) e os cartões de proposta já
       estavam corretos em substância antes desta feature (fato 9 da spec) e
       seguem intocados; confirmado por leitura e por AN-12 passando de
-      verdade contra `--scenario empty`. **O que falta**: a troca visual do
-      seletor de abas para pills no padrão do artboard — em andamento,
-      começada nesta rodada (`decisions.tsx`), não fechada. Ver relatório
-      final para o porquê de não incluir uma contagem ao vivo no pill
-      "Ações" nesta rodada.
+      verdade contra `--scenario empty`. O seletor de abas agora é pills no
+      padrão do artboard, composto localmente em `decisions.tsx`
+      (`DecisionsTabBar`) em vez de reestilizar o `TabLinks` compartilhado —
+      mesmo contrato de testid/`data-tab`/`aria-current`/href, o teste
+      próprio da tela (`decisions.test.tsx`, 7 testes) passa sem mudança.
+      **Decisão de escopo, não fechada**: sem contagem ao vivo no chip
+      "Ações" — o número já é o do badge da sidebar, e buscá-lo aqui também
+      custaria uma leitura de aprovações mesmo com a aba Changes aberta, o
+      mesmo custo que a leitura desta tela já evita na direção oposta.
+      Nomeado no relatório final.
 - [x] T027 Leitura falhada da lista: a tela diz que não conseguiu ler; nenhum
       texto afirma "nada proposto" (AN-13).
       Feito — nenhuma mudança de código foi necessária: `Panel`
