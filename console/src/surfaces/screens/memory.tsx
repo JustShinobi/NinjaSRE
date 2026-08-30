@@ -428,7 +428,10 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
             </span>
             {pendingKnowledge.length === 0 ? (
               <div className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-3">
-                <p data-testid="knowledge-proposal-empty" className="text-small text-muted">
+                <p
+                  data-testid="knowledge-proposal-empty"
+                  className="text-small text-muted"
+                >
                   {message(locale, 'memory.learned.empty')}
                 </p>
                 <a
