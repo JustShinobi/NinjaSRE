@@ -53,6 +53,24 @@ async function dropDeploymentStream(page: Page): Promise<void> {
   expect(response.status()).toBe(204);
 }
 
+/**
+ * The `href` of every `guardian-flight` row, in DOM order.
+ *
+ * Each row's `href` is `/runs?selected={run_id}` (`guardian-band.tsx`), so two
+ * rows sharing one carry the same run twice. A bare `.count()` cannot tell
+ * that apart from two different runs — the property this spec's own name
+ * promises is about the *set*, not the tally, and a duplicate written before
+ * this is ever read would already be sitting in the very first count taken.
+ */
+async function flightHrefs(page: Page): Promise<string[]> {
+  return page
+    .getByTestId('guardian-flight')
+    .locator('a')
+    .evaluateAll((anchors) =>
+      anchors.map((anchor) => anchor.getAttribute('href') ?? ''),
+    );
+}
+
 test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL ?? 'http://127.0.0.1:8423');
 });
@@ -141,7 +159,12 @@ test('a reconnection does not duplicate a run already shown', async ({
   await expect
     .poll(async () => page.getByTestId('guardian-flight').count(), { timeout: 10_000 })
     .toBeGreaterThan(0);
-  const afterFirstRun = await page.getByTestId('guardian-flight').count();
+  const beforeReconnect = await flightHrefs(page);
+  // No duplicate from the very first read, before any reconnect has
+  // happened — a write that filed the same run twice would already show up
+  // here, and a bare count at this checkpoint could not tell that apart
+  // from one run shown once.
+  expect(new Set(beforeReconnect).size).toBe(beforeReconnect.length);
 
   // Force exactly one disconnect/reconnect cycle on the connection that is
   // already open — see the module docstring for why this is the mock's own
@@ -154,7 +177,12 @@ test('a reconnection does not duplicate a run already shown', async ({
     timeout: 30_000,
   });
 
-  // The same run, once — not shown a second time because the reconnection
-  // replayed or re-triggered something the first connection already caused.
-  expect(await page.getByTestId('guardian-flight').count()).toBe(afterFirstRun);
+  // The same runs, not merely the same tally: the reconnection replayed
+  // every event this session ever published (the channel presents no
+  // cursor, by design — see `deployment.ts`), and what proves that replay
+  // did not turn into a second row is that the *set* of runs shown is
+  // exactly what it was before, not just its size.
+  const afterReconnect = await flightHrefs(page);
+  expect(new Set(afterReconnect).size).toBe(afterReconnect.length);
+  expect([...afterReconnect].sort()).toEqual([...beforeReconnect].sort());
 });
