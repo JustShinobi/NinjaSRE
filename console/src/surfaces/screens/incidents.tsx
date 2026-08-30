@@ -169,23 +169,24 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   const grouped = state.filters[VIEW_PARAM] !== FLAT_VIEW;
   const init = authorised(credential);
 
-  const [incidents, detectors, resources, observations, runs, setup] = await Promise.all([
-    panelRead('/v1/incidents', () => read('/v1/incidents', init)),
-    // Read for the same reason the Detectors screen reads it — to say how
-    // many are live — not to drive this panel's own state. A detector read
-    // that fails answers "unknown" rather than "none", so a gateway hiccup
-    // here cannot make this screen say nothing is watching when it might be.
-    panelRead('/v1/detectors', () => read('/v1/detectors', init)),
-    // The two reads the footer's detector-coverage card needs — the estate's
-    // own degraded/unhealthy resources, and what enabled detectors currently
-    // conclude — each one read for the whole page, never per row.
-    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
-    panelRead('/v1/observations', () => read('/v1/observations', init)),
-    // The headline of whatever run investigated a settled firing — one read
-    // for the page, looked up per group rather than fetched per group.
-    panelRead('/v1/runs', () => read('/v1/runs', init)),
-    readSetupState(credential),
-  ]);
+  const [incidents, detectors, resources, observations, runs, setup] =
+    await Promise.all([
+      panelRead('/v1/incidents', () => read('/v1/incidents', init)),
+      // Read for the same reason the Detectors screen reads it — to say how
+      // many are live — not to drive this panel's own state. A detector read
+      // that fails answers "unknown" rather than "none", so a gateway hiccup
+      // here cannot make this screen say nothing is watching when it might be.
+      panelRead('/v1/detectors', () => read('/v1/detectors', init)),
+      // The two reads the footer's detector-coverage card needs — the estate's
+      // own degraded/unhealthy resources, and what enabled detectors currently
+      // conclude — each one read for the whole page, never per row.
+      panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
+      panelRead('/v1/observations', () => read('/v1/observations', init)),
+      // The headline of whatever run investigated a settled firing — one read
+      // for the page, looked up per group rather than fetched per group.
+      panelRead('/v1/runs', () => read('/v1/runs', init)),
+      readSetupState(credential),
+    ]);
   const records = list(dataOf(incidents), 'incidents');
 
   const states = [
@@ -290,10 +291,20 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
           options={[
             { id: '', label: message(locale, 'surface.filter.any') },
             ...(states.includes('investigating')
-              ? [{ id: 'investigating', label: message(locale, 'incidents.filter.state.investigating') }]
+              ? [
+                  {
+                    id: 'investigating',
+                    label: message(locale, 'incidents.filter.state.investigating'),
+                  },
+                ]
               : []),
             ...(states.includes('resolved')
-              ? [{ id: 'resolved', label: message(locale, 'incidents.filter.state.resolved') }]
+              ? [
+                  {
+                    id: 'resolved',
+                    label: message(locale, 'incidents.filter.state.resolved'),
+                  },
+                ]
               : []),
           ]}
         />
@@ -308,9 +319,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
             {
               id: CRITICAL_SEVERITY,
               label: message(locale, 'incidents.filter.severity.critical'),
-              icon: (
-                <span aria-hidden="true" className="icon-inline bg-danger" />
-              ),
+              icon: <span aria-hidden="true" className="icon-inline bg-danger" />,
             },
           ]}
         />

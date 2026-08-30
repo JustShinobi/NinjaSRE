@@ -63,7 +63,9 @@ test.describe('AN-R1/SC-003 — the header shows a proportional health bar with 
     // Same response, no second request for the synthesis: every read this
     // header needs came from the resources/summary reads the page already
     // makes, never a client-side follow-up fetch for the bar itself.
-    expect(requests.filter((url) => url.includes('/summary')).length).toBeLessThanOrEqual(1);
+    expect(
+      requests.filter((url) => url.includes('/summary')).length,
+    ).toBeLessThanOrEqual(1);
   });
 
   test(
@@ -93,7 +95,9 @@ test.describe('AN-R2 — clicking a legend entry filters the list and updates th
     page,
   }) => {
     await openResources(page);
-    const unhealthy = page.getByTestId('health-legend-item').filter({ hasText: /unhealthy/i });
+    const unhealthy = page
+      .getByTestId('health-legend-item')
+      .filter({ hasText: /unhealthy/i });
     await expect(unhealthy).toBeVisible();
     await unhealthy.click();
     await expect(page).toHaveURL(/health=unhealthy/);
@@ -111,7 +115,9 @@ test.describe('AN-R2 — clicking a legend entry filters the list and updates th
 // =============================================================================
 
 test.describe('AN-R3/AN-T1 — type filter is a chip row with counts, search is compact, no <select>', () => {
-  test('no native select renders, and the type chips carry a count each', async ({ page }) => {
+  test('no native select renders, and the type chips carry a count each', async ({
+    page,
+  }) => {
     await openResources(page);
     await expect(page.locator('select')).toHaveCount(0);
     const chips = page.getByTestId('type-chip');
@@ -136,7 +142,9 @@ test.describe('AN-R4/AN-R6 — resources group by node, worst node and worst res
     expect(total).toBeGreaterThan(0);
     for (let index = 0; index < total; index += 1) {
       await expect(sections.nth(index).getByTestId('node-section-name')).toBeVisible();
-      await expect(sections.nth(index).getByTestId('node-section-count')).toContainText(/\d/);
+      await expect(sections.nth(index).getByTestId('node-section-count')).toContainText(
+        /\d/,
+      );
     }
   });
 
@@ -157,7 +165,9 @@ test.describe('AN-R4/AN-R6 — resources group by node, worst node and worst res
     expect(lastUnhealthyIndex).toBeLessThan(firstHealthyIndex);
   });
 
-  test('within a section, unhealthy cards draw before healthy ones', async ({ page }) => {
+  test('within a section, unhealthy cards draw before healthy ones', async ({
+    page,
+  }) => {
     await openResources(page);
     const section = page
       .getByTestId('node-section')
@@ -196,7 +206,9 @@ test.describe('AN-R5/AN-R9 — resources are cards in a grid, shaped by state, w
     // Self-referential: data-health lives on the card itself, not on a
     // descendant, so this is a plain attribute selector rather than a `has`
     // filter -- `.filter({ has })` only ever matches a child.
-    const unhealthy = page.locator('[data-testid="resource-card"][data-health="unhealthy"]');
+    const unhealthy = page.locator(
+      '[data-testid="resource-card"][data-health="unhealthy"]',
+    );
     const total = await unhealthy.count();
     expect(total).toBeGreaterThan(0);
     await expect(unhealthy.first()).toHaveAttribute('data-health', 'unhealthy');
@@ -207,11 +219,15 @@ test.describe('AN-R5/AN-R9 — resources are cards in a grid, shaped by state, w
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openResources(page);
-      const unhealthy = page.locator('[data-testid="resource-card"][data-health="unhealthy"]');
+      const unhealthy = page.locator(
+        '[data-testid="resource-card"][data-health="unhealthy"]',
+      );
       const total = await unhealthy.count();
       test.skip(total === 0, 'no unhealthy resource in this environment');
       if (total === 0) return;
-      const withDuration = unhealthy.locator('[data-testid="resource-unhealthy-duration"]');
+      const withDuration = unhealthy.locator(
+        '[data-testid="resource-unhealthy-duration"]',
+      );
       const durationCount = await withDuration.count();
       test.skip(
         durationCount === 0,

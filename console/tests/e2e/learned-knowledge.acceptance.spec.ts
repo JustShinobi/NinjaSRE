@@ -41,19 +41,25 @@ test.describe('AN-C1 — Knowledge opens on Learned by default; deep links to ot
   }) => {
     await page.goto('/knowledge');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
-    await expect(page.locator('[data-tab="learned"][aria-current="page"]')).toBeVisible();
+    await expect(
+      page.locator('[data-tab="learned"][aria-current="page"]'),
+    ).toBeVisible();
   });
 
   test('?tab=documents still opens Documents', async ({ page }) => {
     await page.goto('/knowledge?tab=documents');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
-    await expect(page.locator('[data-tab="documents"][aria-current="page"]')).toBeVisible();
+    await expect(
+      page.locator('[data-tab="documents"][aria-current="page"]'),
+    ).toBeVisible();
   });
 
   test('?tab=topology still opens Topology', async ({ page }) => {
     await page.goto('/knowledge?tab=topology');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
-    await expect(page.locator('[data-tab="topology"][aria-current="page"]')).toBeVisible();
+    await expect(
+      page.locator('[data-tab="topology"][aria-current="page"]'),
+    ).toBeVisible();
   });
 });
 
@@ -75,14 +81,22 @@ test.describe('AN-C3 — every episode is a card: title-phrase, outcome shape, c
   }) => {
     await page.goto('/knowledge');
     // Self-referential: data-outcome lives on the card itself.
-    const resolved = page.locator('[data-testid="episode-card"][data-outcome="resolved"]');
+    const resolved = page.locator(
+      '[data-testid="episode-card"][data-outcome="resolved"]',
+    );
     expect(await resolved.count()).toBeGreaterThan(0);
     await expect(resolved.first().getByTestId('episode-time')).toBeVisible();
   });
 
-  test('a component chip on a card is clickable and applies the filter', async ({ page }) => {
+  test('a component chip on a card is clickable and applies the filter', async ({
+    page,
+  }) => {
     await page.goto('/knowledge');
-    const chip = page.getByTestId('episode-card').first().getByTestId('episode-component-chip').first();
+    const chip = page
+      .getByTestId('episode-card')
+      .first()
+      .getByTestId('episode-component-chip')
+      .first();
     await expect(chip).toBeVisible();
     const text = (await chip.innerText()).trim();
     await chip.click();
@@ -98,10 +112,9 @@ test.describe('AN-C3 — every episode is a card: title-phrase, outcome shape, c
     });
     const total = await linked.count();
     expect(total).toBeGreaterThan(0);
-    await expect(linked.first().getByTestId('episode-open-investigation')).toHaveAttribute(
-      'href',
-      /^\/runs\//,
-    );
+    await expect(
+      linked.first().getByTestId('episode-open-investigation'),
+    ).toHaveAttribute('href', /^\/runs\//);
   });
 });
 
@@ -120,9 +133,9 @@ test.describe('AN-C2 — the component filter groups by type with counts and no 
     const groups = page.getByTestId('component-filter-group');
     expect(await groups.count()).toBeGreaterThan(0);
     for (let index = 0; index < (await groups.count()); index += 1) {
-      await expect(groups.nth(index).getByTestId('component-filter-group-count')).toContainText(
-        /\d/,
-      );
+      await expect(
+        groups.nth(index).getByTestId('component-filter-group-count'),
+      ).toContainText(/\d/);
     }
   });
 

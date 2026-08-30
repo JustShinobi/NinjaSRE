@@ -27,7 +27,13 @@ import {
   stateOf,
   text,
 } from '../read';
-import { hrefFor, readViewState, withFilter, withSelection, type FilterName } from '../url-state';
+import {
+  hrefFor,
+  readViewState,
+  withFilter,
+  withSelection,
+  type FilterName,
+} from '../url-state';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
 import { groupByNode, healthSegments, unhealthySynthesis } from './resources-grouping';
 
@@ -80,7 +86,9 @@ function strengthLabel(strength: string): MessageKey {
 }
 
 /** Which token colours a health's mark, and what shape it draws. */
-const HEALTH_MARK: Readonly<Record<string, { readonly role: string; readonly circle: boolean }>> = {
+const HEALTH_MARK: Readonly<
+  Record<string, { readonly role: string; readonly circle: boolean }>
+> = {
   healthy: { role: 'bg-success', circle: true },
   unhealthy: { role: 'bg-danger', circle: false },
   degraded: { role: 'bg-warning', circle: false },
@@ -143,7 +151,10 @@ function HealthBar({
             <HealthMark health={segment.health} />
             {message(locale, 'resources.summary.legend', {
               count: segment.count,
-              health: message(locale, `status.resource.${segment.health}` as MessageKey),
+              health: message(
+                locale,
+                `status.resource.${segment.health}` as MessageKey,
+              ),
             })}
           </NextLink>
         ))}
@@ -180,7 +191,10 @@ function ResourceCard({
       className={`flex flex-col gap-2 rounded-3 edge p-3 motion-hover hover:border-strong ${health === 'unhealthy' ? 'border-danger' : 'border-border'}`}
     >
       <span className="flex items-center gap-2">
-        <span className="text-small font-medium min-w-0 truncate" data-testid="resource-card-name">
+        <span
+          className="text-small font-medium min-w-0 truncate"
+          data-testid="resource-card-name"
+        >
           {text(resource, 'display_name')}
         </span>
         <span className="ml-auto shrink-0">
@@ -196,7 +210,10 @@ function ResourceCard({
           })}
         </span>
         {health === 'unhealthy' && unhealthySince !== '' ? (
-          <span className="ml-auto shrink-0 text-danger" data-testid="resource-unhealthy-duration">
+          <span
+            className="ml-auto shrink-0 text-danger"
+            data-testid="resource-unhealthy-duration"
+          >
             {message(locale, 'resources.card.unhealthySince', {
               since: timestamp(locale, unhealthySince, now, zone).relative,
             })}
@@ -265,10 +282,16 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
     const health = state.filters.health;
     const kind = state.filters.kind;
     if (zone !== undefined && zoneOf(record) !== zone) return false;
-    if (criticality !== undefined && criticalityOf(record) !== criticality) return false;
+    if (criticality !== undefined && criticalityOf(record) !== criticality)
+      return false;
     if (kind !== undefined && text(record, 'kind') !== kind) return false;
-    if (health === 'problem' && !PROBLEM_HEALTH.has(text(record, 'health'))) return false;
-    if (health !== undefined && health !== 'problem' && text(record, 'health') !== health)
+    if (health === 'problem' && !PROBLEM_HEALTH.has(text(record, 'health')))
+      return false;
+    if (
+      health !== undefined &&
+      health !== 'problem' &&
+      text(record, 'health') !== health
+    )
       return false;
     if (query !== '' && !text(record, 'display_name').toLowerCase().includes(query))
       return false;
@@ -289,10 +312,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       <div className="flex flex-col gap-4 mb-5">
         <HealthBar
           locale={locale}
-          breakdown={counts(dataOf(summary), 'by_health').reduce<Record<string, number>>(
-            (map, [health, value]) => ({ ...map, [health]: value }),
-            {},
-          )}
+          breakdown={counts(dataOf(summary), 'by_health').reduce<
+            Record<string, number>
+          >((map, [health, value]) => ({ ...map, [health]: value }), {})}
           state={state}
           path="/resources"
           filters={RESOURCE_FILTERS}
@@ -315,7 +337,11 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           </form>
           <div className="flex items-center gap-2 flex-wrap">
             <NextLink
-              href={hrefFor('/resources', withFilter(state, 'kind', ''), RESOURCE_FILTERS)}
+              href={hrefFor(
+                '/resources',
+                withFilter(state, 'kind', ''),
+                RESOURCE_FILTERS,
+              )}
               prefetch={false}
               data-testid="type-chip-any"
               className={`rounded-full px-3 py-1 text-small edge ${state.filters.kind === undefined ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
@@ -325,7 +351,11 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             {kinds.map((kind) => (
               <NextLink
                 key={kind}
-                href={hrefFor('/resources', withFilter(state, 'kind', kind), RESOURCE_FILTERS)}
+                href={hrefFor(
+                  '/resources',
+                  withFilter(state, 'kind', kind),
+                  RESOURCE_FILTERS,
+                )}
                 prefetch={false}
                 data-testid="type-chip"
                 className={`rounded-full px-3 py-1 text-small edge ${state.filters.kind === kind ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
@@ -371,7 +401,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         ))}
 
         {selection === null ? null : (
-          <div className="flex items-baseline gap-3" data-testid="resource-detail-header">
+          <div
+            className="flex items-baseline gap-3"
+            data-testid="resource-detail-header"
+          >
             <h2 className="text-section">{selectedName}</h2>
             <Link
               href={hrefFor('/resources', withSelection(state, null), RESOURCE_FILTERS)}
@@ -394,7 +427,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               href: '/configuration',
             }}
           >
-            <ul className="flex flex-col gap-2 text-small" data-testid="resource-signals">
+            <ul
+              className="flex flex-col gap-2 text-small"
+              data-testid="resource-signals"
+            >
               <li className="text-meta text-muted">
                 {message(locale, 'resources.signals.body')}
               </li>
@@ -449,7 +485,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               href: '/knowledge',
             }}
           >
-            <ul className="flex flex-col gap-2 text-small" data-testid="resource-documents">
+            <ul
+              className="flex flex-col gap-2 text-small"
+              data-testid="resource-documents"
+            >
               <li className="text-meta text-muted">
                 {message(locale, 'resources.documents.body')}
               </li>
@@ -506,7 +545,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                     <span className="text-strong">{text(entry, 'message')}</span>{' '}
                     <span className="text-muted">
                       {text(entry, 'change_id')}
-                      {text(entry, 'author') === '' ? '' : ` · ${text(entry, 'author')}`}
+                      {text(entry, 'author') === ''
+                        ? ''
+                        : ` · ${text(entry, 'author')}`}
                       {` · ${timestamp(locale, text(entry, 'instant'), now, zone).relative}`}
                     </span>
                   </span>
@@ -523,7 +564,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                     {flag(entry, 'applied')
                       ? ''
                       : ` · ${message(locale, 'resources.changes.unapplied')}`}
-                    {text(entry, 'component') === '' ? '' : ` · ${text(entry, 'component')}`}
+                    {text(entry, 'component') === ''
+                      ? ''
+                      : ` · ${text(entry, 'component')}`}
                   </span>
                   <span className="text-meta text-muted">{text(entry, 'why')}</span>
                 </li>
@@ -567,8 +610,13 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                       })}
                     </span>
                   ) : null}
-                  <span className="text-micro text-muted" data-testid="node-section-count">
-                    {message(locale, 'resources.node.count', { count: section.resources.length })}
+                  <span
+                    className="text-micro text-muted"
+                    data-testid="node-section-count"
+                  >
+                    {message(locale, 'resources.node.count', {
+                      count: section.resources.length,
+                    })}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -594,7 +642,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             data-testid="placement-warning"
             className="flex items-center gap-3 rounded-3 edge border-warning bg-warning-bg px-4 py-3"
           >
-            <span aria-hidden="true" className="icon-inline clip-triangle bg-warning shrink-0" />
+            <span
+              aria-hidden="true"
+              className="icon-inline clip-triangle bg-warning shrink-0"
+            />
             <p className="text-small">
               {message(
                 locale,
@@ -628,7 +679,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               href: '/configuration',
             }}
           >
-            <ul className="flex flex-col gap-1 text-small" data-testid="unresolved-targets">
+            <ul
+              className="flex flex-col gap-1 text-small"
+              data-testid="unresolved-targets"
+            >
               <li className="text-meta text-muted">
                 {message(locale, 'resources.unresolved.body')}
               </li>

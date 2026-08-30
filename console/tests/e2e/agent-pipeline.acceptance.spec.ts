@@ -45,7 +45,9 @@ test.beforeEach(async ({ context, baseURL }) => {
 // =============================================================================
 
 test.describe('AN-A1/AN-A2 — the Pipeline tab opens with a six-node metro line, one sentence each', () => {
-  test('the metro shows the six stages in the order the pipeline serves', async ({ page }) => {
+  test('the metro shows the six stages in the order the pipeline serves', async ({
+    page,
+  }) => {
     await page.goto('/agent');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
     const nodes = page.getByTestId('pipeline-metro-node');
@@ -80,12 +82,16 @@ test.describe('AN-A1/AN-A2 — the Pipeline tab opens with a six-node metro line
   }) => {
     await page.goto('/agent');
     // Self-referential: data-stage lives on the node itself.
-    const intake = page.locator('[data-testid="pipeline-metro-node"][data-stage="intake"]');
+    const intake = page.locator(
+      '[data-testid="pipeline-metro-node"][data-stage="intake"]',
+    );
     await expect(intake.getByTestId('pipeline-metro-regime')).toContainText('intake');
     const resolve = page.locator(
       '[data-testid="pipeline-metro-node"][data-stage="resolve_integrations"]',
     );
-    const resolveRegime = (await resolve.getByTestId('pipeline-metro-regime').innerText()).toLowerCase();
+    const resolveRegime = (
+      await resolve.getByTestId('pipeline-metro-regime').innerText()
+    ).toLowerCase();
     expect(resolveRegime).not.toContain('intake');
   });
 });
@@ -114,7 +120,9 @@ test.describe('AN-A3 — the pipeline card shows how many investigations are run
 // =============================================================================
 
 test.describe('AN-A4 — three summary cards sit below the metro, each reading its own tab’s route', () => {
-  test('Tools, Autonomy and Team Context cards exist and link their tabs', async ({ page }) => {
+  test('Tools, Autonomy and Team Context cards exist and link their tabs', async ({
+    page,
+  }) => {
     await page.goto('/agent');
     const tools = page.getByTestId('pipeline-summary-tools');
     const autonomy = page.getByTestId('pipeline-summary-autonomy');
@@ -123,7 +131,10 @@ test.describe('AN-A4 — three summary cards sit below the metro, each reading i
     await expect(autonomy).toBeVisible();
     await expect(team).toBeVisible();
     await expect(tools.getByRole('link').first()).toHaveAttribute('href', /tab=tools/);
-    await expect(autonomy.getByRole('link').first()).toHaveAttribute('href', /tab=autonomy/);
+    await expect(autonomy.getByRole('link').first()).toHaveAttribute(
+      'href',
+      /tab=autonomy/,
+    );
     await expect(team.getByRole('link').first()).toHaveAttribute('href', /tab=team/);
   });
 });
@@ -172,7 +183,9 @@ test.describe('AN-A6 — the Autonomy card shows the five-class ladder with the 
     const rows = card.getByTestId('autonomy-summary-row');
     await expect(rows).toHaveCount(5);
     for (let index = 0; index < 5; index += 1) {
-      await expect(rows.nth(index).getByTestId('autonomy-summary-decision')).toBeVisible();
+      await expect(
+        rows.nth(index).getByTestId('autonomy-summary-decision'),
+      ).toBeVisible();
     }
     await expect(card.getByTestId('outlook-reason')).toHaveCount(0);
   });
@@ -206,7 +219,9 @@ test.describe('AN-A7 — the Team Context card shows the prompt budget bar or a 
 // =============================================================================
 
 test.describe('AN-A8 — Tools, Autonomy and Team Context still serve their full content', () => {
-  test('the Tools tab still lists capabilities beyond the summary card', async ({ page }) => {
+  test('the Tools tab still lists capabilities beyond the summary card', async ({
+    page,
+  }) => {
     await page.goto('/agent?tab=tools');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
     const tools = page.getByTestId('agent-tool');
@@ -214,7 +229,9 @@ test.describe('AN-A8 — Tools, Autonomy and Team Context still serve their full
     expect((await tools.count()) + (await skills.count())).toBeGreaterThan(0);
   });
 
-  test('the Autonomy tab still shows the full outlook, "Why:" included', async ({ page }) => {
+  test('the Autonomy tab still shows the full outlook, "Why:" included', async ({
+    page,
+  }) => {
     await page.goto('/agent?tab=autonomy');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
     await expect(page.getByTestId('outlook-class')).not.toHaveCount(0);

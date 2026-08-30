@@ -86,8 +86,12 @@ function newestPublicId(group: IncidentGroup): string {
 }
 
 /** The newest occurrence that has not ended, when the group is currently live. */
-function speakingOccurrence(group: IncidentGroup): IncidentGroup['occurrences'][number] | undefined {
-  return group.occurrences.find((occurrence) => occurrence.runId !== '' && !isSettled(occurrence.state));
+function speakingOccurrence(
+  group: IncidentGroup,
+): IncidentGroup['occurrences'][number] | undefined {
+  return group.occurrences.find(
+    (occurrence) => occurrence.runId !== '' && !isSettled(occurrence.state),
+  );
 }
 
 const SETTLED_STATES = new Set(['resolved', 'closed', 'suppressed']);
@@ -237,9 +241,14 @@ function CauseBlock({
     <div className="flex items-center gap-3 mt-2">
       {settled !== undefined && headline !== undefined ? (
         <div className="flex items-center gap-2 rounded-2 bg-accent-bg edge border-border px-3 py-2 flex-1 min-w-0">
-          <span className="h-2 w-2 rounded-full bg-success shrink-0" aria-hidden="true" />
+          <span
+            className="h-2 w-2 rounded-full bg-success shrink-0"
+            aria-hidden="true"
+          />
           <span className="text-small min-w-0 truncate">
-            <span className="text-strong">{message(locale, 'incidents.cause.found')}</span>{' '}
+            <span className="text-strong">
+              {message(locale, 'incidents.cause.found')}
+            </span>{' '}
             {headline}
           </span>
         </div>
@@ -403,8 +412,17 @@ export function IncidentGroupList({
                       })}
                     </p>
                   ) : null}
-                  <TwentyFourHourStrip group={group} locale={locale} now={now} zone={zone} />
-                  <CauseBlock group={group} locale={locale} runHeadlines={runHeadlines} />
+                  <TwentyFourHourStrip
+                    group={group}
+                    locale={locale}
+                    now={now}
+                    zone={zone}
+                  />
+                  <CauseBlock
+                    group={group}
+                    locale={locale}
+                    runHeadlines={runHeadlines}
+                  />
                 </div>
               </details>
             </li>

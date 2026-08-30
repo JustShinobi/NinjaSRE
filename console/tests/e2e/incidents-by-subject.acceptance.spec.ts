@@ -52,7 +52,10 @@ test.describe('AN-I1 — the grouped list shows one row per subject, named by th
     // The title is never empty and is never the raw correlation key
     // (`detector:name` never survives to the screen unshortened).
     for (let index = 0; index < count; index += 1) {
-      const title = await groups.nth(index).getByTestId('incident-group-summary').innerText();
+      const title = await groups
+        .nth(index)
+        .getByTestId('incident-group-summary')
+        .innerText();
       expect(title.trim().length).toBeGreaterThan(0);
     }
   });
@@ -98,7 +101,9 @@ test.describe('FR-001 — a closed row reaches the incident in one click, withou
 // =============================================================================
 
 test.describe('AN-I2/AN-T2 — no subtitle or title begins with a raw identifier', () => {
-  test('no visible subject line starts with a resource or opaque id', async ({ page }) => {
+  test('no visible subject line starts with a resource or opaque id', async ({
+    page,
+  }) => {
     await openIncidents(page);
     const subjects = page.getByTestId('incident-group-subjects');
     const count = await subjects.count();
@@ -135,8 +140,11 @@ test.describe('AN-I3/AN-T1 — state, severity and view are segmented controls',
         .first();
       // Pick the option literally named "critical" inside whichever group
       // carries it, rather than assuming position.
-      const option = page.getByTestId('segmented-option').filter({ hasText: /critical/i });
-      if ((await option.count()) === 0) test.skip(true, 'no critical option in this dataset');
+      const option = page
+        .getByTestId('segmented-option')
+        .filter({ hasText: /critical/i });
+      if ((await option.count()) === 0)
+        test.skip(true, 'no critical option in this dataset');
       await option.first().click();
       await expect(page).toHaveURL(/severity=critical/);
       void severity;
@@ -173,7 +181,9 @@ test.describe('AN-I8 — every row carries the recurrence strip, N×, and a rela
     await expect(first.getByTestId('incident-group-state')).toBeVisible();
   });
 
-  test('a group with more than one firing draws the recurrence strip', async ({ page }) => {
+  test('a group with more than one firing draws the recurrence strip', async ({
+    page,
+  }) => {
     await openIncidents(page);
     const withCount = page.getByTestId('incident-group').filter({
       has: page.getByTestId('incident-group-count'),
@@ -214,7 +224,10 @@ test.describe('AN-I5/AN-I7 — expanding a group with more than one firing shows
           break;
         }
       }
-      test.skip(target === -1, 'no recurring subject (count > 1) in this local dataset');
+      test.skip(
+        target === -1,
+        'no recurring subject (count > 1) in this local dataset',
+      );
       if (target === -1) return;
 
       const group = groups.nth(target);

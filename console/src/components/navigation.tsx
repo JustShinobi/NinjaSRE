@@ -202,8 +202,7 @@ export function SegmentedLinks({
   label,
 }: SegmentedLinksProps): ReactNode {
   return (
-    <div
-      role="group"
+    <nav
       aria-label={label}
       data-testid="segmented"
       className="inline-flex items-center rounded-2 bg-sunken edge border-border p-1"
@@ -226,7 +225,7 @@ export function SegmentedLinks({
           {option.label}
         </a>
       ))}
-    </div>
+    </nav>
   );
 }
 

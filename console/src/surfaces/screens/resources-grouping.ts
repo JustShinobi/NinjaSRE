@@ -115,7 +115,9 @@ export function unhealthySynthesis(
   resources: readonly unknown[],
 ): readonly UnhealthySynthesis[] {
   const candidates = resources.filter(
-    (resource) => text(resource, 'health') === 'unhealthy' && field(resource, 'unhealthy_since') !== null,
+    (resource) =>
+      text(resource, 'health') === 'unhealthy' &&
+      field(resource, 'unhealthy_since') !== null,
   );
 
   const byGroup = new Map<string, unknown[]>();
@@ -130,7 +132,8 @@ export function unhealthySynthesis(
   for (const members of byGroup.values()) {
     const sorted = [...members].sort(
       (left, right) =>
-        Date.parse(text(left, 'unhealthy_since')) - Date.parse(text(right, 'unhealthy_since')),
+        Date.parse(text(left, 'unhealthy_since')) -
+        Date.parse(text(right, 'unhealthy_since')),
     );
     // A window anchored on the oldest member: everyone within
     // SYNTHESIS_WINDOW_MINUTES of when the first of the batch went

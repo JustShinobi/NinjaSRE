@@ -763,8 +763,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.timeline.overflow': 'e mais {count} antes de ontem',
   'incidents.cause.live': 'investigação em andamento →',
   'incidents.cause.found': 'Última causa encontrada:',
-  'incidents.coverage.gap':
-    '{count} achados degradados estão sem detector ligado',
+  'incidents.coverage.gap': '{count} achados degradados estão sem detector ligado',
   'incidents.coverage.action': 'Ligar detector →',
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
@@ -971,7 +970,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.synthesis.line':
     '{count} {kind} não saudáveis há mais de {since} — todos em {node}, mesma janela de início',
   'resources.synthesis.action': 'investigar em lote →',
-  'resources.synthesis.objective': 'O que derrubou {count} {kind} em {node} desde {since}?',
+  'resources.synthesis.objective':
+    'O que derrubou {count} {kind} em {node} desde {since}?',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.divergent.hint':

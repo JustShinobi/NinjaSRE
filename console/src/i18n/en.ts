@@ -958,14 +958,14 @@ export const EN = {
   'incidents.filter.state.investigating': 'Investigating',
   'incidents.filter.state.resolved': 'Resolved',
   'incidents.filter.severity.critical': 'Critical',
-  'incidents.header.summary': '{subjects} subjects · {firings} firings · {critical} critical in progress',
+  'incidents.header.summary':
+    '{subjects} subjects · {firings} firings · {critical} critical in progress',
   'incidents.timeline.title': 'Firings in the last 24h',
   'incidents.timeline.now': 'now',
   'incidents.timeline.overflow': 'and {count} more before yesterday',
   'incidents.cause.live': 'investigation in progress →',
   'incidents.cause.found': 'Last cause found:',
-  'incidents.coverage.gap':
-    '{count} degraded findings have no detector watching them',
+  'incidents.coverage.gap': '{count} degraded findings have no detector watching them',
   'incidents.coverage.action': 'Turn on a detector →',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
@@ -1200,7 +1200,8 @@ export const EN = {
   'resources.synthesis.line':
     '{count} {kind} unhealthy since {since} — all on {node}, same start window',
   'resources.synthesis.action': 'investigate as a batch →',
-  'resources.synthesis.objective': 'What took down {count} {kind} on {node} since {since}?',
+  'resources.synthesis.objective':
+    'What took down {count} {kind} on {node} since {since}?',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':
