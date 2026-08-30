@@ -29,6 +29,11 @@ class ApprovalState(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
+    #: Withdrawn by a person rather than answered — today only reachable from
+    #: ``EXPIRED``, never from a request still within its own window. Distinct
+    #: from ``REJECTED``: nobody said no to the action, the window to say
+    #: anything at all closed first.
+    DISCARDED = "discarded"
 
     @property
     def is_decided(self) -> bool:
@@ -148,6 +153,7 @@ class ApprovalStore(Protocol):
         self,
         *,
         action: str | None = None,
+        states: Sequence[ApprovalState] | None = None,
         limit: int = 50,
     ) -> tuple[ApprovalRequest, ...]:
         """Return answered requests, most recently decided first.
@@ -160,6 +166,30 @@ class ApprovalStore(Protocol):
 
         Ordered by decision rather than by request, because "what was said most
         recently" is the question, and expired rows carry a decision instant too.
+
+        ``states`` narrows to exactly the states named — ``None`` keeps every
+        non-``PENDING`` row, the behaviour this had before the parameter
+        existed. A caller separating "expired, waiting on a repropose" from
+        "answered by a person" (``approved``/``rejected``/``discarded``) reads
+        two different pages of the same, otherwise-identical ordering rather
+        than one page it would have to split itself.
+        """
+
+    async def discard(
+        self,
+        approval_id: str,
+        *,
+        discarded_by: str,
+        discarded_at: datetime,
+    ) -> ApprovalRequest:
+        """Move ``approval_id`` to ``DISCARDED`` and return it as stored.
+
+        Reachable from ``PENDING`` or ``EXPIRED`` — never from a request a
+        person has already answered (``APPROVED``/``REJECTED``) or discarded
+        once already. Raises ``RecordNotFound`` for an unknown request and
+        ``AppendOnlyViolation`` for one already answered by a person. A
+        transition, exactly like ``decide`` and ``expire_due``: the row is
+        marked, never removed.
         """
 
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:

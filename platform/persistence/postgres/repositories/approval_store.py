@@ -179,6 +179,7 @@ class PostgresApprovalStore(TenantBound):
         self,
         *,
         action: str | None = None,
+        states: Sequence[ApprovalState] | None = None,
         limit: int = 50,
     ) -> tuple[ApprovalRequest, ...]:
         """Return answered requests, most recently decided first."""
@@ -197,9 +198,34 @@ class PostgresApprovalStore(TenantBound):
         )
         if action is not None:
             statement = statement.where(models.Approval.action == action)
+        if states is not None:
+            statement = statement.where(
+                models.Approval.state.in_([state.value for state in states])
+            )
 
         rows = await self.session.scalars(statement)
         return tuple(_to_request(row) for row in rows)
+
+    async def discard(
+        self,
+        approval_id: str,
+        *,
+        discarded_by: str,
+        discarded_at: datetime,
+    ) -> ApprovalRequest:
+        """Move ``approval_id`` to ``DISCARDED`` and return it as stored."""
+        row = await self._require_request(approval_id)
+        if ApprovalState(row.state) in (ApprovalState.APPROVED, ApprovalState.REJECTED):
+            raise AppendOnlyViolation(kind="approval discard", identifier=approval_id)
+        if ApprovalState(row.state) is ApprovalState.DISCARDED:
+            raise AppendOnlyViolation(kind="approval discard", identifier=approval_id)
+
+        row.state = ApprovalState.DISCARDED.value
+        row.decided_by = discarded_by
+        row.decided_at = discarded_at
+        row.reason = None
+        await self.session.flush()
+        return _to_request(row)
 
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""

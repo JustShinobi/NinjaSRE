@@ -103,14 +103,18 @@ class FakeApprovalStore:
         self,
         *,
         action: str | None = None,
+        states: Sequence[ApprovalState] | None = None,
         limit: int = 50,
     ) -> tuple[ApprovalRequest, ...]:
         """Return answered requests, most recently decided first."""
         check_limit(limit)
+        allowed = None if states is None else set(states)
         matches = [
             request
             for request in self.state.approvals.values()
-            if request.state.is_decided and (action is None or request.action == action)
+            if request.state.is_decided
+            and (action is None or request.action == action)
+            and (allowed is None or request.state in allowed)
         ]
         # The identifier is the tiebreaker, and it is descending like the
         # instant: two rows decided in the same transaction have the same
@@ -121,6 +125,32 @@ class FakeApprovalStore:
             reverse=True,
         )
         return tuple(matches[:limit])
+
+    async def discard(
+        self,
+        approval_id: str,
+        *,
+        discarded_by: str,
+        discarded_at: datetime,
+    ) -> ApprovalRequest:
+        """Move ``approval_id`` to ``DISCARDED`` and return it as stored."""
+        request = self._require_request(approval_id)
+        if request.state in (
+            ApprovalState.APPROVED,
+            ApprovalState.REJECTED,
+            ApprovalState.DISCARDED,
+        ):
+            raise AppendOnlyViolation(kind="approval discard", identifier=approval_id)
+
+        discarded = replace(
+            request,
+            state=ApprovalState.DISCARDED,
+            decided_by=discarded_by,
+            decided_at=discarded_at,
+            reason=None,
+        )
+        self.state.approvals[approval_id] = discarded
+        return discarded
 
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""
