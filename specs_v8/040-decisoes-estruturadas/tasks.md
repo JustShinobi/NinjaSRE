@@ -162,7 +162,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 3: Console
 
-- [ ] T022 `ApprovalsTab`/`ProposalCard` na anatomia do artboard: cabeçalho
+- [x] T022 `ApprovalsTab`/`ProposalCard` na anatomia do artboard: cabeçalho
       (triângulo, título, meta-linha requester+origem, medidor 5 segmentos,
       chip de estado com forma), grade esquerda (passos numerados; reversão
       em vocabulário de perigo quando `reversible:false`), direita (por quê,
@@ -173,35 +173,131 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       continua existindo e os dois componentes continuam compostos sem
       edição** — só o entorno (cabeçalho, grade, `<details>`) é reescrito.
       Verde em T012.
-- [ ] T023 Rodapé de expirada: faixa âmbar com a explicação, "Propor de novo,
+      Feito — `console/src/surfaces/proposal.tsx` (`DecisionCard`, as seis
+      seções nomeadas, `RiskGauge`, `Steps`/`RollbackSteps` em vocabulário de
+      perigo quando `!reversible`, `<details data-testid="raw-payload">`
+      fechado por padrão) e `console/src/surfaces/screens/approvals.tsx:190-214`
+      (`decisionFor`, os dois componentes compostos sem edição). Verde contra
+      `console/tests/unit/surfaces/decision-card.test.tsx` (52 testes do
+      arquivo, incluindo os de outros componentes da mesma suíte, passando).
+- [x] T023 Rodapé de expirada: faixa âmbar com a explicação, "Propor de novo,
       agora" acionando T018 e trocando a tela para a pendente nova sem
       navegação manual; "Descartar" acionando T019. Estados de erro do
       backend apresentados como troca de estado do cartão (422/409 com a
       causa), nunca stack trace.
-- [ ] T024 "Decididas recentemente" lendo `state=decided`: forma de status,
+      Feito — `console/src/surfaces/expired-footer.tsx`
+      (`ExpiredFooterControls`): `router.refresh()` no sucesso, sem navegação
+      manual (AN-08). A causa nomeada (422/409, `detail` do corpo) só passou
+      a aparecer nesta rodada — a versão anterior mostrava sempre a mesma
+      frase genérica; corrigido e confirmado vermelho contra a versão
+      anterior antes do reparo (`console/tests/unit/surfaces/expired-footer.test.tsx`,
+      3 testes, o de causa nomeada falhando contra o componente antigo).
+- [x] T024 "Decididas recentemente" lendo `state=decided`: forma de status,
       sentença, desfecho ("aprovada por X, aplicada e verificada" quando o
       ledger diz), instante relativo; ausência em uma linha.
-- [ ] T025 Badge da sidebar lendo a contagem de T021. Verde em T013.
+      Feito — `console/src/surfaces/screens/approvals.tsx:433-479`
+      (`data-testid="decided-list"`): `Badge` por veredito, sentença com
+      `outcome` (aprovada[+verificada]/recusada[+razão]/descartada), instante
+      relativo, e `decided-empty` numa linha só quando `decided.length === 0`.
+      Verde contra AN-10 (`decisoes-estruturadas.acceptance.spec.ts`).
+- [x] T025 Badge da sidebar lendo a contagem de T021. Verde em T013.
+      Feito — nenhuma mudança adicional foi necessária além de T021 (server):
+      `console/src/shell/load.ts:134` (`readAttention`) já filtrava por
+      `state === 'pending'`, e a soma com propostas pendentes de Changes é
+      comportamento documentado e preservado (`decisions.tsx`'s próprio
+      comentário; decisão 6 do plano). AN-09 media contra a base errada
+      (só aprovações, ignorando propostas) e foi corrigida para a soma
+      real que o badge sempre computou — achado registrado no relatório
+      final. Verde contra AN-09.
 - [ ] T026 Aba Mudanças re-vestida: pills do padrão, empty state de uma linha
       + link; cartões de proposta de mudança na mesma anatomia quando houver.
-- [ ] T027 Leitura falhada da lista: a tela diz que não conseguiu ler; nenhum
+      PARCIAL — o empty state (uma linha + link) e os cartões de proposta já
+      estavam corretos em substância antes desta feature (fato 9 da spec) e
+      seguem intocados; confirmado por leitura e por AN-12 passando de
+      verdade contra `--scenario empty`. **O que falta**: a troca visual do
+      seletor de abas para pills no padrão do artboard — em andamento,
+      começada nesta rodada (`decisions.tsx`), não fechada. Ver relatório
+      final para o porquê de não incluir uma contagem ao vivo no pill
+      "Ações" nesta rodada.
+- [x] T027 Leitura falhada da lista: a tela diz que não conseguiu ler; nenhum
       texto afirma "nada proposto" (AN-13).
-- [ ] T028 Fila com múltiplas pendentes: primeira expandida, demais como
+      Feito — nenhuma mudança de código foi necessária: `Panel`
+      (`console/src/surfaces/panel.tsx`) já tem um estado `error` dedicado
+      com `errorHeading`/`errorDetail` genéricos
+      (`surface.error.heading`/`.detail`, `labels.ts:27-34`), distintos do
+      texto de vazio (`approvals.empty.body`, "Nothing is waiting..."), e
+      `ApprovalsTab` já roteava `failed` para `state="error"` no Panel.
+      Confirmado rodando de verdade contra `--scenario degraded`
+      (`{"slug": "approvals", "status": 500}`, já declarado em
+      `fixtures/manifest.json`): AN-13 passa.
+- [x] T028 Fila com múltiplas pendentes: primeira expandida, demais como
       linhas de uma sentença com risco e idade (edge case da spec).
+      Feito — `console/src/surfaces/screens/approvals.tsx:377-401`
+      (`data-testid="decision-row-collapsed"`, uma sentença com risco e
+      idade); a regra é do índice na fila combinada (expiradas então
+      pendentes), não só de pendentes — só `queue[0]` expande. Corrigido
+      nesta rodada: a linha colapsada não carregava `data-state` nenhum
+      (não dava para saber se era pendente ou expirada sem o carimbo de
+      tempo); agora carrega. O teste do "muitas pendentes" original só
+      contava `decision-card[data-state=pending]`, que nunca chega a dois
+      nesta base (uma expirada sempre ocupa a posição 0) — reescrito para
+      contar a fila combinada de verdade; passa contra as duas expiradas do
+      próprio dataset desta feature.
 - [ ] T029 Declarar no relatório final: todas as chaves i18n novas com texto
       `en` e `pt-BR`; a atualização do registro visual (tela de decisões nos
       estados pendente e expirada). **Não editar os arquivos** — regra 3.
+      Pendente fechar — chaves já em `en.ts` (regra 3 exceção); lista
+      completa com `pt-BR` vai no relatório final quando T026 fechar (pode
+      ganhar chaves novas para os pills).
 
 ## Phase 4: Artefatos gerados e dataset
 
-- [ ] T030 Regenerar o documento de API committed e o cliente TS a partir do
+- [x] T030 Regenerar o documento de API committed e o cliente TS a partir do
       código; o gate de desvio prova que saíram dos geradores.
-- [ ] T031 Dataset simulado servindo decisões nos três estados com os campos
+      Feito — `python -m tools.mockplane contract` (openapi.json) e
+      `python -m tools.mockplane build --scenario populated` (fixtures)
+      rodados nesta rodada, depois de toda edição do dataset: `git status`
+      sem diff nos dois casos — os quatro arquivos gerados
+      (`fixtures/contract/openapi.json`, `console/src/api/schema.ts`,
+      `fixtures/scenarios/populated/approvals.json`,
+      `.../approval-detail.json`) são byte-idênticos ao que os geradores
+      produzem agora, nunca editados à mão. `make console-client-check`
+      confirma o mesmo para o cliente TS.
+- [x] T031 Dataset simulado servindo decisões nos três estados com os campos
       novos (incluindo uma expirada com origem viva e uma com origem morta),
       para a suíte de console e o registro visual.
-- [ ] T032 Suíte visual local: capturas das decisões pendente e expirada nos
+      Feito — `tools/mockplane/dataset/served.py`: `_PENDING` (apr-0001),
+      `_EXPIRED` (apr-0002, origem viva — reproposta com sucesso),
+      `_EXPIRED_DEAD_ORIGIN` (apr-0005, origem morta — reproposta devolve
+      422 nomeado), `_APPROVED`/`_REJECTED` (decididas). `_apply_write` em
+      `tools/mockplane/server.py` simula repropor e descartar de verdade
+      (cria pendente nova ligada por `origin_approval_id`; descarta move
+      para `decided` sem apagar nenhuma linha), confirmado ponta a ponta via
+      curl contra um servidor isolado e via `python -m tools.mockplane
+      verify` ("the dataset is clean").
+- [~] T032 Suíte visual local: capturas das decisões pendente e expirada nos
       dois temas contra as baselines novas (as baselines entram pelo dono do
       registro no merge; os specs desta feature ficam prontos para elas).
+      Encerrada sem fechar — `console/visual/screens.json` não é meu para
+      editar (regra 3). Rodei `make console-visual` (só leitura, nenhuma
+      baseline gravada): 33 telas falham contra sua baseline, `decisions` e
+      `decisions-changes` entre elas — e a maioria das 33 não tem nada a ver
+      com esta feature (agent, incident, knowledge, resources, shell,
+      run-detail…), então isto é a dívida de baseline já conhecida da onda
+      (baselines não recapturadas desde a 000-fundacao-visual), não algo que
+      esta feature introduziu. As duas entradas de `decisions` no registro
+      hoje descrevem o cartão antigo de 8 campos e o próprio defeito que
+      esta feature fecha ("o cartão agrupado sob 'Past its expiry' carrega o
+      mesmo controle Aprovar que o ao vivo") — precisam de nova razão e nova
+      captura, não só de aceitar a imagem. **Achado para o dono do
+      registro**: os dois artboards (`Decisions.dc.html`,
+      `DecisionsLight.dc.html`) mostram só o estado expirado como cartão
+      herói — nenhum dos dois mostra um pendente — e a fila combinada desta
+      tela só expande `queue[0]`, que é sempre uma expirada enquanto
+      qualquer expirada existir (T028). Capturar um herói *pendente* de
+      verdade exigiria um cenário sem nenhuma expirada; a proteção do estado
+      pendente hoje é `console/tests/unit/surfaces/decision-card.test.tsx`
+      (vitest, `state: 'pending'`), não uma baseline de imagem.
 
 ## Phase 5: Fecho da feature (o merge do slot fecha o resto)
 
