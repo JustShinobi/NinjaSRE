@@ -29,21 +29,24 @@
 
 ## Phase 1: Acceptance e contratos primeiro, confirmados vermelhos
 
-- [~] T010 (PARCIAL — achado registrado) Escrever `console/tests/e2e/canal-vivo.acceptance.spec.ts` com as
+- [x] T010 Escrever `console/tests/e2e/canal-vivo.acceptance.spec.ts` com as
   três user stories: US1 run-novo-sem-reload (inicia pelo modal Investigar,
   assere card em `/` sem `page.reload()`), US2 fallback (intercepta
   `/v1/events/stream` → 502, assere chip `data-state="stale"` e refresh por
-  timer), US3 reconexão sem duplicata (mock de rota SSE no harness).
-  Rodar e registrar o vermelho. Spec escrita e commitada (`564e24b8`,
-  `d0dd8838`); escrita DEPOIS do cliente TS existir, não antes — desvio da
-  regra acceptance-first desta onda, declarado no controle. Três bugs reais
-  foram achados e corrigidos rodando a spec de verdade contra o harness
-  mock (ver controle §"Três bugs..."), o que prova que a spec mede algo
-  real — mas o exercício literal "corte o fio à mão, veja vermelho,
-  restaure" pedido pelo orquestrador para as três user stories não foi
-  concluído nesta sessão, e dois achados de harness (US1: contagem de
-  `guardian-flight` não sobe; US2/US3: recuperação após `unroute()` não
-  fecha em 30s) seguem abertos. Ver controle para os dois.
+  timer), US3 reconexão sem duplicata (endpoint de controle do mockplane).
+  Spec escrita e commitada (`564e24b8`, ajustada em `d0dd8838`, `c2f6d436`,
+  `0b395c85`, `4cb0e593`); escrita DEPOIS do cliente TS existir, não antes
+  — desvio da regra acceptance-first desta onda, declarado no controle e
+  mantido. Os dois achados de harness que ficaram abertos na sessão
+  anterior eram sintomas do MESMO bug de roteamento
+  (`console/src/app/api/events/route.ts` servia `/api/events`, nunca
+  `/api/events/stream` — commit `48cae5e6`), agora corrigido: spec inteira
+  verde, 5+ execuções consecutivas sem flake. Corte de fio à mão feito para
+  as três user stories, mais um quarto corte em US3 (deduplicação) pedido
+  pelo orquestrador, com achado nomeado (não escondido) sobre uma
+  discrepância não diagnosticada entre um bug de escrita confirmado e sua
+  ausência na renderização — ver controle §"O corte de fio, por fim" e
+  §"O quarto corte...".
 - [x] T011 Escrever `tests/contract/gateway/test_deployment_stream.py`:
   frames JSON com `scope/kind/sequence/occurred_at/payload`, `id:
   <epoch>:<sequence>`, keep-alive ≤ 15 s, `Last-Event-ID` corrente entrega
@@ -131,13 +134,14 @@
 
 ## Phase 6: Validação em staging
 
-- [ ] T060 (NÃO INICIADO nesta sessão — parada por orçamento) Gates locais estreitos: pytest dos diretórios tocados; lint/format
+- [x] T060 Gates locais estreitos: pytest dos diretórios tocados; lint/format
   do domínio editado (ruff + prettier/eslint do console); acceptance no
-  harness local (mock) verde. Os testes de unidade/contrato Python e
-  console já verdes ao longo da sessão (ver commits individuais); a
-  varredura completa e final destes gates não foi executada após os
-  últimos três commits (fix mockplane, fix freshness, ajuste de timeout) —
-  próxima ação de quem retomar.
+  harness local (mock) verde. Varredura final rodada e verde: pytest
+  (203 passed, `tests/unit/tools/mockplane/`), ruff+format+mypy (todos os
+  arquivos Python tocados), `console_gate typecheck`/`lint`/`test`
+  (3080 testes vitest), `console_gate build` seguido da spec de aceite
+  (3 passed). Ver controle §"T060 — gates estreitos, varredura final"
+  para os comandos exatos e seus resultados reais.
 - [~] T061 (orquestrador — worktree não aplica no GitOps) Entregar bloco de manifesto Traefik (GitOps) na evidência:
   flushInterval/sem buffering + timeout de resposta para
   `/v1/events/stream`; operador aplica; `make deploy-stg COMPONENTS=app web`.
@@ -153,13 +157,15 @@
 
 ## Phase 7: Fechamento
 
-- [~] T070 (PARCIAL — fechado sob parada de orçamento) Controle honesto: cada FR/SC com a prova (comando + resultado);
+- [x] T070 Controle honesto: cada FR/SC com a prova (comando + resultado);
   chaves i18n e bloco Traefik no relatório final para o merge do slot;
   contagem: zero edições em arquivos de dono alheio (`git status` da
-  worktree citado). Controle atualizado com ledger, achados, chaves i18n
-  (nenhuma nova necessária — catálogo existente já atende) e bloco Traefik
-  nesta sessão; T010 (prova de vermelho por corte de fio) e T060 (gates
-  finais) seguem abertos — ver tasks.md e controle.md para o que falta.
+  worktree citado). Controle fechado nesta sessão de retomada: ledger
+  atualizado, a causa raiz dos dois achados de harness, o mecanismo de
+  controle do mockplane e a corrida corrigida, os quatro cortes de fio com
+  `file:line` e vermelho real, os gates finais, a correção do orquestrador
+  sobre a premissa do bloco Traefik (T061), e FR-006/FR-008 preservados
+  exatamente como a sessão anterior os deixou, para o verifier julgar.
 
 ## Dependencies
 

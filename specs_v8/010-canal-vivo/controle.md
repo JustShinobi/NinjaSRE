@@ -5,11 +5,13 @@ NÃO é o relatório final de fechamento da feature. Um espelho idêntico fica
 fora do repositório em
 `/tmp/claude-999/-srv-workspaces-NinjaSRE/06510f59-f4a1-41e0-8b90-2554e9cacfc7/scratchpad/controle-010.md`.
 
-Última atualização: após o commit `d0dd8838` ("wip(console): widen the
-acceptance spec's first live-state timeout"), fechado sob instrução de
-parada de orçamento do orquestrador — ver §"Fechamento sob parada de
-orçamento" ao final deste arquivo, que é a seção normativa para quem
-retomar.
+Última atualização: fechamento final da feature, sessão de retomada
+concluída após o commit `4cb0e593`. T010, T060 e T070 — os três itens que
+ficaram abertos na parada de orçamento anterior — estão fechados; ver
+§"Fechamento final da sessão de retomada" ao final deste arquivo, que é
+agora a seção normativa. As seções anteriores (histórico da primeira
+sessão) ficam como estavam, como registro do que realmente aconteceu —
+não foram reescritas.
 
 ## Commits feitos até agora
 
@@ -31,6 +33,35 @@ retomar.
    gateway de persistência; teste estrutural
    (`tests/architecture/test_deployment_events_composed_once.py`) prova
    que só existe um lugar de construção.
+
+**Sessão de retomada (fecha T010/T060/T070):**
+
+7. `48cae5e6` — **a causa raiz dos dois achados de harness**: o handler da
+   rota estava em `console/src/app/api/events/route.ts`, que o roteador de
+   arquivos do Next.js resolve para `/api/events`, nunca
+   `/api/events/stream` — o endereço que `DEPLOYMENT_STREAM_ADDRESS`
+   sempre usou, e que o próprio commit original (`6b2dcc31`) já dizia na
+   mensagem ("GET /api/events/stream"). Toda requisição do canal caía no
+   catch-all do shell, recebendo HTML 200 em vez de um stream SSE. Movido
+   para `console/src/app/api/events/stream/route.ts` — nada mais mudou,
+   os imports são por alias (`@/...`). Ver §"A causa raiz…" abaixo.
+8. `c2f6d436` — `wip`: primeira versão do endpoint de controle do
+   mockplane para forçar a queda de um canal já aberto
+   (`POST /__mockplane__/drop-deployment-stream`), com um contador
+   compartilhado por sessão — versão que tinha uma condição de corrida
+   (ver commit seguinte).
+9. `0b395c85` — **corrigida a condição de corrida** do commit anterior: o
+   contador virou uma janela de relógio (`deployment_stream_disrupted_until`),
+   porque duas páginas do mesmo teste share a mesma sessão do mockplane e
+   uma delas (já fechada pelo teste) podia "roubar" o decremento destinado
+   à conexão sob teste. Ver §"O mecanismo de controle do mockplane…" abaixo.
+10. `9a4f3127` — testes de unidade para o novo endpoint de controle
+    (`tests/unit/tools/mockplane/test_server.py`,
+    `tests/unit/tools/mockplane/test_deployment_stream.py`), escritos
+    depois do mecanismo (declarado, não escondido — mesma natureza do
+    desvio que T010 já declarava).
+11. `4cb0e593` — a asserção de US3 fortalecida para checar o *conjunto* de
+    runs mostrados, não só a contagem — ver §"O quarto corte…" abaixo.
 
 ## Achado registrado (relevante para toda a onda, não só esta feature)
 
@@ -111,12 +142,12 @@ reversões usaram cópias no scratchpad em vez disso.
 | FR-009/FR-010 (AutoRefresh integra o canal) | **FEITO** | `console/src/live/auto-refresh.tsx:76-88` (`freshnessFromConnection`), `:229-261` (abertura da conexão no mount); dois bugs reais achados rodando a acceptance de verdade e corrigidos — ver §"Três bugs..." |
 | FR-011 (pulse-live) | **FEITO** | `console/src/live/auto-refresh.tsx:123-133` (`Mark`, estado `live` usa `pulse-live`/`pulse-live-ring` da 000) |
 | FR-012 (keep-alive por constante nomeada) | **FEITO** | `SSE_KEEPALIVE_SECONDS` (`config/constants/runs.py`), usado por `deployment_event_source` (default); mock plane usa a própria constante nomeada equivalente, `MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS` (`config/constants/fixtures.py:171`) |
-| FR-013 (bloco Traefik) | **Entregue como texto** | ver §"Bloco Traefik" ao final — T061 (aplicar) é do orquestrador |
+| FR-013 (bloco Traefik) | **Entregue como texto, premissa corrigida pelo orquestrador** | ver §"Bloco Traefik" ao final — T061 (aplicar) é do orquestrador; o orquestrador mediu o ingress real do staging e a premissa do bloco original não se sustenta ali (ver nota ao final da seção) |
 | T022 (broker só instanciado no root) | **FEITO** | `tests/architecture/test_deployment_events_composed_once.py`, vermelho provado injetando um segundo construtor |
 | T041 (regenerar openapi.json + schema.ts) | **FEITO** | `fixtures/contract/openapi.json`, `console/src/api/schema.ts` regenerados pelo caminho de geração (commit `c0820323`) |
 | T042 (mockplane) | **FEITO** | `tools/mockplane/server.py` (`_serve_deployment_stream`, `_publish_deployment_event`); caminho de servir próprio (sem `run_id`, cursor `época:sequência`) — ver decisão já registrada acima; bug de flush de cabeçalho achado e corrigido nesta sessão (commit `1195afdf`) |
-| T050-T052 (cliente TS) | **FEITO** | `console/src/live/deployment.ts` (T050/T051, commit `d19b2cdd`), `console/src/live/auto-refresh.tsx` (T052, commit `244c7149`, corrigido em `7e583605`), `console/src/app/api/events/route.ts` (proxy Next.js, commit `6b2dcc31`) |
-| T010 (acceptance spec Playwright) | **PARCIAL, achado registrado** | `console/tests/e2e/canal-vivo.acceptance.spec.ts` escrita e commitada (`564e24b8`, ajustada em `d0dd8838`) — DEPOIS do cliente existir, não antes (desvio nomeado); prova de vermelho por corte de fio à mão NÃO concluída nesta sessão; dois achados de harness em aberto — ver §"Três bugs..." e §"Achados de harness ainda abertos" |
+| T050-T052 (cliente TS) | **FEITO** | `console/src/live/deployment.ts` (T050/T051, commit `d19b2cdd`), `console/src/live/auto-refresh.tsx` (T052, commit `244c7149`, corrigido em `7e583605`), `console/src/app/api/events/stream/route.ts` (proxy Next.js, commit `6b2dcc31`, **movido de `console/src/app/api/events/route.ts` no commit `48cae5e6`** — o arquivo original estava no caminho errado e nunca serviu `/api/events/stream`; ver §"A causa raiz…" abaixo) |
+| T010 (acceptance spec Playwright) | **FEITO** | `console/tests/e2e/canal-vivo.acceptance.spec.ts` escrita e commitada (`564e24b8`), ajustada quatro vezes desde então (`d0dd8838`, `c2f6d436`, `0b395c85`'s teste, `4cb0e593`) — DEPOIS do cliente existir, não antes (desvio nomeado, mantido). Os dois achados de harness que ficaram abertos eram sintomas do MESMO bug de roteamento (commit `48cae5e6`), agora corrigido — spec inteira verde, 3/3, 5+ execuções consecutivas sem flake. O corte de fio à mão foi feito para as três user stories, com um quarto corte adicional em US3 pedido pelo orquestrador — ver §"O corte de fio, por fim" abaixo para os quatro, com `file:line` e o vermelho real de cada um |
 
 ## Comandos rodados e seus resultados reais
 
@@ -241,6 +272,21 @@ chaves Traefik prováveis; quem aplica (T061, orquestrador) deve conferir
 os nomes exatos de chave contra o manifesto real da rota por-run antes de
 copiar.
 
+> **Correção do orquestrador, recebida na sessão de retomada e aceita sem
+> questionar — o bloco acima fica como histórico do que foi entregue, não
+> reescrito.** O ingress real do staging (`console`, namespace
+> `k3s-stg-ninjasre`) roteia só `/webhooks` → `app` e `/` → `web`, sem
+> `/v1`, sem anotações, e o cluster não tem as CRDs do Traefik instaladas
+> — o bloco `Middleware`/`IngressRoute` acima não pode ser aplicado como
+> escrito porque a premissa (uma rota `/v1/...` cruzando o Traefik
+> diretamente) não se sustenta ali. `/v1/events/stream` nunca cruza o
+> Traefik como si mesma: o navegador acessa a rota de proxy Next.js
+> (`console/src/app/api/events/stream/route.ts`), que alcança o gateway
+> de dentro do cluster — o mesmo caminho que o stream por-run já usa, sem
+> nenhuma configuração de Traefik própria. O orquestrador resolve isto
+> por T062 (um `curl -N` real de dez minutos), não por T061. Nada aqui é
+> tarefa do implementer.
+
 ## Três bugs reais achados e corrigidos rodando a acceptance de verdade
 
 T010 foi escrita depois do cliente já existir — desvio já declarado acima
@@ -274,6 +320,15 @@ falha). Esse exercício não foi concluído nesta sessão; ver a seção
 seguinte para o estado exato em que cada user story ficou.
 
 ## Achados de harness ainda abertos (não resolvidos, nomeados)
+
+> **RESOLVIDO na sessão de retomada — ver §"A causa raiz dos dois achados
+> de harness" ao final deste arquivo.** Os dois achados abaixo eram
+> sintomas do MESMO bug (o roteamento errado do endpoint Next.js,
+> `48cae5e6`), não duas causas distintas. A hipótese do item 1 (o fixture
+> não setar `status: "running"`) estava ERRADA — o fixture sempre esteve
+> correto (`fixtures/scenarios/populated/investigation-start.json:9`).
+> O texto abaixo fica como registro do que foi observado na sessão
+> anterior, não como o estado atual.
 
 1. **US1 — a contagem de `guardian-flight` não sobe.** Depois dos três
    bugs acima corrigidos, a primeira asserção de US1 (`data-state="live"`)
@@ -370,3 +425,310 @@ pedidos foram feitos nesta ordem:
 
 **Estado da árvore**: limpo (`git status --short` vazio) depois do
 commit `d0dd8838`, HEAD nesse commit.
+
+## Fechamento final da sessão de retomada
+
+Esta é a seção normativa. As duas seções anteriores ("Fechamento sob
+parada de orçamento" e tudo acima dela) são o registro histórico da
+sessão que parou em T010/T060/T070 abertos — preservadas como estavam,
+não reescritas, porque descrevem com precisão o que de fato aconteceu
+naquele ponto. O que segue é o que mudou desde então.
+
+### A causa raiz dos dois achados de harness
+
+Os dois "achados de harness ainda abertos" registrados pela sessão
+anterior (§ acima) eram o MESMO defeito, visto de dois ângulos. A causa:
+
+`console/src/app/api/events/route.ts` — o arquivo que a mensagem do
+commit original (`6b2dcc31`) descreve como servindo "GET
+/api/events/stream" — estava no caminho errado. O roteamento por arquivo
+do Next.js resolve `app/api/events/route.ts` para `/api/events`, não
+`/api/events/stream`. `DEPLOYMENT_STREAM_ADDRESS`
+(`console/src/live/deployment.ts:49`) sempre foi `/api/events/stream`.
+Toda requisição do canal, desde que esse arquivo foi criado, caía no
+catch-all do shell (`/[...unmatched]`) e recebia de volta o HTML inteiro
+da aplicação — status 200, `content-type: text/html` — nunca um stream
+SSE.
+
+Confirmado, não suposto: rebuild real (`make console-build`), depois
+`curl -N -i` direto contra a rota, ANTES e DEPOIS do fix:
+
+```
+# ANTES (console/.next/standalone/server.js construído com o arquivo no caminho errado)
+$ curl -N -i -H "Cookie: ninjasre_session=test-cred" http://127.0.0.1:8425/api/events/stream
+HTTP/1.1 200 OK
+content-type: text/html; charset=utf-8
+<!DOCTYPE html>...  # a casca inteira da aplicação, não um stream
+
+# DEPOIS (git mv para console/src/app/api/events/stream/route.ts, rebuild)
+$ curl -N -i -H "Cookie: ninjasre_session=test-cred" http://127.0.0.1:8425/api/events/stream
+HTTP/1.1 200 OK
+content-type: text/event-stream
+x-accel-buffering: no
+: open
+: heartbeat
+```
+
+Fix: `git mv console/src/app/api/events/route.ts
+console/src/app/api/events/stream/route.ts` — commit `48cae5e6`. Nenhuma
+outra mudança foi necessária (os imports usam alias `@/...`, nada
+referenciava o próprio caminho do arquivo). `rg -n "'/api/events'"` (sem
+`/stream`) confirmou que nenhum outro código dependia do caminho antigo.
+
+Com o fix, a spec inteira (as três user stories) passou a verde na
+primeira tentativa, e ficou verde em cinco execuções consecutivas
+seguintes (15 execuções de teste individuais, zero flake):
+
+```
+uv run python -m tools.console_e2e run --backing mock -- canal-vivo.acceptance.spec.ts
+→ RUN6_EXIT=0, RUN7_EXIT=0 (3 passed, ~9.6-10s cada)
+uv run python -m tools.console_e2e run --backing mock --repeat 3 -- canal-vivo.acceptance.spec.ts
+→ RUN8_EXIT=0 (3 passed × 3 rodadas, ~9.6s cada)
+```
+
+A hipótese registrada para US1 ("o fixture `investigation-start` pode não
+setar `status` para `running`") estava **errada** —
+`fixtures/scenarios/populated/investigation-start.json:9` sempre teve
+`"status": "running"`, verificado por leitura direta do fixture, não por
+inferência. O problema nunca esteve no dado; estava inteiramente no
+roteamento, que impedia qualquer conexão real de suceder.
+
+### O mecanismo de controle do mockplane e a corrida encontrada
+
+Com o roteamento corrigido, US3 ("a reconexão não duplica o que já foi
+mostrado") revelou um problema DIFERENTE, mais estreito: a conexão do
+canal, agora saudável, nunca cai sozinha dentro dos 30 segundos do teste
+— e nem `page.route()` nem `context.setOffline()` conseguem forçar a
+queda de uma conexão SSE já estabelecida (os dois foram tentados de
+verdade contra este harness e confirmados sem efeito: `page.route()`
+registrado depois da conexão aberta nunca disparou em 30s de observação
+— 63 amostras `live`; `context.setOffline(true)` produziu o mesmo
+resultado byte a byte).
+
+Resolvido com um endpoint de controle novo no mockplane,
+`POST /__mockplane__/drop-deployment-stream`
+(`tools/mockplane/server.py`), simétrico ao `/requests` que já existia —
+o próprio módulo já se descreve como existindo para tornar "uma
+desconexão a meio do stream, controlável" possível, e isto é a versão
+alcançável de um processo `serve` real (o `StreamControl.disconnect_after`
+existente só é alcançável construindo um `MockPlane` em Python, não de um
+processo já rodando).
+
+**A primeira versão (commit `c2f6d436`) tinha uma condição de corrida
+real, que eu mesmo reproduzi** — não é suposição. A US3 abre duas páginas
+no mesmo contexto de navegador (`page` em `/`, `other` em `/runs`), e
+ambas compartilham a mesma sessão do mockplane (`DEFAULT_SESSION`, já que
+o console nunca envia `x-mockplane-session`). Quando `other.close()`
+acontece, o lado do mock não recebe sinal de desconexão — o próprio
+docstring de `_serve_deployment_stream` já documentava por quê: "this
+ASGI shell is never handed `receive`" — então o loop de `other` pode
+continuar rodando (zumbi) e competir pelo mesmo contador compartilhado
+com a conexão real de `page`. Reproduzido: depois do fix de roteamento,
+rodando a versão de contador único, o log mostrou zero requisições NOVAS
+a `/v1/events/stream` depois do `POST` de drop — a conexão de `page`
+nunca foi de fato fechada, porque o zumbi "comeu" o decremento.
+
+**Corrigido (commit `0b395c85`) trocando o contador por uma janela de
+relógio**: `Session.deployment_stream_disrupted_until: float | None`,
+`DEPLOYMENT_STREAM_DISRUPTION_SECONDS = 3.0`. Toda checagem — fechar uma
+conexão já aberta, ou recusar uma nova — só LÊ
+`time.monotonic() < disrupted_until`, nunca decrementa. Quantas conexões
+concorrentes existirem (a real e qualquer zumbi), todas respondem à mesma
+pergunta de relógio sem disputa. Resultado: cinco rodadas completas
+consecutivas da spec inteira, todas verdes, como citado acima.
+
+Cobertura de unidade adicionada depois do mecanismo (declarado, mesma
+natureza do desvio que T010 já assumia — commit `9a4f3127`):
+`tests/unit/tools/mockplane/test_server.py::test_the_drop_deployment_stream_route_sets_a_disruption_deadline`,
+`tests/unit/tools/mockplane/test_deployment_stream.py::test_a_disruption_ends_an_already_open_connection_early`,
+`tests/unit/tools/mockplane/test_deployment_stream.py::test_a_new_connection_is_refused_during_the_window_and_normal_after`.
+
+### O corte de fio, por fim
+
+Um por user story, cada um: editado à mão, `make console-build`, rodado
+isolado com `-g`, vermelho citado, restaurado byte a byte (`git diff
+--stat` e `git status --short` vazios antes do próximo corte).
+
+**US1 — `console/src/live/auto-refresh.tsx:245`** (`onEvents: () => {
+refreshRef.current(); }`, dentro do `useEffect` que abre a
+`DeploymentConnection`). Cortado para um no-op.
+
+```
+✘ a run started from another page appears on the Painel without a reload (11.3s)
+Error: expect(received).toBeGreaterThan(expected)
+Expected: > 1
+Received:   1
+```
+
+Vermelho pela razão certa: a primeira asserção (chip `live`) passou —
+só o disparo de refresh por evento foi cortado —, a segunda
+(`guardian-flight` subir) travou em 1, nunca subiu.
+
+**US2 — `console/src/live/auto-refresh.tsx:82`** (`freshnessFromConnection`,
+ramo `case 'connecting': case 'reconnecting': return attempts >=
+STALE_AFTER_FAILURES ? 'stale' : 'refreshing';`). Cortado para sempre
+retornar `'refreshing'`.
+
+```
+✘ the chip falls back honestly when the channel drops, and content keeps moving (30.6s)
+Error: expect(locator).toHaveAttribute(expected) failed
+Expected: "stale"
+Received: "refreshing"
+```
+
+Vermelho pela razão certa: com a honestidade cortada, o chip nunca admite
+`stale` mesmo com o canal genuinamente fora do ar pelos 30s inteiros —
+exatamente o defeito que esta feature existe para impedir.
+
+**US3, primeira leitura — `console/src/live/deployment.ts:295-297`**
+(dentro de `#failed()`, o callback do `this.#scheduler.after(wait, ...)`
+que chama `this.#connect()`). Cortado para nunca reconectar de fato.
+
+```
+✘ a reconnection does not duplicate a run already shown (30.4s)
+Error: expect(locator).toHaveAttribute(expected) failed
+Expected: "stale"
+Received: "refreshing"
+```
+
+**O orquestrador apontou, corretamente, que este vermelho é fino demais
+para US3**: é a mesma mensagem que US2 produz, e o teste morre na
+primeira asserção — nunca chega na afirmação que US3 existe para provar
+("reconexão não duplica"). Prova que o teste percebe uma conexão morta;
+não prova que perceberia uma duplicata. Mantido como segunda leitura, não
+descartado, mas insuficiente sozinho.
+
+### O quarto corte — deduplicação, achado nomeado sem eufemismo
+
+Pedido: cortar "o que quer que reconcilie por ID para que um run
+redemonstrado não apareça duas vezes". Rastreei a cadeia inteira antes de
+cortar qualquer coisa:
+
+`deployment.ts` (nunca usa o payload do evento, só dispara refresh) →
+`auto-refresh.tsx` (`onEvents` só chama `refreshRef.current()`) →
+`AutoRefresh` mora em `console/src/shell/topbar.tsx`, sem relação de
+código nenhuma com `console/src/surfaces/screens/dashboard.tsx` →
+`dashboard.tsx:371` computa `flights` com um `.filter().map()` puro sobre
+`runRecords`, sem nenhuma deduplicação → `guardian-band.tsx:181`
+renderiza `flights.map(flight => <li key={flight.id}>...)`, sem filtro de
+unicidade → a leitura (`console/src/lib/api.ts:read`,
+`console/src/surfaces/read.ts:panelRead`/`dataOf`) usa `cache: 'no-store'`
+e não transforma nada além de desembrulhar o status.
+
+**Não existe, em nenhum ponto desta cadeia, código que reconcilie por
+ID.** A garantia de "não duplica" é estrutural, não uma etapa de dedup: o
+canal nunca é fonte de dados de apresentação, só um gatilho de releitura,
+e a releitura lê `/v1/runs`, que só recebe uma escrita por
+`POST /v1/investigations` (`_apply_write`'s `investigation-start` faz um
+`_prepend` só). A reconexão em si já redemonstra TODOS os eventos da
+sessão — comprovado por código, não por sorte: `_deployment_cursor_of("")`
+sempre retorna `after=-1` porque `deployment.ts` nunca apresenta cursor de
+propósito (ver docstring do módulo), então `deployment_events_for` sempre
+reenvia tudo — e isso já acontece em toda US3 bem-sucedida, sem nunca
+duplicar, porque o reenvio pelo canal não tem caminho até `runRecords`.
+
+Testei a única forma real de uma duplicata existir nesta arquitetura: um
+bug de ESCRITA. Cortei `investigation-start` (`tools/mockplane/server.py`)
+para fazer `_prepend` duas vezes. Confirmado por `curl` direto contra um
+mockplane manual, com JSON na mão: `/v1/runs` retornou o mesmo `run_id`
+duas vezes, objetos idênticos — a duplicata é real ao nível da API.
+
+**Achado nomeado, não escondido**: rodando esse MESMO corte através do
+harness Playwright real (não `curl` manual), a duplicata não apareceu
+como duas linhas renderizadas — `page.getByTestId('guardian-flight').count()`
+mediu 1, confirmado por instrumentação temporária no próprio teste
+(depois removida, `git diff --stat` vazio confirma). Percorri a cadeia de
+leitura duas vezes sem achar onde a segunda cópia se perde entre o mock e
+o DOM. **Não diagnostiquei a causa dessa discrepância** dentro do tempo
+que me pareceu responsável gastar numa investigação já lateral ao escopo
+de T010 — é um achado em aberto, nomeado aqui, não uma alegação de que
+está resolvido. Candidatos não verificados: um artefato de timing na
+minha própria medição; algum comportamento de cache do Next.js que
+`cache: 'no-store'` deveria excluir mas que eu não confirmei estar
+realmente excluindo neste caminho específico; ou uma proteção real que
+eu simplesmente não localizei.
+
+O que ficou de valor, independente do mistério: a asserção de US3 foi
+fortalecida de "contagem igual" para "conjunto de hrefs igual"
+(`flightHrefs()`, commit `4cb0e593`) — estritamente mais forte que antes,
+porque a asserção antiga teria passado "por acidente" mesmo com uma
+duplicata constante presente desde a primeira leitura (a contagem-base
+já viria duplicada, e duas contagens iguais-e-erradas ainda batem).
+Verificada verde contra código real (produção, sem cortes) e também
+verde contra o corte de escrita duplicada (o mesmo mistério acima) — ou
+seja, a asserção é correta e mais rigorosa mesmo sem ter conseguido
+fazê-la falhar com este corte específico.
+
+### T060 — gates estreitos, varredura final
+
+```
+.venv/bin/pytest tests/unit/tools/mockplane/ -q
+→ 203 passed in 5.44s
+
+.venv/bin/ruff check tools/mockplane/server.py tests/unit/tools/mockplane/test_server.py \
+  tests/unit/tools/mockplane/test_deployment_stream.py
+→ All checks passed!
+
+.venv/bin/ruff format --check <mesmos três arquivos>
+→ 3 files already formatted
+
+.venv/bin/mypy <mesmos três arquivos>
+→ Success: no issues found in 3 source files
+
+uv run python -m tools.console_gate typecheck   → exit 0
+uv run python -m tools.console_gate lint        → exit 0 (eslint . && check-css-literals.mjs)
+uv run python -m tools.console_gate test        → exit 0, 188 arquivos / 3080 testes (vitest)
+
+make console-build                              → exit 0 (rebuild final)
+uv run python -m tools.console_e2e run --backing mock -- canal-vivo.acceptance.spec.ts
+→ exit 0, 3 passed (9.8s)
+```
+
+`git status --short` vazio depois de tudo. `make verify` completo NÃO foi
+rodado (é do orquestrador). A suíte e2e completa (as outras ~60 specs do
+projeto `behaviour`) NÃO foi rodada — fora do escopo desta feature; só
+`canal-vivo.acceptance.spec.ts` pertence a ela.
+
+### FR-008 e FR-006 — preservados exatamente como a sessão anterior deixou
+
+Por instrução explícita do orquestrador, estas duas declarações NÃO foram
+tocadas nesta sessão e continuam exatamente como estavam — são para o
+verifier julgar, não para o implementer resolver sozinho:
+
+- **FR-008** (§"Decisão de design para o cliente TS" e a linha
+  correspondente no Ledger): `deployment.ts` reusa tipos/constantes/
+  transporte de `connection.ts`, mas `DeploymentConnection` é uma
+  segunda máquina de estados, não uma subclasse/composição do motor de
+  `RunConnection`. Leitura mais frouxa de FR-008, declarada, não
+  escondida. Se reprovada, a extração do motor compartilhado é o reparo.
+- **FR-006** (§"FR-006 — o gap, declarado sem eufemismo"):
+  `InteractionClosure`/`ClosurePublisher` não são construídos em nenhum
+  lugar de produção; a escolha foi decorar o mesmo `ApprovalStore` que
+  FR-007 decora. Funciona para os três kinds de decisão, mas
+  `interaction_id` nunca é populado por esta feature, porque a fonte
+  seria o closure que não existe em produção.
+
+### O que fica pendente, nomeado, não escondido
+
+- **A causa da discrepância do quarto corte** (§"O quarto corte…" acima)
+  — por que uma duplicata real e confirmada em `/v1/runs` não apareceu
+  como duas linhas na renderização via Playwright. Não é um bloqueio para
+  esta feature (a asserção fortalecida é correta e verde contra código
+  real), mas é uma pergunta em aberto que vale investigar depois, com
+  mais orçamento de tempo do que esta sessão tinha disponível.
+- **FR-006 e FR-008** — decisões para o verifier julgar, não reparos
+  pendentes do implementer (ver seção acima).
+- **T061/T062/T063** (bloco Traefik, acceptance de staging, gate visual) —
+  do orquestrador, não do implementer; a premissa do bloco Traefik
+  original foi corrigida contra o cluster real (ver §"Bloco Traefik").
+- Nenhuma chave i18n nova foi declarada nesta sessão (confirma o que a
+  sessão anterior já havia verificado — ver §"Chaves i18n — final").
+- Nenhum arquivo de propriedade de outra feature do slot foi tocado
+  (`console/src/i18n/*`, `console/src/shell/routes.ts`,
+  `console/visual/screens.json`, `console/src/design/*`,
+  `console/src/surfaces/**` fora de leitura para investigação —
+  confirmado por `git diff --stat` desde `09935108`, listado no início
+  desta seção).
+
+**Estado da árvore**: limpo (`git status --short` vazio), HEAD em
+`4cb0e593`.
