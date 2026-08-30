@@ -69,29 +69,28 @@ test.describe('AN-01/AN-02 — the pipeline rail names every stage, in order, wi
     },
   );
 
-  test(
-    'a completed stage shows its own duration; the active one is visually distinct; a future one shows its number',
-    async ({ page }) => {
-      await page.goto(`/runs/${LIVE_RUN}`);
+  test('a completed stage shows its own duration; the active one is visually distinct; a future one shows its number', async ({
+    page,
+  }) => {
+    await page.goto(`/runs/${LIVE_RUN}`);
 
-      // resolve_integrations, intake and plan_evidence had already finished by
-      // the time this run was opened — the replay this fixture serves says so.
-      for (const stage of ['resolve_integrations', 'intake', 'plan_evidence']) {
-        const row = page.locator(`[data-testid="stage-item"][data-stage="${stage}"]`);
-        await expect(row).toHaveAttribute('data-state', 'done');
-        await expect(row.getByTestId('stage-duration')).not.toHaveText('');
-      }
+    // resolve_integrations, intake and plan_evidence had already finished by
+    // the time this run was opened — the replay this fixture serves says so.
+    for (const stage of ['resolve_integrations', 'intake', 'plan_evidence']) {
+      const row = page.locator(`[data-testid="stage-item"][data-stage="${stage}"]`);
+      await expect(row).toHaveAttribute('data-state', 'done');
+      await expect(row.getByTestId('stage-duration')).not.toHaveText('');
+    }
 
-      const active = page.locator('[data-testid="stage-item"][data-state="active"]');
-      await expect(active).toHaveCount(1);
-      await expect(active).toHaveAttribute('data-stage', 'gather_evidence');
+    const active = page.locator('[data-testid="stage-item"][data-state="active"]');
+    await expect(active).toHaveCount(1);
+    await expect(active).toHaveAttribute('data-stage', 'gather_evidence');
 
-      const futures = page.locator('[data-testid="stage-item"][data-state="future"]');
-      await expect(futures).toHaveCount(2);
-      // A future stage names its own position rather than a duration.
-      await expect(futures.first().getByTestId('stage-number')).toHaveText('5');
-    },
-  );
+    const futures = page.locator('[data-testid="stage-item"][data-state="future"]');
+    await expect(futures).toHaveCount(2);
+    // A future stage names its own position rather than a duration.
+    await expect(futures.first().getByTestId('stage-number')).toHaveText('5');
+  });
 
   test('a failed stage shows its own failure shape, and the stages after it stay future', async ({
     page,
@@ -124,30 +123,31 @@ test.describe('AN-03/AN-04/AN-05 — the transcript narrates; the payload is one
     },
   );
 
-  test(
-    'every event renders a narrated sentence naming the kind, with the raw payload behind a closed disclosure',
-    async ({ page }) => {
-      await page.goto(`/runs/${SETTLED_RUN}`);
-      const narrations = page.getByTestId('event-narration');
-      await expect(narrations.first()).toBeVisible();
-      const count = await narrations.count();
-      expect(count).toBeGreaterThan(0);
-      for (let index = 0; index < count; index += 1) {
-        const text = await narrations.nth(index).innerText();
-        expect(text.trim().startsWith('{')).toBe(false);
-      }
+  test('every event renders a narrated sentence naming the kind, with the raw payload behind a closed disclosure', async ({
+    page,
+  }) => {
+    await page.goto(`/runs/${SETTLED_RUN}`);
+    const narrations = page.getByTestId('event-narration');
+    await expect(narrations.first()).toBeVisible();
+    const count = await narrations.count();
+    expect(count).toBeGreaterThan(0);
+    for (let index = 0; index < count; index += 1) {
+      const text = await narrations.nth(index).innerText();
+      expect(text.trim().startsWith('{')).toBe(false);
+    }
 
-      const disclosure = page.getByTestId('event-payload-disclosure').first();
-      await expect(disclosure).toBeVisible();
-      expect(await disclosure.getAttribute('open')).toBeNull();
-    },
-  );
+    const disclosure = page.getByTestId('event-payload-disclosure').first();
+    await expect(disclosure).toBeVisible();
+    expect(await disclosure.getAttribute('open')).toBeNull();
+  });
 
   test('switching to Bruto shows the full payloads, and switching back loses and duplicates nothing', async ({
     page,
   }) => {
     await page.goto(`/runs/${SETTLED_RUN}`);
-    const before = Number(await page.getByTestId('transcript').getAttribute('data-total'));
+    const before = Number(
+      await page.getByTestId('transcript').getAttribute('data-total'),
+    );
 
     await page.getByTestId('transcript-view-raw').click();
     await expect(page.getByTestId('transcript-view-toggle')).toHaveAttribute(
@@ -155,11 +155,15 @@ test.describe('AN-03/AN-04/AN-05 — the transcript narrates; the payload is one
       'raw',
     );
     await expect(page.getByTestId('payload').first()).toBeVisible();
-    const duringRaw = Number(await page.getByTestId('transcript').getAttribute('data-total'));
+    const duringRaw = Number(
+      await page.getByTestId('transcript').getAttribute('data-total'),
+    );
     expect(duringRaw).toBe(before);
 
     await page.getByTestId('transcript-view-narrated').click();
-    const afterBack = Number(await page.getByTestId('transcript').getAttribute('data-total'));
+    const afterBack = Number(
+      await page.getByTestId('transcript').getAttribute('data-total'),
+    );
     expect(afterBack).toBe(before);
   });
 });
@@ -211,9 +215,7 @@ test.describe('AN-06/AN-07/AN-08 — the rail never claims absence about a run s
   }) => {
     await page.goto(`/runs/${LIVE_RUN}`);
     const findings = page.getByTestId('finding-item');
-    await expect
-      .poll(async () => findings.count())
-      .toBeGreaterThanOrEqual(3);
+    await expect.poll(async () => findings.count()).toBeGreaterThanOrEqual(3);
     await expect(findings.first().locator('[data-shape]')).toHaveCount(1);
   });
 
@@ -247,7 +249,9 @@ test.describe('AN-09 — the transcript header count is the list actually render
           .poll(async () => page.getByTestId('transcript-event').count())
           .toBeGreaterThan(0);
         const rendered = await page.getByTestId('transcript-event').count();
-        const total = Number(await page.getByTestId('transcript').getAttribute('data-total'));
+        const total = Number(
+          await page.getByTestId('transcript').getAttribute('data-total'),
+        );
         expect(total).toBe(rendered);
       },
     );
@@ -302,10 +306,10 @@ test.describe('AN-10/AN-11 — replay and stream narrate the same vocabulary the
     const unknown = page.locator(
       '[data-testid="transcript-event"][data-raw-kind="stage_completed"]',
     );
-    await expect
-      .poll(async () => unknown.count())
-      .toBeGreaterThan(0);
-    const text = (await unknown.first().getByTestId('event-narration').innerText()).trim();
+    await expect.poll(async () => unknown.count()).toBeGreaterThan(0);
+    const text = (
+      await unknown.first().getByTestId('event-narration').innerText()
+    ).trim();
     expect(text).toContain('stage_completed');
     expect(text.startsWith('{')).toBe(false);
   });
@@ -330,13 +334,15 @@ test.describe('AN-10/AN-11 — replay and stream narrate the same vocabulary the
 // =============================================================================
 
 test.describe('AN-12 — the conduct controls exist on a live run and nowhere on a settled one', () => {
-  test('a live run offers Assume, Stop and "Say something…"', { tag: STAGING_SAFE_TAG }, async ({
-    page,
-  }) => {
-    await page.goto(`/runs/${LIVE_RUN}`);
-    await expect(page.getByTestId('takeover')).toBeVisible();
-    await expect(page.getByTestId('add-context')).toBeVisible();
-  });
+  test(
+    'a live run offers Assume, Stop and "Say something…"',
+    { tag: STAGING_SAFE_TAG },
+    async ({ page }) => {
+      await page.goto(`/runs/${LIVE_RUN}`);
+      await expect(page.getByTestId('takeover')).toBeVisible();
+      await expect(page.getByTestId('add-context')).toBeVisible();
+    },
+  );
 
   test('a settled run offers none of them', async ({ page }) => {
     await page.goto(`/runs/${SETTLED_RUN}`);
@@ -350,56 +356,72 @@ test.describe('AN-12 — the conduct controls exist on a live run and nowhere on
 // =============================================================================
 
 test.describe('AN-14 — the run list groups live runs first and never truncates a headline mid-word', () => {
-  test('a live run is drawn as a card with a stage bar and an elapsed time, ahead of the settled rows', {
-    tag: STAGING_SAFE_TAG,
-  }, async ({ page }) => {
-    await page.goto('/runs');
-    const liveCards = page.getByTestId('run-live-card');
-    await expect(liveCards.first()).toBeVisible();
-    await expect(liveCards.first().getByTestId('run-live-stage-bar')).toBeVisible();
-    await expect(liveCards.first().getByTestId('run-live-elapsed')).toBeVisible();
-  });
+  test(
+    'a live run is drawn as a card with a stage bar and an elapsed time, ahead of the settled rows',
+    {
+      tag: STAGING_SAFE_TAG,
+    },
+    async ({ page }) => {
+      await page.goto('/runs');
+      const liveCards = page.getByTestId('run-live-card');
+      await expect(liveCards.first()).toBeVisible();
+      await expect(liveCards.first().getByTestId('run-live-stage-bar')).toBeVisible();
+      await expect(liveCards.first().getByTestId('run-live-elapsed')).toBeVisible();
+    },
+  );
 
-  test('a completed row shows a claims chip with a filled or ringed shape, never truncated mid-word', {
-    tag: STAGING_SAFE_TAG,
-  }, async ({ page }) => {
-    await page.goto('/runs');
-    const rows = page.getByTestId('run-card');
-    await expect(rows.first()).toBeVisible();
-    await expect(rows.first().getByTestId('run-evidence')).toBeVisible();
+  test(
+    'a completed row shows a claims chip with a filled or ringed shape, never truncated mid-word',
+    {
+      tag: STAGING_SAFE_TAG,
+    },
+    async ({ page }) => {
+      await page.goto('/runs');
+      const rows = page.getByTestId('run-card');
+      await expect(rows.first()).toBeVisible();
+      await expect(rows.first().getByTestId('run-evidence')).toBeVisible();
 
-    const headline = rows.first().getByTestId('run-card-subject');
-    const text = (await headline.innerText()).trim();
-    expect(text.length).toBeGreaterThan(0);
-    // A headline this component clips does so at a line boundary (CSS
-    // line-clamp on the whole sentence), never by slicing characters off a
-    // fixed-width string — so the last character on screen is never the
-    // truncation marker riding mid-word. `run.subject.text` (character-cut)
-    // is deliberately not what this row reads.
-    expect(text.endsWith('…')).toBe(false);
-  });
+      const headline = rows.first().getByTestId('run-card-subject');
+      const text = (await headline.innerText()).trim();
+      expect(text.length).toBeGreaterThan(0);
+      // A headline this component clips does so at a line boundary (CSS
+      // line-clamp on the whole sentence), never by slicing characters off a
+      // fixed-width string — so the last character on screen is never the
+      // truncation marker riding mid-word. `run.subject.text` (character-cut)
+      // is deliberately not what this row reads.
+      expect(text.endsWith('…')).toBe(false);
+    },
+  );
 
-  test('a failed run is drawn distinctly, with a direct link to its transcript', {
-    tag: STAGING_SAFE_TAG,
-  }, async ({ page }) => {
-    // The stage a run stopped at is not asserted here: it is a summary-list
-    // field (`last_completed_stage`/`stage_index`) the title-vivo feature of
-    // this same wave adds to `GET /v1/runs`, not yet present — FR-021a's own
-    // words are "degrading sem eles" (degrading without them) for exactly
-    // this case, so the honest thing this slot can show is the failure shape
-    // the list already carries (`status`) and a direct way to the narrated
-    // account, never a fabricated stage name.
-    await page.goto('/runs?status=failed');
-    const failedRow = page.locator('[data-testid="run-card"][data-status="failed"]').first();
-    await expect(failedRow).toBeVisible();
-    await expect(failedRow.locator('[data-shape="square"]').first()).toHaveCount(1);
-    await expect(failedRow.getByTestId('run-card-transcript-link')).toBeVisible();
-  });
+  test(
+    'a failed run is drawn distinctly, with a direct link to its transcript',
+    {
+      tag: STAGING_SAFE_TAG,
+    },
+    async ({ page }) => {
+      // The stage a run stopped at is not asserted here: it is a summary-list
+      // field (`last_completed_stage`/`stage_index`) the title-vivo feature of
+      // this same wave adds to `GET /v1/runs`, not yet present — FR-021a's own
+      // words are "degrading sem eles" (degrading without them) for exactly
+      // this case, so the honest thing this slot can show is the failure shape
+      // the list already carries (`status`) and a direct way to the narrated
+      // account, never a fabricated stage name.
+      await page.goto('/runs?status=failed');
+      const failedRow = page
+        .locator('[data-testid="run-card"][data-status="failed"]')
+        .first();
+      await expect(failedRow).toBeVisible();
+      await expect(failedRow.locator('[data-shape="square"]').first()).toHaveCount(1);
+      await expect(failedRow.getByTestId('run-card-transcript-link')).toBeVisible();
+    },
+  );
 
-  test('the status and trigger filters render as chips', { tag: STAGING_SAFE_TAG }, async ({
-    page,
-  }) => {
-    await page.goto('/runs');
-    await expect(page.getByTestId('filter-chip').first()).toBeVisible();
-  });
+  test(
+    'the status and trigger filters render as chips',
+    { tag: STAGING_SAFE_TAG },
+    async ({ page }) => {
+      await page.goto('/runs');
+      await expect(page.getByTestId('filter-chip').first()).toBeVisible();
+    },
+  );
 });

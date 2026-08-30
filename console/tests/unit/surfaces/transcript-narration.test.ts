@@ -100,8 +100,8 @@ describe('an absent field is declared absent, never interpolated as undefined', 
   });
 });
 
-describe('the replay reader\'s own spelling of a call result narrates like the stream\'s', () => {
-  it('tool_returned — eventsFromReplay\'s rawKind for a call result — is not an unrecognised kind', () => {
+describe("the replay reader's own spelling of a call result narrates like the stream's", () => {
+  it("tool_returned — eventsFromReplay's rawKind for a call result — is not an unrecognised kind", () => {
     // This is the gap a screenshot caught that a hand-built fixture did not:
     // eventsFromReplay spells a call's outcome `tool_returned`, never
     // `tool_succeeded`/`tool_failed`, and the narration table had only the

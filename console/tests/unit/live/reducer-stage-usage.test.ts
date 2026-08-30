@@ -29,15 +29,20 @@ function frame(sequence: number, kind: string, payload: unknown): unknown {
 
 function must(document: unknown): StreamEvent {
   const event = eventFrom(document);
-  if (event === null) throw new Error(`not a stream event: ${JSON.stringify(document)}`);
+  if (event === null)
+    throw new Error(`not a stream event: ${JSON.stringify(document)}`);
   return event;
 }
 
-const STAGE_COMPLETED = (sequence: number, stage: string, opts: Partial<{
-  durationMs: number;
-  finding: string;
-  failed: boolean;
-}> = {}): StreamEvent =>
+const STAGE_COMPLETED = (
+  sequence: number,
+  stage: string,
+  opts: Partial<{
+    durationMs: number;
+    finding: string;
+    failed: boolean;
+  }> = {},
+): StreamEvent =>
   must(
     frame(sequence, 'stage_completed', {
       stage,
@@ -50,19 +55,30 @@ const STAGE_COMPLETED = (sequence: number, stage: string, opts: Partial<{
 const TURN_COMPLETED = (sequence: number, tokens: number): StreamEvent =>
   must(frame(sequence, 'turn_completed', { index: 0, tokens }));
 
-const TOOL_CALLED = (sequence: number, name: string, args: Record<string, unknown>): StreamEvent =>
-  must(frame(sequence, 'tool_called', { name, arguments: args }));
+const TOOL_CALLED = (
+  sequence: number,
+  name: string,
+  args: Record<string, unknown>,
+): StreamEvent => must(frame(sequence, 'tool_called', { name, arguments: args }));
 
 describe('the live reducer accumulates the stages a run completes', () => {
   it('adds one entry per stage_completed event, in arrival order, with its own facts', () => {
     let state = openRun('run-0003');
     state = applyEvents(state, [
-      STAGE_COMPLETED(0, 'resolve_integrations', { durationMs: 175, finding: 'six capabilities' }),
+      STAGE_COMPLETED(0, 'resolve_integrations', {
+        durationMs: 175,
+        finding: 'six capabilities',
+      }),
       STAGE_COMPLETED(1, 'intake', { durationMs: 1260, finding: 'a new incident' }),
     ]);
 
     expect(state.stages).toEqual([
-      { stage: 'resolve_integrations', finding: 'six capabilities', durationMs: 175, failed: false },
+      {
+        stage: 'resolve_integrations',
+        finding: 'six capabilities',
+        durationMs: 175,
+        failed: false,
+      },
       { stage: 'intake', finding: 'a new incident', durationMs: 1260, failed: false },
     ]);
   });
@@ -72,7 +88,10 @@ describe('the live reducer accumulates the stages a run completes', () => {
     state = applyEvents(state, [
       STAGE_COMPLETED(0, 'resolve_integrations'),
       STAGE_COMPLETED(1, 'intake'),
-      STAGE_COMPLETED(2, 'plan_evidence', { failed: true, finding: 'the model could not be reached' }),
+      STAGE_COMPLETED(2, 'plan_evidence', {
+        failed: true,
+        finding: 'the model could not be reached',
+      }),
     ]);
 
     expect(state.stages).toHaveLength(3);
@@ -134,7 +153,9 @@ describe('the live reducer accumulates usage from the turns a run finishes', () 
 describe('the live reducer accumulates the resources a run touches', () => {
   it('adds the resource a tool_called event names, from the argument key the deployment used', () => {
     let state = openRun('run-0003');
-    state = applyEvents(state, [TOOL_CALLED(0, 'estate.failed_units', { node: 'node01' })]);
+    state = applyEvents(state, [
+      TOOL_CALLED(0, 'estate.failed_units', { node: 'node01' }),
+    ]);
 
     expect(state.touched).toEqual(['node01']);
   });
@@ -166,7 +187,9 @@ describe('the live reducer accumulates the resources a run touches', () => {
 
   it('adds nothing for a call whose arguments name no resource-shaped key', () => {
     let state = openRun('run-0003');
-    state = applyEvents(state, [TOOL_CALLED(0, 'knowledge.search', { query: 'hardening' })]);
+    state = applyEvents(state, [
+      TOOL_CALLED(0, 'knowledge.search', { query: 'hardening' }),
+    ]);
 
     expect(state.touched).toEqual([]);
   });

@@ -349,7 +349,9 @@ export async function RunDetailScreen(
                     'transcript.events.one',
                     'transcript.events',
                   )}
-                  {events.length === 0 ? '' : ` · ${message(locale, 'transcript.newestFirst')}`}
+                  {events.length === 0
+                    ? ''
+                    : ` · ${message(locale, 'transcript.newestFirst')}`}
                 </span>
               )
             }
@@ -462,11 +464,16 @@ export async function RunDetailScreen(
                   assessed anything or named zero claims either way, the same
                   floor `EvidenceChip` already holds. */}
               {evidence.assessed && claimsAssessed > 0 ? (
-                <div data-testid="findings-evidence-progress" className="flex items-center gap-3 mt-1">
+                <div
+                  data-testid="findings-evidence-progress"
+                  className="flex items-center gap-3 mt-1"
+                >
                   <div className="flex-1 h-1 rounded-full bg-sunken overflow-hidden">
                     <div
                       className="h-full rounded-full bg-success"
-                      style={{ width: `${String((evidence.backed / claimsAssessed) * 100)}%` }}
+                      style={{
+                        width: `${String((evidence.backed / claimsAssessed) * 100)}%`,
+                      }}
                     />
                   </div>
                   <span className="text-micro text-muted shrink-0">
@@ -480,7 +487,7 @@ export async function RunDetailScreen(
             </div>
           </Panel>
 
-                    <Panel
+          <Panel
             title={message(locale, 'run.usage.title')}
             // A live run never sits in the settled `empty` chrome: it either
             // has a turn to show or says so in one honest line inside a
@@ -661,7 +668,9 @@ export async function RunDetailScreen(
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <dt className="text-muted">{message(locale, 'run.links.resources')}</dt>
+                  <dt className="text-muted">
+                    {message(locale, 'run.links.resources')}
+                  </dt>
                   <dd>
                     <LiveTouched runId={runId} locale={locale} seed={liveSeed} />
                   </dd>
@@ -703,7 +712,6 @@ export async function RunDetailScreen(
               </dl>
             )}
           </Panel>
-
         </div>
       </div>
 

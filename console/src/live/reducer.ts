@@ -307,7 +307,10 @@ const RESOURCE_ARGUMENT_KEYS: readonly string[] = [
  * a capability was actually invoked with, not one somebody's alert happened
  * to mention.
  */
-function touchedAfter(touched: readonly string[], event: StreamEvent): readonly string[] {
+function touchedAfter(
+  touched: readonly string[],
+  event: StreamEvent,
+): readonly string[] {
   if (event.kind !== 'tool_called') return touched;
   const args = field(event.payload, 'arguments');
   for (const key of RESOURCE_ARGUMENT_KEYS) {

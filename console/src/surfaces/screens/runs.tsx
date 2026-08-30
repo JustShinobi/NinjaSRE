@@ -111,7 +111,11 @@ function FilterChips({
                 data-filter={group.name}
                 data-active={active}
                 prefetch={false}
-                href={hrefFor('/runs', withFilter(state, group.name, option.value), RUN_FILTERS)}
+                href={hrefFor(
+                  '/runs',
+                  withFilter(state, group.name, option.value),
+                  RUN_FILTERS,
+                )}
                 className={cx(
                   'inline-flex items-center rounded-full edge px-3 py-1 text-meta motion-hover',
                   active
@@ -318,7 +322,12 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
               {message(locale, 'runs.live.title')}
             </span>
             <span className="text-meta text-muted">
-              {formatCount(locale, liveCards.length, 'runs.live.count.one', 'runs.live.count')}
+              {formatCount(
+                locale,
+                liveCards.length,
+                'runs.live.count.one',
+                'runs.live.count',
+              )}
             </span>
           </div>
           <div className="flex flex-col gap-2">{liveCards}</div>

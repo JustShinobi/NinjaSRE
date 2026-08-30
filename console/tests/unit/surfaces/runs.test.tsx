@@ -202,11 +202,13 @@ describe('the runs list language', () => {
     // so the trigger ones are found by their own `data-filter` attribute.
     const chips = screen.getAllByTestId('filter-chip');
     const alert = chips.find(
-      (chip) => chip.getAttribute('data-filter') === 'trigger' && chip.textContent === 'Alert',
+      (chip) =>
+        chip.getAttribute('data-filter') === 'trigger' && chip.textContent === 'Alert',
     );
     const scheduled = chips.find(
       (chip) =>
-        chip.getAttribute('data-filter') === 'trigger' && chip.textContent === 'Scheduled',
+        chip.getAttribute('data-filter') === 'trigger' &&
+        chip.textContent === 'Scheduled',
     );
     if (alert === undefined || scheduled === undefined) {
       throw new Error('the trigger chips are not on the page');

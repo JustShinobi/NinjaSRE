@@ -7,7 +7,13 @@ import {
   deploymentEventFromFrame,
   type DeploymentEvent,
 } from '@/live/deployment';
-import { BACKOFF_MS, MAX_RECONNECTIONS, type ConnectionState, type StreamHandlers, type StreamSource } from '@/live/connection';
+import {
+  BACKOFF_MS,
+  MAX_RECONNECTIONS,
+  type ConnectionState,
+  type StreamHandlers,
+  type StreamSource,
+} from '@/live/connection';
 import { sessionController } from '@/session/controller';
 
 /**
@@ -53,7 +59,9 @@ class FakeSource implements StreamSource {
 
   /** Deliver a resync control frame. */
   resync(): void {
-    this.handlers.onFrame(JSON.stringify({ scope: 'control', kind: 'resync', sequence: 0, payload: {} }));
+    this.handlers.onFrame(
+      JSON.stringify({ scope: 'control', kind: 'resync', sequence: 0, payload: {} }),
+    );
   }
 }
 
@@ -178,7 +186,9 @@ describe('DeploymentConnection', () => {
     connection.open();
     source.handlers.onOpen();
     source.deliver(1);
-    expect(clock.pending.map((entry) => entry.after)).toEqual([DEPLOYMENT_REFRESH_BATCH_MS]);
+    expect(clock.pending.map((entry) => entry.after)).toEqual([
+      DEPLOYMENT_REFRESH_BATCH_MS,
+    ]);
   });
 
   it('a resync calls onResync immediately, never batched with events', () => {
@@ -231,7 +241,9 @@ describe('DeploymentConnection', () => {
   });
 
   it('a 401 ends the session instead of retrying', () => {
-    const reported = vi.spyOn(sessionController, 'unauthorized').mockImplementation(() => undefined);
+    const reported = vi
+      .spyOn(sessionController, 'unauthorized')
+      .mockImplementation(() => undefined);
     const { connection, source, states } = harness();
     connection.open();
     source.handlers.onError(401);

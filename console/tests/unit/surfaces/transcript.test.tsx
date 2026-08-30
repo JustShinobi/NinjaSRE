@@ -87,13 +87,20 @@ function events(count: number): readonly TranscriptEvent[] {
 }
 
 function renderTranscript(count: number): ReturnType<typeof render> {
-  return render(<Transcript events={events(count)} labels={LABELS} times={{}} narrations={{}} />);
+  return render(
+    <Transcript events={events(count)} labels={LABELS} times={{}} narrations={{}} />,
+  );
 }
 
 describe('a ten-thousand-event transcript', () => {
   it('draws the same number of entries as a hundred-event one', () => {
     const hundred = render(
-      <Transcript events={events(TRANSCRIPT_WINDOW)} labels={LABELS} times={{}} narrations={{}} />,
+      <Transcript
+        events={events(TRANSCRIPT_WINDOW)}
+        labels={LABELS}
+        times={{}}
+        narrations={{}}
+      />,
     );
     const drawn = screen.getAllByTestId('transcript-event').length;
     hundred.unmount();
@@ -441,7 +448,12 @@ describe('an entry that arrives after the transcript already rendered', () => {
       durationMs: 0,
     };
     rerender(
-      <Transcript events={[...initial, appended]} labels={LABELS} times={{}} narrations={{}} />,
+      <Transcript
+        events={[...initial, appended]}
+        labels={LABELS}
+        times={{}}
+        narrations={{}}
+      />,
     );
 
     await waitFor(() => {
@@ -455,18 +467,22 @@ describe('an entry that arrives after the transcript already rendered', () => {
     // the newest one alone did.
     const stillUnmarked = screen
       .getAllByTestId('transcript-event')
-      .filter((entry) => entry.getAttribute('data-raw-kind') !== 'observation_recorded');
+      .filter(
+        (entry) => entry.getAttribute('data-raw-kind') !== 'observation_recorded',
+      );
     expect(stillUnmarked).toHaveLength(3);
     for (const entry of stillUnmarked) {
       expect(entry.getAttribute('data-just-arrived')).toBe('false');
     }
   });
 
-  it('settles a settled run\'s own transcript without marking anything, ever', () => {
+  it("settles a settled run's own transcript without marking anything, ever", () => {
     // A replayed run's `events` never changes after mount — the effect
     // fires exactly once, sees the whole transcript already there, and
     // exempts it the same way the live run's own catch-up burst is exempt.
-    render(<Transcript events={events(5)} labels={LABELS} times={{}} narrations={{}} />);
+    render(
+      <Transcript events={events(5)} labels={LABELS} times={{}} narrations={{}} />,
+    );
     expect(document.querySelectorAll('[data-just-arrived="true"]')).toHaveLength(0);
   });
 });

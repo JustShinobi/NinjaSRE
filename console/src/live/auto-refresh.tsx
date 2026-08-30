@@ -172,7 +172,10 @@ export interface AutoRefreshProps {
 }
 
 /** Re-reads the current route while the deployment channel is quiet, and always says how it is going. */
-export function AutoRefresh({ locale, deploymentSource = fetchStreamSource }: AutoRefreshProps): ReactNode {
+export function AutoRefresh({
+  locale,
+  deploymentSource = fetchStreamSource,
+}: AutoRefreshProps): ReactNode {
   const router = useRouter();
   const [failures, setFailures] = useState(0);
   const [visible, setVisible] = useState(true);

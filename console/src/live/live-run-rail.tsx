@@ -37,7 +37,12 @@ export interface LiveRailProps {
 }
 
 /** The pipeline rail, moved by the `stage_completed` events the stream carries. */
-export function LiveStageRail({ runId, locale, seed, store }: LiveRailProps): ReactNode {
+export function LiveStageRail({
+  runId,
+  locale,
+  seed,
+  store,
+}: LiveRailProps): ReactNode {
   const snapshot = useRun(runId, seed, store);
   return (
     <StageRail

@@ -65,7 +65,9 @@ export function railOf(
   running: boolean,
 ): readonly RailItem[] {
   const byName = new Map(entries.map((entry) => [entry.stage, entry] as const));
-  const extra = entries.map((entry) => entry.stage).filter((name) => !CANONICAL.has(name));
+  const extra = entries
+    .map((entry) => entry.stage)
+    .filter((name) => !CANONICAL.has(name));
   const order = [...STAGE_NAMES, ...extra];
   const anyFailed = entries.some((entry) => entry.failed);
 
@@ -182,7 +184,11 @@ function Connector({
 export function StageBar({ locale, stages, running }: StageRailProps): ReactNode {
   const items = railOf(stages, running);
   return (
-    <div className="flex gap-1" role="list" aria-label={message(locale, 'run.stage.rail.title')}>
+    <div
+      className="flex gap-1"
+      role="list"
+      aria-label={message(locale, 'run.stage.rail.title')}
+    >
       {items.map((item) => (
         <span
           key={item.stage}
@@ -253,7 +259,10 @@ export function StageRail({ locale, stages, running }: StageRailProps): ReactNod
             ) : null}
           </div>
           {index < items.length - 1 ? (
-            <Connector before={item.state} after={items[index + 1]?.state ?? 'future'} />
+            <Connector
+              before={item.state}
+              after={items[index + 1]?.state ?? 'future'}
+            />
           ) : null}
         </Fragment>
       ))}

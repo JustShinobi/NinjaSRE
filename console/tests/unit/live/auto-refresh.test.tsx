@@ -140,13 +140,19 @@ describe('the frame’s freshness chip', () => {
     it('maps a hidden tab to paused, once connected and then hidden', () => {
       const source = new FakeDeploymentSource();
       const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
-      const originalVisibilityState = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+      const originalVisibilityState = Object.getOwnPropertyDescriptor(
+        document,
+        'visibilityState',
+      );
       let hidden = false;
       // `DeploymentConnection` reads `document.visibilityState` (`connection.ts`'s
       // `documentVisibility`); this component's own legacy timer-suspension
       // watch reads `document.hidden`. Both are mocked together so a single
       // `hidden` toggle drives both consistently, the way a real tab does.
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => hidden,
+      });
       Object.defineProperty(document, 'visibilityState', {
         configurable: true,
         get: () => (hidden ? 'hidden' : 'visible'),
@@ -164,7 +170,9 @@ describe('the frame’s freshness chip', () => {
         });
         // The connection's own visibility watcher and the component's are
         // independent listeners on the same browser event; both react to it.
-        expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe('paused');
+        expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe(
+          'paused',
+        );
       } finally {
         // Restored unconditionally, not only `if (original…)`: jsdom exposes
         // both of these through a prototype getter rather than an own
@@ -263,7 +271,9 @@ describe('the frame’s freshness chip', () => {
       // The channel drops once -- reconnecting, not yet exhausted.
       source.handlers.onError(0);
       await vi.advanceTimersByTimeAsync(0);
-      expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe('refreshing');
+      expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe(
+        'refreshing',
+      );
 
       // The fallback timer is already covering: the ordinary interval fires
       // well within SC-002's thirty-second bound, long before ten

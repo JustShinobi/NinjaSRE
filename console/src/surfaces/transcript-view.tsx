@@ -189,7 +189,8 @@ function Entry({
   // narration table's own floor, the generic sentence that names it, and
   // `DOCUMENT_KINDS.has(event.kind)` alone would have swallowed it into
   // `renderReport('')` and shown nothing at all.
-  const document = DOCUMENT_KINDS.has(event.kind) && DOCUMENT_RAW_KINDS.has(event.rawKind);
+  const document =
+    DOCUMENT_KINDS.has(event.kind) && DOCUMENT_RAW_KINDS.has(event.rawKind);
 
   return (
     <li
@@ -238,7 +239,9 @@ function Entry({
             payload disclosure below opens by default, never which of them
             exists. */}
         {document ? (
-          event.detail === '' ? null : renderReport(event.detail)
+          event.detail === '' ? null : (
+            renderReport(event.detail)
+          )
         ) : (
           <p
             data-testid="event-narration"
@@ -276,7 +279,9 @@ function Entry({
             open={view === 'raw' ? true : undefined}
           >
             <summary className="text-meta text-muted cursor-pointer select-none">
-              {event.title === '' ? labels.view.payload : `${labels.view.payload} — ${event.title}`}
+              {event.title === ''
+                ? labels.view.payload
+                : `${labels.view.payload} — ${event.title}`}
             </summary>
             <div className="mt-1">
               <BoundedPayload
@@ -402,9 +407,16 @@ export function Transcript({
             <Button
               variant="quiet"
               data-testid="earlier"
-              state={first + TRANSCRIPT_WINDOW >= displayed.length ? 'disabled' : 'default'}
+              state={
+                first + TRANSCRIPT_WINDOW >= displayed.length ? 'disabled' : 'default'
+              }
               onClick={() => {
-                setFirst(Math.min(displayed.length - TRANSCRIPT_WINDOW, first + TRANSCRIPT_WINDOW));
+                setFirst(
+                  Math.min(
+                    displayed.length - TRANSCRIPT_WINDOW,
+                    first + TRANSCRIPT_WINDOW,
+                  ),
+                );
               }}
             >
               {labels.earlier}
