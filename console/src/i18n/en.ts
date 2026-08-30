@@ -1190,6 +1190,7 @@ export const EN = {
   'resources.none.action': 'Declare them',
   'resources.summary.watched': 'watched',
   'resources.summary.unaccounted': 'unaccounted for',
+  'resources.summary.watched.count': '{count} watched',
   'resources.summary.legend': '{count} {health}',
   'resources.card.lastSeen': 'seen {when}',
   'resources.card.unhealthySince': '{since} out',
@@ -1224,6 +1225,9 @@ export const EN = {
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
+  'resources.undeclared.title': 'Not in the inventory',
+  'resources.undeclared.body':
+    'The source reports these and the declared inventory does not name them. Add them to the inventory, or ignore them if they should not be tracked.',
   'resources.unresolved.title': 'Alerts for things not here',
   'resources.unresolved.body':
     'Something is alerting about a target this estate does not hold. Either nobody has swept it, or an alert receiver is pointed at the wrong deployment — and both are worth knowing.',

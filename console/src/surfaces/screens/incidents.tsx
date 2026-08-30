@@ -194,6 +194,11 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
       records.map((record) => text(record, 'state')).filter((value) => value !== ''),
     ),
   ].sort();
+  const severities = [
+    ...new Set(
+      records.map((record) => text(record, 'severity')).filter((value) => value !== ''),
+    ),
+  ].sort();
 
   const liveDetectors =
     detectors.status === 'ready'
@@ -282,47 +287,54 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
       <AreaHeader area={areaFor('incidents')} locale={locale} />
 
       <div className="flex items-end gap-3 mb-4">
-        <FilterSegment
-          path="/incidents"
-          name="state"
-          label={message(locale, 'incidents.filter.state')}
-          state={state}
-          filters={INCIDENT_ADDRESS}
-          options={[
-            { id: '', label: message(locale, 'surface.filter.any') },
-            ...(states.includes('investigating')
-              ? [
-                  {
-                    id: 'investigating',
-                    label: message(locale, 'incidents.filter.state.investigating'),
-                  },
-                ]
-              : []),
-            ...(states.includes('resolved')
-              ? [
-                  {
-                    id: 'resolved',
-                    label: message(locale, 'incidents.filter.state.resolved'),
-                  },
-                ]
-              : []),
-          ]}
-        />
-        <FilterSegment
-          path="/incidents"
-          name="severity"
-          label={message(locale, 'incidents.filter.severity')}
-          state={state}
-          filters={INCIDENT_ADDRESS}
-          options={[
-            { id: '', label: message(locale, 'surface.filter.any') },
-            {
-              id: CRITICAL_SEVERITY,
-              label: message(locale, 'incidents.filter.severity.critical'),
-              icon: <span aria-hidden="true" className="icon-inline bg-danger" />,
-            },
-          ]}
-        />
+        {/* A choice with no value beside "Any" is furniture, not a control,
+            so it is left out entirely rather than shown disabled -- the same
+            rule this screen has always followed for its filters. */}
+        {states.length === 0 ? null : (
+          <FilterSegment
+            path="/incidents"
+            name="state"
+            label={message(locale, 'incidents.filter.state')}
+            state={state}
+            filters={INCIDENT_ADDRESS}
+            options={[
+              { id: '', label: message(locale, 'surface.filter.any') },
+              ...(states.includes('investigating')
+                ? [
+                    {
+                      id: 'investigating',
+                      label: message(locale, 'incidents.filter.state.investigating'),
+                    },
+                  ]
+                : []),
+              ...(states.includes('resolved')
+                ? [
+                    {
+                      id: 'resolved',
+                      label: message(locale, 'incidents.filter.state.resolved'),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        )}
+        {severities.length === 0 ? null : (
+          <FilterSegment
+            path="/incidents"
+            name="severity"
+            label={message(locale, 'incidents.filter.severity')}
+            state={state}
+            filters={INCIDENT_ADDRESS}
+            options={[
+              { id: '', label: message(locale, 'surface.filter.any') },
+              {
+                id: CRITICAL_SEVERITY,
+                label: message(locale, 'incidents.filter.severity.critical'),
+                icon: <span aria-hidden="true" className="icon-inline bg-danger" />,
+              },
+            ]}
+          />
+        )}
         {groups.length === sorted.length ? null : (
           <FilterSegment
             path="/incidents"

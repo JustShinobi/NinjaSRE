@@ -21,6 +21,7 @@ import {
   field,
   flag,
   list,
+  number,
   optionalRead,
   panelRead,
   read,
@@ -112,12 +113,15 @@ function HealthMark({ health }: { readonly health: string }): ReactNode {
 function HealthBar({
   locale,
   breakdown,
+  watched,
   state,
   path,
   filters,
 }: {
   readonly locale: SurfaceContext['locale'];
   readonly breakdown: Readonly<Record<string, number>>;
+  /** The estate's own "watched" figure -- every non-absent resource. */
+  readonly watched: number;
   readonly state: ReturnType<typeof readViewState>;
   readonly path: string;
   readonly filters: readonly FilterName[];
@@ -139,6 +143,9 @@ function HealthBar({
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-5 text-small">
+        <span data-testid="health-watched" className="sg text-strong font-semibold">
+          {message(locale, 'resources.summary.watched.count', { count: watched })}
+        </span>
         {segments.map((segment) => (
           <NextLink
             key={segment.health}
@@ -268,6 +275,14 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const departed = divergences.filter(
     (entry) => text(entry, 'kind') === 'only_in_file',
   );
+  // The other direction of the same finding: what the provider reports that
+  // the declared inventory does not name. No card carries this any more --
+  // the artboard's card lists icon, name, kind, seen, duration and nothing
+  // else -- so it gets the same kind of panel `departed` already has, rather
+  // than disappearing from the screen entirely.
+  const undeclared = divergences.filter(
+    (entry) => text(entry, 'kind') === 'only_in_provider',
+  );
   const unresolvedTargets = list(dataOf(unresolved), 'targets');
 
   const kinds = [...new Set(records.map((record) => text(record, 'kind')))]
@@ -315,6 +330,7 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           breakdown={counts(dataOf(summary), 'by_health').reduce<
             Record<string, number>
           >((map, [health, value]) => ({ ...map, [health]: value }), {})}
+          watched={number(dataOf(summary), 'total')}
           state={state}
           path="/resources"
           filters={RESOURCE_FILTERS}
@@ -701,6 +717,34 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                     </span>
                   </span>
                   <span className="text-meta text-muted">{text(entry, 'why')}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+
+        {undeclared.length === 0 ? null : (
+          <Panel
+            title={message(locale, 'resources.undeclared.title')}
+            state={stateOf(discovery, false)}
+            dependency={dependencyOf(discovery)}
+            labels={panelLabels(locale, message(locale, 'resources.undeclared.title'))}
+            empty={{
+              heading: message(locale, 'resources.undeclared.title'),
+              body: message(locale, 'resources.undeclared.body'),
+              actionLabel: message(locale, 'resources.empty.action'),
+              href: '/configuration',
+            }}
+          >
+            <ul className="flex flex-col gap-1 text-small" data-testid="undeclared">
+              <li className="text-meta text-muted">
+                {message(locale, 'resources.undeclared.body')}
+              </li>
+              {undeclared.map((entry) => (
+                <li key={text(entry, 'subject')} data-testid="undeclared-entry">
+                  <span className="text-strong font-mono">
+                    {text(entry, 'subject')}
+                  </span>
                 </li>
               ))}
             </ul>

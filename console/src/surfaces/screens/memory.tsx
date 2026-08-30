@@ -346,39 +346,46 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
           <div className="flex flex-col gap-3 min-w-0 lg:col-span-3">
-            {outcomes.length === 0 ? null : (
+            {componentGroups.length === 0 && outcomes.length === 0 ? null : (
               <div className="flex items-center gap-3 flex-wrap">
-                <ComponentFilter
-                  locale={locale}
-                  groups={componentGroups}
-                  active={component}
-                  path="/knowledge"
-                  state={state}
-                />
-                <SegmentedLinks
-                  label={message(locale, 'memory.filter.outcome')}
-                  selected={state.filters.outcome ?? ''}
-                  options={[
-                    {
-                      id: '',
-                      label: message(locale, 'surface.filter.any'),
-                      href: hrefFor(
-                        '/knowledge',
-                        withFilter(state, 'outcome', ''),
-                        MEMORY_FILTERS,
-                      ),
-                    },
-                    ...outcomes.map((outcome) => ({
-                      id: outcome,
-                      label: outcome,
-                      href: hrefFor(
-                        '/knowledge',
-                        withFilter(state, 'outcome', outcome),
-                        MEMORY_FILTERS,
-                      ),
-                    })),
-                  ]}
-                />
+                {/* Each filter is furniture on its own, not just as a pair --
+                    a corpus with components but one outcome still gets the
+                    component filter, and the reverse. */}
+                {componentGroups.length === 0 ? null : (
+                  <ComponentFilter
+                    locale={locale}
+                    groups={componentGroups}
+                    active={component}
+                    path="/knowledge"
+                    state={state}
+                  />
+                )}
+                {outcomes.length === 0 ? null : (
+                  <SegmentedLinks
+                    label={message(locale, 'memory.filter.outcome')}
+                    selected={state.filters.outcome ?? ''}
+                    options={[
+                      {
+                        id: '',
+                        label: message(locale, 'surface.filter.any'),
+                        href: hrefFor(
+                          '/knowledge',
+                          withFilter(state, 'outcome', ''),
+                          MEMORY_FILTERS,
+                        ),
+                      },
+                      ...outcomes.map((outcome) => ({
+                        id: outcome,
+                        label: outcome,
+                        href: hrefFor(
+                          '/knowledge',
+                          withFilter(state, 'outcome', outcome),
+                          MEMORY_FILTERS,
+                        ),
+                      })),
+                    ]}
+                  />
+                )}
                 <span className="ml-auto text-micro text-muted">
                   {message(locale, 'memory.count', { count: filtered.length })}
                 </span>

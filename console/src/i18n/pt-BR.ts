@@ -960,6 +960,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.none.action': 'Declarar',
   'resources.summary.watched': 'observados',
   'resources.summary.unaccounted': 'sem estado',
+  'resources.summary.watched.count': '{count} vigiados',
   'resources.summary.legend': '{count} {health}',
   'resources.card.lastSeen': 'visto {when}',
   'resources.card.unhealthySince': '{since} fora',
@@ -994,6 +995,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',
+  'resources.undeclared.title': 'Fora do inventário',
+  'resources.undeclared.body':
+    'A fonte reporta estes e o inventário declarado não os nomeia. Adicione-os ao inventário, ou ignore se não deveriam ser rastreados.',
   'resources.unresolved.title': 'Alertas sobre o que não está aqui',
   'resources.unresolved.body':
     'Algo está alertando sobre um alvo que este parque não contém. Ou ninguém o varreu ainda, ou um receptor de alertas aponta para a implantação errada — e vale saber qual dos dois.',
