@@ -116,6 +116,7 @@ interface Harness {
   readonly visibility: FakeVisibility;
   readonly states: ConnectionState[];
   readonly batches: DeploymentEvent[][];
+  readonly attempts: number[];
   resyncs: number;
 }
 
@@ -125,6 +126,7 @@ function harness(): Harness {
   const visibility = new FakeVisibility();
   const states: ConnectionState[] = [];
   const batches: DeploymentEvent[][] = [];
+  const attempts: number[] = [];
   const held = { resyncs: 0 };
 
   const connection = new DeploymentConnection({
@@ -140,6 +142,7 @@ function harness(): Harness {
     onResync: () => {
       held.resyncs += 1;
     },
+    onAttempt: (count) => attempts.push(count),
   });
 
   return {
@@ -149,6 +152,7 @@ function harness(): Harness {
     visibility,
     states,
     batches,
+    attempts,
     get resyncs(): number {
       return held.resyncs;
     },
@@ -226,6 +230,27 @@ describe('DeploymentConnection', () => {
     source.handlers.onError(0);
     expect(states).toEqual(['connecting', 'connected', 'reconnecting']);
     expect(clock.pending.map((entry) => entry.after)).toEqual([BACKOFF_MS[0]]);
+  });
+
+  it('notifies onAttempt on every consecutive failure, even while the state stays reconnecting', () => {
+    // Regression pin for the bug the acceptance spec's own run against the
+    // local mock harness caught: reading attempts from inside `onState`
+    // does not work, because `#setState` drops a call that would not
+    // change the state string, so a second and third consecutive failure
+    // never re-fired it. `onAttempt` is the hook that fires every time,
+    // which is what lets the freshness chip notice the third failure
+    // instead of staying on `refreshing` for the whole of a ten-attempt
+    // backoff (see `auto-refresh.test.tsx`).
+    const { connection, source, states, attempts } = harness();
+    connection.open();
+    source.handlers.onOpen();
+
+    source.handlers.onError(0);
+    source.handlers.onError(0);
+    source.handlers.onError(0);
+
+    expect(attempts).toEqual([1, 2, 3]);
+    expect(states.filter((state) => state === 'reconnecting')).toHaveLength(1);
   });
 
   it('gives up after MAX_RECONNECTIONS attempts', () => {

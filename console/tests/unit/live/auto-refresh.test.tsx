@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { AutoRefresh } from '@/live/auto-refresh';
 import { CHIP_SHAPE } from '@/components/status';
 import type { StreamHandle, StreamHandlers, StreamSource } from '@/live/connection';
-import { FRESHNESS_STATES, REFRESH_INTERVAL_MS } from '@/live/freshness';
+import {
+  FRESHNESS_STATES,
+  REFRESH_INTERVAL_MS,
+  STALE_AFTER_FAILURES,
+} from '@/live/freshness';
 
 /**
  * The one chip that is on every screen, held to the shape every other chip has.
@@ -284,6 +288,34 @@ describe('the frame’s freshness chip', () => {
       expect(fetchSpy).toHaveBeenCalled();
 
       fetchSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('marks the chip stale once attempts cross STALE_AFTER_FAILURES, not merely refreshing', async () => {
+      // Regression pin for the bug the acceptance spec's own run against the
+      // local mock harness caught: `freshnessFromConnection` used to map
+      // `reconnecting` to `refreshing` unconditionally, and
+      // MAX_RECONNECTIONS/BACKOFF_MS sum to roughly fifty-five seconds of
+      // backoff — past SC-002's thirty-second fallback bound — so the chip
+      // never reached `stale` at all. Below the threshold it must still say
+      // `refreshing`; at the threshold it must say `stale`.
+      vi.useFakeTimers();
+      const source = new FakeDeploymentSource();
+
+      render(<AutoRefresh locale="en" deploymentSource={source} />);
+
+      for (let attempt = 1; attempt < STALE_AFTER_FAILURES; attempt += 1) {
+        source.handlers.onError(0);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe(
+          'refreshing',
+        );
+      }
+
+      source.handlers.onError(0);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe('stale');
+
       vi.useRealTimers();
     });
 

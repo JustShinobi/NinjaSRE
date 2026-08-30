@@ -114,6 +114,7 @@ interface Harness {
   readonly visibility: FakeVisibility;
   readonly states: ConnectionState[];
   readonly applied: number[];
+  readonly attempts: number[];
   cursor: string;
 }
 
@@ -123,6 +124,7 @@ function harness(): Harness {
   const visibility = new FakeVisibility();
   const states: ConnectionState[] = [];
   const applied: number[] = [];
+  const attempts: number[] = [];
   const held = { cursor: '' };
 
   const connection = new RunConnection({
@@ -138,6 +140,7 @@ function harness(): Harness {
         held.cursor = `run-0003:${String(event.sequence)}`;
       }
     },
+    onAttempt: (count) => attempts.push(count),
   });
 
   return {
@@ -147,6 +150,7 @@ function harness(): Harness {
     visibility,
     states,
     applied,
+    attempts,
     get cursor() {
       return held.cursor;
     },
@@ -253,6 +257,25 @@ describe('a live run’s connection', () => {
     test.clock.advance();
 
     expect(test.connection.attempts).toBe(0);
+  });
+
+  it('notifies onAttempt on every consecutive failure, even one that leaves the state unchanged', () => {
+    // The same hook `DeploymentConnection` relied on alone before the two
+    // classes shared one engine: `#setState` drops a call that would not
+    // change the state string, so a second and third consecutive failure
+    // never re-announce themselves through `onState` — a caller that needs
+    // to know how many attempts have failed reads this instead. Proving it
+    // here, on `RunConnection`, is what shows the fix is now structural
+    // rather than something only `DeploymentConnection` happened to have.
+    const test = harness();
+    test.connection.open();
+
+    test.source.handlers.onError(0);
+    test.source.handlers.onError(0);
+    test.source.handlers.onError(0);
+
+    expect(test.attempts).toEqual([1, 2, 3]);
+    expect(test.states.filter((state) => state === 'reconnecting')).toHaveLength(1);
   });
 
   it('ends the session through the one collapse path when the stream is refused', () => {
