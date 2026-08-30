@@ -89,7 +89,9 @@ critério — desvio visível não registrado é FAIL do slot (EXECUCAO §3);
 nenhum arquivo de `console/src/design/` editado (congelados pela 000);
 nenhum toque em `dashboard.tsx` (050), rotas de decisão (040), `live/`
 (010); strings novas nas duas línguas; ids nunca como início de título
-(transversal AN-T2).
+(transversal AN-T2); a suíte transversal de `/incidents/{id}` fecha verde de
+verdade, não por allowlist — débito herdado do S1 (specs_v8/CONFRONTO.md
+§6), fechado por FR-001/T015a.
 
 **Scale/Scope**: 4 surfaces reescritas na apresentação, 2 campos novos num
 contrato de leitura, 1 mudança de default de aba, ~4 specs e2e novos, 8

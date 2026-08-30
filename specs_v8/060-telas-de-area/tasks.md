@@ -133,6 +133,17 @@ Um `[~]` nunca é um `[x]` envergonhado.
       contagens da própria listagem.
 - [ ] T015 [US1] Cartão de detector no rodapé lendo a fonte cravada em
       T002e; zero → ausente; CTA para a configuração de detectores.
+- [ ] T015a [US1] Fechar de verdade a dívida transversal herdada do S1 em
+      `/incidents/{id}` (specs_v8/CONFRONTO.md §6; três das sete falhas
+      pré-existentes — `markdown`/`identifier-as-name`/`two-placeholders` —
+      são desta feature, as de `/runs/{id}` não): a linha fechada da lista
+      agrupada carrega `data-testid="row"` com um link a um clique para
+      `/incidents/{publicId}` de `group.occurrences[0]` (a occurrence mais
+      nova, já ordenada primeiro por `groupBySubject`), no mesmo padrão que
+      `console/src/surfaces/rows.tsx:352` já dá às demais telas "Now".
+      Confirmar rodando `console/tests/e2e/transversal-rules.spec.ts` para
+      `/incidents/{id}` até verde sem `test.fixme` nem entrada nova em
+      `EXCEPTIONS` — Regra 7 proíbe fechar por allowlist.
 - [ ] T016 [US1] Chaves i18n en+pt-BR de toda string nova das QUATRO telas
       (as das fases 4–6 chegam por declaração nos relatórios) e variantes
       novas em `console/visual/screens.json`.
@@ -217,11 +228,16 @@ Um `[~]` nunca é um `[x]` envergonhado.
       fases 4–6 (dono: quem executa a integração), conferindo par en/pt-BR
       de cada uma.
 - [ ] T028 Rodar os quatro acceptance specs locais até verde; rodar a
-      transversal; nenhum teste afrouxado.
+      transversal (inclusive as três falhas de `/incidents/{id}` fechadas em
+      T015a — verde de verdade, não por allowlist); nenhum teste afrouxado.
 - [ ] T029 Re-baseline visual das quatro telas
       (`python -m tools.console_visual accept`), revisar o diff de PNGs
       tela a tela contra os artboards antes de aceitar, e commitar como
-      revisão consciente.
+      revisão consciente. Confirmar em especial que `resources-1440-light` e
+      `resources-320-light` (débito herdado do S1, specs_v8/CONFRONTO.md §6
+      — a lista de hoje virtualiza altura fixa e não captura por inteiro em
+      janela nenhuma) capturam de verdade sob a grade de cards da Fase 4;
+      isso fecha aquele débito, não é um efeito colateral presumido.
 - [ ] T030 Gates locais do domínio editado (lint/format/typecheck do console
       e Python onde a Phase 2 tocou) e `make verify` completo verde.
 - [ ] T031 Fechamento do slot (com o orquestrador, EXECUCAO §3–§4):
