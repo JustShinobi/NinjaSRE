@@ -535,3 +535,156 @@ cobrem — só dados de i18n (pt-BR, que nenhum dos dois asserta em português),
 teste novo (sem relação) e binários de baseline; a última vez que rodaram isolados, antes
 desta passada, deram 19/19 e 4/5 (a falha é a pré-existente e sem relação, mesma família
 dos 6 de 29 confirmados acima). Nenhum código de produção mudou desde essas duas rodadas.
+
+## Reparo pontual — literais de id em `@staging-safe` (auditoria independente, 2026-08-30)
+
+Reparo isolado, disparado por uma verificação independente contra o staging
+real, não uma nova rodada de implementação da feature. Escopo: só
+`console/tests/e2e/run-view-narrado.acceptance.spec.ts`. Estado abaixo
+verificado por execução direta dos comandos citados, lendo o código de saída
+de cada um — não inferido.
+
+### O defeito
+
+O arquivo declarava `LIVE_RUN = 'run-0003'` e `SETTLED_RUN = 'run-0001'` —
+ids que só existem no plano mock — e seis testes marcados `@staging-safe`
+navegavam direto para `/runs/${id}` usando esses literais. Contra o staging
+real esses ids não resolvem a nada, o que contraria a doutrina que o próprio
+`transversal-rules.spec.ts` documenta para as rotas que varre (linha 587 na
+árvore atual: "a run or an incident id literal in a test file is a dataset
+dependency in disguise"). Um dos seis passava de forma vazia em vez de
+falhar: a leitura de `/v1/runs/{run_id}` falha contra um id inexistente, mas
+`railOf` (`console/src/surfaces/stage-rail.tsx:63-92`) ainda desenha os seis
+estágios como `future` para um run cuja leitura não trouxe nenhum estágio —
+comportamento correto do componente para esse caso — então a asserção do
+teste (seis itens, na ordem certa) não distinguia um run vivo real de uma
+leitura totalmente fracassada. Passagem verde sem medir nada.
+
+### Linha de base real, medida antes de qualquer mudança nesta rodada
+
+`uv run python -m tools.spec_validation browser --feature
+specs_v8/030-run-view-narrado --test
+console/tests/e2e/run-view-narrado.acceptance.spec.ts --backing staging`,
+credenciais carregadas com `set -a; . ./.env; set +a` na mesma shell:
+
+**exit 1 — 7 failed, 3 passed, de 10 selecionados pela tag.** Falharam: AN-03
+(linha 113 da versão anterior), AN-06 (176), as duas iterações de AN-09
+(243), AN-12 (337), e as duas AN-14 (`run-live-card` em 359, linha de status
+falhado em 396) que não são literais de id. Passavam: AN-01 (56, vazio — ver
+acima), e as duas AN-14 que não dependem de id nem de liveness ("a completed
+row shows a claims chip…", "the status and trigger filters render as
+chips"), que já funcionavam contra os 50 runs `Completed` que o staging
+carrega hoje.
+
+**Correção ao relato que abriu esta tarefa**: a cifra "dez falhas" não bate
+com o que a suíte de fato reporta — são sete falhas reais mais uma passagem
+vazia (a de AN-01), não dez falhas, de dez testes selecionados. O número
+certo está acima, medido nesta rodada, não presumido a partir do relato.
+
+### O reparo, um teste por vez
+
+Seis testes tocados, cada um julgado pela própria alegação em `spec.md`
+(seção "Alegações normativas"), não pelo título do teste:
+
+1. **AN-01/AN-02, "a run's own page shows the six stages…"** (linha 119
+   atual). `spec.md` linha 103: "O detalhe de **um run** mostra os seis
+   estágios…" — não é uma alegação de liveness, e `railOf` prova isso por
+   construção (mesma função, mesma saída de seis itens em ordem,
+   independente de `running`). **Descoberto**, não removido: `discoverRunPath(page,
+   'live')` (linha 73, prefere um run vivo quando existe, cai para o
+   primeiro assentado quando não existe). Continua `@staging-safe`.
+2. **AN-03, "in Narrado, no JSON payload block…"** (linha 184). `spec.md`
+   linha 108: alegação genérica sobre a visão Narrado, também não depende de
+   liveness — `Entry` (`transcript-view.tsx`) é o mesmo componente nos dois
+   casos. **Descoberto**: `discoverRunPath(page, 'settled')` (prefere
+   assentado, cai para vivo). Continua `@staging-safe`.
+3. **AN-06, "a live run with a recorded turn shows tokens…"** (linha 258).
+   `spec.md` linha 115: "**Durante um run vivo**…" — alegação
+   incondicionalmente sobre liveness; nenhuma descoberta resolve isso quando
+   o ambiente não tem run vivo nenhum (confirmado: 50/50 `Completed` no
+   staging agora). **Tag `@staging-safe` removida**, comentário no próprio
+   arquivo (linhas 251-257) nomeando o que fica sem prova contra um ambiente
+   real até que ele carregue um run vivo. Continua provado contra o mock
+   (`run-0003`, id literal mantido de propósito).
+4. e 5. **AN-09, par "on a settled run"/"on a live run"** (linhas 323 e 340).
+   `spec.md` linha 121: alegação genérica (contagem do cabeçalho = renderizado),
+   mas o par original testava deliberadamente os dois *caminhos de código*
+   diferentes — replay estático (`eventsFromReplay`) vs. o redutor do cliente
+   que deduplica eventos fora de ordem (`applyEvents`, `console/src/live/reducer.ts`).
+   O lado assentado (linha 323) foi **descoberto** (`discoverRunPath(page,
+   'settled')`) e prova a alegação de novo, genuinamente, contra o staging.
+   O lado vivo (linha 340) usa `discoverLiveRunPath` e, quando não há run vivo
+   para descobrir, chama `test.skip(path === null, ...)` (linha 354) em vez de
+   herdar o id do mock ou de cair para um assentado — cair para um assentado
+   provaria a mesma coisa duas vezes e nunca exerceria o redutor vivo, que é
+   exatamente o que este segundo teste existe para cobrir. Continua
+   `@staging-safe`; passa a aparecer como **skipped**, não como passou nem
+   como falhou, no dia em que o ambiente não tem run vivo — e começa a rodar
+   de verdade, sem nenhuma mudança de código, no dia em que tiver.
+6. **AN-12, "a live run offers Assume, Stop…"** (linha 452). `spec.md` linha
+   127: mesma forma de AN-06 — incondicionalmente sobre liveness. **Tag
+   removida**, mesmo tratamento e mesmo motivo que AN-06 (comentário nas
+   linhas 445-449). Continua provado contra o mock.
+
+Duas falhas da linha de base **não são literais de id e não foram tocadas**,
+por instrução explícita: `run-live-card` (linha 470 atual) e a linha de
+status falhado (linha 507 atual) de AN-14, ambas falhando porque o staging
+não tem run vivo nem run falhado agora — mesmo texto de erro, mesma causa,
+antes e depois desta rodada.
+
+### Depois, medido
+
+`--backing mock` (mesmo comando, `--backing mock`): **exit 0 — 19 passed**,
+a mesma contagem de antes do reparo. Nenhuma cobertura do mock foi
+enfraquecida — os testes que agora descobrem em vez de nomear (AN-01, AN-03,
+e o lado assentado de AN-09) encontram exatamente os mesmos runs que antes
+porque o mock só tem um run vivo (`run-0003`) e ele aparece primeiro na banda
+"Vivas agora"; o lado vivo de AN-09 encontra esse mesmo run vivo e nunca
+entra no ramo de skip sob mock.
+
+`--backing staging` (mesmo comando, `--backing staging`, credenciais pela
+mesma shell): **exit 1 — 2 failed, 1 skipped, 5 passed, de 8 selecionados**
+(dois a menos que antes: AN-06 e AN-12 perderam a tag). As 2 falhas restantes
+são, byte a byte no texto do erro e no seletor, as mesmas duas AN-14 da linha
+de base — não regredidas, não corrigidas, fora do escopo deste reparo. O
+1 skipped é o lado vivo de AN-09, marcado como tal de propósito.
+
+Saldo honesto: de seis testes tocados, três agora provam a própria alegação
+de verdade contra o staging real (AN-01 deixou de ser uma passagem vazia;
+AN-03 e o lado assentado de AN-09 deixaram de falhar); um passou a `skipped`
+em vez de falhar por uma causa que não é um defeito (o lado vivo de AN-09);
+dois deixaram de rodar contra o staging e ficam nomeados como não provados
+até que o ambiente carregue um run vivo (AN-06, AN-12). `make verify` completo
+não foi rodado aqui — é do orquestrador, por instrução desta tarefa.
+
+### Gates rodados nesta rodada, resultado real
+
+| Gate | Comando | Resultado |
+|---|---|---|
+| Prettier | `pnpm exec prettier --check tests/e2e/run-view-narrado.acceptance.spec.ts` (após `--write`) | exit 0, "All matched files use Prettier code style!" |
+| Typecheck | `uv run python -m tools.console_gate typecheck` | exit 0 |
+| Lint | `uv run python -m tools.console_gate lint` | exit 0 |
+| Acceptance, mock | `uv run python -m tools.spec_validation browser --feature specs_v8/030-run-view-narrado --test console/tests/e2e/run-view-narrado.acceptance.spec.ts --backing mock` | exit 0, 19 passed |
+| Acceptance, staging (antes) | mesmo comando, `--backing staging` | exit 1, 7 failed / 3 passed |
+| Acceptance, staging (depois) | mesmo comando, `--backing staging` | exit 1, 2 failed / 1 skipped / 5 passed |
+
+Nenhum arquivo Python foi tocado nesta rodada — `pytest`/`make lint`/`make
+typecheck` do lado Python não foram rodados porque não há nada ali para essas
+suítes cobrirem desta mudança.
+
+### Recomendação para as duas AN-14 fora do escopo deste reparo, não aplicada
+
+Mesma doença que AN-06/AN-12 tinham antes deste reparo, mesma cura possível:
+ambas ("a live run is drawn as a card…", linha 470; "a failed run is drawn
+distinctly…", linha 507) são alegações incondicionais sobre uma categoria de
+run que o staging não carrega hoje (vivo; falhado). A descoberta não resolve
+nenhuma das duas — não há o que descobrir. O tratamento simétrico ao que este
+reparo deu ao lado vivo de AN-09 seria: ler a lista uma vez
+(`page.getByTestId('run-live-card')`/`page.locator('[data-testid="run-card"][data-status="failed"]')`)
+e, quando a contagem for zero, `test.skip(...)` nomeando a ausência, em vez
+de deixar a asserção estourar em timeout. Não apliquei essa mudança porque a
+tarefa que abriu este reparo pediu explicitamente para não tocar essas duas
+— "Leave them; report what you would do about them" — e uma mudança que a
+própria pessoa que audita não pediu, por menor que pareça, é exatamente o
+tipo de decisão que deveria ser tomada por quem está olhando o quadro
+inteiro, não por quem só tem este arquivo na frente.

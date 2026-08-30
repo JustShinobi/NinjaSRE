@@ -6,11 +6,19 @@ import { signIn } from './session';
  * The run's own page, telling what it did in sentences instead of JSON.
  *
  * Fourteen claims, one block each, against `design/padrao-2026-08/RunView.dc.html`
- * and `Investigations.dc.html`. The claims marked `@staging-safe` are read-only
- * and reuse the slot's one shared live run rather than opening a second one; the
- * rest need a controlled fixture (a settled run and a live run with the same
- * vocabulary of events) that only the local mock plane can hold still, so they
- * run here against `run-0001` (settled) and `run-0003` (live) without that tag.
+ * and `Investigations.dc.html`. The claims marked `@staging-safe` discover
+ * whatever `/runs` actually holds in the environment the suite is pointed at —
+ * through `discoverRunPath`/`discoverLiveRunPath` below, never a fixed id: an id
+ * literal in a test file is a dataset dependency in disguise, the same rule
+ * `transversal-rules.spec.ts` states for the routes it sweeps. Two claims that
+ * are unconditionally about a run still going (AN-06's cost panel, AN-12's
+ * conduct controls) cannot be proven that way on an environment that currently
+ * holds no live run at all, and are deliberately not tagged `@staging-safe` for
+ * that reason — proven below against the mock's `run-0003`, unproven against a
+ * real deployment until one carries a live run. The rest need a controlled
+ * fixture (a settled run and a live run with the same vocabulary of events)
+ * that only the local mock plane can hold still, so they run here against
+ * `run-0001` (settled) and `run-0003` (live) without that tag.
  *
  * **This spec is expected to be comprehensively red when it is written.** The
  * six-stage rail does not exist on this page at all; the transcript prints a raw
@@ -48,16 +56,78 @@ function stageItems(page: Page): Locator {
   return page.getByTestId('stage-item');
 }
 
+/**
+ * The address of a real run's own page, read off whatever `/runs` currently
+ * holds rather than named. `prefer` picks which band to read first when the
+ * environment carries both a live and a settled run; the other band is the
+ * fallback, for a claim this page proves identically either way — see the
+ * comment beside each call site for which claim and why.
+ *
+ * Reads an attribute already on the closed row rather than clicking through
+ * it: `RunCard`'s own row toggles an inline accordion on this same page
+ * instead of navigating anywhere, so a click-based discovery here would need
+ * a second click on a link that carries no test id of its own. A live card's
+ * link does navigate directly and is read here rather than clicked for the
+ * same reason — one fewer round trip to the same address.
+ */
+async function discoverRunPath(
+  page: Page,
+  prefer: 'live' | 'settled',
+): Promise<string> {
+  await page.goto('/runs');
+  await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+
+  const live = async (): Promise<string | null> => {
+    const link = page.getByTestId('run-live-card').first().locator('a[href^="/runs/"]');
+    if ((await link.count()) === 0) return null;
+    return link.getAttribute('href');
+  };
+  const settled = async (): Promise<string | null> => {
+    const card = page.getByTestId('run-card').first();
+    if ((await card.count()) === 0) return null;
+    const id = await card.getAttribute('data-run');
+    return id === null || id === '' ? null : `/runs/${id}`;
+  };
+
+  const [first, second] = prefer === 'live' ? [live, settled] : [settled, live];
+  const path = (await first()) ?? (await second());
+  if (path === null) {
+    throw new Error('no run could be discovered from /runs to open its own page');
+  }
+  return path;
+}
+
+/**
+ * The address of the first live run `/runs` currently shows, or `null` when
+ * the environment is not running one right now — a fact about an environment
+ * on a quiet day, never fabricated by falling back to a settled run instead.
+ */
+async function discoverLiveRunPath(page: Page): Promise<string | null> {
+  await page.goto('/runs');
+  await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+  const link = page.getByTestId('run-live-card').first().locator('a[href^="/runs/"]');
+  if ((await link.count()) === 0) return null;
+  return link.getAttribute('href');
+}
+
 // =============================================================================
 // AN-01 / AN-02 — the six stages, on top, the active one distinct
 // =============================================================================
 
 test.describe('AN-01/AN-02 — the pipeline rail names every stage, in order, with the active one distinct', () => {
   test(
-    'a live run shows the six stages, in pipeline order, at the top of the page',
+    "a run's own page shows the six stages, in pipeline order, at the top",
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
-      await page.goto(`/runs/${LIVE_RUN}`);
+      // AN-01 is a claim about any run's page, not specifically a live one:
+      // `railOf` (`stage-rail.tsx`) always draws the six canonical stages, in
+      // order, whichever caller fed it — `stagesFrom(replay)` for a settled
+      // run or the live reducer's own `stages` for one still going. A live
+      // run is preferred, closer to this block's original fixture, but a
+      // settled one proves the identical structure when the environment
+      // currently has none to discover.
+      const path = await discoverRunPath(page, 'live');
+      await page.goto(path);
       const rail = page.getByTestId('stage-rail');
       await expect(rail).toBeVisible();
 
@@ -114,7 +184,12 @@ test.describe('AN-03/AN-04/AN-05 — the transcript narrates; the payload is one
     'in Narrado, no JSON payload block is visible anywhere in the transcript body',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
-      await page.goto(`/runs/${SETTLED_RUN}`);
+      // AN-03 does not depend on liveness either: `Entry` (`transcript-view.tsx`)
+      // is the one component both readers mount. A settled run is preferred —
+      // a finished investigation always has a fuller transcript than one that
+      // just started — but a live one proves the same default-view claim.
+      const path = await discoverRunPath(page, 'settled');
+      await page.goto(path);
       const toggle = page.getByTestId('transcript-view-toggle');
       await expect(toggle).toBeVisible();
       await expect(toggle).toHaveAttribute('data-view', 'narrated');
@@ -173,30 +248,35 @@ test.describe('AN-03/AN-04/AN-05 — the transcript narrates; the payload is one
 // =============================================================================
 
 test.describe('AN-06/AN-07/AN-08 — the rail never claims absence about a run still writing', () => {
-  test(
-    'a live run with a recorded turn shows tokens and a turn count, never the settled empty state',
-    { tag: STAGING_SAFE_TAG },
-    async ({ page }) => {
-      await page.goto(`/runs/${LIVE_RUN}`);
-      // The fixture's stream carries one finished turn (`turn_completed`,
-      // 1840 tokens) before the page is even opened.
-      await expect
-        .poll(async () => page.getByTestId('usage-tokens').textContent())
-        .not.toBe(null);
-      const tokens = await page.getByTestId('usage-tokens').innerText();
-      expect(tokens.trim()).not.toBe('');
-      expect(tokens.replace(/[^\d]/g, '')).not.toBe('0');
-      // The panel chrome's own `data-state` is what decides whether the
-      // settled "empty" presentation — heading, body and a call-to-action
-      // link back to the list (`Panel`, `console/src/surfaces/panel.tsx`) —
-      // renders at all. A live run's cost panel must read `ready`, never
-      // `empty`, however little of the run has arrived.
-      const costPanel = page.locator('[data-testid="panel"]', {
-        has: page.getByTestId('usage-tokens'),
-      });
-      await expect(costPanel).toHaveAttribute('data-state', 'ready');
-    },
-  );
+  // Not staging-safe: AN-06 is a claim about a run that is still going, and
+  // only a fixture can hold one still long enough to open it by a chosen id.
+  // Discovering the run instead of naming it does not rescue this one either
+  // — an environment with no live run at all (this slot's staging today: 50
+  // runs, all `Completed`, confirmed by direct read) has nothing to discover.
+  // Unproven against a real deployment until one carries a live run; proven
+  // here against the mock's `run-0003`, which is why the id stays literal.
+  test('a live run with a recorded turn shows tokens and a turn count, never the settled empty state', async ({
+    page,
+  }) => {
+    await page.goto(`/runs/${LIVE_RUN}`);
+    // The fixture's stream carries one finished turn (`turn_completed`,
+    // 1840 tokens) before the page is even opened.
+    await expect
+      .poll(async () => page.getByTestId('usage-tokens').textContent())
+      .not.toBe(null);
+    const tokens = await page.getByTestId('usage-tokens').innerText();
+    expect(tokens.trim()).not.toBe('');
+    expect(tokens.replace(/[^\d]/g, '')).not.toBe('0');
+    // The panel chrome's own `data-state` is what decides whether the
+    // settled "empty" presentation — heading, body and a call-to-action
+    // link back to the list (`Panel`, `console/src/surfaces/panel.tsx`) —
+    // renders at all. A live run's cost panel must read `ready`, never
+    // `empty`, however little of the run has arrived.
+    const costPanel = page.locator('[data-testid="panel"]', {
+      has: page.getByTestId('usage-tokens'),
+    });
+    await expect(costPanel).toHaveAttribute('data-state', 'ready');
+  });
 
   test('a resource a live run touches appears in "what it touched" without a reload', async ({
     page,
@@ -239,23 +319,53 @@ test.describe('AN-06/AN-07/AN-08 — the rail never claims absence about a run s
 // =============================================================================
 
 test.describe('AN-09 — the transcript header count is the list actually rendered', () => {
-  for (const runId of [SETTLED_RUN, LIVE_RUN]) {
-    test(
-      `on ${runId}, the header count equals the number of rendered entries`,
-      { tag: STAGING_SAFE_TAG },
-      async ({ page }) => {
-        await page.goto(`/runs/${runId}`);
-        await expect
-          .poll(async () => page.getByTestId('transcript-event').count())
-          .toBeGreaterThan(0);
-        const rendered = await page.getByTestId('transcript-event').count();
-        const total = Number(
-          await page.getByTestId('transcript').getAttribute('data-total'),
-        );
-        expect(total).toBe(rendered);
-      },
-    );
-  }
+  test(
+    'on a settled run, the header count equals the number of rendered entries',
+    { tag: STAGING_SAFE_TAG },
+    async ({ page }) => {
+      const path = await discoverRunPath(page, 'settled');
+      await page.goto(path);
+      await expect
+        .poll(async () => page.getByTestId('transcript-event').count())
+        .toBeGreaterThan(0);
+      const rendered = await page.getByTestId('transcript-event').count();
+      const total = Number(
+        await page.getByTestId('transcript').getAttribute('data-total'),
+      );
+      expect(total).toBe(rendered);
+    },
+  );
+
+  test(
+    'on a live run, the header count equals the number of rendered entries',
+    { tag: STAGING_SAFE_TAG },
+    async ({ page }) => {
+      // Unlike the settled case above, this one does not fall back to
+      // whichever run is easiest to find: the live path counts through the
+      // client reducer's own dedupe of out-of-order and repeated events
+      // (`applyEvents`, `live/reducer.ts`), which a settled run's static
+      // replay never exercises — proving AN-09 once is not proving it on
+      // both paths. An environment with no live run has nothing to discover,
+      // so this skips rather than either fabricating a pass against the
+      // wrong path or failing on an absence that is not a defect — and
+      // starts running for real the day the environment carries one, with no
+      // further change needed here.
+      const path = await discoverLiveRunPath(page);
+      test.skip(path === null, 'no live run on this environment to discover');
+      if (path === null) {
+        return;
+      }
+      await page.goto(path);
+      await expect
+        .poll(async () => page.getByTestId('transcript-event').count())
+        .toBeGreaterThan(0);
+      const rendered = await page.getByTestId('transcript-event').count();
+      const total = Number(
+        await page.getByTestId('transcript').getAttribute('data-total'),
+      );
+      expect(total).toBe(rendered);
+    },
+  );
 });
 
 // =============================================================================
@@ -334,15 +444,16 @@ test.describe('AN-10/AN-11 — replay and stream narrate the same vocabulary the
 // =============================================================================
 
 test.describe('AN-12 — the conduct controls exist on a live run and nowhere on a settled one', () => {
-  test(
-    'a live run offers Assume, Stop and "Say something…"',
-    { tag: STAGING_SAFE_TAG },
-    async ({ page }) => {
-      await page.goto(`/runs/${LIVE_RUN}`);
-      await expect(page.getByTestId('takeover')).toBeVisible();
-      await expect(page.getByTestId('add-context')).toBeVisible();
-    },
-  );
+  // Not staging-safe, for the same reason as AN-06 above: this claim is
+  // unconditionally about a run still going, and staging currently holds
+  // none to discover (50 runs, all `Completed`). Unproven against a real
+  // deployment until one carries a live run; proven here against the mock's
+  // `run-0003`.
+  test('a live run offers Assume, Stop and "Say something…"', async ({ page }) => {
+    await page.goto(`/runs/${LIVE_RUN}`);
+    await expect(page.getByTestId('takeover')).toBeVisible();
+    await expect(page.getByTestId('add-context')).toBeVisible();
+  });
 
   test('a settled run offers none of them', async ({ page }) => {
     await page.goto(`/runs/${SETTLED_RUN}`);
