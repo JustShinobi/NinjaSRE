@@ -225,6 +225,58 @@ filtro do lado do console já está certo, e continuam verdes depois de T015
 fechar o lado do servidor — se algum dia regredirem, é o `load.ts` que
 quebrou, não a integração dos dois lados.
 
+## T015-T021 — servidor: fase 2 completa e verde
+
+Todos os 31 testes das cinco suítes novas mais `test_approval_execution.py`
+(pré-existente, decidir por interação continua intocado) passam juntos, com
+`mypy --strict` e `ruff` limpos em todo o conjunto tocado.
+
+**Achado real, encontrado e corrigido**: minha primeira versão de
+`repropose_approval` abria `async with state.gateway.begin(auth.scope) as
+uow:` e, **dentro** desse bloco, chamava `desk.requests.queue(action)` — que
+por sua vez chama `ApprovalService.queue()`
+(`platform/approvals/service.py:250`), que abre **outro**
+`self.gateway.begin(self.scope)` no mesmo `gateway`. `FakePersistence.begin`
+usa `asyncio.Lock()`, que não é reentrante — o resultado não era um erro, era
+um **deadlock silencioso**: a suíte travava sem mensagem nenhuma até o
+`timeout` do shell matar o processo. Corrigido para três transações
+sequenciais, nunca aninhadas (ler + checar idempotência; enfileirar fora de
+qualquer `begin`; amender o vínculo de origem). Registrado aqui porque é
+exatamente a classe de defeito que só aparece rodando, nunca lendo — e porque
+qualquer outra rota que algum dia componha uma escrita através de
+`RequestBuilder`/`ApprovalService` **dentro** de uma transação já aberta
+tropeça na mesma coisa.
+
+**Duas rotas esquecidas na tabela de permissões.** `POST
+.../repropose` e `POST .../discard` devolviam `UndeclaredRoute` (500) até eu
+registrá-las em `gateway/http/security/console_routes.py`, com
+`Permission.APPROVAL_REVIEW` — a mesma permissão que já governa decidir,
+porque repropor/descartar são o mesmo ato de administrar a fila.
+
+**Compatibilidade com a 060, verificada, não presumida.**
+`console/src/surfaces/screens/incident-detail.tsx:312` já lê
+`ApprovalView.blast_radius_count` (campo antigo, achatado). Nada nesta
+feature remove ou renomeia esse campo — todo campo novo é aditivo. Confirmado
+por grep antes de tocar o modelo, não depois.
+
+**Race de re-proposta concorrente — limitação conhecida, não resolvida.** A
+checagem de idempotência (T008/FR-017) lê `list_pending` numa transação e só
+grava o vínculo de origem em outra, três passos depois, sem lock entre as
+duas — duas chamadas verdadeiramente simultâneas ao mesmo `repropose` **podem**
+as duas passarem pela checagem e produzir duas pendentes para a mesma origem.
+Fechar isso de verdade pediria uma constraint única no banco (migração,
+fora do escopo decidido em T004c) ou um mecanismo de exclusão que não existe
+hoje. Dado que propose-only nunca aplica nada sozinho, o pior caso é um
+humano vendo duas pendentes e descartando uma — não uma escrita dupla. Não
+resolvido nesta feature; registrado para quem revisar.
+
+**Migração — decisão confirmada, nenhuma.** `state` é `String(32)` sem
+`CHECK` (`platform/persistence/postgres/models.py:582`); `"discarded"` cabe.
+`arguments` já é `JSONB`; `origin_approval_id` vive lá
+(`_ORIGIN_APPROVAL_ID_KEY`, `gateway/http/routes/approvals.py`). Nenhuma
+revisão Alembic nesta feature — nada para o líder cravar contra a feature
+par.
+
 ## Ledger de critérios (uma linha por obrigação atômica)
 
 | Peça | Estado | Detalhe |
