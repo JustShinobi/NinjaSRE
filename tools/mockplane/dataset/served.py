@@ -100,9 +100,18 @@ VIEWER_PERMISSIONS: Final[tuple[str, ...]] = tuple(
 )
 
 
-def at(*, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
-    """Return an instant that far before the survey, as the API spells one."""
-    return (_CAPTURED - timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
+def at(*, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0) -> str:
+    """Return an instant that far before the survey, as the API spells one.
+
+    ``seconds`` exists for the handful of events that land inside the same
+    minute as one another — a stage boundary and the turn it precedes, say —
+    where ``minutes`` alone cannot tell them apart. A negative value of any
+    argument is an instant *after* the survey, which is what a stage the
+    pipeline reaches only once gathering is already under way needs.
+    """
+    return (
+        _CAPTURED - timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    ).isoformat()
 
 
 #: How long before the survey each superseded first-run credential was issued.
@@ -808,6 +817,11 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
 #: finished and no fourth. A stage record is written when a stage *ends*; a
 #: fixture that listed a fourth would be claiming a stage completed because it
 #: was seen to start, which is exactly what the recorder refuses to do.
+#:
+#: ``run-0004`` failed partway through instead: its third entry carries
+#: ``failed: True`` and a finding that names what went wrong, and the pipeline
+#: never reached the three stages after it — the same "a stage record is
+#: written when a stage ends" rule, ended in failure rather than in success.
 _STAGES: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
     "run-0001": (
         {
@@ -862,6 +876,25 @@ _STAGES: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
             "stage": "plan_evidence",
             "finding": "3 capabilities shortlisted, best first",
             "duration_ms": 55,
+        },
+    ),
+    "run-0004": (
+        {
+            "stage": "resolve_integrations",
+            "finding": "5 capabilities available on this team",
+            "duration_ms": 190,
+        },
+        {
+            "stage": "intake",
+            "finding": "A new incident, not a repeat of one already open",
+            "duration_ms": 1_180,
+            "llm_calls": 1,
+        },
+        {
+            "stage": "plan_evidence",
+            "finding": "The model could not be reached to score the shortlist",
+            "duration_ms": 340,
+            "failed": True,
         },
     ),
     "run-0005": (
