@@ -986,18 +986,20 @@ async def _carry_out(state: GatewayState, decided: ApprovalRequest, *, principal
 
 
 def _action_of(decided: ApprovalRequest) -> RemediationAction | None:
-    """Return the action this request stored, or ``None`` naming what is missing.
+    """Return the action this request's stored document describes, or ``None``.
 
-    Rebuilt from what the reviewer read rather than from anything a process
-    happened to still hold, which is also what lets an approval survive the
-    replica that raised it being restarted. A payload that cannot describe an
-    action is refused by name instead of being approximated: executing a guess
-    at what somebody authorised is worse than executing nothing.
+    Rebuilt from what was stored rather than from anything a process happened
+    to still hold — which is what lets an approval survive the replica that
+    raised it being restarted, and what lets a repropose rebuild an expired
+    request's origin from the row alone. Two callers read this: `_carry_out`
+    (an approved decision, about to be executed) and `repropose_approval` (an
+    expired one, about to be queued fresh) — neither approximates a payload
+    that cannot describe an action; both refuse by name instead.
     """
     proposed = decided.arguments.get(PROPOSED_KEY)
     if not isinstance(proposed, Mapping):
         logger.warning(
-            "remediation.approval_not_carried_out",
+            "remediation.action_not_rebuildable",
             approval_id=decided.approval_id,
             reason="the request carries no proposed action to rebuild",
         )
@@ -1010,7 +1012,7 @@ def _action_of(decided: ApprovalRequest) -> RemediationAction | None:
         return RemediationAction.of_payload(proposed)
     except (KeyError, TypeError, ValueError) as incomplete:
         logger.warning(
-            "remediation.approval_not_carried_out",
+            "remediation.action_not_rebuildable",
             approval_id=decided.approval_id,
             reason=f"the stored action could not be rebuilt: {incomplete}",
         )
