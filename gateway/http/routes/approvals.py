@@ -152,13 +152,15 @@ class EvidenceItemView(BaseModel):
 
 class RiskView(BaseModel):
     #: Constructed and read as ``risk_class`` in Python (``class`` is a
-    #: keyword); served as ``class``, per the plan's own field name —
-    #: ``populate_by_name`` is what lets both spellings work.
-    risk_class: str = Field(alias="class")
+    #: keyword); served as ``class``, per the plan's own field name.
+    #: ``serialization_alias`` rather than ``alias``: the latter also governs
+    #: how the model is *built*, and the mypy Pydantic plugin does not widen
+    #: the constructor's accepted keywords for ``populate_by_name`` — every
+    #: call site would then need a `# type: ignore` for the very name this
+    #: field exists to keep constructible under.
+    risk_class: str = Field(serialization_alias="class")
     score: int
     scale: int
-
-    model_config = {"populate_by_name": True}
 
 
 class BlastRadiusFieldView(BaseModel):

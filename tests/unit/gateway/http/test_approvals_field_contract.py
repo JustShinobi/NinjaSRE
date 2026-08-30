@@ -18,6 +18,7 @@ arrived — only that the store holds one.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -27,10 +28,15 @@ from httpx import AsyncClient
 from capabilities.tools.remediation import control_plane
 from capabilities.tools.remediation.control_plane import ControlPlaneState
 from core.capability.metadata import SideEffectLevel
-from gateway.http.remediation import compose_remediation
+from gateway.http.remediation import RemediationDesk, compose_remediation
 from platform.identity.permissions import Role
 from platform.persistence.ports import TenantScope
-from platform.remediation.models import RemediationAction, RemediationTarget, SubTargetResult
+from platform.remediation.models import (
+    RemediationAction,
+    RemediationTarget,
+    StateSnapshot,
+    SubTargetResult,
+)
 from tests.unit.gateway.http.conftest import ORG, TEAM_PAYMENTS, Deployment, issue_token
 
 pytestmark = pytest.mark.unit
@@ -71,7 +77,13 @@ class _Plane:
         del action
         return ControlPlaneState(values={"replicas": 2}, sub_targets=("checkout",))
 
-    async def change(self, action, *, desired, before):  # noqa: ANN001
+    async def change(
+        self,
+        action: RemediationAction,
+        *,
+        desired: Mapping[str, Any],
+        before: StateSnapshot,
+    ) -> tuple[SubTargetResult, ...]:
         del action, desired, before
         return (SubTargetResult(identifier="checkout", changed=True),)
 
@@ -103,7 +115,7 @@ def _action(*, action_id: str = "action-1", capability: str = SCALE) -> Remediat
     )
 
 
-async def _desk(deployment: Deployment):  # noqa: ANN201
+async def _desk(deployment: Deployment) -> RemediationDesk:
     desk = await compose_remediation(deployment.state, org_id=ORG, proxy_url=PROXY)
     assert desk is not None, "the test deployment could not compose a remediation desk"
     return desk

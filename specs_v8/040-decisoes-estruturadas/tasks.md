@@ -130,25 +130,35 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 2: Servidor
 
-- [ ] T015 Projeção por campo na listagem e no detalhe de aprovações
+- [x] T015 Projeção por campo na listagem e no detalhe de aprovações
       (arquivo de T004a), com as derivações de T016/T017 e ausência
       declarada; `state=` e ordenações do plano. Verde em T006/T007.
-- [ ] T016 Derivação de título humano numa função única do lado servidor,
+- [x] T016 Derivação de título humano numa função única do lado servidor,
       usada pelas duas projeções. Verde em T010.
-- [ ] T017 Derivação de score de risco (tabela do plano), servida como
+- [x] T017 Derivação de score de risco (tabela do plano), servida como
       `risk{class, score, scale}`. Verde em T011.
-- [ ] T018 `POST /v1/approvals/{approval_id}/repropose` chamando o mecanismo
+- [x] T018 `POST /v1/approvals/{approval_id}/repropose` chamando o mecanismo
       de proposta composto (raiz de T004b) com leitura atual; vínculo de
       origem; idempotência; recusas nomeadas. Verde em T008.
-- [ ] T019 `POST /v1/approvals/{approval_id}/discard` como transição
+- [x] T019 `POST /v1/approvals/{approval_id}/discard` como transição
       registrada. Verde em T009.
-- [ ] T020 Se T004c decidiu migração: revisão reversível (estado
+- [~] T020 Se T004c decidiu migração: revisão reversível (estado
       `discarded` / vínculo de origem), downgrade exercitado por teste, sem
       tocar nenhuma outra tabela. Se decidiu que não precisa: `[~]` com a
       razão e onde o estado vive.
-- [ ] T021 A contagem servida ao shell (fonte de `countsFrom`) passa a
+      Encerrada sem migração — T004c já registrou a razão: `state` é
+      `String(32)` sem `CHECK` (`platform/persistence/postgres/models.py:582`),
+      `"discarded"` cabe; `arguments` já é JSONB e é onde
+      `origin_approval_id` vive (`_ORIGIN_APPROVAL_ID_KEY`,
+      `gateway/http/routes/approvals.py`).
+- [x] T021 A contagem servida ao shell (fonte de `countsFrom`) passa a
       contar pendentes dentro da janela + propostas de mudança pendentes.
       Verde na metade servidor de T013.
+      `readAttention` (`console/src/shell/load.ts:134`) já filtrava por
+      `state === 'pending'` sem checar `expires_at` (T013) — a lacuna estava
+      inteira do lado do servidor, fechada por T015 chamando
+      `expire_due()` dentro de `list_approvals`. Nenhuma mudança adicional
+      no console foi necessária; os dois testes de T013 são a prova.
 
 ## Phase 3: Console
 

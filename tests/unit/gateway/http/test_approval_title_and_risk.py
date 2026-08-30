@@ -73,7 +73,12 @@ def test_an_unknown_capability_falls_back_to_the_stored_summary() -> None:
 
 
 def test_a_minimal_or_unparsable_document_falls_back_to_the_summary_without_raising() -> None:
-    for empty in ({}, {"proposed": {}}, {"proposed": {"capability": "x"}}):
+    documents: tuple[dict[str, object], ...] = (
+        {},
+        {"proposed": {}},
+        {"proposed": {"capability": "x"}},
+    )
+    for empty in documents:
         title = _title_of(empty, fallback="Enable the disabled job.")
         assert title == "Enable the disabled job."
 
