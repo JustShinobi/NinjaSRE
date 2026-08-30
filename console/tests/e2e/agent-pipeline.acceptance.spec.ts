@@ -242,7 +242,7 @@ test.describe(
       await page.goto('/agent');
       const card = page.getByTestId('pipeline-summary-tools');
       const text = await card.innerText();
-      if (!/80/.test(text)) {
+      if (!text.includes('80')) {
         test.skip(true, 'this environment does not carry the audited catalogue size');
         return;
       }

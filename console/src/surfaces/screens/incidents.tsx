@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import NextLink from 'next/link';
 
 import { Link, SegmentedLinks, type SegmentedOption } from '@/components';
 import { Badge } from '@/components/status';
@@ -146,7 +147,7 @@ function FilterSegment({
   readonly options: readonly Omit<SegmentedOption, 'href'>[];
 }): ReactNode {
   return (
-    <div className="flex flex-col gap-1.5" data-testid="filter" data-filter={name}>
+    <div className="flex flex-col gap-2" data-testid="filter" data-filter={name}>
       <span className="text-micro text-muted font-semibold uppercase tracking-wide">
         {label}
       </span>
@@ -279,7 +280,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
     <>
       <AreaHeader area={areaFor('incidents')} locale={locale} />
 
-      <div className="flex items-end gap-3.5 mb-4">
+      <div className="flex items-end gap-3 mb-4">
         <FilterSegment
           path="/incidents"
           name="state"
@@ -308,7 +309,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
               id: CRITICAL_SEVERITY,
               label: message(locale, 'incidents.filter.severity.critical'),
               icon: (
-                <span aria-hidden="true" className="h-2 w-2 rounded-[2px] bg-danger" />
+                <span aria-hidden="true" className="icon-inline bg-danger" />
               ),
             },
           ]}
@@ -328,7 +329,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
         )}
         <span
           data-testid="incident-summary-line"
-          className="ml-auto text-small text-muted self-end pb-1.5"
+          className="ml-auto text-small text-muted self-end pb-2"
         >
           {message(locale, 'incidents.header.summary', {
             subjects: groups.length,
@@ -424,19 +425,20 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
         >
           <span
             aria-hidden="true"
-            className="h-0 w-0 shrink-0 border-x-[6px] border-x-transparent border-b-[10px] border-b-warning"
+            className="icon-inline clip-triangle bg-warning shrink-0"
           />
           <p className="text-small">
             {message(locale, 'incidents.coverage.gap', {
               count: uncoveredCount,
             })}
           </p>
-          <a
+          <NextLink
             href="/signals?tab=observation"
+            prefetch={false}
             className="ml-auto shrink-0 text-small text-warning hover:underline"
           >
             {message(locale, 'incidents.coverage.action')}
-          </a>
+          </NextLink>
         </div>
       )}
     </>
