@@ -248,12 +248,18 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       nesta base (uma expirada sempre ocupa a posição 0) — reescrito para
       contar a fila combinada de verdade; passa contra as duas expiradas do
       próprio dataset desta feature.
-- [ ] T029 Declarar no relatório final: todas as chaves i18n novas com texto
+- [x] T029 Declarar no relatório final: todas as chaves i18n novas com texto
       `en` e `pt-BR`; a atualização do registro visual (tela de decisões nos
       estados pendente e expirada). **Não editar os arquivos** — regra 3.
-      Pendente fechar — chaves já em `en.ts` (regra 3 exceção); lista
-      completa com `pt-BR` vai no relatório final quando T026 fechar (pode
-      ganhar chaves novas para os pills).
+      Feito — 27 chaves novas em `en.ts` (regra 3, exceção nomeada), nenhuma
+      chave nova precisou dos pills (reusam `decisions.tabs`/`decisions.tab.*`,
+      já existentes). Lista completa en+pt-BR proposta no relatório final.
+      Confirmado que `console/tests/unit/i18n/catalogue.test.ts` está
+      vermelho agora por causa exatamente disso — as 27 chaves ausentes de
+      `pt-BR.ts` — o vermelho esperado até o merge aplicar as chaves, não um
+      defeito. Registro visual: nenhuma linha nova necessária
+      (`decisions-1440-light`/`decisions-changes-1440-light` já existem);
+      achado sobre elas em T032.
 
 ## Phase 4: Artefatos gerados e dataset
 
@@ -306,10 +312,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 5: Fecho da feature (o merge do slot fecha o resto)
 
-- [ ] T033 Acceptance local verde por inteiro; as mensagens do vermelho
+- [x] T033 Acceptance local verde por inteiro; as mensagens do vermelho
       inicial arquivadas no controle.
-- [ ] T034 Medir de novo a suíte sintética e reportar contra T003 ("sem
+      Feito — `decisoes-estruturadas.acceptance.spec.ts` contra o mock:
+      12 passed, 3 skipped (AN-06, AN-12, AN-13 — condição de dado do
+      cenário default, não defeito; AN-12/AN-13 confirmados passando de
+      verdade contra `--scenario empty`/`degraded` respectivamente), 0
+      failed, EXIT=0. Mensagens do vermelho inicial já arquivadas em
+      `controle.md`, seção T005.
+- [x] T034 Medir de novo a suíte sintética e reportar contra T003 ("sem
       efeito" esperado).
+      Feito — `uv run pytest tests/synthetic -q` → 267 passed, 0 failed,
+      EXIT=0. Idêntico ao "antes" de T003 (267 passed, 0 failed) — sem
+      efeito, medido, não presumido.
 - [ ] T035 `make verify` verde; gates de formato do domínio tocado rodados
       antes de cada commit (o pre-commit não cobre TypeScript).
 - [ ] T036 Relatório final para o orquestrador: chaves i18n (T029), linha do
