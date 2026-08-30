@@ -336,3 +336,171 @@ produzir uma linha genuinamente expirada, em vez de mexer no estado interno
 do fake (que o próprio docstring de `FakePersistence.state` desaconselha:
 "Writing through this bypasses the transaction machinery").
 
+
+## T022-T028 — console: a tela reescrita, herdada e fechada nesta sessão
+
+Retomando uma sessão anterior perdida (transcript não recuperável, trabalho
+preservado só pelos commits): ao assumir, `DecisionCard` (seis seções,
+medidor de risco, `<details>` de payload bruto), o rodapé de expirada
+(`ExpiredFooterControls`) e o `ApprovalsTab` reescrito já estavam commitados
+e corretos em substância (T022, verificado por leitura linha a linha antes
+de qualquer edição, não redescoberto). O que faltava, fechado agora:
+
+- **T023, a causa nomeada.** O rodapé de expirada mostrava sempre a mesma
+  frase genérica ("The deployment did not answer...") em qualquer falha —
+  rede fora do ar ou uma recusa nomeada do backend (422/409) liam
+  identicamente. `ExpiredFooterControls` agora lê `detail` do corpo da
+  resposta quando existe e mostra a causa real; a frase genérica sobra só
+  para quando a chamada nunca chegou a responder. Vermelho confirmado contra
+  a versão anterior do componente antes do reparo
+  (`console/tests/unit/surfaces/expired-footer.test.tsx`, 3 testes, o de
+  causa nomeada falhando com a frase genérica no lugar da causa).
+- **T028, o `data-state` que faltava na linha colapsada.** A regra "só
+  `queue[0]` expande" já estava certa, mas a linha colapsada
+  (`decision-row-collapsed`) não carregava nenhum carimbo de estado — uma
+  pendente e uma expirada colapsadas eram indistinguíveis sem abrir o
+  carimbo de tempo. Corrigido (`data-state={state}` na própria linha); o
+  teste original do "muitas pendentes" só contava
+  `decision-card[data-state=pending]`, que nunca chega a dois nesta base
+  porque uma expirada sempre ocupa a posição 0 — reescrito para contar a
+  fila combinada de verdade (`decision-card` + `decision-row-collapsed`,
+  qualquer estado), e passa contra as duas expiradas do próprio dataset
+  desta feature.
+- **T026, os pills.** Composto localmente em `decisions.tsx`
+  (`DecisionsTabBar`), não como reescrita do `TabLinks` compartilhado —
+  esse componente serve outras telas que esta feature não possui, e o
+  padrão de pill é uma escolha visual desta tela, não uma mudança do que um
+  "tab" é. Mesmo contrato de testid/`data-tab`/`aria-current`/`href` que
+  `TabLinks` já dava; o teste próprio da tela
+  (`console/tests/unit/surfaces/decisions.test.tsx`, 7 testes) não mudou e
+  continua verde. **Decisão de escopo, registrada e não escondida**: o chip
+  "Ações" no artboard carrega uma contagem; esta versão não a mostra. Buscar
+  esse número aqui significaria ler aprovações mesmo com a aba Changes
+  aberta — o mesmo custo que o comentário desta própria tela já recusa na
+  direção oposta ("a reader looking at Actions should not wait on a
+  Changes-proposed fetch nobody asked for"). O número já existe e é
+  publicamente correto: o badge da sidebar.
+
+## Dois defeitos reais no mock, achados rodando — não lendo
+
+**O primeiro: a query string nunca chegava à busca por `state=`.**
+`_query_arguments()` (commit anterior, resgatado pelo líder) já fazia o
+parse certo, mas `MockPlane.__call__` construía `path` só a partir de
+`scope["path"]` — que o ASGI nunca inclui a query string, por especificação,
+exatamente como o próprio docstring da função já alertava. O resultado:
+`?state=expired`, `?state=pending` e `?state=decided` respondiam todos com o
+mesmo bucket default. Descoberto rodando `curl` direto contra um mock
+isolado (não lendo os dois métodos lado a lado) — `?state=expired` devolvia
+`apr-0001`, que é `state: "pending"`. Corrigido montando um `target` que
+inclui a query string só para o caminho que efetivamente busca o fixture,
+mantendo o `path` puro para o casamento de rota e para a contagem de
+requisições (`request_counts()` tem teste próprio que espera chaves sem
+query string).
+
+**O segundo, achado só depois do primeiro estar corrigido: uma escrita de
+sessão envenenava todo bucket que ainda não tinha a própria escrita.**
+`_lookup` (o caminho que responde ao cliente) cai de um "match exato" perdido
+para `written.written.get((slug, ""))` — um formato pensado para escritas
+de um bucket só, como `approval-rollback`. A listagem nova de aprovações tem
+três buckets (`state=pending`/`expired`/`decided`) sob o mesmo slug; o
+primeiro repropor ou descartar de uma sessão escrevia só nos buckets que
+tocava, e qualquer *outro* bucket sem escrita própria passava a responder
+com esse mesmo bucket em vez do seu. Sintoma visto na tela: depois de um
+repropor, `state=expired` devolvia a lista de pendentes (duplicada), e o
+"Decididas recentemente" mostrava itens com `verdict: ""`. Achado com um
+`process.stdout.write` temporário dentro de `ApprovalsTab` — e só depois de
+perceber que `python -m tools.console_e2e` serve `.next/standalone/server.js`
+pré-compilado, nunca um rebuild automático: a primeira tentativa de debug
+não mostrou nada porque testava contra um build de antes da própria linha
+de debug existir. `make console-build` rodado a cada mudança de
+`console/src/**` daqui em diante nesta sessão, sempre confirmado pelo log
+do build, nunca presumido. Corrigido dando a cada um dos quatro buckets sua
+própria escrita de sessão (mesmo quando o conteúdo não muda) sempre que
+qualquer um deles é tocado — fechando o fallback perigoso para este slug
+sem alterar o mecanismo genérico, que outros slugs (`approval-rollback`
+incluído) continuam usando como antes.
+
+**Achado de processo, não só de produto**: o primeiro teste de AN-08 escrito
+pela sessão anterior passava — mas pelo motivo errado. O bug do fallback
+tinha esvaziado o bucket `expired`, então `queue[0]` virava a pendente nova
+por acidente, não porque a reescrita da fila faz isso de propósito. Depois
+do reparo do fallback, a mesma asserção (`.first()` deve ser `pending`)
+passou a falhar honestamente: uma expirada nunca sai de `state=expired` só
+por ser reproposta (só descartar muda seu estado), e a fila sempre expande
+`queue[0]`, que é sempre uma expirada enquanto qualquer expirada existir.
+AN-08 foi reescrito para verificar a alegação real — a decisão nova fica
+visível na tela, por id, em qualquer das duas representações — em vez de
+uma posição que a própria tela nunca prometeu. AN-09 tinha o mesmo defeito
+de medição, por outro motivo: comparava o badge só contra aprovações
+pendentes, mas o badge soma aprovações e propostas de mudança pendentes por
+desenho documentado (`decisions.tsx`, decisão 6 do plano) — reescrito para
+somar as duas filas antes de comparar.
+
+## O dataset ganhou uma segunda expirada, com origem morta (T031, FR-016)
+
+`_EXPIRED_DEAD_ORIGIN` (`apr-0005`) — reproposta devolve `422` nomeado via
+um registro de fixture com correspondência exata no `approval_id` (o
+registro genérico de sucesso, sem `approval_id` nos argumentos, responde a
+qualquer outro id). Fica atrás na fila combinada (depois de `apr-0002`), por
+desenho: a expirada que os testes de aceite exercitam continua a mesma,
+sem depender da ordem de dois registros com o mesmo estado.
+
+## T032 — achado para quem for recapturar o registro visual
+
+`console/visual/screens.json` já tinha duas entradas para `/decisions`
+(`decisions-1440-light`, `decisions-changes-1440-light`), ambas
+`"status": "baselined"` contra o cartão antigo de 8 campos — a própria razão
+registrada em uma delas descreve o defeito que esta feature fecha ("the
+card grouped under 'Past its expiry' carries the same Approve control as
+the live one"). As duas precisam de nova razão e nova captura no merge, não
+só de aceitar a imagem nova.
+
+**Os dois artboards mostram só o estado expirado como cartão herói** —
+nenhum dos dois (`Decisions.dc.html`, `DecisionsLight.dc.html`) desenha uma
+pendente como o cartão grande. Isso bate exatamente com o dataset desta
+feature (a expirada sempre ocupa `queue[0]`) e não é coincidência forçada —
+é o que os dois artboards de fato pedem. Capturar um herói *pendente* de
+verdade exigiria um cenário sem nenhuma expirada, que hoje não existe; até
+lá, a proteção visual do estado pendente é
+`console/tests/unit/surfaces/decision-card.test.tsx` (`state: 'pending'`),
+não uma baseline de imagem.
+
+`make console-visual` (só leitura, nenhuma baseline gravada) rodado nesta
+sessão: 33 telas falham contra sua própria baseline, `decisions` e
+`decisions-changes` entre elas — mas a maioria das 33 (agent, incident,
+knowledge, resources, shell, run-detail…) não tem nada a ver com esta
+feature. É a dívida de baseline já conhecida da onda desde a
+000-fundacao-visual, não algo que esta sessão introduziu.
+
+## Chaves i18n novas — `en` aplicado, `pt-BR` proposto para o merge
+
+27 chaves novas em `console/src/i18n/en.ts` (regra 3 do `tasks.md`, exceção
+nomeada para esta feature — o tipo de chave derivado do `en` exige que a
+chave exista para ser referenciada). Nenhuma chave nova para os pills — o
+seletor de abas reusa `decisions.tabs`/`decisions.tab.actions`/
+`decisions.tab.changes`, já existentes antes desta feature.
+`console/tests/unit/i18n/catalogue.test.ts` está vermelho agora, nomeando
+exatamente essas 27 chaves como ausentes de `pt-BR.ts` — vermelho esperado
+até o merge aplicar as chaves (o relatório final ao orquestrador carrega a
+lista completa com o texto `pt-BR` proposto), não um defeito desta feature.
+
+## Ledger de critérios — atualizado
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T001-T021 | FEITO / Feito pelo líder / decisão nenhuma | ver seções acima |
+| T022 | FEITO (já existia, verificado) | `console/src/surfaces/proposal.tsx`, `approvals.tsx:190-214` |
+| T023 | FEITO | `expired-footer.tsx` — causa nomeada fechada nesta sessão |
+| T024 | FEITO (já existia, verificado) | `approvals.tsx:433-479` |
+| T025 | FEITO (já existia, verificado) | `shell/load.ts:134`; AN-09 corrigido, não o código |
+| T026 | FEITO | `decisions.tsx` (`DecisionsTabBar`); sem contagem ao vivo, decisão registrada |
+| T027 | FEITO (já existia, verificado) | `panel.tsx` + `labels.ts:27-34`; AN-13 passa contra `--scenario degraded` |
+| T028 | FEITO | `approvals.tsx:377-401` + `data-state` na linha colapsada |
+| T029 | FEITO | 27 chaves; lista `pt-BR` no relatório final |
+| T030 | FEITO | `mockplane contract`/`build` sem diff; `console-client-check` limpo |
+| T031 | FEITO | `_EXPIRED_DEAD_ORIGIN`, repropor/descartar simulados de ponta a ponta |
+| T032 | Encerrada sem fechar | achados acima; `screens.json` não é meu para editar |
+| T033 | FEITO | acceptance: 12 passed, 3 skipped (condição de dado), 0 failed |
+| T034 | FEITO | sintética: 267 passed, idêntico a T003 |
+| T035 | ver relatório final | `make verify` |
+| T036 | este documento + relatório final | |
