@@ -732,3 +732,173 @@ verifier julgar, não para o implementer resolver sozinho:
 
 **Estado da árvore**: limpo (`git status --short` vazio), HEAD em
 `4cb0e593`.
+
+## Reparo pós-verificação independente (FAIL), 2026-08-30
+
+Um verifier independente leu `RunConnection` e `DeploymentConnection` por
+inteiro e reprovou a feature nesse ponto: FR-008 dizia "reutilizado... não
+uma segunda implementação de reconexão", e o que existia eram duas classes
+com os mesmos onze campos privados e os mesmos dez métodos, corpo idêntico.
+A duplicação já tinha custo real e verificável: a correção do commit
+`7e583605` (contar tentativas via `onAttempt`, porque `onState` não
+renotifica uma falha que não muda o texto do estado) foi aplicada só na
+cópia de `deployment.ts`; `connection.ts` (antes deste reparo) carregava o
+mesmo defeito, dormente apenas porque nada lia `RunConnection.attempts` por
+push. Três itens fechados nesta sessão, escopo estritamente limitado ao que
+o verifier apontou — FR-006 e a discrepância da US3 **não** foram tocados,
+por instrução explícita.
+
+### Item 1 — motor compartilhado extraído
+
+`ReconnectingChannel<E>` (`console/src/live/connection.ts:177`) é agora o
+único lugar onde o backoff, o batching, a pausa por visibilidade e o limite
+de dez tentativas existem: `open`, `close`, `#tearDown`, `#setState`,
+`#connect`, `#received`, `#scheduleFlush`, `#flush`, `#failed`,
+`#visibilityChanged`, e os campos privados que os sustentavam — uma
+implementação, não duas.
+
+`RunConnection` (`console/src/live/connection.ts:424`) e
+`DeploymentConnection` (`console/src/live/deployment.ts:127`) são agora
+subclasses finas: cada uma só monta, no construtor, as quatro coisas que
+genuinamente diferem — endereço (uma função, relida a cada tentativa:
+`streamAddress(runId, cursor())` para o run, o path fixo
+`DEPLOYMENT_STREAM_ADDRESS` para o deployment), decodificação do frame
+(`eventFromFrame` vs. `deploymentEventFromFrame`), o atraso de batching
+(`0` para o run — aplica no próximo tick — vs. `DEPLOYMENT_REFRESH_BATCH_MS`
+para o deployment) e o par aditivo `isImmediate`/`onImmediate` que só o
+`resync` do canal de deployment usa — e chamam `super(...)`. Nada mais está
+nessas duas classes.
+
+**O gêmeo dormente**: `RunConnectionOptions` ganhou `onAttempt?`
+(`console/src/live/connection.ts:414`, mesma assinatura de
+`DeploymentConnectionOptions.onAttempt` em `console/src/live/deployment.ts:117`).
+`RunConnection` **ganha** o comportamento de renotificação a cada tentativa
+consecutiva — é exatamente o que faltava antes da extração, e agora existe
+porque as duas classes chamam o mesmo `#failed()`
+(`console/src/live/connection.ts:340-368`, `onAttempt` na linha 348).
+Decisão deliberada: **não** fiei esse hook em `store.ts`/`use-run.ts` nem no
+badge do run (`connection-state.tsx`) — o badge mostra uma palavra por
+estado (`connecting`/`connected`/.../`disconnected`), nunca uma contagem de
+tentativas, e nenhum FR desta feature pede que ele passe a distinguir a
+terceira tentativa da primeira. Fiar isso seria inventar uma mudança de UI
+que esta spec não pede; o que a extração garante é que, se uma spec futura
+quiser exatamente isso, o hook já existe e funciona de forma idêntica nas
+duas classes — provado pelo pin novo em `connection.test.ts` (Item 2).
+
+**Prova de que a extração não mudou comportamento**: as suítes de unidade
+existentes — `connection.test.ts`, `deployment.test.ts`, e as que dependem
+delas via store/hook (`store.test.ts`, `live-run.test.tsx`, `edges.test.tsx`,
+`routes.test.ts`, `auto-refresh.test.tsx`) — passaram sem que uma linha
+delas fosse tocada, *antes* de eu adicionar qualquer teste novo:
+`pnpm exec vitest run tests/unit/live/` → **170/170**, exit 0. Consumidores
+verificados por `git grep -l 'RunConnection\|DeploymentConnection\|ReconnectingChannel'`
+em `console/src` e `console/tests`: `store.ts`, `connection-state.tsx` (via
+tipos), `auto-refresh.tsx`, `use-run.ts` (via `store.ts`) — todos verdes em
+`tsc --noEmit` e na suíte de unidade completa depois da extração, nenhum
+mudou sua própria interface pública.
+
+### Item 2 — dois pins de regressão, vermelho provado à mão
+
+1. **`console/tests/unit/live/deployment.test.ts:235`** — "notifies
+   onAttempt on every consecutive failure, even while the state stays
+   reconnecting". Vermelho provado comentando
+   `this.#options.onAttempt?.(this.#attempts);`
+   (`console/src/live/connection.ts:348`) e rodando
+   `pnpm exec vitest run tests/unit/live/connection.test.ts
+   tests/unit/live/deployment.test.ts tests/unit/live/auto-refresh.test.tsx`
+   → **exit 1**, os três testes novos (este, o de `connection.test.ts` e o
+   de `auto-refresh.test.tsx`) falharam: `expected [] to deeply equal
+   [ 1, 2, 3 ]` nos dois de conexão, `expected 'refreshing' to be 'stale'`
+   no de auto-refresh — os outros 43 continuaram verdes. Linha restaurada,
+   os três voltaram a verde.
+2. **`console/tests/unit/live/auto-refresh.test.tsx:294`** — "marks the
+   chip stale once attempts cross STALE_AFTER_FAILURES, not merely
+   refreshing". Vermelho provado isoladamente, sem tocar o motor: troquei
+   `return attempts >= STALE_AFTER_FAILURES ? 'stale' : 'refreshing';` de
+   `freshnessFromConnection` (`console/src/live/auto-refresh.tsx:82`) por um
+   `return 'refreshing';` incondicional e rodei só esse arquivo → **exit 1**,
+   exatamente esse teste falhou (`expected 'refreshing' to be 'stale'`), os
+   outros doze passaram. Linha restaurada.
+
+Bônus não pedido, decorrente do Item 1: **`console/tests/unit/live/connection.test.ts:262`**
+ganhou o mesmo pin do lado de `RunConnection` — "notifies onAttempt on every
+consecutive failure, even one that leaves the state unchanged" — provado
+vermelho pelo mesmo revert do motor (item 1 da lista acima, já que depois da
+extração os dois pins de `onAttempt` dependem do mesmo `#failed()`).
+
+Cobertura, comando do verifier reexecutado: `pnpm exec vitest run --coverage
+tests/unit/live/` → exit 1, mas só pelo piso global de 85% não sendo
+atingido ao rodar uma fatia do `src/` (173/173 testes passaram; qualquer
+corte parcial do `include` do `vitest.config.ts` reprova esse piso do mesmo
+jeito). O que importa é `coverage/lcov.info` para
+`src/live/auto-refresh.tsx`, linha 82: antes do reparo (achado do
+verifier) `BRDA:82,1,0,0` — branch `stale`, zero hits; depois,
+`BRDA:82,1,0,1` (um hit, o do pin novo) e `BRDA:82,1,1,17` (branch
+`refreshing`, catorze hits antes, dezessete agora pelas iterações do pin).
+
+### Item 3 — SC-001 no limite que o critério afirma
+
+`console/tests/e2e/canal-vivo.acceptance.spec.ts:109`: o timeout do
+`.poll()` de US1 caiu de `10_000` para `5_000` — o número literal de
+SC-001, não um número maior escolhido por conveniência. Rodado três vezes
+seguidas contra `--backing mock` (cada rodada precedida, quando havia
+mudança em `src/`, de `console_gate build`): US1 fechou em **1.2s** nas três
+rodadas — margem de quase 4s para o teto de 5s, não uma borda apertada. US2
+e US3, com seus próprios bounds de 30s (inalterados), continuaram passando.
+`5_000` é alcançável de forma confiável neste harness; não alarguei nada, e
+`spec.md` não foi tocado.
+
+### Gates
+
+```
+pnpm exec vitest run tests/unit/live/
+→ exit 0, 10 test files, 173 passed (era 170 antes dos três pins novos)
+
+pnpm exec vitest run --coverage tests/unit/live/
+→ exit 1 (só o piso global de 85%, esperado ao rodar uma fatia; 173/173 testes passaram)
+→ coverage/lcov.info: src/live/auto-refresh.tsx BRDA:82,1,0,1 e BRDA:82,1,1,17
+
+uv run python -m tools.console_gate typecheck   → exit 0 (tsc --noEmit)
+uv run python -m tools.console_gate lint        → exit 0 (eslint . && check-css-literals.mjs)
+
+pnpm exec prettier --check <os seis arquivos tocados>
+→ 1ª rodada: exit 1 (auto-refresh.test.tsx desformatado pelo import novo,
+  quatro nomes numa linha que passou do limite)
+→ prettier --write só nesse arquivo; 2ª rodada: exit 0
+
+uv run python -m tools.console_gate build       → exit 0
+uv run python -m tools.console_e2e run --backing mock -- canal-vivo.acceptance.spec.ts
+→ exit 0, 3 passed, três vezes seguidas (9.8–9.9s cada rodada; US1 sempre 1.2s)
+```
+
+`make verify` não foi rodado (é do orquestrador). A suíte e2e completa do
+projeto `behaviour` (as outras specs) não foi rodada — fora do escopo deste
+reparo, que toca só `canal-vivo.acceptance.spec.ts`.
+
+### O que fica pendente, nomeado, não escondido
+
+- **FR-006** (gap do `interaction_id`) e **a discrepância não explicada da
+  US3** (achado do quarto corte, seção acima) — ambos fora do escopo deste
+  reparo por instrução explícita de quem o pediu; permanecem exatamente como
+  o verifier os descreveu, para a ata de confronto da onda.
+- Nenhuma chave i18n nova; nenhum arquivo de propriedade de outra feature do
+  slot tocado (`console/src/i18n/*`, `console/src/shell/routes.ts`,
+  `console/visual/screens.json` — confirmado por `git status --short`
+  limitado a `console/` e a este diretório de feature antes de cada commit).
+- `RunConnection.onAttempt` não tem consumidor de produção — só o pin de
+  teste em `connection.test.ts:262` o exercita. Se isso deve mudar é uma
+  decisão de uma spec futura sobre o badge do run, não deste reparo.
+- Nenhum item de `tasks.md` foi marcado por este reparo: T070 (Fase 7) já
+  estava fechado dizendo que FR-006/FR-008 ficavam "para o verifier
+  julgar" — o verifier julgou, e este reparo responde ao julgamento sem
+  reabrir uma tarefa que não previa este trabalho especificamente.
+
+**Estado da árvore após o reparo**: seis arquivos modificados
+(`console/src/live/connection.ts`, `console/src/live/deployment.ts`,
+`console/tests/unit/live/connection.test.ts`,
+`console/tests/unit/live/deployment.test.ts`,
+`console/tests/unit/live/auto-refresh.test.tsx`,
+`console/tests/e2e/canal-vivo.acceptance.spec.ts`), mais este arquivo de
+controle. `specs_v8/progress.json` (modificado) e
+`specs_v8/*/evidence/` (não rastreados) são de outra sessão e não foram
+tocados aqui.
