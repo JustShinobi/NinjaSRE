@@ -30,12 +30,17 @@ import asyncio
 import contextlib
 import json
 import socket
+import time
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, MutableMapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
 from config.constants.fixtures import (
+    MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS,
+    MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
+    MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
     MOCK_SERVER_DEFAULT_PORT,
     MOCK_STREAM_EVENTS_PER_SECOND,
 )
@@ -88,6 +93,47 @@ CONTROL_PATH_PREFIX: Final = "/__mockplane__"
 #: that goes up between two reads is a request that happened.
 REQUEST_COUNTS_PATH: Final = f"{CONTROL_PATH_PREFIX}/requests"
 
+#: A second control route, `POST`-only: disrupt the caller's own deployment
+#: channel for `DEPLOYMENT_STREAM_DISRUPTION_SECONDS`. Exists because a real
+#: browser test cannot otherwise force a disconnect on a connection that is
+#: already open — `page.route()` only ever governs a request made *after* it
+#: is registered, and this channel's one long-lived `fetch()` does not make a
+#: new one while it is healthy; network-level emulation (`context.setOffline`)
+#: was tried against this same mock and did not sever the already-established
+#: response either. Scoped to the deployment channel specifically, not the
+#: per-run stream, which already has `StreamControl.disconnect_after` for the
+#: same purpose at the unit-test level — this is the live-server equivalent,
+#: for the one caller that cannot reach a `MockPlane` instance directly.
+#:
+#: A time window, not a count of connections: a caller such as this feature's
+#: own acceptance spec routinely has more than one page open in the same
+#: browser context, and every one of them shares this mock's one session
+#: (nothing in the console ever sends `SESSION_HEADER`). A page already
+#: closed by the test does not necessarily stop polling on the *mock's* side
+#: the moment it closes — `_serve_deployment_stream`'s own docstring names
+#: why: this ASGI shell is never handed `receive`, so it has no
+#: transport-level signal that a client went away, and keeps its loop running
+#: until its own `MOCK_DEPLOYMENT_STREAM_MAX_SECONDS` bound regardless. A
+#: counter of "how many disruptions are left" decremented by whichever of
+#: several such loops happens to poll first is a race a closed-but-not-yet-
+#: reaped page can win, spending a disruption meant for the page under test —
+#: found by running this exact scenario and watching the connection under
+#: test recover without ever having been the one disrupted. A wall-clock
+#: window has no such race: every loop that checks it, however many there
+#: are, agrees on the same answer.
+DROP_DEPLOYMENT_STREAM_PATH: Final = f"{CONTROL_PATH_PREFIX}/drop-deployment-stream"
+
+#: How long `DROP_DEPLOYMENT_STREAM_PATH` disrupts the caller's deployment
+#: channel — closing it if one happens to be open, refusing outright
+#: otherwise. Long enough that the console's own backoff table produces at
+#: least three consecutive failed attempts before the window closes (the
+#: first three entries of `BACKOFF_MS`, `console/src/live/connection.ts`, sum
+#: to 1.5s), which is what crosses `STALE_AFTER_FAILURES`
+#: (`console/src/live/freshness.ts`) before recovery — and short enough that
+#: a test's own 30-second timeout comfortably covers both the disruption and
+#: the recovery that follows it.
+DEPLOYMENT_STREAM_DISRUPTION_SECONDS: Final = 3.0
+
 #: How many events the stream emits before it drops the connection, when a
 #: caller asks it to drop one. Far enough in that a reducer has state to lose.
 DEFAULT_DISCONNECT_AFTER: Final = 5
@@ -139,15 +185,35 @@ def no_outbound_network() -> Iterator[None]:
         socket.create_connection = original_create
 
 
+#: The epoch every mock process's deployment stream reports itself as. A fixed
+#: string rather than one generated at start-up: the real gateway's epoch
+#: changes across process restarts and a reconnecting client is expected to
+#: notice, but the mock never restarts mid-scenario, and a fixed epoch is one
+#: a fixture or a test can name without reading it back first.
+DEPLOYMENT_STREAM_EPOCH: Final = "mockplane"
+
+
 @dataclass(slots=True)
 class Session:
     """One client's writes, on top of the scenario's records."""
 
     written: dict[tuple[str, str], CapturedRecord] = field(default_factory=dict)
+    #: The deployment-scoped channel's events this session has published,
+    #: oldest first. Session-scoped rather than shared across sessions for the
+    #: same reason `written` is: a test's writes must not leak into another
+    #: test's mock, and a session that reset must start this empty too.
+    deployment_events: list[dict[str, Any]] = field(default_factory=list)
+    #: Set by `DROP_DEPLOYMENT_STREAM_PATH` to `time.monotonic()` plus
+    #: `DEPLOYMENT_STREAM_DISRUPTION_SECONDS`; `None` the rest of the time.
+    #: Read, never decremented — see `DROP_DEPLOYMENT_STREAM_PATH`'s own
+    #: docstring for why a wall-clock deadline is what this is, not a count.
+    deployment_stream_disrupted_until: float | None = None
 
     def clear(self) -> None:
         """Forget everything this session wrote."""
         self.written.clear()
+        self.deployment_events.clear()
+        self.deployment_stream_disrupted_until = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,6 +388,41 @@ class MockPlane:
             if isinstance(event, dict) and int(event.get("sequence", -1)) > after
         )
 
+    def deployment_events_for(self, session: str, *, after: int = -1) -> tuple[dict[str, Any], ...]:
+        """Return this session's deployment-channel events, resuming after a sequence number.
+
+        Session-scoped, unlike `events_for`: the deployment channel has no
+        fixture recording to replay — every event on it exists because
+        `_publish_deployment_event` put it there, in reaction to a write this
+        session made, and a session that never wrote sees nothing here.
+        """
+        return tuple(
+            event
+            for event in self.session(session).deployment_events
+            if int(event.get("sequence", -1)) > after
+        )
+
+    def _publish_deployment_event(
+        self, session: str, *, scope: str, kind: str, payload: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Append one deployment-channel event to ``session`` and return it.
+
+        The allowlist FR-002 declares for the real channel is not re-enforced
+        here: this is a fixture-authoring seam, not the contract under test —
+        `tests/contract/gateway/test_deployment_stream.py` holds the real
+        broker to that allowlist directly.
+        """
+        events = self.session(session).deployment_events
+        event = {
+            "scope": scope,
+            "kind": kind,
+            "sequence": len(events) + 1,
+            "occurred_at": datetime.now(UTC).isoformat(),
+            "payload": dict(payload),
+        }
+        events.append(event)
+        return event
+
     # --- The ASGI shell -------------------------------------------------------
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -345,7 +446,16 @@ class MockPlane:
 
         resolved = match_request(method, path)
         if resolved is not None and resolved[0].streaming:
-            await self._serve_stream(resolved[0], resolved[1], headers, send)
+            # The deployment channel is not scoped by a run_id, carries
+            # several scopes' events and uses an epoch:sequence cursor
+            # instead of `_serve_stream`'s plain integer — declaring it
+            # streaming in the catalogue is not sufficient on its own, so it
+            # gets its own serving path rather than falling into the one
+            # built for a single run's canned replay.
+            if resolved[0].slug == "deployment-stream":
+                await self._serve_deployment_stream(resolved[0], headers, session, send)
+            else:
+                await self._serve_stream(resolved[0], resolved[1], headers, send)
             return
 
         payload = await self._read_body(receive)
@@ -391,6 +501,18 @@ class MockPlane:
                 }
             )
             await send({"type": "http.response.body", "body": body})
+            return
+        if method == "POST" and path == DROP_DEPLOYMENT_STREAM_PATH:
+            disrupted_until = time.monotonic() + DEPLOYMENT_STREAM_DISRUPTION_SECONDS
+            self.session(session).deployment_stream_disrupted_until = disrupted_until
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 204,
+                    "headers": [],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
             return
         await send(
             {
@@ -467,6 +589,147 @@ class MockPlane:
             if delay:
                 await asyncio.sleep(delay)
 
+    async def _serve_deployment_stream(
+        self,
+        endpoint: ConsoleEndpoint,
+        headers: Mapping[str, str],
+        session: str,
+        send: Send,
+        *,
+        max_seconds: float = MOCK_DEPLOYMENT_STREAM_MAX_SECONDS,
+        poll_seconds: float = MOCK_DEPLOYMENT_STREAM_POLL_SECONDS,
+        keepalive_seconds: float = MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS,
+    ) -> None:
+        """Serve the deployment-wide channel: no run_id, several scopes, a live poll.
+
+        Genuinely live, unlike `_serve_stream`'s canned replay: a write this
+        same session makes through `answer` while the connection is open —
+        `_apply_write`'s `investigation-start` case, for one — reaches this
+        generator on its next poll, which is what lets an acceptance spec
+        start an investigation through the UI on one page and see the
+        deployment channel carry it to another. Bounded by
+        `MOCK_DEPLOYMENT_STREAM_MAX_SECONDS` because this ASGI shell is never
+        handed `receive`, so it has no transport-level signal that the client
+        went away — see that constant's own docstring.
+
+        Sends a keep-alive comment every `keepalive_seconds` while quiet, for
+        the reason that constant's own docstring gives: a real ASGI server
+        driving this (`python -m tools.mockplane serve`, which is what the
+        e2e harness this feature's acceptance spec runs against actually
+        uses — unlike this module's own unit tests, which call this method
+        directly and never exercise the gap) does not necessarily flush
+        `http.response.start` to the socket before the first body chunk
+        follows. A connection with nothing to report for the length of this
+        method's own `max_seconds` bound would otherwise never be observed
+        as open at all — found by running this feature's acceptance spec
+        for real and watching `fetch()` never resolve.
+        """
+        live = self.session(session)
+        if live.deployment_stream_disrupted_until is not None:
+            if time.monotonic() < live.deployment_stream_disrupted_until:
+                # A connection that has not even opened yet: refused outright,
+                # the same shape a real deployment being unreachable takes
+                # (`fetchStreamSource`'s own `!response.ok` branch), rather
+                # than a 200 that then ends immediately — this is what makes
+                # a *reconnection* attempt fail, not only the stream that was
+                # already open when the disruption was requested.
+                refusal_body = dumps({"streaming": False}).encode()
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 502,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
+                )
+                await send({"type": "http.response.body", "body": refusal_body})
+                return
+            live.deployment_stream_disrupted_until = None
+
+        epoch, after = _deployment_cursor_of(headers.get("last-event-id", ""))
+        override = self._data.scenario.override_for(endpoint.slug)
+        if override is not None and override.status is not None:
+            body = self._problem_body(override.status, endpoint)
+            encoded = dumps(body).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": override.status,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send({"type": "http.response.body", "body": encoded})
+            return
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    (b"content-type", b"text/event-stream"),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+
+        if epoch != "" and epoch != DEPLOYMENT_STREAM_EPOCH:
+            # A cursor from a foreign epoch: the same confession the real
+            # broker makes, and nothing this mock can honestly replay past.
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": _deployment_sse_frame({"kind": "resync", "sequence": 0, "payload": {}}),
+                    "more_body": True,
+                }
+            )
+            after = -1
+
+        emitted = 0
+        deadline = time.monotonic() + max_seconds
+        last_sent = time.monotonic()
+        # A frame goes out immediately, once, before the first wait — the fix
+        # for the gap this whole method's own docstring names: without this,
+        # a session with nothing queued yet sends nothing at all until the
+        # first keep-alive interval elapses, and some ASGI servers hold
+        # `http.response.start` back until it does.
+        await send({"type": "http.response.body", "body": b": open\n\n", "more_body": True})
+        while time.monotonic() < deadline:
+            if (
+                live.deployment_stream_disrupted_until is not None
+                and time.monotonic() < live.deployment_stream_disrupted_until
+            ):
+                # Ends *this* response and lets the client's own retry open a
+                # new one, which the check at the top of this method handles
+                # for as long as the window stays open — not a one-shot flag,
+                # so a second, third, ... connection this session happens to
+                # have open when the window starts all see the same answer.
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+                return
+            delivered = False
+            for event in self.deployment_events_for(session, after=after):
+                if self._stream.disconnect_after and emitted >= self._stream.disconnect_after:
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    return
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": _deployment_sse_frame(event),
+                        "more_body": True,
+                    }
+                )
+                after = int(event["sequence"])
+                emitted += 1
+                delivered = True
+            now = time.monotonic()
+            if delivered:
+                last_sent = now
+            elif now - last_sent >= keepalive_seconds:
+                await send(
+                    {"type": "http.response.body", "body": b": heartbeat\n\n", "more_body": True}
+                )
+                last_sent = now
+            await asyncio.sleep(poll_seconds)
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
     # --- Internals ------------------------------------------------------------
 
     def _lookup(
@@ -510,6 +773,11 @@ class MockPlane:
             case "investigation-start":
                 started = answer.body if isinstance(answer.body, Mapping) else {}
                 amend("runs", {}, lambda document: _prepend(document, "runs", dict(started)))
+                run_id = str(started.get("run_id", ""))
+                if run_id:
+                    self._publish_deployment_event(
+                        session, scope="run", kind="run_started", payload={"run_id": run_id}
+                    )
             case "investigation-cancel":
                 run_id = arguments.get("run_id", "")
                 amend(
@@ -623,6 +891,37 @@ def _sequence_of(cursor: str) -> int:
         return -1
 
 
+def _deployment_sse_frame(event: Mapping[str, Any]) -> bytes:
+    """Return one deployment-channel event as an ``id``/``event``/``data`` frame.
+
+    ``id`` is ``epoch:sequence`` — always this mock's own fixed epoch, never
+    a run id, because the deployment channel has no single run every frame is
+    a position within.
+    """
+    payload = json.dumps(event, separators=(",", ":"), sort_keys=True)
+    return (
+        f"id: {DEPLOYMENT_STREAM_EPOCH}:{event.get('sequence', 0)}\n"
+        f"event: {event.get('kind', '')}\n"
+        f"data: {payload}\n\n"
+    ).encode()
+
+
+def _deployment_cursor_of(cursor: str) -> tuple[str, int]:
+    """Return the ``(epoch, sequence)`` a ``Last-Event-ID`` header spells.
+
+    ``("", -1)`` for an absent or unparsable header, which a first connection
+    presents no cursor at all and reads the same way a malformed one does:
+    nothing to resume from.
+    """
+    epoch, separator, raw = cursor.rpartition(":")
+    if not separator or not epoch:
+        return "", -1
+    try:
+        return epoch, int(raw)
+    except ValueError:
+        return "", -1
+
+
 def _emptied(body: Any, endpoint: ConsoleEndpoint) -> Any:
     """Return ``body`` with its records removed and its shape kept."""
     if not isinstance(body, Mapping):
@@ -710,6 +1009,9 @@ __all__ = [
     "CONTROL_PATH_PREFIX",
     "DEFAULT_DISCONNECT_AFTER",
     "DEFAULT_SESSION",
+    "DEPLOYMENT_STREAM_DISRUPTION_SECONDS",
+    "DEPLOYMENT_STREAM_EPOCH",
+    "DROP_DEPLOYMENT_STREAM_PATH",
     "REQUEST_COUNTS_PATH",
     "SESSION_HEADER",
     "Answer",

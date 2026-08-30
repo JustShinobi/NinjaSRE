@@ -182,7 +182,9 @@ def test_a_path_nothing_serves_resolves_to_nothing() -> None:
     assert match_request("GET", "/v1/nothing-here") is None
 
 
-def test_the_streaming_endpoint_is_marked_as_one() -> None:
+def test_the_streaming_endpoints_are_marked_as_one() -> None:
     streaming = [endpoint for endpoint in CONSOLE_ENDPOINTS if endpoint.streaming]
-    assert [endpoint.path for endpoint in streaming] == ["/v1/investigations/{run_id}/stream"]
-    assert streaming[0].source is EndpointSource.GATEWAY
+    assert sorted(endpoint.path for endpoint in streaming) == sorted(
+        ["/v1/investigations/{run_id}/stream", "/v1/events/stream"]
+    )
+    assert all(endpoint.source is EndpointSource.GATEWAY for endpoint in streaming)

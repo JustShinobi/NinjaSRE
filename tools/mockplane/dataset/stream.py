@@ -115,4 +115,36 @@ def stream_records(
     )
 
 
-__all__ = ["LIVE_RUN", "LONG_STREAM", "SHORT_STREAM", "stream_records"]
+def deployment_stream_records() -> tuple[CapturedRecord, ...]:
+    """Return the coverage placeholder for the deployment-wide channel.
+
+    Unlike ``run-stream`` above, ``tools.mockplane.server.MockPlane`` never
+    actually reads this record: the deployment channel is session-scoped —
+    every event on it exists because a write during that same session put it
+    there (``MockPlane._publish_deployment_event``), and nothing in a fixture
+    file could describe a session that has not happened yet. This exists
+    only so the endpoint the console consumes has a record at all — the
+    coverage suite (`tests/contract/fixtures/test_dataset_contract.py`)
+    requires one for every declared `ConsoleEndpoint`, streaming or not —
+    and it is honest about carrying nothing: a fresh connection to a fresh
+    session sees no backlog either, in the real deployment and here alike.
+    """
+    return (
+        CapturedRecord(
+            slug="deployment-stream",
+            arguments={},
+            status=200,
+            body={"events": []},
+            provenance=Provenance.GATEWAY,
+            request=Request(method="GET", path="/v1/events/stream"),
+        ),
+    )
+
+
+__all__ = [
+    "LIVE_RUN",
+    "LONG_STREAM",
+    "SHORT_STREAM",
+    "deployment_stream_records",
+    "stream_records",
+]

@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "events": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "/v1/events/stream",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "deployment-stream"
+}
