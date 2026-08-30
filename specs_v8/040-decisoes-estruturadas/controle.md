@@ -214,3 +214,26 @@ esta onda já achou duas vezes. Corrigido para o seletor real
 | T005 acceptance vermelho | FEITO | `console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts` — 8 failed, 6 skipped, 1 passed (AN-14, honesto — nenhuma chave nova referenciada ainda), EXIT=1 |
 
 *(preenchido incrementalmente conforme as fases avançam — ver commits)*
+
+## T006-T011, T014 — contratos pytest, vermelhos com mensagem real (exceto T014)
+
+Todos em `tests/unit/gateway/http/`, seguindo o padrão de fixtures de
+`test_approval_execution.py` (`deployment`/`client`/`issue_token`, um
+`RemediationDesk` composto por `compose_remediation`, aprovação enfileirada
+via `desk.requests.queue(...)` — nunca `RemediationGate.decide()`).
+
+| Arquivo | Tarefas | Resultado antes da implementação |
+|---|---|---|
+| `test_approvals_field_contract.py` | T006, T007 | 6 failed, 1 passed — `assert not missing` acusa os 15 campos novos ausentes; `KeyError: 'title'` na comparação lista×detalhe |
+| `test_approvals_repropose.py` | T008 | 5 failed — todo POST `/repropose` devolve `404 Not Found` (rota não existe) |
+| `test_approvals_discard.py` | T009 | 2 failed — todo POST `/discard` devolve `404 Not Found` |
+| `test_approval_title_and_risk.py` | T010, T011 | `ImportError: cannot import name '_risk_of' from 'gateway.http.routes.approvals'` — nem a função existe ainda |
+| `test_approval_interaction_decision_unaffected.py` | T014 | **2 passed** — caracterização confirmada verde na linha de base, antes de qualquer edição. Precisou semear um `AgentRun` de verdade (`uow.run_traces.start_run`) além da entrada no `FakeInvestigationRunner`, porque `gateway/http/routes/tenancy.py::visible` checa o time do run contra o do chamador — sem isso a rota devolvia 404 por "não visível", não pela ausência de mecanismo. |
+
+`test_state_expired_returns_only_truly_lapsed_rows` e o teste de descarte
+usam `uow.approvals.expire_due(<relógio bem no futuro>)` diretamente — o
+mesmo mecanismo que T015 vai chamar dentro de `list_approvals` — para
+produzir uma linha genuinamente expirada, em vez de mexer no estado interno
+do fake (que o próprio docstring de `FakePersistence.state` desaconselha:
+"Writing through this bypasses the transaction machinery").
+

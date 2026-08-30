@@ -91,27 +91,27 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       vermelho e registrar a mensagem real de cada alegação.
       Feito — 8 failed, 6 skipped, 1 passed, EXIT=1; mensagens reais em
       `controle.md`.
-- [ ] T006 [P] Contrato pytest da listagem: `GET /v1/approvals` devolve, por
+- [x] T006 [P] Contrato pytest da listagem: `GET /v1/approvals` devolve, por
       decisão, cada campo do shape do plano (nomes literais), com ausência
       declarada e nunca chave omitida; `state=pending` (default) exclui
       expiradas e decididas; `state=expired` devolve somente expiradas;
       `state=decided` devolve approved/rejected/discarded mais recentes
       primeiro com `decided_by`/`verdict`. Confirmar vermelho.
-- [ ] T007 [P] Contrato pytest do detalhe: `GET /v1/approvals/{id}` carrega o
+- [x] T007 [P] Contrato pytest do detalhe: `GET /v1/approvals/{id}` carrega o
       mesmo shape mais `raw` com o documento integral; o `title` do detalhe é
       idêntico ao da listagem para o mesmo id. Confirmar vermelho.
-- [ ] T008 [P] Contrato pytest da re-proposta: em expirada → `201` com
+- [x] T008 [P] Contrato pytest da re-proposta: em expirada → `201` com
       pendente nova ligada à origem; segunda chamada → `409` devolvendo a
       mesma pendente; origem irrecuperável → `422` com causa nomeada; em
       pendente → recusa. Confirmar vermelho (a rota não existe).
-- [ ] T009 [P] Contrato pytest do descarte: expirada → `discarded` com autor
+- [x] T009 [P] Contrato pytest do descarte: expirada → `discarded` com autor
       registrado, some de `state=pending`, aparece em `state=decided`;
       contagem de linhas da tabela inalterada. Confirmar vermelho.
-- [ ] T010 [P] Unidade pytest da derivação de título: capacidade+alvo →
+- [x] T010 [P] Unidade pytest da derivação de título: capacidade+alvo →
       sentença; sem verbo conhecido → `summary`; nunca string vazia, nunca o
       nome cru da capacidade, nunca id. Casos: o payload real do staging
       (fato 2 da spec) e um documento mínimo. Confirmar vermelho.
-- [ ] T011 [P] Unidade pytest do score: a tabela do plano (base por
+- [x] T011 [P] Unidade pytest do score: a tabela do plano (base por
       `side_effect_level`, +1 por raio, teto 5) — incluindo o caso real do
       staging (escrita reversível, `depth:3` → 3). Confirmar vermelho.
 - [ ] T012 [P] Unidade vitest do cartão: pendente renderiza as seis seções
@@ -124,7 +124,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       cobriria. Confirmar vermelho.
 - [ ] T013 [P] Unidade vitest do badge: só pendentes não expiradas contam;
       expirada sozinha → zero/ausente. Confirmar vermelho.
-- [ ] T014 [P] Caracterização (deve passar antes e depois): decidir por
+- [x] T014 [P] Caracterização (deve passar antes e depois): decidir por
       `POST /v1/interactions/{id}/approve|reject` continua com o
       comportamento atual — a feature não muda o mecanismo de decidir.
 
