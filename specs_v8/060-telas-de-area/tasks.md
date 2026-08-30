@@ -153,17 +153,17 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 4: Recursos — US2 (depende da Phase 2)
 
-- [ ] T017 [P] [US2] Reescrever
+- [x] T017 [P] [US2] Reescrever
       `console/src/surfaces/screens/resources.tsx` conforme
       `Resources.dc.html`: barra de saúde segmentada + legenda clicável com
       filtro na URL; busca compacta; chips de tipo com contagem; seções por
       `node` (não saudáveis primeiro, "sem nó declarado" para placement
       desconhecido); grade de cards com ícone por tipo, forma de estado,
       visto-por-último e duração do não-saudável (`unhealthy_since`).
-- [ ] T018 [US2] Síntese dos não saudáveis (função pura de T009e) acima das
+- [x] T018 [US2] Síntese dos não saudáveis (função pura de T009e) acima das
       seções, com "investigar em lote →" pré-preenchendo o objetivo "O que
       derrubou N <tipo> em <nó> desde <hora>?" no fluxo de investigar atual.
-- [ ] T019 [US2] Mover o aviso de zona/criticidade para o cartão âmbar do
+- [x] T019 [US2] Mover o aviso de zona/criticidade para o cartão âmbar do
       rodapé, presente só sem declaração alguma; declarar chaves i18n e
       variantes de captura no relatório.
 
