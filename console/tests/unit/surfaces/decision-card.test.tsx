@@ -95,7 +95,9 @@ describe('a pending, unexpired decision', () => {
 
     const steps = screen.getAllByTestId('decision-step');
     expect(steps).toHaveLength(1);
-    expect(within(steps[0]!).getByTestId('step-ordinal')).toHaveTextContent('1');
+    const [step] = steps;
+    if (step === undefined) throw new Error('expected a rendered step');
+    expect(within(step).getByTestId('step-ordinal')).toHaveTextContent('1');
 
     const rollback = screen.getAllByTestId('rollback-step');
     expect(rollback).toHaveLength(1);
@@ -110,7 +112,7 @@ describe('a pending, unexpired decision', () => {
 
     const withoutDetails = container.cloneNode(true) as HTMLElement;
     withoutDetails.querySelector('[data-testid="raw-payload"]')?.remove();
-    expect(withoutDetails.textContent ?? '').not.toContain('{"');
+    expect(withoutDetails.textContent).not.toContain('{"');
   });
 
   it('composes DecisionControls, unedited, when an open interaction is given', () => {

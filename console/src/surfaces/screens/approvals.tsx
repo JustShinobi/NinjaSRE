@@ -383,6 +383,7 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
                   key={id}
                   data-testid="decision-row-collapsed"
                   data-approval={id}
+                  data-state={state}
                   className="flex items-center gap-3 px-4 py-2 rounded-2 edge border-border bg-raised"
                 >
                   <span className="text-small min-w-0 truncate">{text(record, 'title')}</span>

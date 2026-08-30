@@ -30,6 +30,13 @@ test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL ?? 'http://127.0.0.1:8423');
 });
 
+/** A named string field of an unknown JSON body, or empty — never `[object Object]`. */
+function stringField(body: unknown, key: string): string {
+  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const found = record[key];
+  return typeof found === 'string' ? found : '';
+}
+
 function cards(page: Page): Locator {
   return page.getByTestId('decision-card');
 }
@@ -90,7 +97,7 @@ test.describe('AN-02 — nothing on the page reads as raw JSON while every <deta
       const openDetails = page.locator('details[open]');
       expect(await openDetails.count()).toBe(0);
 
-      const bodyText = (await page.locator('body').innerText()) ?? '';
+      const bodyText = await page.locator('body').innerText();
       expect(bodyText).not.toContain('{"');
     },
   );
@@ -223,7 +230,7 @@ test.describe('AN-07 — an expired decision offers "Propose again, now" and "Di
 
 test.describe('AN-08 — "Propose again, now" produces a new pending decision, on the same page', () => {
   test(
-    'reproposing the expired card replaces it with a fresh pending one, without a manual navigation',
+    'reproposing the expired card produces a fresh pending decision, visible on the same page without a manual navigation',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       const card = await cardInState(page, 'expired');
@@ -233,15 +240,34 @@ test.describe('AN-08 — "Propose again, now" produces a new pending decision, o
       }
       const originalId = await card.getAttribute('data-approval');
 
-      await card.getByTestId('repropose').click();
-
-      await expect(page.getByTestId('decision-card').first()).toHaveAttribute(
-        'data-state',
-        'pending',
-      );
-      const newId = await page.getByTestId('decision-card').first().getAttribute('data-approval');
-      expect(newId).not.toBe(originalId);
+      // The origin is never removed from `state=expired` by a repropose —
+      // only `discard` changes its own state (FR-018) — and `approvals.tsx`
+      // only ever expands `queue[0]`, oldest-and-most-urgent first, so an
+      // origin card can stay the page's expanded one after this click. What
+      // AN-08 actually claims is that the new decision is visible on the
+      // page, not that it displaces the origin's position — asserting the
+      // first `decision-card` here would fail in every environment that has
+      // any expired decision at all, which the origin itself still is.
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (res) => res.url().includes('/api/approval') && res.request().method() === 'POST',
+        ),
+        card.getByTestId('repropose').click(),
+      ]);
+      expect(response.ok()).toBe(true);
+      const body: unknown = await response.json();
+      const newId = stringField(body, 'approval_id');
       expect(newId).not.toBe('');
+      expect(newId).not.toBe(originalId);
+      expect(stringField(body, 'state')).toBe('pending');
+
+      // `router.refresh()` re-renders the server tree; the new decision
+      // shows up either as the expanded card or as a one-sentence collapsed
+      // row (the "many pending" edge case) — both carry `data-state` now.
+      const visible = page
+        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
+        .and(page.locator(`[data-approval="${newId}"]`));
+      await expect(visible).toHaveAttribute('data-state', 'pending');
     },
   );
 });
@@ -252,15 +278,29 @@ test.describe('AN-08 — "Propose again, now" produces a new pending decision, o
 
 test.describe('AN-09 — the sidebar badge is exactly the pending, unexpired count', () => {
   test(
-    'the badge next to Decisions matches the number of pending cards shown, and drops to nothing with only an expired one',
+    'the badge next to Decisions matches pending approvals plus pending change proposals',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
+      // The badge is documented (`decisions.tsx`'s own comment) to sum both
+      // tabs — "a decision waiting is a decision waiting, whichever tab it
+      // would open to" — and the plan's own badge decision keeps that sum.
+      // Comparing it against approvals alone mismatches on any environment
+      // that also has a pending change proposal, which the default dataset
+      // does; this counts both queues before reading the badge, rather than
+      // asserting a reference count the badge was never supposed to equal.
       await page.goto('/decisions?tab=actions');
-      const pendingCount = await page
-        .getByTestId('decision-card')
+      // Only the first pending approval, if any, expands into a
+      // `decision-card` — the rest collapse per the "many pending" edge
+      // case — and both representations carry `data-state` now.
+      const pendingApprovals = await page
+        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
         .and(page.locator('[data-state="pending"]'))
         .count();
 
+      await page.goto('/decisions?tab=changes');
+      const pendingProposals = await page.getByTestId('proposal-item').count();
+
+      await page.goto('/decisions?tab=actions');
       // `sidebar.tsx` never renders the count span at zero (`count === 0 ?
       // null : ...`) — absent, not a chip reading "0" — so an absent badge
       // *is* the zero case, not a locator failure.
@@ -268,7 +308,7 @@ test.describe('AN-09 — the sidebar badge is exactly the pending, unexpired cou
       const badge = navEntry.getByTestId('nav-count');
       const badgeCount = (await badge.count()) === 0 ? 0 : Number(await badge.first().textContent());
 
-      expect(badgeCount).toBe(pendingCount);
+      expect(badgeCount).toBe(pendingApprovals + pendingProposals);
     },
   );
 });
@@ -386,7 +426,7 @@ test.describe('AN-13 — a failed read says it could not read, and never claims 
 test.describe('AN-14 — every new string on the screen exists in en and pt-BR', () => {
   test('the screen renders with no missing-catalogue key literal', async ({ page }) => {
     await page.goto('/decisions?tab=actions');
-    const body = (await page.locator('body').innerText()) ?? '';
+    const body = await page.locator('body').innerText();
     // A key that failed to resolve renders literally (`message()`'s own
     // fallback), which is what this spec can observe without reading the
     // catalogue file itself — the catalogue completeness test
@@ -401,17 +441,26 @@ test.describe('AN-14 — every new string on the screen exists in en and pt-BR',
 // =============================================================================
 
 test.describe('Edge case — several pending decisions: the oldest expanded, the rest collapsed by a sentence', () => {
-  test('at most one expanded card renders per page, with collapsed rows beside it when more than one is pending', async ({
+  test('at most one expanded card renders per page, with the rest of the queue as collapsed rows', async ({
     page,
   }) => {
     await page.goto('/decisions?tab=actions');
-    const pending = page.getByTestId('decision-card').and(page.locator('[data-state="pending"]'));
-    const total = await pending.count();
+    // `approvals.tsx` expands only `queue[0]` of the combined
+    // expired-then-pending queue — one rule, not "one rule for pending and
+    // a different one for expired" — so counting pending decisions alone
+    // could never reach two here: any expired decision always claims the
+    // one expanded slot first, and the dataset always carries at least one.
+    // The two expired decisions this feature's own fixture carries (one
+    // live-origin, one dead-origin — FR-016) already put more than one item
+    // in the queue, which is the actual condition this edge case protects.
+    const expanded = page.getByTestId('decision-card');
+    const collapsed = page.getByTestId('decision-row-collapsed');
+    const total = (await expanded.count()) + (await collapsed.count());
     if (total < 2) {
-      test.skip(true, 'the environment holds fewer than two pending approvals right now');
+      test.skip(true, 'the environment holds fewer than two queued decisions right now');
       return;
     }
-    const collapsed = page.getByTestId('decision-row-collapsed');
+    await expect(expanded).toHaveCount(1);
     await expect(collapsed).toHaveCount(total - 1);
   });
 });

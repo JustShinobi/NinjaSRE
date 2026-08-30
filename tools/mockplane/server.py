@@ -913,6 +913,20 @@ class MockPlane:
                     lambda document: _prepend(document, "approvals", fresh),
                 )
                 amend("approvals", {}, lambda document: _prepend(document, "approvals", fresh))
+                # `_lookup` (the read path `answer()` serves a client from,
+                # unlike this method's own `_lookup_slug`) falls back from a
+                # missed exact match to this slug's bare (`""`) override —
+                # meaning the moment *any* bucket of a multi-state slug like
+                # this one has a session override, every *other* bucket that
+                # does not yet have its own exact-match override silently
+                # answers from that fallback instead of its own fixture. The
+                # two buckets this write does not change still need their own
+                # identity override so a later `?state=expired`/`?state=
+                # decided` read is not quietly answered with the pending list
+                # above — found by driving this exact sequence end to end,
+                # not by reading the two `_lookup*` methods side by side.
+                amend("approvals", {"state": "expired"}, lambda document: document)
+                amend("approvals", {"state": "decided", "limit": "10"}, lambda document: document)
                 store.written[("approval-detail", arguments_key({"approval_id": new_id}))] = (
                     origin.with_body(fresh)
                 )
@@ -945,6 +959,16 @@ class MockPlane:
                         "approvals",
                         {"state": "decided", "limit": "10"},
                         lambda document: _prepend(document, "approvals", discarded),
+                    )
+                else:
+                    # Same fallback hazard as `approval-repropose`: the three
+                    # buckets above now each have an exact-match override, so
+                    # this fourth one needs its own too, even with nothing to
+                    # add to it.
+                    amend(
+                        "approvals",
+                        {"state": "decided", "limit": "10"},
+                        lambda document: document,
                     )
             case _:
                 return
