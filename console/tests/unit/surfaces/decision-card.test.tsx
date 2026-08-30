@@ -156,7 +156,6 @@ describe('an expired decision', () => {
             explanation: 'The window closed an hour ago.',
             repropose: 'Propose again, now',
             discard: 'Discard',
-            reproposing: 'Asking the deployment',
             failed: 'The deployment did not answer.',
           },
         }}
