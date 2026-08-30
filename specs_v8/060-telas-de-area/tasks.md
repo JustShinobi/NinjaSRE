@@ -147,9 +147,11 @@ Um `[~]` nunca é um `[x]` envergonhado.
       Confirmar rodando `console/tests/e2e/transversal-rules.spec.ts` para
       `/incidents/{id}` até verde sem `test.fixme` nem entrada nova em
       `EXCEPTIONS` — Regra 7 proíbe fechar por allowlist.
-- [ ] T016 [US1] Chaves i18n en+pt-BR de toda string nova das QUATRO telas
+- [x] T016 [US1] Chaves i18n en+pt-BR de toda string nova das QUATRO telas
       (as das fases 4–6 chegam por declaração nos relatórios) e variantes
-      novas em `console/visual/screens.json`.
+      novas em `console/visual/screens.json`. Feito para Incidentes,
+      Recursos, Conhecimento e o núcleo de O agente (T024–T026); nada de
+      T023a/T026a existe para ter chave.
 
 ## Phase 4: Recursos — US2 (depende da Phase 2)
 
@@ -236,37 +238,47 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 7: Integração e fechamento
 
-- [ ] T027 Aplicar as chaves i18n e variantes de captura declaradas pelas
+- [x] T027 Aplicar as chaves i18n e variantes de captura declaradas pelas
       fases 4–6 (dono: quem executa a integração), conferindo par en/pt-BR
-      de cada uma.
-- [ ] T028 Rodar os quatro acceptance specs locais até verde; rodar a
+      de cada uma. Sem fan-out real nesta execução (um implementer, sequencial)
+      — nada para reconciliar de outro relatório; paridade conferida por
+      `tests/unit/i18n/catalogue.test.ts`, verde.
+- [x] T028 Rodar os quatro acceptance specs locais até verde; rodar a
       transversal (inclusive as três falhas de `/incidents/{id}` fechadas em
       T015a — verde de verdade, não por allowlist); nenhum teste afrouxado.
-- [ ] T029 Re-baseline visual das quatro telas
+- [~] T029 Re-baseline visual das quatro telas
       (`python -m tools.console_visual accept`), revisar o diff de PNGs
       tela a tela contra os artboards antes de aceitar, e commitar como
-      revisão consciente. Confirmar em especial que `resources-1440-light` e
+      revisão consciente. Encerrada sem rodar `accept`: `console/visual/screens.json`
+      foi atualizado (nova entrada `incidents-1440-light`, cinco entradas
+      existentes voltaram a `pending` com o motivo escrito) mas a captura e
+      o julgamento visual em si ficam para o gate do lead (Orca Browser,
+      T032) — fabricar uma baseline sem revisão visual real é exatamente o
+      anti-padrão que a runtime deste implementer proíbe. Confirmar em especial que `resources-1440-light` e
       `resources-320-light` (débito herdado do S1, specs_v8/CONFRONTO.md §6
       — a lista de hoje virtualiza altura fixa e não captura por inteiro em
       janela nenhuma) capturam de verdade sob a grade de cards da Fase 4;
       isso fecha aquele débito, não é um efeito colateral presumido.
-- [ ] T030 Gates locais do domínio editado (lint/format/typecheck do console
+- [x] T030 Gates locais do domínio editado (lint/format/typecheck do console
       e Python onde a Phase 2 tocou) e `make verify` completo verde.
-- [ ] T031 Fechamento do slot (com o orquestrador, EXECUCAO §3–§4):
-      `make deploy-stg COMPONENTS=app web`, aguardar Argo Synced+Healthy,
+- [~] T031 Fechamento do slot — do lead: sem alcance a staging/deploy desta
+      worktree. `make deploy-stg COMPONENTS=app web`, aguardar Argo Synced+Healthy,
       acceptance staging-safe das quatro telas contra
       `https://stg-ninjasre.lan.kyo.ninja` via
       `tools/spec_validation browser --backing staging`.
-- [ ] T032 Gate visual: capturar via Orca browser as quatro rotas nos dois
-      temas (tema trocado pelo botão da topbar), salvar
+- [~] T032 Gate visual — do lead: sem alcance a Orca Browser desta worktree.
+      Capturar via Orca browser as quatro rotas nos dois
+      temas (tema trocado pelo botão da topbar — tri-state, levar a uma escolha
+      explícita e não presumir "um clique" troca de tema), salvar
       `evidence/visual/{incidents,resources,knowledge,agent}-{dark,light}.png`,
       escrever `evidence/visual/VEREDITO.md` — uma linha por tela×tema,
       CONFORME ou o desvio nomeado; qualquer desvio → corrigir ou registrar
       em `design/padrao-2026-08/DIVERGENCIAS.md` com aprovação do operador.
       Sem terceiro destino.
-- [ ] T033 Relatório final do fan-out: o que cada tela entregou, chaves
+- [x] T033 Relatório final do fan-out: o que cada tela entregou, chaves
       aplicadas, contagens dos acceptance (X de Y verdes, staging incluso),
-      e a lista de qualquer token/ícone declarado à 000.
+      e a lista de qualquer token/ícone declarado à 000. Entregue como a
+      resposta final desta sessão ao orquestrador, e como este `controle.md`.
 
 ---
 
