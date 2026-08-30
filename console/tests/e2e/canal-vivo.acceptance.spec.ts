@@ -101,8 +101,12 @@ test('a run started from another page appears on the Painel without a reload', a
 
   // No `page.reload()`, no navigation — the Painel is polled for the DOM
   // settling on its own, which is what proves the channel drove it there.
+  // SC-001's own bound (5 s), not a looser one: `.poll()` only fails when the
+  // condition is never met inside its timeout, so a wider number here would
+  // let a regression to, say, eight seconds pass while still violating the
+  // criterion.
   await expect
-    .poll(async () => page.getByTestId('guardian-flight').count(), { timeout: 10_000 })
+    .poll(async () => page.getByTestId('guardian-flight').count(), { timeout: 5_000 })
     .toBeGreaterThan(before);
 
   // The chip never left `live` while this happened — a stale/fallback chip
