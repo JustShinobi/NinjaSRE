@@ -93,6 +93,19 @@ CONTROL_PATH_PREFIX: Final = "/__mockplane__"
 #: that goes up between two reads is a request that happened.
 REQUEST_COUNTS_PATH: Final = f"{CONTROL_PATH_PREFIX}/requests"
 
+#: A second control route, `POST`-only: end the caller's own currently-open
+#: deployment channel on its next poll tick, once. Exists because a real
+#: browser test cannot otherwise force a disconnect on a connection that is
+#: already open — `page.route()` only ever governs a request made *after* it
+#: is registered, and this channel's one long-lived `fetch()` does not make a
+#: new one while it is healthy; network-level emulation (`context.setOffline`)
+#: was tried against this same mock and did not sever the already-established
+#: response either. Scoped to the deployment channel specifically, not the
+#: per-run stream, which already has `StreamControl.disconnect_after` for the
+#: same purpose at the unit-test level — this is the live-server equivalent,
+#: for the one caller that cannot reach a `MockPlane` instance directly.
+DROP_DEPLOYMENT_STREAM_PATH: Final = f"{CONTROL_PATH_PREFIX}/drop-deployment-stream"
+
 #: How many events the stream emits before it drops the connection, when a
 #: caller asks it to drop one. Far enough in that a reducer has state to lose.
 DEFAULT_DISCONNECT_AFTER: Final = 5
@@ -162,11 +175,17 @@ class Session:
     #: same reason `written` is: a test's writes must not leak into another
     #: test's mock, and a session that reset must start this empty too.
     deployment_events: list[dict[str, Any]] = field(default_factory=list)
+    #: Set by `DROP_DEPLOYMENT_STREAM_PATH`, consumed by the next poll tick of
+    #: this session's own open `_serve_deployment_stream` loop, which ends the
+    #: response and clears the flag right back — one drop per request, not a
+    #: standing policy that would also close the very reconnection it caused.
+    deployment_stream_drop_requested: bool = False
 
     def clear(self) -> None:
         """Forget everything this session wrote."""
         self.written.clear()
         self.deployment_events.clear()
+        self.deployment_stream_drop_requested = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -455,6 +474,17 @@ class MockPlane:
             )
             await send({"type": "http.response.body", "body": body})
             return
+        if method == "POST" and path == DROP_DEPLOYMENT_STREAM_PATH:
+            self.session(session).deployment_stream_drop_requested = True
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 204,
+                    "headers": [],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+            return
         await send(
             {
                 "type": "http.response.start",
@@ -613,6 +643,15 @@ class MockPlane:
         # `http.response.start` back until it does.
         await send({"type": "http.response.body", "body": b": open\n\n", "more_body": True})
         while time.monotonic() < deadline:
+            live = self.session(session)
+            if live.deployment_stream_drop_requested:
+                # A one-shot signal from `DROP_DEPLOYMENT_STREAM_PATH`, consumed
+                # here rather than left standing — the whole point is to end
+                # *this* response and let the client's own retry open a new one,
+                # not to keep closing every connection this session ever opens.
+                live.deployment_stream_drop_requested = False
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+                return
             delivered = False
             for event in self.deployment_events_for(session, after=after):
                 if self._stream.disconnect_after and emitted >= self._stream.disconnect_after:
@@ -919,6 +958,7 @@ __all__ = [
     "DEFAULT_DISCONNECT_AFTER",
     "DEFAULT_SESSION",
     "DEPLOYMENT_STREAM_EPOCH",
+    "DROP_DEPLOYMENT_STREAM_PATH",
     "REQUEST_COUNTS_PATH",
     "SESSION_HEADER",
     "Answer",
