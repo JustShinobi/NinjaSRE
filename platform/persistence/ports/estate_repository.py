@@ -572,6 +572,24 @@ class EstateRepository(Protocol):
     ) -> tuple[HealthTransition, ...]:
         """Return ``resource_id``'s state changes, most recent first."""
 
+    async def unhealthy_since(
+        self,
+        resource_ids: tuple[str, ...],
+    ) -> Mapping[str, datetime]:
+        """Return, for each id currently on an unhealthy streak, when it began.
+
+        The instant of the most recent transition *into* ``UNHEALTHY`` for
+        that resource — which is exactly "since when": a resource that
+        recovered and fell unhealthy again would have a newer entry, and this
+        returns that one. Batched over every id a caller asks about in one
+        read, because a listing page asks this question once, not once per
+        row. An id with no such transition (or one this build's stored
+        history predates) is left out of the mapping rather than guessed at,
+        and an id whose current health is not unhealthy may still appear here
+        with a stale answer — callers only consult this for resources they
+        already know are unhealthy right now.
+        """
+
     async def set_maintenance(
         self,
         resource_id: str,

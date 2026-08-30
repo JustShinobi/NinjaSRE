@@ -242,6 +242,21 @@ class FakeEstateRepository:
         )
         return tuple(history[:limit])
 
+    async def unhealthy_since(
+        self,
+        resource_ids: tuple[str, ...],
+    ) -> dict[str, datetime]:
+        """Return, for each id currently on an unhealthy streak, when it began."""
+        wanted = set(resource_ids)
+        since: dict[str, datetime] = {}
+        for entry in self.state.health_transitions.values():
+            if entry.resource_id not in wanted or entry.state is not ResourceHealth.UNHEALTHY:
+                continue
+            found = since.get(entry.resource_id)
+            if found is None or entry.occurred_at > found:
+                since[entry.resource_id] = entry.occurred_at
+        return since
+
     async def set_maintenance(
         self,
         resource_id: str,

@@ -92,7 +92,7 @@ Um `[~]` nunca é um `[x]` envergonhado.
       microcopy de uma frase, chip de runs em voo, três cards com números
       das rotas reais, abas completas preservadas, realce de estágio ausente
       sem quebrar). Confirmar vermelho.
-- [ ] T008 [P] Testes de contrato pytest para os dois campos novos do
+- [x] T008 [P] Testes de contrato pytest para os dois campos novos do
       estate: a listagem serve `node` por recurso descoberto com placement e
       `unhealthy_since` para não-saudável com transição registrada; ausência
       honesta (null) nos dois quando o dado não existe. Confirmar vermelho.
@@ -108,12 +108,12 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 2: Contrato do estate (bloqueia só a fase 4)
 
-- [ ] T010 Estender a query do repositório do estate para juntar placement e
+- [x] T010 Estender a query do repositório do estate para juntar placement e
       última transição de saúde (arquivos cravados em T002a; porta em
       `platform/persistence/ports/estate_repository.py`, Postgres e fake em
       paridade), e o view model da rota para servir `node` e
       `unhealthy_since`. Verde nos testes de T008.
-- [ ] T011 Regenerar documento de API e cliente TS
+- [x] T011 Regenerar documento de API e cliente TS
       (`fixtures/contract/openapi.json`, `console/src/api/schema.ts`) pelos
       geradores; gate de desvio verde.
 

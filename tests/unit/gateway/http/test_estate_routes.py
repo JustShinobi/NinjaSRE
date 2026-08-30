@@ -179,6 +179,39 @@ async def test_every_declared_dimension_is_a_query_parameter(
     assert await ids(parent="res-node") == {"res-ok", "res-bad"}
 
 
+async def test_an_unhealthy_row_carries_its_parent_name_even_filtered_off_its_page(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """FR-006: a listing must not need the parent to share the page."""
+    await _seed(deployment)
+
+    response = await client.get(
+        "/v1/estate/resources",
+        params={"health": "unhealthy"},
+        headers=await _headers(deployment),
+    )
+
+    rows = {row["resource_id"]: row for row in response.json()["resources"]}
+    assert rows.keys() == {"res-bad"}
+    assert rows["res-bad"]["parent_name"] == "pve1"
+    assert rows["res-bad"]["unhealthy_since"] is not None
+
+
+async def test_a_healthy_row_carries_no_unhealthy_since(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    await _seed(deployment)
+
+    response = await client.get(
+        "/v1/estate/resources",
+        params={"health": "healthy"},
+        headers=await _headers(deployment),
+    )
+
+    rows = {row["resource_id"]: row for row in response.json()["resources"]}
+    assert rows["res-ok"]["unhealthy_since"] is None
+
+
 async def test_a_health_filter_outside_the_closed_set_is_refused(
     client: AsyncClient, deployment: Deployment
 ) -> None:
