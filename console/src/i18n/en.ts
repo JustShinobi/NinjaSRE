@@ -948,6 +948,18 @@ export const EN = {
   'incidents.group.since': 'recurring since {since}',
   'incidents.group.expand': 'Show every firing of {title}',
   'incidents.group.summary': '{subjects} subjects · {firings} firings',
+  'incidents.filter.state.investigating': 'Investigating',
+  'incidents.filter.state.resolved': 'Resolved',
+  'incidents.filter.severity.critical': 'Critical',
+  'incidents.header.summary': '{subjects} subjects · {firings} firings · {critical} critical in progress',
+  'incidents.timeline.title': 'Firings in the last 24h',
+  'incidents.timeline.now': 'now',
+  'incidents.timeline.overflow': 'and {count} more before yesterday',
+  'incidents.cause.live': 'investigation in progress →',
+  'incidents.cause.found': 'Last cause found:',
+  'incidents.coverage.gap':
+    '{count} degraded findings have no detector watching them',
+  'incidents.coverage.action': 'Turn on a detector →',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
   // --- Why this deployment is empty, as opposed to what the feature is for ----

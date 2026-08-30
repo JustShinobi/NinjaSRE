@@ -206,7 +206,7 @@ export function SegmentedLinks({
       role="group"
       aria-label={label}
       data-testid="segmented"
-      className="inline-flex items-center gap-0.5 rounded-2 bg-sunken edge border-border p-0.5"
+      className="inline-flex items-center rounded-2 bg-sunken edge border-border p-1"
     >
       {options.map((option) => (
         <a
@@ -216,7 +216,7 @@ export function SegmentedLinks({
           data-option={option.id}
           aria-current={option.id === selected ? 'true' : undefined}
           className={cx(
-            'flex items-center gap-1.5 rounded-2 px-3 py-1 text-small font-medium motion-hover',
+            'flex items-center gap-2 rounded-2 px-3 py-1 text-small font-medium motion-hover',
             option.id === selected
               ? 'bg-accent-bg text-accent'
               : 'text-muted hover:text-text',

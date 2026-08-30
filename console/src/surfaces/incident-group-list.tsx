@@ -5,6 +5,7 @@ import { cx } from '@/design/cx';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import type { IncidentGroup } from './incident-groups';
+import { positionOnTimeline } from './incident-timeline';
 
 /**
  * One row per cause, and every firing of it one disclosure away.
@@ -22,6 +23,13 @@ import type { IncidentGroup } from './incident-groups';
  * own expanded state. A `<div>` with a click handler would have needed all
  * three written by hand and would have had none of them until somebody
  * noticed.
+ *
+ * The closed row is still reachable in one click, without opening anything:
+ * the title itself is a link to the newest firing's own page, so the row
+ * carries `data-testid="row"` the same as every other "now" screen's list —
+ * `RowList` puts the link on its first cell, this puts it on the title inside
+ * `<summary>`, which stays in the accessibility tree whether the disclosure
+ * is open or closed.
  */
 
 export interface IncidentGroupListProps {
@@ -30,6 +38,12 @@ export interface IncidentGroupListProps {
   /** The instant relative times are read against, as the server resolved it. */
   readonly now: Date;
   readonly zone: string;
+  /**
+   * A headline per run id, resolved once for the whole page rather than once
+   * per row — the "last cause found" block reads this map instead of making
+   * its own request.
+   */
+  readonly runHeadlines: ReadonlyMap<string, string>;
 }
 
 /** How much of an opaque identifier is enough to recognise it by. */
@@ -53,12 +67,189 @@ function isOpaque(subject: string): boolean {
 function shortenIdentifier(subject: string): string {
   if (!isOpaque(subject)) return subject;
   const prefix = subject.slice(0, subject.indexOf('-') + 1);
-  return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}\u2026`;
+  return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}…`;
 }
 
 /** The full subject line, offered only where the visible one was shortened. */
 function subjectTitle(group: IncidentGroup): string | undefined {
   return group.subjects.some(isOpaque) ? group.subjects.join(' · ') : undefined;
+}
+
+/** The newest occurrence's short address — `groupBySubject` orders newest first. */
+function newestPublicId(group: IncidentGroup): string {
+  return group.occurrences[0]?.publicId ?? '';
+}
+
+/** The newest occurrence that has not ended, when the group is currently live. */
+function speakingOccurrence(group: IncidentGroup): IncidentGroup['occurrences'][number] | undefined {
+  return group.occurrences.find((occurrence) => occurrence.runId !== '' && !isSettled(occurrence.state));
+}
+
+const SETTLED_STATES = new Set(['resolved', 'closed', 'suppressed']);
+
+function isSettled(state: string): boolean {
+  return SETTLED_STATES.has(state);
+}
+
+/** The newest settled occurrence carrying a run — the "last cause found" block's subject. */
+function lastSettledWithRun(
+  group: IncidentGroup,
+): IncidentGroup['occurrences'][number] | undefined {
+  return group.occurrences.find(
+    (occurrence) => occurrence.runId !== '' && isSettled(occurrence.state),
+  );
+}
+
+/** One severity/subject line, with an opaque token in monospace, a name left as prose. */
+function SubjectLine({ group }: { readonly group: IncidentGroup }): ReactNode {
+  if (group.subjects.length === 0) {
+    return <>{group.detector}</>;
+  }
+  return (
+    <>
+      {group.subjects.map((subject, index) => (
+        <span key={subject}>
+          {index > 0 ? ' · ' : ''}
+          <span className={isOpaque(subject) ? 'font-mono' : undefined}>
+            {shortenIdentifier(subject)}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** One vertical bar per occurrence, opacity rising toward the most recent. */
+function RecurrenceStrip({ group }: { readonly group: IncidentGroup }): ReactNode {
+  if (group.occurrences.length <= 1) return null;
+  const oldestFirst = [...group.occurrences].reverse();
+  const width = oldestFirst.length * 6;
+  return (
+    <svg
+      data-testid="incident-recurrence-strip"
+      viewBox={`0 0 ${String(width)} 16`}
+      width={width}
+      height={16}
+      aria-hidden="true"
+      className={cx('shrink-0', group.live ? 'text-danger' : 'text-muted')}
+    >
+      {oldestFirst.map((occurrence, index) => (
+        <rect
+          key={occurrence.id}
+          x={index * 6}
+          y={16 - (6 + index * (10 / Math.max(oldestFirst.length - 1, 1)))}
+          width={3}
+          height={6 + index * (10 / Math.max(oldestFirst.length - 1, 1))}
+          rx={1.5}
+          fill="currentColor"
+          opacity={0.35 + (0.65 * index) / Math.max(oldestFirst.length - 1, 1)}
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** The 24h axis, one point per occurrence inside the window. */
+function TwentyFourHourStrip({
+  group,
+  locale,
+  now,
+  zone,
+}: {
+  readonly group: IncidentGroup;
+  readonly locale: Locale;
+  readonly now: Date;
+  readonly zone: string;
+}): ReactNode {
+  const timeline = positionOnTimeline(group.occurrences, now);
+  if (timeline.points.length === 0) return null;
+  const start = timestamp(locale, timeline.windowStart, now, zone);
+  return (
+    <div className="flex flex-col gap-2" data-testid="incident-24h-strip">
+      <span className="text-micro text-muted font-medium uppercase tracking-wide">
+        {message(locale, 'incidents.timeline.title')}
+      </span>
+      <div className="relative rounded-2 bg-sunken edge border-border px-3 py-3">
+        <span
+          aria-hidden="true"
+          className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-border"
+        />
+        {timeline.points.map((point) => {
+          const at = timestamp(locale, point.at, now, zone);
+          return (
+            <span
+              key={point.id}
+              data-testid="incident-24h-point"
+              data-shape={point.shape}
+              title={`${at.absolute} — ${point.state}`}
+              className={cx(
+                'absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
+                point.shape === 'diamond'
+                  ? 'icon-inline rotate-45 bg-accent'
+                  : 'icon-inline rounded-full bg-success',
+              )}
+              style={{ left: `${String(point.percent)}%` }}
+            />
+          );
+        })}
+        <span className="absolute left-3 -bottom-4 text-micro text-muted">
+          {start.absolute}
+        </span>
+        <span className="absolute right-3 -bottom-4 text-micro text-muted">
+          {message(locale, 'incidents.timeline.now')}
+        </span>
+      </div>
+      {timeline.overflowCount > 0 ? (
+        <p className="text-micro text-muted pt-1">
+          {message(locale, 'incidents.timeline.overflow', {
+            count: formatNumber(locale, timeline.overflowCount),
+          })}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** "Investigation in progress" and "last cause found", from data the page already fetched. */
+function CauseBlock({
+  group,
+  locale,
+  runHeadlines,
+}: {
+  readonly group: IncidentGroup;
+  readonly locale: Locale;
+  readonly runHeadlines: ReadonlyMap<string, string>;
+}): ReactNode {
+  const speaking = group.live ? speakingOccurrence(group) : undefined;
+  const settled = lastSettledWithRun(group);
+  const headline = settled !== undefined ? runHeadlines.get(settled.runId) : undefined;
+
+  if (speaking === undefined && (settled === undefined || headline === undefined)) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      {settled !== undefined && headline !== undefined ? (
+        <div className="flex items-center gap-2 rounded-2 bg-accent-bg edge border-border px-3 py-2 flex-1 min-w-0">
+          <span className="h-2 w-2 rounded-full bg-success shrink-0" aria-hidden="true" />
+          <span className="text-small min-w-0 truncate">
+            <span className="text-strong">{message(locale, 'incidents.cause.found')}</span>{' '}
+            {headline}
+          </span>
+        </div>
+      ) : null}
+      {speaking !== undefined ? (
+        <a
+          href={`/runs/${speaking.runId}`}
+          data-testid="incident-live-link"
+          className="text-small shrink-0 flex items-center gap-2 text-accent hover:underline"
+        >
+          {message(locale, 'incidents.cause.live')}
+        </a>
+      ) : null}
+    </div>
+  );
 }
 
 /** The grouped listing. */
@@ -67,6 +258,7 @@ export function IncidentGroupList({
   locale,
   now,
   zone,
+  runHeadlines,
 }: IncidentGroupListProps): ReactNode {
   const firings = groups.reduce((total, group) => total + group.count, 0);
   return (
@@ -84,12 +276,16 @@ export function IncidentGroupList({
           return (
             <li
               key={group.key}
-              data-testid="incident-group"
-              data-live={group.live ? 'true' : 'false'}
-              data-count={group.count}
+              data-testid="row"
+              data-row={group.key}
               className="edge border-border border-x-0 border-t-0 last:border-b-0"
             >
-              <details className="group">
+              <details
+                className="group"
+                data-testid="incident-group"
+                data-live={group.live ? 'true' : 'false'}
+                data-count={group.count}
+              >
                 <summary
                   data-testid="incident-group-summary"
                   className={cx(
@@ -116,15 +312,25 @@ export function IncidentGroupList({
                       <path d="m9 6 6 6-6 6" />
                     </svg>
                   </span>
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'icon-inline shrink-0',
+                      group.live ? 'bg-danger' : 'bg-success',
+                    )}
+                  />
                   <span className="min-w-0 flex flex-col">
-                    <span className="text-strong truncate">{group.title}</span>
-                    {/* The whole of the identifier stays reachable in the
-                        title: it is what somebody pastes into a query, and a
-                        row that shortened it away would be a row nobody could
-                        follow. What it stops doing is spending thirty-six
-                        characters of the one line that tells this row from the
-                        next — four rows of the staging estate carried the same
-                        key, identically, and read as four copies of one row. */}
+                    {/* The one-click reach to this subject's own page, always
+                        in the accessibility tree — `<summary>`'s own content
+                        never hides, whether the disclosure is open or
+                        closed. */}
+                    <a
+                      href={`/incidents/${newestPublicId(group)}`}
+                      data-testid="incident-group-title-link"
+                      className="text-strong truncate hover:underline"
+                    >
+                      {group.title}
+                    </a>
                     <span
                       data-testid="incident-group-subjects"
                       className="text-meta text-muted truncate"
@@ -132,11 +338,10 @@ export function IncidentGroupList({
                         ? {}
                         : { title: subjectTitle(group) })}
                     >
-                      {group.subjects.length === 0
-                        ? group.detector
-                        : group.subjects.map(shortenIdentifier).join(' · ')}
+                      <SubjectLine group={group} />
                     </span>
                   </span>
+                  <RecurrenceStrip group={group} />
                   {/* Severity yields to state once a cause is over. Fifteen
                       rows reading "Critical" in danger red beside a quiet green
                       "Resolved" made the alarm the loudest thing on a screen
@@ -166,7 +371,7 @@ export function IncidentGroupList({
                   </span>
                   <span
                     data-testid="incident-group-count"
-                    className="text-small tabular-nums text-right shrink-0 w-column-measure"
+                    className="text-small tabular-nums text-right shrink-0 w-column-measure font-mono"
                   >
                     {formatCount(
                       locale,
@@ -185,41 +390,16 @@ export function IncidentGroupList({
                   </span>
                 </summary>
 
-                <div className="pb-3 pl-6">
+                <div className="pb-4 pl-6 pr-2 flex flex-col gap-3">
                   {group.count > 1 ? (
-                    <p className="text-meta text-muted pb-2">
+                    <p className="text-meta text-muted">
                       {message(locale, 'incidents.group.since', {
                         since: first.relative,
                       })}
                     </p>
                   ) : null}
-                  <ul className="flex flex-col">
-                    {group.occurrences.map((one) => {
-                      const at = timestamp(locale, one.at, now, zone);
-                      return (
-                        <li
-                          key={one.id}
-                          data-testid="incident-occurrence"
-                          className="edge border-border border-x-0 border-t-0 last:border-b-0"
-                        >
-                          <a
-                            href={`/incidents/${one.publicId}`}
-                            className="flex items-center gap-3 py-2 motion-hover hover:opacity-90"
-                          >
-                            <span className="text-small min-w-0 truncate">
-                              {one.summary === '' ? one.publicId : one.summary}
-                            </span>
-                            <Badge status={one.state} className="ml-auto shrink-0" />
-                            <span className="text-meta text-muted tabular-nums text-right shrink-0 w-column-instant">
-                              <time dateTime={one.at} title={at.absolute}>
-                                {at.relative}
-                              </time>
-                            </span>
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <TwentyFourHourStrip group={group} locale={locale} now={now} zone={zone} />
+                  <CauseBlock group={group} locale={locale} runHeadlines={runHeadlines} />
                 </div>
               </details>
             </li>

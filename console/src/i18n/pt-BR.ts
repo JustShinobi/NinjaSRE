@@ -746,6 +746,19 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.group.since': 'recorrente desde {since}',
   'incidents.group.expand': 'Mostrar cada disparo de {title}',
   'incidents.group.summary': '{subjects} assuntos · {firings} disparos',
+  'incidents.filter.state.investigating': 'Investigando',
+  'incidents.filter.state.resolved': 'Resolvido',
+  'incidents.filter.severity.critical': 'Crítico',
+  'incidents.header.summary':
+    '{subjects} assuntos · {firings} disparos · {critical} críticos em investigação',
+  'incidents.timeline.title': 'Disparos nas últimas 24 h',
+  'incidents.timeline.now': 'agora',
+  'incidents.timeline.overflow': 'e mais {count} antes de ontem',
+  'incidents.cause.live': 'investigação em andamento →',
+  'incidents.cause.found': 'Última causa encontrada:',
+  'incidents.coverage.gap':
+    '{count} achados degradados estão sem detector ligado',
+  'incidents.coverage.action': 'Ligar detector →',
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':

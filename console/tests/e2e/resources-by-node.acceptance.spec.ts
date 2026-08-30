@@ -72,12 +72,8 @@ test.describe('AN-R1/SC-003 — the header shows a proportional health bar with 
     async ({ page }) => {
       await openResources(page);
       const legend = page.getByTestId('health-legend-item');
-      const text = (await legend.allInnerTexts()).join(' ');
-      for (const word of ['healthy', 'unknown', 'unhealthy', 'absent']) {
-        // Locale-agnostic: assert the four states exist as distinct legend
-        // entries rather than pinning to one language's word for each.
-        void word;
-      }
+      // Locale-agnostic: assert the four states exist as distinct legend
+      // entries rather than pinning to one language's word for each.
       expect(await legend.count()).toBe(4);
     },
   );
