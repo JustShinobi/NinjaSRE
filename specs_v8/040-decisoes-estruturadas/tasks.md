@@ -25,7 +25,10 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
    `console/src/i18n/*.ts`, `console/src/shell/routes.ts` ou
    `console/visual/screens.json`. As chaves i18n (em `en` **e** `pt-BR`) e a
    linha nova do registro visual são declaradas no relatório final, e o
-   código referencia as chaves.
+   código referencia as chaves. **Nenhuma tarefa edita
+   `console/src/surfaces/screens/incident-decision-controls.tsx`** também —
+   é importado por `approvals.tsx` (desta feature) e por
+   `incident-detail.tsx` (060); o cartão novo o compõe como está.
 4. **Nenhuma linha de aprovação é apagada.** Repropor, descartar e expirar
    marcam estado; uma tarefa que precise de `DELETE` passou do alvo.
 5. **Arquivo gerado é regenerado, nunca editado à mão** — documento de API,
@@ -52,9 +55,18 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       afetar investigação. "Sem efeito" é resposta aceitável no fim; "não
       medido" não é.
 - [ ] T004 Cravar com codegraph e registrar no controle, com `file:line`:
-      (a) o arquivo do gateway que serve `GET/POST /v1/approvals*`;
-      (b) a raiz de composição do gate de remediação/fila de propostas que a
-      onda anterior compôs (quem constrói o que `propose()` usa);
+      (a) o arquivo do gateway que serve `GET/POST /v1/approvals*`
+      (`gateway/http/routes/approvals.py`, incluindo `decide_approval` em
+      `/{approval_id}/decision` — confirmar a linha atual);
+      (b) a raiz de composição do gate de remediação que a onda anterior
+      compôs. O plano já crava isto como `compose_remediation()`
+      (`gateway/http/remediation.py:177`, chamada por
+      `gateway/http/lifespan.py:117`) enfileirando via `RequestBuilder.queue()`
+      (`platform/remediation/request.py:238`) — **não**
+      `ProposalQueue.propose()` (`platform/proposals/service.py:167`, que é de
+      config/conhecimento/detector, não remediação). Esta tarefa reconfirma
+      esses `file:line` com codegraph antes de qualquer edição, não os
+      redescobre do zero;
       (c) o modelo/tabela do store de aprovações e se `discarded` e vínculo
       de origem cabem sem migração (decisão binária do plano §"Decisões" 5);
       (d) o SQL literal de contagem de linhas para T002/DoD.
@@ -93,7 +105,11 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - [ ] T012 [P] Unidade vitest do cartão: pendente renderiza as seis seções
       nomeadas; expirada renderiza rodapé com os dois controles e sem
       Aprovar; decidida renderiza desfecho; campo ausente vira ausência
-      declarada; nenhum JSON fora de `<details>`. Confirmar vermelho.
+      declarada; nenhum JSON fora de `<details>`. **Um caso com interação
+      aberta (renderiza `DecisionControls`) e um caso sem (renderiza
+      `IncidentDecisionControls`)** — o segundo é o único que o staging
+      exercita hoje (plano, Riscos), e um teste só contra o primeiro não o
+      cobriria. Confirmar vermelho.
 - [ ] T013 [P] Unidade vitest do badge: só pendentes não expiradas contam;
       expirada sozinha → zero/ausente. Confirmar vermelho.
 - [ ] T014 [P] Caracterização (deve passar antes e depois): decidir por
@@ -130,7 +146,11 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       em vocabulário de perigo quando `reversible:false`), direita (por quê,
       evidência com `<a>` por item, raio, linha de autonomia), `<details>`
       "payload bruto da ação" fechado. Tokens e formas da fundação, por
-      classe/token — nenhum hex novo. Verde em T012.
+      classe/token — nenhum hex novo. **A escolha entre `DecisionControls` e
+      `IncidentDecisionControls` (`decisionFor`, hoje em `approvals.tsx`)
+      continua existindo e os dois componentes continuam compostos sem
+      edição** — só o entorno (cabeçalho, grade, `<details>`) é reescrito.
+      Verde em T012.
 - [ ] T023 Rodapé de expirada: faixa âmbar com a explicação, "Propor de novo,
       agora" acionando T018 e trocando a tela para a pendente nova sem
       navegação manual; "Descartar" acionando T019. Estados de erro do

@@ -39,16 +39,28 @@ qualquer arquivo da fundação visual (congelada após o S0).
 e TypeScript (console Next).
 
 **Primary Dependencies**:
-`gateway/http/routes/` (a rota que serve `/v1/approvals` — arquivo cravado na
-partida, tarefa própria), `platform/proposals/service.py` (`ProposalQueue`,
-`propose:167`, `pending:216`, `decided:224`), `platform/approvals/`
-(modelos e store), a raiz de composição do gate de remediação que a onda
-anterior compôs (cravada na partida),
-`console/src/surfaces/screens/decisions.tsx`,
+`gateway/http/routes/approvals.py` (a rota que serve `GET/POST /v1/approvals*`,
+incluindo `decide_approval` em `/{approval_id}/decision` — confirmar `file:line`
+exato na partida), `platform/remediation/request.py` (`RequestBuilder.build`/
+`.queue`, `queue:238` — o enfileiramento real de uma aprovação de remediação,
+com leitura fresca do alvo em `build()`), `platform/remediation/gating.py`
+(`RemediationGate.decide`/`_through_approval`), a raiz de composição real —
+`compose_remediation()` (`gateway/http/remediation.py:177`), chamada por
+`gateway/http/lifespan.py:117` — cravada nesta pesquisa e a reconfirmar por
+T004b. **Não** `platform/proposals/service.py` (`ProposalQueue.propose`): esse
+serve mudança de configuração/conhecimento/detector, não remediação
+(`gateway/http/routes/approvals.py:9-13`, docstring do módulo) — só o `decided`
+dessa classe é dependência legítima, e só para a aba Changes (spec, fato 7).
+`platform/approvals/` (modelos e store — `ApprovalStore.list_pending`/
+`list_decided`/`decide`), `console/src/surfaces/screens/decisions.tsx`,
 `console/src/surfaces/screens/approvals.tsx`,
 `console/src/surfaces/screens/proposals.tsx`,
-`console/src/surfaces/proposal.tsx`, `console/src/surfaces/decision.tsx`,
-`console/src/shell/load.ts` (`countsFrom` — o badge),
+`console/src/surfaces/proposal.tsx`, `console/src/surfaces/decision.tsx`
+(`DecisionControls` — também usado por `console/src/surfaces/run-card.tsx`,
+fora do escopo desta feature: mudar sua interface de props exige checar esse
+uso). `console/src/surfaces/screens/incident-decision-controls.tsx`
+(`IncidentDecisionControls`) é lido/composto sem edição — ver spec,
+Dependencies. `console/src/shell/load.ts` (`countsFrom` — o badge),
 `fixtures/contract/openapi.json` e `console/src/api/schema.ts` (regenerados).
 
 **Storage**: PostgreSQL, o store de aprovações existente. Mudanças de
@@ -117,11 +129,20 @@ simulado com três estados; ~14 alegações de acceptance.
   pelo store de aprovações existente. O fio de serving é o mesmo de hoje:
   console → cliente gerado → gateway → store.
 - **Re-proposta**: o handler novo na mesma rota-família chama o mecanismo de
-  proposta que a onda anterior compôs na raiz de serving
-  (`RemediationGate`/fila de propostas — `platform/proposals/service.py:167`
-  `propose()` é o ponto de entrada da fila; a raiz que constrói o gate é
-  cravada na partida e registrada no controle). Nenhum mecanismo novo dormente:
-  o botão do cartão é o caller de produção no dia do merge.
+  fila que a onda anterior compôs na raiz de serving real —
+  `RequestBuilder.queue()` (`platform/remediation/request.py:238`), alcançado
+  via `RemediationGate` (`platform/remediation/gating.py`). A raiz que constrói
+  esse gate é `compose_remediation()` (`gateway/http/remediation.py:177`),
+  chamada por `gateway/http/lifespan.py:117` — o próprio módulo documenta que é
+  "one desk, two consumers" (o loop propõe, a rota de aprovação executa o
+  granted); a re-proposta é o terceiro consumidor, do mesmo desk, nunca um
+  segundo. **Não é `platform/proposals/service.py:167` `ProposalQueue.propose()`**
+  — essa fila serve mudança de configuração/conhecimento/detector, e o próprio
+  docstring de `gateway/http/routes/approvals.py` diz que uma aprovação de
+  remediação não é reivindicada por ela. T004b confirma esses `file:line` com
+  codegraph antes de qualquer edição; esta pesquisa já os cravou uma vez, mas
+  não substitui a confirmação da tarefa. Nenhum mecanismo novo dormente: o
+  botão do cartão é o caller de produção no dia do merge.
 - **Badge**: `countsFrom` (`console/src/shell/load.ts`) passa a ler a
   contagem filtrada — mesmo fio de shell que já constrói a sidebar.
 - **Prova exigida no DoD** (não é "teste verde no harness"): a expirada real
@@ -155,7 +176,14 @@ simulado com três estados; ~14 alegações de acceptance.
    `{approval_id}` da nova; `409` com causa nomeada quando já existe pendente
    da mesma origem (devolve a existente no corpo — idempotência FR-017);
    `422` com causa nomeada quando a origem não resolve mais (plano/capacidade
-   ausente). Só aceita `state=expired`; pendente não se re-propõe.
+   ausente). Só aceita `state=expired`; pendente não se re-propõe. **O
+   mecanismo que o handler chama é `RequestBuilder.queue()`
+   (`platform/remediation/request.py:238`, via `RemediationGate` — não
+   `ProposalQueue.propose()` de `platform/proposals/service.py:167`, que é de
+   outro domínio; ver Primary Dependencies acima e T004b.** `queue()` já lê o
+   alvo de novo em `build()` antes de enfileirar, que é a "leitura atual do
+   ambiente" que FR-015 pede — não é um mecanismo a inventar, é o que
+   `_through_approval` já faz a cada aprovação nova.
 5. **Descartar.** `POST /v1/approvals/{approval_id}/discard` → transição para
    `discarded`, registrada com autor; aparece no histórico; nunca deleta.
 6. **Badge.** A contagem servida ao shell passa a ser `pending ∧ não
@@ -176,9 +204,27 @@ simulado com três estados; ~14 alegações de acceptance.
 
 ## Riscos e como o plano os corta
 
-- **A rota-arquivo e a raiz do gate não estão cravadas nesta spec.** Primeira
-  tarefa é cravá-las com codegraph e registrar `file:line` no controle —
-  nenhuma edição antes disso.
+- **A rota-arquivo e a raiz do gate não estavam cravadas nesta spec** (agora
+  estão, acima, e T004 reconfirma). Nenhuma edição antes disso.
+- **A reescrita do cartão perde o caminho de decisão que o staging realmente
+  usa.** `decisionFor` (`approvals.tsx`) hoje escolhe entre `DecisionControls`
+  (interação aberta) e `IncidentDecisionControls` (aprovação sem interação) —
+  e como o staging não tem run vivo (CONFRONTO.md §7), toda decisão real do
+  staging passa pelo segundo. Uma reescrita que só levasse o primeiro para a
+  nova anatomia teria AN-06 passando contra o mock (que sempre fabrica uma
+  interação) e Aprovar/Recusar mortos em staging, sem teste nenhum acusando —
+  exatamente a classe de "sucesso que não mede nada" que a onda já achou duas
+  vezes (CONFRONTO.md §3). T012/T022 precisam de um caso para cada ramo.
+- **`incident-decision-controls.tsx` é lido pelas duas features do slot.**
+  Esta feature não o edita (spec, Dependencies); se a Fase 3 achar necessário
+  mudar sua interface, é um achado para o relatório final, não uma edição
+  silenciosa que colide com a 060.
+- **`decision.tsx` (`DecisionControls`) também é usado fora desta feature** —
+  `console/src/surfaces/run-card.tsx` o instancia com o mesmo par
+  `interactionId`/`labels`. É arquivo desta feature (spec, Dependencies) e
+  pode ser editado, mas uma mudança de forma nas props exige atualizar
+  `run-card.tsx` junto, não só os dois arquivos que este plano lista para a
+  tela de Decisões.
 - **Modelo de aprovação sem `discarded`/origem.** Decisão binária na partida:
   campo existente comporta → sem migração; não comporta → migração reversível
   pequena, downgrade testado.
