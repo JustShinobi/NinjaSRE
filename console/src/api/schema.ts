@@ -438,7 +438,17 @@ export interface paths {
         };
         /**
          * List Approvals
-         * @description Return undecided approvals, longest-waiting first (FR-008).
+         * @description Return approvals in one state bucket, per FR-006.
+         *
+         *     ``state=pending`` (the default) is only requests genuinely within their
+         *     own window; ``state=expired`` is only the ones that have lapsed;
+         *     ``state=decided`` is ``approved``/``rejected``/``discarded``, most
+         *     recently decided first. Every call sweeps lapsed requests to ``expired``
+         *     first (`ApprovalStore.expire_due`), in the same transaction — the
+         *     mechanism already existed with its own test coverage and nothing in
+         *     production called it, so a request answered an hour after its own window
+         *     closed still read as `pending` and the sidebar counted it. This is the
+         *     one place that composes it into a path something actually serves.
          *
          *     Each carries its rollback plan, because the queue is where a reviewer
          *     decides which one to open — and "this one has no undo" is exactly the fact
@@ -498,6 +508,66 @@ export interface paths {
          *     this is the rule behind that courtesy.
          */
         post: operations["decide_approval_v1_approvals__approval_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{approval_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard Approval
+         * @description Withdraw a decision from the queue, marked, never deleted (FR-018).
+         *
+         *     Reachable from `pending` or `expired`; refused once a person has already
+         *     decided it (`approved`/`rejected`) or discarded it once already — the same
+         *     append-only guarantee `decide` already enforces.
+         */
+        post: operations["discard_approval_v1_approvals__approval_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{approval_id}/repropose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Repropose Approval
+         * @description Propose a fresh reading against an expired decision's origin (FR-015).
+         *
+         *     Queues through ``RequestBuilder.queue()`` — the exact mechanism that
+         *     produced the original, reached the same way `RemediationGate` reaches it
+         *     — never `RemediationGate.decide()`/`.execute_approved()`, which can
+         *     suspend waiting on a decision or, under an autonomy policy, execute the
+         *     action outright. Neither is acceptable for a handler whose only contract
+         *     is "always exactly one new pending proposal, never a write": calling
+         *     `queue()` directly is what makes propose-only structural here rather than
+         *     a convention a policy could override.
+         *
+         *     Only an expired decision may be reproposed (FR-015: "Só aceita
+         *     state=expired"). Idempotent by origin while the new pending exists
+         *     (FR-017): a second call returns `409` naming the same pending rather than
+         *     a second one. An origin that no longer resolves — the capability retired,
+         *     the plan undeliverable — is refused by name with `422` (FR-016), never a
+         *     server error.
+         */
+        post: operations["repropose_approval_v1_approvals__approval_id__repropose_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3053,6 +3123,18 @@ export interface components {
             /** Rate */
             rate: number;
         };
+        /**
+         * ActionStepView
+         * @description One numbered sentence — either what the action does or how it undoes it.
+         */
+        ActionStepView: {
+            /** Capability */
+            capability: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Summary */
+            summary: string;
+        };
         /** AnswerRequest */
         AnswerRequest: {
             /**
@@ -3093,24 +3175,62 @@ export interface components {
         ApprovalView: {
             /** Action */
             action: string;
+            /**
+             * Applied And Verified
+             * @default false
+             */
+            applied_and_verified: boolean;
             /** Approval Id */
             approval_id: string;
             /** Arguments */
             arguments: {
                 [key: string]: unknown;
             };
+            autonomy: components["schemas"]["AutonomyView"];
+            blast_radius?: components["schemas"]["BlastRadiusFieldView"];
             /** Blast Radius Count */
             blast_radius_count?: number | null;
+            /**
+             * Category
+             * @default remediation
+             */
+            category: string;
+            /**
+             * Created At
+             * @default
+             */
+            created_at: string;
             /** Decided At */
             decided_at?: string | null;
             /** Decided By */
             decided_by?: string | null;
+            /** Evidence */
+            evidence?: components["schemas"]["EvidenceItemView"][];
             /** Expires At */
             expires_at: string;
+            /**
+             * Intent
+             * @default
+             */
+            intent: string;
+            origin?: components["schemas"]["OriginView"];
+            prior_effectiveness?: components["schemas"]["PriorEffectivenessView"];
+            /** Raw */
+            raw?: {
+                [key: string]: unknown;
+            };
             /** Reason */
             reason?: string | null;
             /** Requested At */
             requested_at: string;
+            /**
+             * Requester
+             * @default
+             */
+            requester: string;
+            risk: components["schemas"]["RiskView"];
+            /** Rollback */
+            rollback?: components["schemas"]["ActionStepView"][];
             rollback_plan?: components["schemas"]["RollbackPlanView"] | null;
             /** Run Id */
             run_id: string;
@@ -3118,8 +3238,17 @@ export interface components {
             side_effect_level: string;
             /** State */
             state: string;
+            /** Steps */
+            steps?: components["schemas"]["ActionStepView"][];
             /** Summary */
             summary: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /** Verdict */
+            verdict?: string | null;
         };
         /** AuditEventList */
         AuditEventList: {
@@ -3151,11 +3280,35 @@ export interface components {
             /** Resource Kind */
             resource_kind: string;
         };
+        /** AutonomyView */
+        AutonomyView: {
+            /**
+             * Queued
+             * @default true
+             */
+            queued: boolean;
+            /** Reversible */
+            reversible: boolean;
+            /** Side Effect Level */
+            side_effect_level: string;
+        };
         /** BlastRadiusEntryView */
         BlastRadiusEntryView: {
             /** Depth */
             depth: number;
             node: components["schemas"]["TopologyNodeView"];
+        };
+        /** BlastRadiusFieldView */
+        BlastRadiusFieldView: {
+            /** Count */
+            count?: number | null;
+            /** Depth */
+            depth?: number | null;
+            /**
+             * Known
+             * @default false
+             */
+            known: boolean;
         };
         /**
          * BoundsResponse
@@ -4381,6 +4534,13 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** EvidenceItemView */
+        EvidenceItemView: {
+            /** Reference */
+            reference: string;
+            /** Summary */
+            summary: string;
+        };
         /**
          * ExcludedToolView
          * @description A tool that was offered and is not available, and why.
@@ -5406,6 +5566,24 @@ export interface components {
              */
             tokens_used: number;
         };
+        /** OriginView */
+        OriginView: {
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+        };
         /** OutcomeListView */
         OutcomeListView: {
             /**
@@ -5770,6 +5948,14 @@ export interface components {
              * @default
              */
             team_node_id: string;
+        };
+        /** PriorEffectivenessView */
+        PriorEffectivenessView: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
         };
         /** PriorRejectionView */
         PriorRejectionView: {
@@ -6177,6 +6363,15 @@ export interface components {
             /** Turn Id */
             turn_id: string;
         };
+        /** ReproposeResult */
+        ReproposeResult: {
+            /** Approval Id */
+            approval_id: string;
+            /** Created At */
+            created_at: string;
+            /** State */
+            state: string;
+        };
         /**
          * RequiredPermissionView
          * @description One permission the credential has to be allowed, exactly as declared.
@@ -6347,6 +6542,15 @@ export interface components {
             revoked: number;
             /** Token Ids */
             token_ids: string[];
+        };
+        /** RiskView */
+        RiskView: {
+            /** Class */
+            class: string;
+            /** Scale */
+            scale: number;
+            /** Score */
+            score: number;
         };
         /** RoleBindingView */
         RoleBindingView: {
@@ -8128,6 +8332,7 @@ export interface operations {
             query?: {
                 run_id?: string;
                 limit?: number;
+                state?: string;
             };
             header?: {
                 authorization?: string | null;
@@ -8214,6 +8419,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_approval_v1_approvals__approval_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repropose_approval_v1_approvals__approval_id__repropose_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReproposeResult"];
                 };
             };
             /** @description Validation Error */

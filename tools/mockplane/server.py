@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
+from urllib.parse import parse_qsl
 
 from config.constants.fixtures import (
     MOCK_DEPLOYMENT_STREAM_KEEPALIVE_SECONDS,
@@ -238,6 +239,24 @@ class Answer:
     refuse: bool = False
 
 
+def _query_arguments(endpoint: ConsoleEndpoint, path: str) -> dict[str, str]:
+    """Return the request's query parameters the endpoint declares caring about.
+
+    ASGI's own ``scope["path"]`` never carries a query string (it is a
+    separate field), and `match_request` strips one before matching too — so
+    nothing upstream of this ever turned `?state=pending` into an argument a
+    recorded response could be matched against. Limited to `endpoint.query`
+    rather than every parameter present, for the same reason a recorded
+    response's own `arguments` is what `_lookup` matches on: an unexpected
+    parameter must not silently change which fixture answers.
+    """
+    if "?" not in path or not endpoint.query:
+        return {}
+    _, _, query_string = path.partition("?")
+    parsed = dict(parse_qsl(query_string))
+    return {name: parsed[name] for name in endpoint.query if name in parsed}
+
+
 class MockPlane:
     """The ASGI application. One instance per scenario, reusable across requests."""
 
@@ -332,7 +351,8 @@ class MockPlane:
             return Answer(
                 404, self._problem(f"{method} {path} is not an endpoint this mock serves")
             )
-        endpoint, arguments = resolved
+        endpoint, path_arguments = resolved
+        arguments = {**path_arguments, **_query_arguments(endpoint, path)}
 
         # Signing in is the one endpoint whose answer depends on what was sent
         # rather than on which record was asked for. A mock that accepted every

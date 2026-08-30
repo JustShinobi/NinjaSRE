@@ -1161,67 +1161,270 @@ INTERACTIONS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
     ),
 }
 
-APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (
-    {
-        "approval_id": "apr-0001",
-        "run_id": "run-0005",
-        "action": "estate.enable_backup_job",
-        # Flipping a job back on is undone by flipping it off again — the
-        # rollback plan below says exactly that — so this is the reversible
-        # half of a write, not the bare, backend-undeclared "write" this
-        # dataset used to serve.
-        "side_effect_level": SIDE_EFFECT_WRITE_REVERSIBLE,
-        "summary": "Enable the disabled job so the primary's guests are covered at all.",
-        "requested_at": at(minutes=21),
-        "expires_at": at(minutes=-99),
-        "state": "pending",
-        "arguments": {"job_id": "backup-7d831311"},
-        "decided_at": None,
-        "decided_by": None,
-        "reason": None,
-        "rollback_plan": {
-            "plan_id": "plan-0001",
-            "approval_id": "apr-0001",
-            "notes": "Disabling it again restores the state exactly, and takes one call.",
-            "steps": [
-                {
-                    "ordinal": 1,
-                    "description": "Disable the job again",
-                    "capability": "estate.disable_backup_job",
-                    "arguments": {"job_id": "backup-7d831311"},
-                }
-            ],
+
+def _decision(
+    *,
+    approval_id: str,
+    run_id: str,
+    action: str,
+    side_effect_level: str,
+    summary: str,
+    title: str,
+    requester: str,
+    state: str,
+    requested_at: str,
+    expires_at: str,
+    category: str = "remediation",
+    intent: str = "",
+    origin: Mapping[str, Any] | None = None,
+    risk: Mapping[str, Any] | None = None,
+    steps: tuple[Mapping[str, Any], ...] = (),
+    rollback: tuple[Mapping[str, Any], ...] = (),
+    reversible: bool = True,
+    evidence: tuple[Mapping[str, Any], ...] = (),
+    blast_radius: Mapping[str, Any] | None = None,
+    arguments: Mapping[str, Any] | None = None,
+    rollback_plan: Mapping[str, Any] | None = None,
+    decided_at: str | None = None,
+    decided_by: str | None = None,
+    reason: str | None = None,
+    verdict: str | None = None,
+    applied_and_verified: bool = False,
+    prior_effectiveness_summary: str = "",
+) -> dict[str, Any]:
+    """Return one decision in the field-by-field shape `ApprovalView` serves.
+
+    One function rather than one literal per record, so the fixture cannot
+    drift into a shape the real gateway would never actually send — every
+    field `gateway/http/routes/approvals.py`'s `ApprovalView` declares is
+    named here once, with the same defaults (`known: False`, `""`, `[]`)
+    for whatever a given decision does not carry.
+    """
+    resolved_risk = risk or {"class": "medium", "score": 3, "scale": 5}
+    resolved_radius = blast_radius or {"count": None, "depth": None, "known": False}
+    raw = {
+        "capability": action,
+        "requester": requester,
+        "intent": intent,
+        "target": {"identifier": run_id},
+        "side_effect_level": side_effect_level,
+        "steps": [dict(step) for step in steps],
+        "rollback": [dict(step) for step in rollback],
+        "evidence": [dict(item) for item in evidence],
+        "blast_radius": dict(resolved_radius),
+    }
+    return {
+        "approval_id": approval_id,
+        "run_id": run_id,
+        "action": action,
+        "side_effect_level": side_effect_level,
+        "summary": summary,
+        "requested_at": requested_at,
+        "expires_at": expires_at,
+        "state": state,
+        "arguments": dict(arguments) if arguments is not None else {},
+        "decided_at": decided_at,
+        "decided_by": decided_by,
+        "reason": reason,
+        "rollback_plan": rollback_plan,
+        "blast_radius_count": resolved_radius.get("count"),
+        "title": title,
+        "requester": requester,
+        "origin": dict(origin)
+        if origin is not None
+        else {"run_id": run_id, "headline": "", "incident_id": ""},
+        "category": category,
+        "intent": intent,
+        "risk": dict(resolved_risk),
+        "steps": [dict(step) for step in steps],
+        "rollback": [dict(step) for step in rollback],
+        "evidence": [dict(item) for item in evidence],
+        "blast_radius": dict(resolved_radius),
+        "autonomy": {
+            "side_effect_level": side_effect_level,
+            "reversible": reversible,
+            "queued": True,
         },
-    },
-    {
-        "approval_id": "apr-0002",
-        "run_id": "run-0001",
-        "action": "estate.expand_volume",
-        # No rollback plan below: growth has no safe undo (shrinking a live
-        # disk is not something this tool offers back), which is what makes
-        # it the irreversible half of a write rather than the "destructive"
-        # tier — nothing here is deleted, only added.
-        "side_effect_level": SIDE_EFFECT_WRITE_IRREVERSIBLE,
-        "summary": "Grow the volume that is at the ceiling of its own allocation.",
-        "requested_at": at(days=2, minutes=33),
-        "expires_at": at(days=1, minutes=33),
-        "state": "pending",
-        "arguments": {"volume_id": "vm-100-disk-0", "add_bytes": 16_000_000_000},
-        "decided_at": None,
-        "decided_by": None,
-        "reason": None,
-        "rollback_plan": None,
+        "prior_effectiveness": {"summary": prior_effectiveness_summary},
+        "created_at": requested_at,
+        "verdict": verdict,
+        "applied_and_verified": applied_and_verified,
+        "raw": raw,
+    }
+
+
+#: The real staging payload (spec fact 2) — a pending remediation, in-window,
+#: with an open interaction on its run (`INTERACTIONS['run-0005']`), so this
+#: one exercises the `DecisionControls` decide-in-place path.
+_PENDING = _decision(
+    approval_id="apr-0001",
+    run_id="run-0005",
+    action="proxmox_start_guest",
+    side_effect_level=SIDE_EFFECT_WRITE_REVERSIBLE,
+    summary="Restart the guest lxc/122 on pve01.",
+    title="Start the guest lxc/122 on pve01",
+    requester="alert-router",
+    state="pending",
+    requested_at=at(minutes=21),
+    expires_at=at(minutes=-39),
+    intent="The Redis probes fail because the container was shut down.",
+    origin={"run_id": "run-0005", "headline": "RedisExporterDown", "incident_id": "inc-0001"},
+    risk={"class": "low", "score": 3, "scale": 5},
+    steps=(
+        {
+            "ordinal": 1,
+            "summary": "Start the guest via Proxmox",
+            "capability": "proxmox_start_guest",
+        },
+    ),
+    rollback=(
+        {
+            "ordinal": 1,
+            "summary": "Ask the guest to shut down and wait",
+            "capability": "proxmox_shutdown_guest",
+        },
+    ),
+    reversible=True,
+    evidence=(
+        {
+            "summary": "11 entries in the Alertmanager timeline",
+            "reference": "alertmanager:incident_timeline:inc-0001",
+        },
+        {
+            "summary": "HAL9000 quorate — restarting does not risk the cluster",
+            "reference": "proxmox:quorum:HAL9000",
+        },
+    ),
+    blast_radius={"count": 1, "depth": 1, "known": True},
+    arguments={"node": "pve01", "vmid": 122},
+    rollback_plan={
+        "plan_id": "plan-0001",
+        "approval_id": "apr-0001",
+        "notes": "Shutting the guest down again restores the state exactly.",
+        "steps": [
+            {
+                "ordinal": 1,
+                "description": "Ask the guest to shut down and wait",
+                "capability": "proxmox_shutdown_guest",
+                "arguments": {"node": "pve01", "vmid": 122},
+            }
+        ],
     },
 )
 
+#: Genuinely past its own window — a live origin (the capability still
+#: resolves), so reproposing it succeeds.
+_EXPIRED = _decision(
+    approval_id="apr-0002",
+    run_id="run-0001",
+    action="estate.expand_volume",
+    side_effect_level=SIDE_EFFECT_WRITE_IRREVERSIBLE,
+    summary="Grow the volume that is at the ceiling of its own allocation.",
+    title="Grow the volume that is at the ceiling of its own allocation.",
+    requester="alert-router",
+    state="expired",
+    requested_at=at(days=2, minutes=33),
+    expires_at=at(days=1, minutes=33),
+    origin={"run_id": "run-0001", "headline": "", "incident_id": ""},
+    risk={"class": "high", "score": 4, "scale": 5},
+    steps=(
+        {
+            "ordinal": 1,
+            "summary": "Grow the volume that is at the ceiling of its own allocation.",
+            "capability": "estate.expand_volume",
+        },
+    ),
+    rollback=(),
+    reversible=False,
+    evidence=(
+        {
+            "summary": "Volume at 99.6% of its own allocation",
+            "reference": "estate:storage:vm-100-disk-0",
+        },
+    ),
+    blast_radius={"count": 1, "depth": 1, "known": True},
+    arguments={"volume_id": "vm-100-disk-0", "add_bytes": 16_000_000_000},
+    rollback_plan=None,
+    decided_at=at(days=1, minutes=33),
+)
+
+#: Approved, applied and verified.
+_APPROVED = _decision(
+    approval_id="apr-0003",
+    run_id="run-0004",
+    action="knowledge.clear_cache",
+    side_effect_level=SIDE_EFFECT_WRITE_REVERSIBLE,
+    summary="Clear cache of flaresolverr.",
+    title="Clear cache of flaresolverr",
+    requester="alert-router",
+    state="approved",
+    requested_at=at(days=2, hours=3),
+    expires_at=at(days=1, hours=27),
+    origin={"run_id": "run-0004", "headline": "", "incident_id": ""},
+    risk={"class": "low", "score": 1, "scale": 5},
+    reversible=True,
+    arguments={"service": "flaresolverr"},
+    decided_at=at(days=2),
+    decided_by="user-operator",
+    verdict="approved",
+    applied_and_verified=True,
+)
+
+#: Rejected, with a named reason.
+_REJECTED = _decision(
+    approval_id="apr-0004",
+    run_id="run-0002",
+    action="estate.migrate_guest",
+    side_effect_level=SIDE_EFFECT_WRITE_IRREVERSIBLE,
+    summary="Migrate vibe-kanban to pve02.",
+    title="Migrate vibe-kanban to pve02",
+    requester="alert-router",
+    state="rejected",
+    requested_at=at(days=8),
+    expires_at=at(days=7),
+    origin={"run_id": "run-0002", "headline": "", "incident_id": ""},
+    risk={"class": "medium", "score": 3, "scale": 5},
+    reversible=False,
+    arguments={"guest": "vibe-kanban", "target_node": "pve02"},
+    decided_at=at(days=7, hours=23),
+    decided_by="user-operator",
+    reason="wrong maintenance window",
+    verdict="rejected",
+)
+
+APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (_PENDING, _EXPIRED, _APPROVED, _REJECTED)
+
 
 def interaction_records() -> tuple[CapturedRecord, ...]:
-    """Return each run's open questions and approvals, and the approval queue."""
+    """Return each run's open questions and approvals, and the approval queue.
+
+    The queue is recorded once per `state=` bucket (FR-006) — three separate
+    responses under the one `approvals` slug, distinguished by their own
+    recorded `arguments`, which `bodyFor`/`MockPlane.answer` match against
+    the request's actual query string. A single undifferentiated response
+    (the shape this fixture used to be) answers every bucket identically,
+    which is exactly the defect a acceptance run against this dataset found:
+    the same two rows counted as pending, expired and decided at once.
+    """
     records = [
         _record("interactions", {"run_id": run_id}, {"interactions": list(found)})
         for run_id, found in INTERACTIONS.items()
     ]
-    records.append(_record("approvals", {}, {"approvals": list(APPROVALS)}))
+    # A bare read with no `state=` at all matches the real gateway's own
+    # default (`Query(default="pending", ...)`, gateway/http/routes/approvals.py)
+    # — the same body as `state=pending`, so `shell/load.ts`'s `readAttention`,
+    # which still reads the endpoint unfiltered, sees the same list a
+    # `state=pending` read would.
+    records.append(_record("approvals", {}, {"approvals": [_PENDING]}))
+    records.append(_record("approvals", {"state": "pending"}, {"approvals": [_PENDING]}))
+    records.append(_record("approvals", {"state": "expired"}, {"approvals": [_EXPIRED]}))
+    records.append(
+        _record(
+            "approvals",
+            {"state": "decided", "limit": "10"},
+            {"approvals": [_REJECTED, _APPROVED]},
+        )
+    )
     for approval in APPROVALS:
         records.append(
             _record(

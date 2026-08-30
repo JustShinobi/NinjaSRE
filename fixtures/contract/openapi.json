@@ -24,6 +24,30 @@
         "title": "AcceptanceView",
         "type": "object"
       },
+      "ActionStepView": {
+        "description": "One numbered sentence — either what the action does or how it undoes it.",
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ordinal",
+          "summary",
+          "capability"
+        ],
+        "title": "ActionStepView",
+        "type": "object"
+      },
       "AnswerRequest": {
         "properties": {
           "selected_option": {
@@ -111,6 +135,11 @@
             "title": "Action",
             "type": "string"
           },
+          "applied_and_verified": {
+            "default": false,
+            "title": "Applied And Verified",
+            "type": "boolean"
+          },
           "approval_id": {
             "title": "Approval Id",
             "type": "string"
@@ -119,6 +148,12 @@
             "additionalProperties": true,
             "title": "Arguments",
             "type": "object"
+          },
+          "autonomy": {
+            "$ref": "#/components/schemas/AutonomyView"
+          },
+          "blast_radius": {
+            "$ref": "#/components/schemas/BlastRadiusFieldView"
           },
           "blast_radius_count": {
             "anyOf": [
@@ -130,6 +165,16 @@
               }
             ],
             "title": "Blast Radius Count"
+          },
+          "category": {
+            "default": "remediation",
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
           },
           "decided_at": {
             "anyOf": [
@@ -153,9 +198,32 @@
             ],
             "title": "Decided By"
           },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItemView"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
           "expires_at": {
             "title": "Expires At",
             "type": "string"
+          },
+          "intent": {
+            "default": "",
+            "title": "Intent",
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/OriginView"
+          },
+          "prior_effectiveness": {
+            "$ref": "#/components/schemas/PriorEffectivenessView"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "title": "Raw",
+            "type": "object"
           },
           "reason": {
             "anyOf": [
@@ -171,6 +239,21 @@
           "requested_at": {
             "title": "Requested At",
             "type": "string"
+          },
+          "requester": {
+            "default": "",
+            "title": "Requester",
+            "type": "string"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskView"
+          },
+          "rollback": {
+            "items": {
+              "$ref": "#/components/schemas/ActionStepView"
+            },
+            "title": "Rollback",
+            "type": "array"
           },
           "rollback_plan": {
             "anyOf": [
@@ -194,9 +277,32 @@
             "title": "State",
             "type": "string"
           },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ActionStepView"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
           "summary": {
             "title": "Summary",
             "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
           }
         },
         "required": [
@@ -208,7 +314,9 @@
           "requested_at",
           "expires_at",
           "state",
-          "arguments"
+          "arguments",
+          "risk",
+          "autonomy"
         ],
         "title": "ApprovalView",
         "type": "object"
@@ -288,6 +396,29 @@
         "title": "AuditEventView",
         "type": "object"
       },
+      "AutonomyView": {
+        "properties": {
+          "queued": {
+            "default": true,
+            "title": "Queued",
+            "type": "boolean"
+          },
+          "reversible": {
+            "title": "Reversible",
+            "type": "boolean"
+          },
+          "side_effect_level": {
+            "title": "Side Effect Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "side_effect_level",
+          "reversible"
+        ],
+        "title": "AutonomyView",
+        "type": "object"
+      },
       "BlastRadiusEntryView": {
         "properties": {
           "depth": {
@@ -303,6 +434,39 @@
           "depth"
         ],
         "title": "BlastRadiusEntryView",
+        "type": "object"
+      },
+      "BlastRadiusFieldView": {
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth"
+          },
+          "known": {
+            "default": false,
+            "title": "Known",
+            "type": "boolean"
+          }
+        },
+        "title": "BlastRadiusFieldView",
         "type": "object"
       },
       "BoundsResponse": {
@@ -2502,6 +2666,24 @@
         "title": "EstateSummaryView",
         "type": "object"
       },
+      "EvidenceItemView": {
+        "properties": {
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "reference"
+        ],
+        "title": "EvidenceItemView",
+        "type": "object"
+      },
       "ExcludedToolView": {
         "description": "A tool that was offered and is not available, and why.",
         "properties": {
@@ -4528,6 +4710,27 @@
         "title": "OperatingContextView",
         "type": "object"
       },
+      "OriginView": {
+        "properties": {
+          "headline": {
+            "default": "",
+            "title": "Headline",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "title": "OriginView",
+        "type": "object"
+      },
       "OutcomeListView": {
         "properties": {
           "awaiting": {
@@ -5129,6 +5332,17 @@
           "roles"
         ],
         "title": "PrincipalView",
+        "type": "object"
+      },
+      "PriorEffectivenessView": {
+        "properties": {
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "title": "PriorEffectivenessView",
         "type": "object"
       },
       "PriorRejectionView": {
@@ -5901,6 +6115,29 @@
         "title": "ReplayTurnView",
         "type": "object"
       },
+      "ReproposeResult": {
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_id",
+          "state",
+          "created_at"
+        ],
+        "title": "ReproposeResult",
+        "type": "object"
+      },
       "RequiredPermissionView": {
         "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared — `tools.verify_integrations` makes the\ncall each names.",
         "properties": {
@@ -6262,6 +6499,29 @@
           "token_ids"
         ],
         "title": "RevocationResult",
+        "type": "object"
+      },
+      "RiskView": {
+        "properties": {
+          "class": {
+            "title": "Class",
+            "type": "string"
+          },
+          "scale": {
+            "title": "Scale",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "class",
+          "score",
+          "scale"
+        ],
+        "title": "RiskView",
         "type": "object"
       },
       "RoleBindingView": {
@@ -9651,7 +9911,7 @@
     },
     "/v1/approvals": {
       "get": {
-        "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
+        "description": "Return approvals in one state bucket, per FR-006.\n\n``state=pending`` (the default) is only requests genuinely within their\nown window; ``state=expired`` is only the ones that have lapsed;\n``state=decided`` is ``approved``/``rejected``/``discarded``, most\nrecently decided first. Every call sweeps lapsed requests to ``expired``\nfirst (`ApprovalStore.expire_due`), in the same transaction — the\nmechanism already existed with its own test coverage and nothing in\nproduction called it, so a request answered an hour after its own window\nclosed still read as `pending` and the sidebar counted it. This is the\none place that composes it into a path something actually serves.\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
         "operationId": "list_approvals_v1_approvals_get",
         "parameters": [
           {
@@ -9672,6 +9932,16 @@
               "default": 50,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "title": "State",
+              "type": "string"
             }
           },
           {
@@ -9842,6 +10112,124 @@
           }
         },
         "summary": "Decide Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/{approval_id}/discard": {
+      "post": {
+        "description": "Withdraw a decision from the queue, marked, never deleted (FR-018).\n\nReachable from `pending` or `expired`; refused once a person has already\ndecided it (`approved`/`rejected`) or discarded it once already — the same\nappend-only guarantee `decide` already enforces.",
+        "operationId": "discard_approval_v1_approvals__approval_id__discard_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalDecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/{approval_id}/repropose": {
+      "post": {
+        "description": "Propose a fresh reading against an expired decision's origin (FR-015).\n\nQueues through ``RequestBuilder.queue()`` — the exact mechanism that\nproduced the original, reached the same way `RemediationGate` reaches it\n— never `RemediationGate.decide()`/`.execute_approved()`, which can\nsuspend waiting on a decision or, under an autonomy policy, execute the\naction outright. Neither is acceptable for a handler whose only contract\nis \"always exactly one new pending proposal, never a write\": calling\n`queue()` directly is what makes propose-only structural here rather than\na convention a policy could override.\n\nOnly an expired decision may be reproposed (FR-015: \"Só aceita\nstate=expired\"). Idempotent by origin while the new pending exists\n(FR-017): a second call returns `409` naming the same pending rather than\na second one. An origin that no longer resolves — the capability retired,\nthe plan undeliverable — is refused by name with `422` (FR-016), never a\nserver error.",
+        "operationId": "repropose_approval_v1_approvals__approval_id__repropose_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReproposeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Repropose Approval",
         "tags": [
           "approvals"
         ]

@@ -189,9 +189,9 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         path="/v1/approvals",
         slug="approvals",
         source=_GATEWAY,
-        summary="undecided approvals, longest-waiting first",
+        summary="approvals in one state bucket, by field",
         records_key="approvals",
-        query=("run_id", "limit"),
+        query=("run_id", "limit", "state"),
     ),
     ConsoleEndpoint(
         method="GET",
