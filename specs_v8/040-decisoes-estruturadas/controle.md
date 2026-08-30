@@ -277,6 +277,28 @@ resolvido nesta feature; registrado para quem revisar.
 revisão Alembic nesta feature — nada para o líder cravar contra a feature
 par.
 
+## FR-021 — "aplicada e verificada", e um método corrigido no processo
+
+`applied_and_verified: bool` em `ApprovalView`, verdadeiro só quando
+`request.state is APPROVED` e `uow.remediation.get(action.action_id)` devolve
+um `RemediationOutcome` com `state is VerificationState.VERIFIED`
+(`platform/persistence/ports/remediation_ledger.py`). Recusada/descartada
+nunca perguntam ao ledger — não há obrigação de verificação para uma ação
+que nunca rodou, e perguntar mesmo assim devolveria "sem obrigação", um fato
+diferente de "ainda não verificada".
+
+**Achado de processo, não de produto.** Meu primeiro script de edição fazia
+três substituições em memória com um `assert` cada, escrevendo o arquivo só
+no final. O terceiro `assert` falhou (indentação) e a exceção interrompeu o
+script **antes** do `f.write()` — o que significa que as duas primeiras
+substituições, ambas bem-sucedidas em memória, nunca chegaram ao disco. Um
+segundo script, corrigindo só o terceiro ponto, aplicou-se contra o arquivo
+original (sem as duas primeiras mudanças) e criou um `git add` cujo diff
+citava `_applied_and_verified` sem defini-la em lugar nenhum — `ruff` pegou
+antes do líder, que preferiu não comitar a comitar um `HEAD` que não linta.
+Refeito com uma verificação em disco (`grep`) depois de cada escrita
+individual, não mais em lote.
+
 ## Ledger de critérios (uma linha por obrigação atômica)
 
 | Peça | Estado | Detalhe |
