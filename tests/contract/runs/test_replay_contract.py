@@ -281,3 +281,68 @@ class TestReplayGroupsTheRunByStage:
 
         assert body["turn_tokens"] == 1_540
         assert body["total_tokens"] == 2_430
+
+    async def test_a_failed_stage_is_served_with_its_own_failure_and_the_run_stops_there(
+        self, deployment: Deployment
+    ) -> None:
+        """The rail's failure shape needs a fact the route has never been asked for.
+
+        Every other test in this class seeds stages that finished cleanly. A
+        stage that raised is recorded from the error path
+        (`RunTraceRecordingHook._write_stage`, `failed=True`) rather than from
+        a `stage_end` that never arrives, and nothing before this asserted the
+        route actually carries that bit to a reader — the console side of this
+        feature has no way to draw the failure shape from a body that always
+        says `false`. The stage after the failure is not recorded at all,
+        because the run ended inside it: `stages[]` names three, not six.
+        """
+        run_id = "run-staged-failed"
+        scope = TenantScope(org_id=ORG, team_node_id=TEAM)
+        async with deployment.gateway.begin(scope) as uow:
+            recorder = RunRecorder(store=uow.run_traces)
+            await recorder.start_run(
+                trigger=TRIGGER_ALERT,
+                principal_id="alertmanager",
+                team_node_id=TEAM,
+                run_id=run_id,
+            )
+            await recorder.record_stage(
+                run_id,
+                stage=StageName.RESOLVE_INTEGRATIONS.value,
+                finding="6 capabilities available on this team",
+                duration_ms=180,
+            )
+            await recorder.record_stage(
+                run_id,
+                stage=StageName.INTAKE.value,
+                finding="A new incident, not a repeat of one already open",
+                duration_ms=1_400,
+                llm_calls=1,
+            )
+            await recorder.record_stage(
+                run_id,
+                stage=StageName.PLAN_EVIDENCE.value,
+                finding="the model could not be reached to score the shortlist",
+                duration_ms=340,
+                failed=True,
+            )
+            await recorder.complete_run(run_id, status=RunStatus.FAILED, summary="no evidence")
+
+        response = await deployment.client.get(
+            f"/v1/runs/{run_id}/replay", headers=bearer(deployment.operator_secret)
+        )
+
+        stages = response.json()["stages"]
+        assert [stage["stage"] for stage in stages] == [
+            StageName.RESOLVE_INTEGRATIONS.value,
+            StageName.INTAKE.value,
+            StageName.PLAN_EVIDENCE.value,
+        ]
+        by_name = {stage["stage"]: stage for stage in stages}
+        assert by_name[StageName.RESOLVE_INTEGRATIONS.value]["failed"] is False
+        assert by_name[StageName.INTAKE.value]["failed"] is False
+        assert by_name[StageName.PLAN_EVIDENCE.value]["failed"] is True
+        assert (
+            by_name[StageName.PLAN_EVIDENCE.value]["finding"]
+            == "the model could not be reached to score the shortlist"
+        )

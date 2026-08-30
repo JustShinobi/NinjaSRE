@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EN } from '@/i18n/en';
@@ -196,11 +196,23 @@ describe('the runs list language', () => {
   it('keeps the raw trigger in the address value while showing its label', async () => {
     render(await RunsScreen(contextFor(datasetViewer())));
 
-    const trigger = screen.getByRole('combobox', { name: EN['runs.filter.trigger'] });
-    expect(within(trigger).getByRole('option', { name: 'Alert' })).toHaveValue('alert');
-    expect(within(trigger).getByRole('option', { name: 'Scheduled' })).toHaveValue(
-      'schedule',
+    // Each filter is a chip — a link whose own address carries the raw slug
+    // the API filters by, while the word on the chip is the translated
+    // label. Both groups (status, trigger) share one `filter-chip` testid,
+    // so the trigger ones are found by their own `data-filter` attribute.
+    const chips = screen.getAllByTestId('filter-chip');
+    const alert = chips.find(
+      (chip) => chip.getAttribute('data-filter') === 'trigger' && chip.textContent === 'Alert',
     );
+    const scheduled = chips.find(
+      (chip) =>
+        chip.getAttribute('data-filter') === 'trigger' && chip.textContent === 'Scheduled',
+    );
+    if (alert === undefined || scheduled === undefined) {
+      throw new Error('the trigger chips are not on the page');
+    }
+    expect(alert.getAttribute('href')).toContain('trigger=alert');
+    expect(scheduled.getAttribute('href')).toContain('trigger=schedule');
   });
 
   it('gives the subject cell a tooltip containing the complete subject', async () => {

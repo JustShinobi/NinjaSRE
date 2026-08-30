@@ -468,8 +468,15 @@ export function unplacedTurns(body: RunCardBody): readonly RunCardTurn[] {
   return body.turns.filter((turn) => !placed.has(turn.index));
 }
 
-/** The six the pipeline runs, and the only names this console has a label for. */
-const STAGE_NAMES = [
+/**
+ * The six the pipeline runs, in order, and the only names this console has a
+ * label for.
+ *
+ * Exported for `stage-rail.tsx`, which draws the same six as boxes rather
+ * than as rows — one vocabulary, two presentations, so a stage renamed here
+ * cannot drift between the list's card and the run's own page.
+ */
+export const STAGE_NAMES = [
   'resolve_integrations',
   'intake',
   'plan_evidence',
@@ -522,6 +529,7 @@ export function RunCard({
       data-testid="run-card"
       data-run={head.runId}
       data-open={open}
+      data-status={head.status}
       className={`bg-raised edge rounded-3 shadow-1 ${open ? 'border-accent' : 'border-border'}`}
     >
       {/* The address still carries which card is open, so the expansion can be
@@ -559,10 +567,10 @@ export function RunCard({
               in full the moment it opens. */}
           <span
             data-testid="run-card-subject"
-            className="text-body truncate"
+            className="text-body line-clamp-2"
             title={head.subjectFull}
           >
-            {head.subject}
+            {head.subjectFull}
           </span>
           <span className="text-meta text-muted">
             {triggerLabel(locale, head.trigger)} ·{' '}
@@ -582,6 +590,22 @@ export function RunCard({
           {started.relative}
         </time>
       </RunCardToggle>
+
+      {/* A failed run's transcript is the one thing worth reaching without
+          opening the card — the card's own expansion re-reads the replay and
+          draws the same grouped stages this links straight past; a reader
+          chasing why it stopped wants the narrated account, not another
+          summary of the summary. Visible on the closed row on purpose, and a
+          sibling of the toggle rather than nested inside it: the toggle is
+          itself a clickable control, and a link inside a button is invalid
+          HTML two controls deep. */}
+      {head.status === 'failed' ? (
+        <div className="px-4 pb-3 -mt-2">
+          <Link data-testid="run-card-transcript-link" href={`/runs/${head.runId}`}>
+            {message(locale, 'runs.row.openPage')}
+          </Link>
+        </div>
+      ) : null}
 
       {open && body !== undefined ? (
         <div

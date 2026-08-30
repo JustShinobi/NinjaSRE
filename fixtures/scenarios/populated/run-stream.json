@@ -17,13 +17,61 @@
             "turn_id": "turn-0003-1"
           },
           {
+            "kind": "stage_completed",
+            "occurred_at": "2026-08-07T11:56:00+00:00",
+            "payload": {
+              "completion_tokens": 0,
+              "duration_ms": 175,
+              "failed": false,
+              "finding": "6 capabilities available on this team",
+              "llm_calls": 0,
+              "prompt_tokens": 0,
+              "stage": "resolve_integrations"
+            },
+            "run_id": "run-0003",
+            "sequence": 1,
+            "turn_id": null
+          },
+          {
+            "kind": "stage_completed",
+            "occurred_at": "2026-08-07T11:56:01+00:00",
+            "payload": {
+              "completion_tokens": 0,
+              "duration_ms": 1260,
+              "failed": false,
+              "finding": "A new incident, not a repeat of one already open",
+              "llm_calls": 0,
+              "prompt_tokens": 0,
+              "stage": "intake"
+            },
+            "run_id": "run-0003",
+            "sequence": 2,
+            "turn_id": null
+          },
+          {
+            "kind": "stage_completed",
+            "occurred_at": "2026-08-07T11:56:02+00:00",
+            "payload": {
+              "completion_tokens": 0,
+              "duration_ms": 55,
+              "failed": false,
+              "finding": "3 capabilities shortlisted, best first",
+              "llm_calls": 0,
+              "prompt_tokens": 0,
+              "stage": "plan_evidence"
+            },
+            "run_id": "run-0003",
+            "sequence": 3,
+            "turn_id": null
+          },
+          {
             "kind": "turn_started",
             "occurred_at": "2026-08-07T11:56:00+00:00",
             "payload": {
               "index": 0
             },
             "run_id": "run-0003",
-            "sequence": 1,
+            "sequence": 4,
             "turn_id": "turn-0003-1"
           },
           {
@@ -36,7 +84,7 @@
               "name": "estate.failed_units"
             },
             "run_id": "run-0003",
-            "sequence": 2,
+            "sequence": 5,
             "turn_id": "turn-0003-1"
           },
           {
@@ -48,7 +96,7 @@
               "units": 9
             },
             "run_id": "run-0003",
-            "sequence": 3,
+            "sequence": 6,
             "turn_id": "turn-0003-1"
           },
           {
@@ -58,7 +106,7 @@
               "detail": "nine failed units on the primary, two of them network shares"
             },
             "run_id": "run-0003",
-            "sequence": 4,
+            "sequence": 7,
             "turn_id": "turn-0003-1"
           },
           {
@@ -69,7 +117,7 @@
               "tokens": 1840
             },
             "run_id": "run-0003",
-            "sequence": 5,
+            "sequence": 8,
             "turn_id": "turn-0003-1"
           },
           {
@@ -79,7 +127,7 @@
               "index": 1
             },
             "run_id": "run-0003",
-            "sequence": 6,
+            "sequence": 9,
             "turn_id": "turn-0003-1"
           },
           {
@@ -92,8 +140,24 @@
               "name": "knowledge.search"
             },
             "run_id": "run-0003",
-            "sequence": 7,
+            "sequence": 10,
             "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "stage_completed",
+            "occurred_at": "2026-08-07T12:10:00+00:00",
+            "payload": {
+              "completion_tokens": 0,
+              "duration_ms": 45000,
+              "failed": false,
+              "finding": "3 observations gathered",
+              "llm_calls": 0,
+              "prompt_tokens": 0,
+              "stage": "gather_evidence"
+            },
+            "run_id": "run-0003",
+            "sequence": 11,
+            "turn_id": null
           }
         ],
         "run_id": "run-0003"

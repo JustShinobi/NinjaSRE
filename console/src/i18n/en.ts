@@ -465,10 +465,58 @@ export const EN = {
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
   'transcript.events.one': '{count} event',
+  // The board's own second half of this caption (`RunView.dc.html`:
+  // "31 eventos · o mais novo primeiro") — its own key, not folded into
+  // `transcript.events` above, because that key is shared with the audit
+  // log's own count (`settings/audit.tsx`), which is not ordered this way.
+  'transcript.newestFirst': 'newest first',
   'transcript.empty.heading': 'No transcript yet',
   'transcript.empty.body':
     'A transcript appears as soon as the investigation takes its first turn. Nothing has been recorded for this one.',
   'transcript.empty.action': 'Back to the investigations',
+
+  // The toggle between the narrated sentence (the default) and the raw
+  // payload every event actually carries. Two words, read by the toggle
+  // itself and by nothing else.
+  'transcript.view.narrated': 'Narrated',
+  'transcript.view.raw': 'Raw',
+  'transcript.view.payload': 'Raw payload',
+
+  // One lead sentence per raw kind the stream vocabulary declares
+  // (`STREAM_KINDS`, `transcript.ts`). `{name}` is only ever filled with a
+  // real capability or sub-agent name — never left as a literal placeholder —
+  // and the event's own `detail` is appended after the lead by `narrate`,
+  // never folded into the template itself.
+  'transcript.narration.runStarted': 'Objective accepted',
+  'transcript.narration.turnStarted': 'A new turn began',
+  'transcript.narration.modelReasoned': 'The model reasoned',
+  'transcript.narration.toolCalled': 'Called {name}',
+  'transcript.narration.toolSucceeded': '{name} returned',
+  'transcript.narration.toolFailed': '{name} failed',
+  'transcript.narration.observationRecorded': 'An observation was recorded',
+  'transcript.narration.evidenceRetained': 'Evidence was retained',
+  'transcript.narration.memoryRecalled': 'A memory was recalled',
+  'transcript.narration.subagentDispatched': 'Dispatched {name}',
+  'transcript.narration.subagentReturned': '{name} returned',
+  'transcript.narration.guardrailWithheld': 'A guardrail withheld an action',
+  'transcript.narration.guardrailApplied': 'A guardrail was applied',
+  'transcript.narration.interactionOpened': 'The investigation is waiting on a person',
+  'transcript.narration.interactionAnswered': 'The open question was answered',
+  'transcript.narration.runCompleted': 'The investigation completed',
+  'transcript.narration.runFailed': 'The investigation failed',
+  // The floor every event has: a kind this build has never met still names
+  // itself, in a sentence, rather than falling back to a raw payload block.
+  'transcript.narration.unknown': 'An event of an unrecognised kind arrived: {kind}',
+  'transcript.narration.unnamedCapability': 'a capability',
+  'transcript.narration.unnamedSubagent': 'a sub-agent',
+
+  // --- The run's pipeline rail -----------------------------------------------------
+  'run.stage.rail.title': 'Pipeline',
+  'run.stage.future': 'Stage {number}',
+  'run.usage.awaiting': 'The first turn has not arrived yet.',
+  'run.links.watching': 'Watching for resources this investigation touches.',
+  'run.findings.title': 'Findings so far',
+  'run.findings.none': 'No stage has finished with a finding yet.',
 
   // --- The overview --------------------------------------------------------------
   'dashboard.attention.title': 'Needs you',
@@ -749,6 +797,9 @@ export const EN = {
   'runs.trigger.scheduled': 'Scheduled',
   'runs.trigger.specialist': 'Specialist',
   'runs.list.caption': 'Every investigation this deployment has recorded',
+  'runs.live.title': 'Live now',
+  'runs.live.count.one': '{count} in flight',
+  'runs.live.count': '{count} in flight',
   'runs.empty.heading': 'No investigations yet',
   'runs.empty.body':
     'An investigation is recorded whenever an alert, a schedule or a person starts one. None has been.',

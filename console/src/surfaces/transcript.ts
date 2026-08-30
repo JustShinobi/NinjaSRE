@@ -17,6 +17,8 @@
  * one component in this console renders these.
  */
 
+import { message, type Locale, type MessageKey } from '@/i18n/messages';
+
 /**
  * Every kind of thing a run does, distinguished semantically rather than by
  * colour.
@@ -122,8 +124,12 @@ function payloadOf(value: unknown): string {
  *
  * A table rather than a chain of conditions, because the set is the contract
  * with the deployment and a table is a thing somebody can read against it.
+ *
+ * Exported for the narration table below, which is keyed by exactly this set
+ * of raw kinds, and for the completeness test that proves every one of them
+ * has a phrase in every locale this console carries.
  */
-const STREAM_KINDS: Readonly<Record<string, TranscriptKind>> = {
+export const STREAM_KINDS: Readonly<Record<string, TranscriptKind>> = {
   run_started: 'objective',
   turn_started: 'reasoning',
   model_reasoned: 'reasoning',
@@ -281,6 +287,118 @@ export function eventFromStream(streamed: StreamedEvent): TranscriptEvent {
     status: text(payload, 'status'),
     durationMs: count(payload, 'duration_ms'),
   });
+}
+
+/**
+ * The lead sentence for each raw kind `STREAM_KINDS` declares.
+ *
+ * A message key per kind rather than a hand-written string, so both locales
+ * carry it and a kind added to `STREAM_KINDS` with none here is caught by the
+ * completeness test (`tests/unit/surfaces/transcript-narration.test.ts`)
+ * rather than shown to an operator as its own raw name. The event's own
+ * `detail` — the objective, the reasoning, the observation, the question —
+ * is appended after the lead by `narrate` below rather than folded into the
+ * template, so the template itself never needs the field to be non-empty.
+ *
+ * Two kinds take a `{name}`: the capability a call named, or the sub-agent a
+ * dispatch named. Every other kind's lead is fixed, because the field
+ * `eventFromStream` extracts as `title` for those kinds is not a name at
+ * all — it is the raw kind itself, standing in for one that was never given.
+ */
+const NARRATION_LEAD: Readonly<Record<string, MessageKey>> = {
+  run_started: 'transcript.narration.runStarted',
+  turn_started: 'transcript.narration.turnStarted',
+  model_reasoned: 'transcript.narration.modelReasoned',
+  tool_called: 'transcript.narration.toolCalled',
+  tool_succeeded: 'transcript.narration.toolSucceeded',
+  tool_failed: 'transcript.narration.toolFailed',
+  // `eventsFromReplay` spells a call's outcome `tool_returned` rather than
+  // splitting it into `tool_succeeded`/`tool_failed` the way the stream
+  // does — the replay reader already carries the outcome in `status`
+  // instead, which the Badge beside this sentence already draws. The lead
+  // is the stream's own success wording, deliberately status-neutral: it
+  // is true whichever way the call actually went, and is not the only
+  // signal the reader has for which.
+  tool_returned: 'transcript.narration.toolSucceeded',
+  observation_recorded: 'transcript.narration.observationRecorded',
+  evidence_retained: 'transcript.narration.evidenceRetained',
+  memory_recalled: 'transcript.narration.memoryRecalled',
+  subagent_dispatched: 'transcript.narration.subagentDispatched',
+  subagent_returned: 'transcript.narration.subagentReturned',
+  guardrail_withheld: 'transcript.narration.guardrailWithheld',
+  guardrail_applied: 'transcript.narration.guardrailApplied',
+  interaction_opened: 'transcript.narration.interactionOpened',
+  interaction_answered: 'transcript.narration.interactionAnswered',
+  run_completed: 'transcript.narration.runCompleted',
+  run_failed: 'transcript.narration.runFailed',
+};
+
+/** The raw kinds whose lead names a capability, read from `event.title`. */
+const NAMES_A_CAPABILITY: ReadonlySet<string> = new Set([
+  'tool_called',
+  'tool_succeeded',
+  'tool_failed',
+  'tool_returned',
+]);
+
+/** The raw kinds whose lead names a sub-agent, read from `event.title`. */
+const NAMES_A_SUBAGENT: ReadonlySet<string> = new Set([
+  'subagent_dispatched',
+  'subagent_returned',
+]);
+
+/**
+ * `event`'s title, when it is a real name rather than the raw kind standing
+ * in for one that was never given — or the declared-absent fallback word.
+ *
+ * `eventFromStream` falls `title` back to the raw kind itself when the
+ * payload carried no `name` (`text(payload, 'name') === '' ? name : ...`).
+ * That fallback is right for the transcript's own meta line, which already
+ * shows the raw kind beside the kind label — but a narration template that
+ * printed it as if it were a capability's name would read "Called
+ * tool_called", so the same signal that produced the fallback is what tells
+ * this function to reach for the honest word instead.
+ */
+function namedOrFallback(event: TranscriptEvent, locale: Locale): string {
+  const real = event.title !== '' && event.title !== event.rawKind;
+  if (real) return event.title;
+  return message(
+    locale,
+    NAMES_A_SUBAGENT.has(event.rawKind)
+      ? 'transcript.narration.unnamedSubagent'
+      : 'transcript.narration.unnamedCapability',
+  );
+}
+
+/**
+ * `event`, as one sentence in the viewer's language.
+ *
+ * The single point every reader of a transcript passes through to get from
+ * "an event happened" to "a sentence about it" — called from the view for
+ * both a replayed run and a live one, over the same `TranscriptEvent[]`
+ * `eventsFromReplay` and `eventsFromStream`/`eventFromStream` already
+ * produce. A pure function of the event's own fields is what makes "replay
+ * and stream narrate identically" a property of the code rather than a
+ * promise: two events with the same `rawKind`, `title` and `detail` narrate
+ * to the same string regardless of which reader built them.
+ *
+ * A kind outside `NARRATION_LEAD` — one this build has never met — renders
+ * the generic sentence naming the raw kind. Never JSON, never a blank line:
+ * the floor every event has, known or not.
+ */
+export function narrate(event: TranscriptEvent, locale: Locale): string {
+  const key = NARRATION_LEAD[event.rawKind];
+  const lead =
+    key === undefined
+      ? message(locale, 'transcript.narration.unknown', { kind: event.rawKind })
+      : message(
+          locale,
+          key,
+          NAMES_A_CAPABILITY.has(event.rawKind) || NAMES_A_SUBAGENT.has(event.rawKind)
+            ? { name: namedOrFallback(event, locale) }
+            : {},
+        );
+  return event.detail === '' ? lead : `${lead} — ${event.detail}`;
 }
 
 /**

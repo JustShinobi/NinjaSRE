@@ -33,14 +33,16 @@ test('a run that is still going is watched rather than read back', async ({ page
   await expect(live).toHaveAttribute('data-phase', 'running');
 });
 
-test('the transcript fills as frames arrive, in sequence order', async ({ page }) => {
+test('the transcript fills as frames arrive, newest event on top', async ({ page }) => {
   await page.goto('/runs/run-0003');
 
   const entries = page.getByTestId('transcript-event');
   await expect(entries.first()).toBeVisible();
-  // The first thing a run does is start. If the ordering were wrong this is
-  // where it would show, because the deployment sends them fastest at the top.
-  await expect(entries.first()).toHaveAttribute('data-raw-kind', 'run_started');
+  // The first thing a run does is start, and it is drawn last: the board
+  // draws the newest event at the top ("o mais novo primeiro",
+  // `RunView.dc.html`), so the very first thing recorded is the one that
+  // ends up furthest down, not the one on top.
+  await expect(entries.last()).toHaveAttribute('data-raw-kind', 'run_started');
 
   // Polled rather than read once: the deployment sends frames at its own rate,
   // and asserting on the count at an arbitrary instant is a test that passes on
@@ -50,6 +52,12 @@ test('the transcript fills as frames arrive, in sequence order', async ({ page }
       Number(await page.getByTestId('transcript').getAttribute('data-total')),
     )
     .toBeGreaterThan(1);
+
+  // The event that arrived after the page loaded pushed run_started further
+  // down rather than appearing below it — the top of the list keeps
+  // changing as the stream delivers, which is what "newest first" means for
+  // a transcript that is still growing, not just for one already settled.
+  await expect(entries.first()).not.toHaveAttribute('data-raw-kind', 'run_started');
 });
 
 test('a run that has finished is read back through the same transcript', async ({

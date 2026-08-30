@@ -488,7 +488,38 @@
       "body": {
         "is_interrupted": false,
         "run_id": "run-0004",
-        "stages": [],
+        "stages": [
+          {
+            "completion_tokens": 0,
+            "duration_ms": 190,
+            "failed": false,
+            "finding": "5 capabilities available on this team",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "resolve_integrations",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 1180,
+            "failed": false,
+            "finding": "A new incident, not a repeat of one already open",
+            "llm_calls": 1,
+            "prompt_tokens": 0,
+            "stage": "intake",
+            "turns": []
+          },
+          {
+            "completion_tokens": 0,
+            "duration_ms": 340,
+            "failed": true,
+            "finding": "The model could not be reached to score the shortlist",
+            "llm_calls": 0,
+            "prompt_tokens": 0,
+            "stage": "plan_evidence",
+            "turns": []
+          }
+        ],
         "total_cost": 0,
         "total_events": 2,
         "total_tokens": 0,
