@@ -21,6 +21,7 @@ intenção. Escrito e atualizado a cada commit — não só no relatório final.
 | T017–T019 — Recursos (US2) | NÃO INICIADO | |
 | T020–T023a — Conhecimento (US3) | NÃO INICIADO | |
 | T024–T026a — O agente (US4) | NÃO INICIADO | |
+| T012–T015a — Incidentes (US1) | FEITO | `console/src/surfaces/incident-group-list.tsx` reescrito: `<li data-testid="row">` com o título como `<a>` para `/incidents/{publicId}` da occurrence mais nova (FR-001/T015a), faixa 24h (`incident-timeline.ts`, testado por unidade), bloco de causa/link ao vivo lendo `/v1/runs` uma vez por página via `subjectOf` (o módulo canônico de nome de run já existente, não uma segunda fonte), strip de recorrência SVG. `console/src/surfaces/screens/incidents.tsx`: segmented controls (`SegmentedLinks`, novo em `components/navigation.tsx`) no lugar de `<select>`, cartão de achados sem detector (`detector-coverage-gap.ts`, testado). **Prova real, não inferida**: `incidents-by-subject.acceptance.spec.ts` — 10 de 14 verdes, 3 pulados nomeadamente (sem assunto recorrente no dataset local), 1 corrigido para pular do mesmo jeito (SC-001). `transversal-rules.spec.ts` completo: 39 verdes, 6 falhas — **nenhuma em `/incidents` ou `/incidents/{id}`**, todas em `/runs/{id}` (herdadas, não desta feature, confirmado por leitura) e na regra de progresso do setup (não relacionada). As três falhas que T015a prometeu fechar (`markdown`, `identifier-as-name`, `two-placeholders` em `/incidents/{id}`) rodadas isoladas e verdes. |
 | T027–T033 — integração e fechamento | NÃO INICIADO | |
 
 ## Achado desde já, para não se perder
@@ -47,6 +48,22 @@ intenção. Escrito e atualizado a cada commit — não só no relatório final.
   episódios, nem proposta `knowledge` pendente. As alegações que dependem
   disso são `@staging-safe` e/ou testadas por unidade com dado sintético
   (T009), nunca inventadas como passando localmente.
+
+## Correção de método, registrada para quem retomar
+
+`tools.mockplane console` (que este relatório usou nas primeiras corridas)
+**não serve o console React** — serve `surfaces/console` (a UI antiga
+renderizada em Python, tema azul, `surfaces/console/theme.py`, exatamente o
+que DIVERGENCIAS.md item 5 chama de "outra era"). Os testes contra ele
+voltavam sempre para a tela de login (cookie de sessão de nome diferente,
+`ninjasre_console_session` vs `ninjasre_session` que os specs esperam) e
+qualquer "vermelho" medido assim não provava nada sobre esta feature. A
+ferramenta certa, e a única usada a partir do commit `a5b70669`, é
+`python -m tools.console_e2e run --backing mock --scenario populated -- <args
+do Playwright>` — que compila `.next/standalone` (exige `make console-build`
+ou `python -m tools.console_gate build` antes, a cada mudança de código; não
+há rebuild automático) e serve o console de verdade contra o mock. Perdido
+tempo real com isso; fica registrado para não repetir.
 
 ## O que fica pendente, nomeado, não escondido
 

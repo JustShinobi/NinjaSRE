@@ -119,24 +119,24 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 3: Incidentes (dona interna dos single-write) — US1
 
-- [ ] T012 [US1] Reescrever a apresentação de
+- [x] T012 [US1] Reescrever a apresentação de
       `console/src/surfaces/screens/incidents.tsx` conforme
       `Incidents.dc.html`: linha por grupo (marca quadrada de severidade,
       título `group.title`, subtítulo humano com id mono truncado por
       último), strip de recorrência SVG por occurrences, chips
       severidade/estado com forma, `N×` mono, tempo relativo; visão "Cada
       disparo" mantida re-skinada.
-- [ ] T013 [US1] Implementar a expansão: faixa "Disparos nas últimas 24 h"
+- [x] T013 [US1] Implementar a expansão: faixa "Disparos nas últimas 24 h"
       (componente puro testado em T009a), link "investigação em andamento →"
       para `/runs/<run_id>` do disparo falante, bloco "Última causa
       encontrada:" com headline resolvido por uma leitura da listagem de
       runs por página (nunca por linha).
-- [ ] T014 [US1] Trocar os `<select>` por segmented controls (Estado,
+- [x] T014 [US1] Trocar os `<select>` por segmented controls (Estado,
       Severidade, Visão) mantendo `readViewState`/URL; linha-resumo com as
       contagens da própria listagem.
-- [ ] T015 [US1] Cartão de detector no rodapé lendo a fonte cravada em
+- [x] T015 [US1] Cartão de detector no rodapé lendo a fonte cravada em
       T002e; zero → ausente; CTA para a configuração de detectores.
-- [ ] T015a [US1] Fechar de verdade a dívida transversal herdada do S1 em
+- [x] T015a [US1] Fechar de verdade a dívida transversal herdada do S1 em
       `/incidents/{id}` (specs_v8/CONFRONTO.md §6; três das sete falhas
       pré-existentes — `markdown`/`identifier-as-name`/`two-placeholders` —
       são desta feature, as de `/runs/{id}` não): a linha fechada da lista
