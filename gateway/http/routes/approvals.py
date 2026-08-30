@@ -665,6 +665,13 @@ async def repropose_approval(
     the plan undeliverable — is refused by name with `422` (FR-016), never a
     server error.
     """
+    # Three transactions, never nested — `RequestBuilder.queue()` opens its
+    # own `state.gateway.begin(...)` inside `ApprovalService.queue()`
+    # (`platform/approvals/service.py`), and `FakePersistence.begin` (like
+    # the real gateway's own transaction scope) is not reentrant: holding one
+    # open across the call that opens a second deadlocks the request rather
+    # than refusing it, which is a far worse failure to ship than the two
+    # extra round trips cost here.
     async with state.gateway.begin(auth.scope) as uow:
         expired = await uow.approvals.get_request(approval_id)
         if expired is None:
@@ -690,25 +697,26 @@ async def repropose_approval(
                 f"action that can be rebuilt"
             )
 
-        desk = getattr(state, "remediation", None)
-        if desk is None:
-            raise unprocessable(
-                "this deployment composed no remediation desk, so nothing can be reproposed"
-            )
+    desk = getattr(state, "remediation", None)
+    if desk is None:
+        raise unprocessable(
+            "this deployment composed no remediation desk, so nothing can be reproposed"
+        )
 
-        try:
-            queued = await desk.requests.queue(action)
-        except RemediationError as unresolved:
-            raise unprocessable(str(unresolved)) from unresolved
+    try:
+        queued = await desk.requests.queue(action)
+    except RemediationError as unresolved:
+        raise unprocessable(str(unresolved)) from unresolved
 
-        if not queued.change_id:
-            raise unprocessable(
-                f"{approval_id!r} could not be reproposed — this deployment has no "
-                f"approval store composed for it"
-            )
+    if not queued.change_id:
+        raise unprocessable(
+            f"{approval_id!r} could not be reproposed — this deployment has no "
+            f"approval store composed for it"
+        )
 
+    async with state.gateway.begin(auth.scope) as uow:
         just_queued = await uow.approvals.get_request(queued.change_id)
-        assert just_queued is not None  # created moments ago, in this transaction
+        assert just_queued is not None  # created moments ago, by the call above
         fresh = await uow.approvals.amend_request(
             queued.change_id,
             arguments={**just_queued.arguments, _ORIGIN_APPROVAL_ID_KEY: approval_id},

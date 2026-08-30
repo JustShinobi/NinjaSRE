@@ -96,9 +96,9 @@ def test_the_staging_payload_scores_three_of_five() -> None:
 
     risk = _risk_of(payload, fallback_class="low")
 
-    assert risk["scale"] == 5
-    assert risk["score"] == 3
-    assert risk["class"] == "low"
+    assert risk.scale == 5
+    assert risk.score == 3
+    assert risk.risk_class == "low"
 
 
 def test_score_never_exceeds_the_scale_even_for_a_destructive_wide_blast_radius() -> None:
@@ -112,7 +112,7 @@ def test_score_never_exceeds_the_scale_even_for_a_destructive_wide_blast_radius(
 
     risk = _risk_of(payload, fallback_class="critical")
 
-    assert risk["score"] == 5
+    assert risk.score == 5
 
 
 def test_a_read_only_action_with_no_blast_radius_scores_one() -> None:
@@ -120,7 +120,7 @@ def test_a_read_only_action_with_no_blast_radius_scores_one() -> None:
 
     risk = _risk_of(payload, fallback_class="low")
 
-    assert risk["score"] == 1
+    assert risk.score == 1
 
 
 def test_an_unknown_side_effect_level_scores_no_lower_than_the_reversible_write_floor() -> None:
@@ -135,4 +135,4 @@ def test_an_unknown_side_effect_level_scores_no_lower_than_the_reversible_write_
 
     risk = _risk_of(payload, fallback_class="")
 
-    assert 1 <= risk["score"] <= 5
+    assert 1 <= risk.score <= 5
