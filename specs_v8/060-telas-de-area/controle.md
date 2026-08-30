@@ -1,72 +1,107 @@
 # Controle — Telas de área (slot S2)
 
 Estado abaixo verificado contra o código real desta árvore, não contra a
-intenção. Escrito e atualizado a cada commit — não só no relatório final.
+intenção. Cada linha cita `file:line` ou o comando que a comprova.
 
 ## Peça | Estado | Detalhe
 
 | Peça | Estado | Detalhe |
 |---|---|---|
-| T001 — baseline `make verify` | FEITO | Verde antes de qualquer mudança: Python 0 falhas (log completo salvo fora do repo), console `190 arquivos / 3138 testes` verdes. Log real conferido, não a notificação de fundo. |
-| T002 — caracterização (Fase 0) | FEITO | `specs_v8/060-telas-de-area/evidence/caracterizacao.md` — rota/campo de Recursos (`parent_name` já existe, bug de confiabilidade; `unhealthy_since` não existe), episódios, propostas, topologia, e a fonte de "achados sem detector" (não encontrada pronta — decisão registrada). |
-| T003 — capturas "antes" no staging | Fora do escopo desta worktree (`[~]`) | Sem alcance a staging/Orca por aqui; o lead confirmou que já rodou e comitou as oito capturas em `evidence/visual/antes/`. |
-| T004 — acceptance Incidentes red-first | FEITO (vermelho confirmado) | `console/tests/e2e/incidents-by-subject.acceptance.spec.ts`. Rodado contra `tools.mockplane console --scenario populated` local; 18 de 21 blocos observados vermelhos por falta real (nenhum `data-testid` do feature existe ainda), nenhum passou por medir nada — nenhum vazio verde entre os observados. |
-| T005 — acceptance Recursos red-first | FEITO (vermelho confirmado) | `console/tests/e2e/resources-by-node.acceptance.spec.ts`. Rodado com timeout reduzido (8s) contra o mock local: todos os blocos vermelhos por falta real (nenhum `data-testid` do feature existe ainda). |
-| T006 — acceptance Conhecimento red-first | FEITO (vermelho confirmado) | `console/tests/e2e/learned-knowledge.acceptance.spec.ts`. Rodado com timeout reduzido (8s): todos os blocos vermelhos por falta real, 1 pulado nomeadamente. |
-| T007 — acceptance O agente red-first | FEITO (vermelho confirmado) | `console/tests/e2e/agent-pipeline.acceptance.spec.ts`. Rodado; 18 vermelhos reais + 2 achados de teste vazio (passavam sem medir nada porque `pipeline-metro-node`/`side-effect-chip` contam zero elementos hoje) — corrigidos para exigir contagem mínima antes de iterar, e reconfirmados vermelhos por leitura direta (`node:154` e `:59`, rodados isolados após a correção). |
-| T008 — contrato pytest (node/unhealthy_since) | FEITO | Vermelho confirmado e depois fechado: `tests/contract/persistence/test_estate_repository.py` (unhealthy_since em lote, fakes), `tests/unit/platform/estate/test_estate_service.py` (novo — `parent_name` fora da página, `unhealthy_since` propagado), `tests/unit/gateway/http/test_estate_routes.py` (dois novos, no fio HTTP real). 328 testes relacionados a estate verdes, `mypy` limpo nos 5 arquivos tocados. |
-| T009 — unitários vitest (faixa 24h, normalização, regime, efeito colateral, síntese) | NÃO INICIADO | |
-| T010/T011 — contrato do estate + regeneração | FEITO | `platform/persistence/ports/estate_repository.py` ganhou `unhealthy_since` no protocolo; Postgres (`DISTINCT ON`, mesmo padrão de `signal_store.py:111`) e fake implementados. `EstateService.query()` resolve `parent_name` em lote para os pais fora da página (nunca mais depende de coincidência) e popula `ResourceView.unhealthy_since` só para o que está unhealthy agora. `ResourceSummaryView` ganhou o campo; `fixtures/contract/openapi.json` e `console/src/api/schema.ts` regenerados pelos geradores (`python -m tools.mockplane contract`, `make console-client`), nunca editados à mão. |
-| T012–T016 — Incidentes (US1) | NÃO INICIADO | |
-| T017–T019 — Recursos (US2) | NÃO INICIADO | |
-| T020–T023a — Conhecimento (US3) | NÃO INICIADO | |
-| T024–T026a — O agente (US4) | NÃO INICIADO | |
-| T012–T015a — Incidentes (US1) | FEITO | `console/src/surfaces/incident-group-list.tsx` reescrito: `<li data-testid="row">` com o título como `<a>` para `/incidents/{publicId}` da occurrence mais nova (FR-001/T015a), faixa 24h (`incident-timeline.ts`, testado por unidade), bloco de causa/link ao vivo lendo `/v1/runs` uma vez por página via `subjectOf` (o módulo canônico de nome de run já existente, não uma segunda fonte), strip de recorrência SVG. `console/src/surfaces/screens/incidents.tsx`: segmented controls (`SegmentedLinks`, novo em `components/navigation.tsx`) no lugar de `<select>`, cartão de achados sem detector (`detector-coverage-gap.ts`, testado). **Prova real, não inferida**: `incidents-by-subject.acceptance.spec.ts` — 10 de 14 verdes, 3 pulados nomeadamente (sem assunto recorrente no dataset local), 1 corrigido para pular do mesmo jeito (SC-001). `transversal-rules.spec.ts` completo: 39 verdes, 6 falhas — **nenhuma em `/incidents` ou `/incidents/{id}`**, todas em `/runs/{id}` (herdadas, não desta feature, confirmado por leitura) e na regra de progresso do setup (não relacionada). As três falhas que T015a prometeu fechar (`markdown`, `identifier-as-name`, `two-placeholders` em `/incidents/{id}`) rodadas isoladas e verdes. |
-| T017–T019 — Recursos (US2) | FEITO | `console/src/surfaces/screens/resources-grouping.ts` (novo, testado: `healthSegments`, `groupByNode`, `unhealthySynthesis`). `resources.tsx` reescrito: barra de saúde segmentada com legenda clicável (URL), busca compacta, chips de tipo com contagem (chip "Todos" com testid próprio, sem contagem por natureza), seções por nó com não-saudáveis primeiro (dentro e entre seções), síntese em lote (3+, mesmo nó/tipo/janela de 30min), aviso de zona/criticidade movido para cartão âmbar no rodapé. Painéis de detalhe (sinais/documentos/mudanças) e de divergência mantidos como estavam — sem artboard próprio, decisão 8. **Prova real**: `resources-by-node.acceptance.spec.ts` — 9 de 13 verdes, 4 pulados nomeadamente (dataset local sem os 4 estados de saúde simultâneos, sem `unhealthy_since` — campo novo que o fixture local antecede). `transversal-rules.spec.ts` sem regressão (mesmas 6 falhas pré-existentes de sempre, nenhuma em `/resources`). |
-| T027–T033 — integração e fechamento | NÃO INICIADO | |
+| T001 — baseline `make verify` | FEITO | Verde antes de qualquer mudança: Python 0 falhas, console 190 arquivos/3138 testes verdes. |
+| T002 — caracterização (Fase 0) | FEITO | `evidence/caracterizacao.md` — `parent_name` já existia (bug de confiabilidade, não campo ausente); `unhealthy_since` genuinamente novo; episódios/propostas/topologia cravados; "achados sem detector" sem fonte pronta (decisão registrada). |
+| T003 — capturas "antes" no staging | `[~]` do lead | Sem alcance a staging/Orca desta worktree; o lead confirmou as oito capturas já comitadas em `evidence/visual/antes/`. |
+| T004–T007 — os quatro acceptance specs, red-first | FEITO | Todos os quatro escritos e confirmados vermelhos contra o build real (`tools.console_e2e`, não o `tools.mockplane console` que este relatório usou por engano nas primeiras corridas — ver nota de método abaixo). Dois blocos de Agent passavam medindo zero elementos; corrigidos para exigir contagem mínima antes de iterar, reconfirmados vermelhos isolados. |
+| T008 — contrato pytest (node/unhealthy_since) | FEITO | `tests/contract/persistence/test_estate_repository.py`, `tests/unit/platform/estate/test_estate_service.py` (novo), `tests/unit/gateway/http/test_estate_routes.py` — vermelho confirmado, depois verde. 328 testes de estate verdes, mypy limpo. |
+| T009 — unitários vitest das cinco derivações | PARCIAL | (a) `incident-timeline.ts` — FEITO, testado. (b) `component-normalisation.ts` — FEITO, testado, com a correção do valor canônico (ver "achado do slot" abaixo). (e) síntese de Recursos — FEITO, dentro de `resources-grouping.ts`, testado. (c) regime do estágio e (d) contagens de efeito colateral — NÃO INICIADO, pertencem à fase de O agente que não foi alcançada. |
+| T010/T011 — contrato do estate + regeneração | FEITO | Porta, Postgres (`DISTINCT ON`), fake — todos com paridade testada. `openapi.json`/`schema.ts` regenerados pelos geradores. |
+| T012–T015a — Incidentes (US1) | FEITO | `incident-group-list.tsx` reescrito: `data-testid="row"` com título como link para `/incidents/{publicId}` da occurrence mais nova (FR-001/T015a), faixa 24h, bloco de causa/link ao vivo (uma leitura de `/v1/runs` por página via `subjectOf`, o módulo canônico já existente — nunca uma segunda fonte de nome), strip de recorrência. `incidents.tsx`: segmented controls (só aparecem quando há escolha real — regra "mobília" preservada), cartão de achados sem detector. **Prova**: `incidents-by-subject.acceptance.spec.ts` 11 de 14 verdes isolado (3 pulados nomeadamente, sem assunto recorrente local). `transversal-rules.spec.ts` para `/incidents/{id}`: 4 de 4 verdes isolado — as três falhas herdadas do S1 (markdown, identifier-as-name, two-placeholders) e a quarta regra (negative-assertion) todas fecham de verdade, sem allowlist. |
+| T016 — i18n single-write das quatro telas | PARCIAL | Chaves de Incidentes/Recursos/Conhecimento aplicadas em `en.ts`+`pt-BR.ts`, paridade mantida (`catalogue.test.ts` verde). Chaves de O agente pendentes — fase não alcançada. |
+| T017–T019 — Recursos (US2) | FEITO | `resources-grouping.ts` (novo, testado): `healthSegments`, `groupByNode`, `unhealthySynthesis`. `resources.tsx` reescrito: barra de saúde segmentada com "N vigiados" + legenda clicável, busca compacta, chips de tipo com contagem, seções por nó (não-saudáveis primeiro, dentro e entre seções), síntese em lote, aviso de zona/criticidade no rodapé, painel `undeclared` (achado de divergência que o grid de cards não tinha mais onde marcar por linha — ver "achado do slot"). **Prova**: `resources-by-node.acceptance.spec.ts` 9 de 13 verdes isolado (4 pulados nomeadamente: quatro estados simultâneos e `unhealthy_since` são fatos que só staging tem). |
+| T020–T023 — Conhecimento (US3) | FEITO | `component-normalisation.ts` (novo, testado, com a correção de valor canônico). `memory.tsx` reescrito: Aprendido como aba padrão (`knowledge.tsx` `tabFrom`), episódios como cards com chip de resultado moldado, filtro de componente agrupado por tipo (consulta ao servidor por spelling bruto real, nunca sintetizado — ver achado abaixo), painel "o que o agente aprendeu" lendo `/v1/proposals` filtrado a `proposal_type==='knowledge'`, faixa inferior com Documentos/Topologia. **Prova**: `learned-knowledge.acceptance.spec.ts` 13 de 14 verdes isolado (1 pulado nomeadamente). |
+| T023a — reforma de Documentos/Topologia | `[~]` cortado | Onda autoriza este corte primeiro, antes de tocar Incidentes (Implementation Strategy do tasks.md). Documentos/Topologia continuam com o vocabulário da 000 (tokens/chips/ícones), sem a reforma estrutural do artboard próprio — inclusive o `<select>` de "kind" do Documents, que `AN-T1` por isso mede só em Aprendido. |
+| T024–T026a — O agente (US4) | NÃO INICIADO | Não alcançado neste ciclo — ver "o que fica pendente". |
+| T027–T033 — integração e fechamento | PARCIAL | Ver tabela de gates abaixo; T031/T032 são do lead. |
 
-## Achado desde já, para não se perder
+## Gates rodados, com o resultado real
 
-- **`console/src/components/navigation.tsx` ganhou `SegmentedLinks`** (+
-  export em `components/index.ts`) — primitiva nova, não um arquivo
-  congelado (só `design/tokens.ts`, `icons.tsx`, `components/status.tsx` e as
-  fontes são da 000). As quatro telas precisam do mesmo padrão (filtro sem
-  `<select>`, estado na URL) e `FilterBar`/`Select` são compartilhados com
-  toda tela fora desta feature — mexer neles reformaria telas sem artboard.
-  Um componente novo, ao lado de `TabLinks` (mesmo padrão de link com estado
-  na URL), evita isso.
-- **Achados de Fase 0 que mudam a Fase 2**: `ResourceSummaryView` já declara
-  `parent_id`/`parent_name` — FR-006 não pede um campo `node` novo, pede
-  corrigir `EstateService.query()` para resolver o pai mesmo fora da página
-  atual. `unhealthy_since` é genuinamente novo, com a fonte já existente
-  (`HealthTransitionRow`) mas sem método em lote.
-- **"achados degradados sem detector" (FR-005/AN-I9) não tem fonte pronta**
-  em lugar nenhum do código — busca exaustiva registrada em
-  `evidence/caracterizacao.md`. Decisão tomada: computado nesta feature,
-  função pura testada, para a 050 reusar.
-- **Dataset local (`populated`) não tem assunto recorrente** (10 incidentes,
-  todos count=1) nem componente `container:`/`guest:` duplicado nos
-  episódios, nem proposta `knowledge` pendente. As alegações que dependem
-  disso são `@staging-safe` e/ou testadas por unidade com dado sintético
-  (T009), nunca inventadas como passando localmente.
+| Gate | Comando | Resultado |
+|---|---|---|
+| `make verify` (baseline, T001) | `make verify` | Verde, log fora do repo, conferido pelo próprio arquivo (não pela notificação). |
+| `console_gate static` (prettier+eslint+tsc+vitest+build+orçamentos) | `python -m tools.console_gate static` | **Verde, exit 0, 3151 testes.** Falhou por formatação (prettier) por boa parte da sessão sem que eu rodasse este gate específico até tarde — corrigido com `prettier --write` em todos os arquivos tocados; ver "achado de processo" abaixo. |
+| `mypy` nos 5 arquivos de backend tocados | `uv run mypy platform/estate/service.py platform/persistence/ports/estate_repository.py platform/persistence/postgres/repositories/estate_repository.py platform/persistence/fakes/estate_repository.py gateway/http/routes/estate.py` | Limpo. |
+| pytest do estate (contrato + unit + rota HTTP) | `pytest tests/ -k estate` | 328 passaram, 1 pulado, 0 falhas. |
+| `check_constants`, `check_dependencies` | `python tools/check_constants.py`, `python -m tools.check_dependencies` | Ambos exit 0. |
+| Acceptance Incidentes isolado | `console_e2e run ... -- incidents-by-subject` | 11 de 14 verdes, 3 pulados nomeadamente. |
+| Acceptance Recursos isolado | `console_e2e run ... -- resources-by-node` | 9 de 13 verdes, 4 pulados nomeadamente. |
+| Acceptance Conhecimento isolado | `console_e2e run ... -- learned-knowledge` | 13 de 14 verdes, 1 pulado nomeadamente. |
+| Acceptance O agente | não rodado | Fase não implementada. |
+| `transversal-rules.spec.ts` completo | `console_e2e run ... -- transversal-rules` | Isolado por rota: `/incidents/{id}` 4 de 4 verdes. Numa corrida combinada de ~2m40s junto com as outras três specs, 10 falharam por timeout de 15s — **todas reproduzidas como falso-negativo de contenção**, não defeito: refeitas isoladas (`/incidents/{id}` sozinho, `incidents-by-subject` sozinho) e todas passaram. A máquina builda a feature pareada (040) ao mesmo tempo, exatamente o aviso que o despacho já dava. Nenhum veredito deste controle vem da corrida combinada. |
+| `make console-client` / `python -m tools.mockplane contract` | rodados após a mudança de contrato | `openapi.json` (+12 linhas) e `schema.ts` (+2 linhas) — diffs mínimos, gerados, nunca editados à mão. |
 
-## Correção de método, registrada para quem retomar
+## Achados do slot, registrados para não se perderem
 
-`tools.mockplane console` (que este relatório usou nas primeiras corridas)
-**não serve o console React** — serve `surfaces/console` (a UI antiga
-renderizada em Python, tema azul, `surfaces/console/theme.py`, exatamente o
-que DIVERGENCIAS.md item 5 chama de "outra era"). Os testes contra ele
-voltavam sempre para a tela de login (cookie de sessão de nome diferente,
-`ninjasre_console_session` vs `ninjasre_session` que os specs esperam) e
-qualquer "vermelho" medido assim não provava nada sobre esta feature. A
-ferramenta certa, e a única usada a partir do commit `a5b70669`, é
-`python -m tools.console_e2e run --backing mock --scenario populated -- <args
-do Playwright>` — que compila `.next/standalone` (exige `make console-build`
-ou `python -m tools.console_gate build` antes, a cada mudança de código; não
-há rebuild automático) e serve o console de verdade contra o mock. Perdido
-tempo real com isso; fica registrado para não repetir.
+1. **`tools.mockplane console` não serve o console React.** Serve
+   `surfaces/console`, a UI antiga renderizada em Python (tema azul,
+   DIVERGENCIAS.md item 5). As primeiras corridas deste relatório usaram essa
+   ferramenta por engano e todo "vermelho"/"verde" medido contra ela não
+   provava nada desta feature — a sessão de cookie nem tem o mesmo nome
+   (`ninjasre_console_session` vs `ninjasre_session`). A partir da correção,
+   toda medição usa `python -m tools.console_e2e run --backing mock --scenario
+   populated -- <specs>`, que builda `.next/standalone` (via `python -m
+   tools.console_gate build`, sempre antes) e serve o console de verdade.
+2. **O filtro de componente do Aprendido quase mandou um valor que nenhum
+   episódio carrega.** `normaliseComponents` originalmente sintetizava
+   `guest:<id>` como valor canônico sempre que unia `container:<id>` e
+   `guest:<id>` — mesmo quando só uma das duas grafias existia de verdade no
+   corpus. Como o filtro continua sendo resolvido no servidor
+   (`/v1/memory/search?component=`, correspondência exata), um link de filtro
+   com um valor inventado é um link que silenciosamente não devolve nada.
+   Corrigido para que o valor canônico seja sempre uma grafia realmente
+   observada; uma opção fundida carrega as duas grafias em `raw`, e a tela
+   consulta cada uma e funde por `episode_id` — nunca lê o corpus inteiro e
+   filtra no navegador (o vocabulário do filtro em si é lido sem filtro, para
+   não encolher a cada seleção, o que o código antigo também não garantia).
+   Achado ao responder uma pergunta direta do lead, não por iniciativa
+   própria — registrado assim mesmo porque é a explicação que um verifier
+   precisa.
+3. **O grid de cards de Recursos não tinha mais onde marcar uma divergência.**
+   A tabela antiga marcava, por linha, quando o provedor relata um recurso
+   que o inventário declarado não nomeia (`only_in_provider`). O artboard do
+   card não tem essa marca — mas a informação não podia simplesmente
+   desaparecer. Fechado com um painel `undeclared`, simétrico ao `departed`
+   que já existia para a direção oposta (`only_in_file`).
+4. **A barra de saúde perdeu o "N vigiados" no primeiro rascunho.** O
+   artboard mostra o total pareado com os quatro segmentos; corrigido.
+5. **Processo, dito sem rodeio**: `console_gate static` (prettier+eslint+tsc+
+   testes+build) só foi rodado pela primeira vez tarde nesta sessão — antes
+   disso, tsc/eslint/vitest focados passavam, mas o prettier estava quebrado
+   em 14 arquivos sem que nada acusasse. A partir daqui, `console_gate
+   static` roda antes de cada commit que toque `console/`, não só os
+   checkpoints de fase.
+6. **`SegmentedLinks` é um componente novo, não quatro soluções locais.**
+   As quatro telas precisam do mesmo padrão — escolha mutuamente exclusiva,
+   estado na URL, nunca um `<select>` — e `FilterBar`/`Select` são
+   compartilhados com toda tela fora desta feature; reformá-los teria
+   reformado telas sem artboard. Um componente ao lado de `TabLinks` (mesmo
+   padrão de link com estado na URL) evita isso. Custou dois retrabalhos que
+   ficam registrados para quem herdar o padrão: precisa de entrada na galeria
+   de componentes (`tests/unit/gallery.test.tsx` audita cobertura), e seu
+   wrapper usa o mesmo landmark `<nav>` que `TabLinks` já usa — `role="group"`
+   não está no conjunto fechado de papéis ARIA que o auditor de acessibilidade
+   deste console reconhece (`tests/unit/support/accessibility.ts`).
 
 ## O que fica pendente, nomeado, não escondido
 
-Tudo do Phase 2 em diante — ver tabela acima. Nada foi implementado ainda
-além dos testes de aceitação e da caracterização.
+- **T024–T026a (O agente, US4) — não iniciado.** A linha de metrô, o chip
+  "N investigações em voo", os três cards-resumo e a reforma das três abas
+  (Ferramentas/Autonomia/Contexto do time) não foram construídos. O
+  `agent-pipeline.acceptance.spec.ts` (T007) existe e está vermelho — não
+  fechado.
+- **T023a (Documentos/Topologia) — cortado deliberadamente**, primeiro na
+  ordem que a própria tasks.md autoriza.
+- **T009 (c)/(d)** — regime do estágio e contagens de efeito colateral —
+  pertencem a O agente, não feitas.
+- **T016 parcial** — chaves de O agente pendentes.
+- **T027–T030, T033** — integração final, re-baseline visual local e relatório
+  do fan-out não feitos; dependem de T024–T026a existirem primeiro.
+- **T031/T032** — do lead (staging, Orca browser).

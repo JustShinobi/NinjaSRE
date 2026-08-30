@@ -169,32 +169,36 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 5: Conhecimento — US3
 
-- [ ] T020 [P] [US3] Aprendido como aba de entrada: ordem
+- [x] T020 [P] [US3] Aprendido como aba de entrada: ordem
       learned/documents/topology nas pills (reskin sobre `TabLinks`),
       `tabFrom` (`console/src/surfaces/screens/knowledge.tsx:231`) devolvendo
       `learned` no default, deep links preservados (teste unitário do
       `tabFrom` ajustado).
-- [ ] T021 [US3] Filtro de componente agrupado por tipo com contagens e
+- [x] T021 [US3] Filtro de componente agrupado por tipo com contagens e
       normalização (módulo puro de T009b) — uma opção por identificador,
       query com valor canônico, "limpar filtro" quando o valor da URL não
       resolve mais.
-- [ ] T022 [US3] Cards de episódio conforme o artboard (título-frase,
+- [x] T022 [US3] Cards de episódio conforme o artboard (título-frase,
       sub-linha classe+detalhe mono, chip de resultado com forma, chips de
       componente que filtram, "abrir investigação →" quando há run).
-- [ ] T023 [US3] Painel "O que o agente aprendeu com isso" lendo a fila de
+- [x] T023 [US3] Painel "O que o agente aprendeu com isso" lendo a fila de
       propostas pendentes (rota de T002c): card por proposta com origem e
       "promover a documento" para a fila de revisão; vazio honesto de duas
       frases. Faixa inferior com os dois cards-prévia (contagens de T002d e
       da listagem de documentos). Chaves i18n e capturas declaradas no
       relatório.
 
-- [ ] T023a [US3] Reformar as abas Documentos e Topologia conforme
+- [~] T023a [US3] Reformar as abas Documentos e Topologia conforme
       `design/padrao-2026-08/KnowledgeDocuments.dc.html` e
       `KnowledgeTopology.dc.html` (AN-C7): Documentos com empty state de uma
       frase + CTA duplo + revisão de propostas na aba + grid de configuração
       avançada; Topologia com grafo por vizinhança (profundidade 1–3), nó
       selecionável e rail de detalhe, empty state de uma linha. Capturas e
-      chaves i18n declaradas no relatório.
+      chaves i18n declaradas no relatório. Encerrada sem execução: o slot
+      apertou e a própria tasks.md (Implementation Strategy) nomeia esta
+      dupla como a primeira a cortar antes de tocar qualquer coisa da 3
+      (Incidentes). Documentos/Topologia continuam servindo o vocabulário da
+      000 (tokens/ícones/chips) sem a reforma estrutural do artboard próprio.
 
 ## Phase 6: O agente — US4
 
