@@ -54,7 +54,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       sintéticos — o "antes" da medição exigida de toda mudança que possa
       afetar investigação. "Sem efeito" é resposta aceitável no fim; "não
       medido" não é.
-- [ ] T004 Cravar com codegraph e registrar no controle, com `file:line`:
+- [x] T004 Cravar com codegraph e registrar no controle, com `file:line`:
       (a) o arquivo do gateway que serve `GET/POST /v1/approvals*`
       (`gateway/http/routes/approvals.py`, incluindo `decide_approval` em
       `/{approval_id}/decision` — confirmar a linha atual);
@@ -71,6 +71,10 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       de origem cabem sem migração (decisão binária do plano §"Decisões" 5);
       (d) o SQL literal de contagem de linhas para T002/DoD.
       **Nenhuma tarefa de implementação começa antes desta.**
+      Feito — ver `controle.md`, seção T004. Achado adicional: nada em
+      produção chama `expire_due()` (nem rota, nem job agendado); é um Artigo
+      XIV pré-existente que esta feature fecha ao chamar o sweep dentro de
+      `GET /v1/approvals`.
 
 ## Phase 1: Acceptance e contratos primeiro, confirmados vermelhos
 
