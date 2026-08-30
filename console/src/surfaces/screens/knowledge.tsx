@@ -227,9 +227,9 @@ export const KNOWLEDGE_TABS = ['learned', 'documents', 'topology'] as const;
 
 export type KnowledgeAreaTab = (typeof KNOWLEDGE_TABS)[number];
 
-/** The tab the address names, and Documents when it names nothing known. */
+/** The tab the address names, and Learned when it names nothing known. */
 export function tabFrom(value: string): KnowledgeAreaTab {
-  return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'documents';
+  return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'learned';
 }
 
 /** The permission the gateway requires to change this deployment's configuration. */
