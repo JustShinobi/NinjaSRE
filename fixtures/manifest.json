@@ -30,7 +30,8 @@
         { "slug": "documents", "truncate": true },
         { "slug": "integrations", "refuse": true },
         { "slug": "observations", "empty": true },
-        { "slug": "estate-resources", "latency_ms": 1200 }
+        { "slug": "estate-resources", "latency_ms": 1200 },
+        { "slug": "approvals", "status": 500 }
       ]
     },
     {

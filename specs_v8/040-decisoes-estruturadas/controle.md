@@ -155,8 +155,50 @@ voltar a 1 quando a re-proposta criar a pendente nova.
 
 ## T003 — linha de base da suíte sintética
 
-(preenchido depois que `make verify` — rodando em segundo plano desde o
-início desta implementação — terminar; ver seção "Gates" abaixo.)
+`uv run pytest tests/synthetic -q` → **267 passed, 0 failed, EXIT=0** (log em
+`/tmp/.../scratchpad/t003-synthetic-before.log`, fora do repositório).
+
+## T001 — linha de base completa
+
+`make verify` na árvore intacta (antes de qualquer edição desta feature) →
+**13077 passed, 31 skipped, 0 failed, EXIT=0** — bate exatamente com o
+checkpoint que o `progress.json` já registrava para o S1 fechado. Log completo
+fora do repositório.
+
+## T005 — acceptance confirmado vermelho, com a mensagem real de cada alegação
+
+`console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts`, escrito com uma
+asserção por AN-01…AN-14, viewport 1440×1040. Rodado contra o mock
+(`uv run python -m tools.console_e2e run --backing mock -- tests/e2e/decisoes-estruturadas.acceptance.spec.ts`),
+**antes de qualquer edição de implementação**: `8 failed, 6 skipped, 1 passed,
+EXIT=1`.
+
+| Alegação | Resultado | Mensagem real |
+|---|---|---|
+| AN-01 | FAIL | `expect(locator).toBeVisible() failed` — `getByTestId('decision-card')` não existe |
+| AN-02 | FAIL | idem — depende do cartão existir |
+| AN-03 | FAIL | idem — `decision-risk` não existe |
+| AN-04 | FAIL | idem — nenhuma das seis seções nomeadas existe |
+| AN-05 | FAIL | idem — `raw-payload` não existe |
+| AN-09 | FAIL | `expect(received).toBe(expected)` — badge real (sidebar hoje soma pendentes+propostas sem checar janela) contra `pendingCount=0` (nenhum `decision-card` novo) |
+| AN-10 | FAIL | `decided-list` não existe |
+| AN-11 | FAIL | `evidence-item` não existe |
+| AN-06 | SKIP | `cardInState(page, 'pending')` não encontra `decision-card`, então pula com razão nomeada |
+| AN-07 | SKIP | idem, para `state="expired"` |
+| AN-08 | SKIP | idem |
+| AN-12 | SKIP (esperado) | painel de Mudanças hoje não está vazio no dataset populated — condição de dado, não defeito; reavaliado depois de T031 |
+| AN-13 | SKIP | precisa de `--scenario degraded` (`fixtures/manifest.json` ganhou a entrada `{"slug": "approvals", "status": 500}` para tornar isto testável); sob `populated` a alegação não é exercitável e o teste diz isso em vez de fingir verde |
+| Edge case (muitas pendentes) | SKIP | menos de duas pendentes no dataset atual |
+| AN-14 | **PASS** | correto por enquanto — nenhuma chave nova é referenciada ainda; deixa de ser um "verde vazio" assim que a Fase 3 referenciar as chaves declaradas no relatório final, e nesse ponto será vermelho de novo até o merge aplicar as chaves (ver seção "i18n" abaixo) |
+
+Achado corrigido durante a escrita do próprio spec, antes de qualquer
+implementação: minha primeira tentativa de AN-09 comparava dois seletores
+inventados (`nav-count`+`data-nav="decisions"`, que não existe) e por isso
+lia 0 dos dois lados — "verde" sem medir nada, a classe exata de defeito que
+esta onda já achou duas vezes. Corrigido para o seletor real
+(`nav-entry[data-area="decisions"] nav-count`, `sidebar.tsx:195-220`, que
+**omite o `<span>` inteiro quando a contagem é zero** — absent, não um chip
+"0") antes de aceitar a leitura.
 
 ## Ledger de critérios (uma linha por obrigação atômica)
 
