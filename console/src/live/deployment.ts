@@ -1,12 +1,7 @@
-import { reportUnauthorized } from '@/session/controller';
 import {
-  BACKOFF_MS,
-  MAX_RECONNECTIONS,
-  documentVisibility,
-  wallClock,
+  ReconnectingChannel,
   type ConnectionState,
   type Scheduler,
-  type StreamHandle,
   type StreamSource,
   type Visibility,
 } from './connection';
@@ -21,19 +16,16 @@ import {
  * whoever asked (`auto-refresh.tsx`), which is what schedules the one
  * `router.refresh()` that reads the truth back from the routes that own it.
  *
- * **Reuse, declared precisely.** `StreamSource`, `Scheduler`, `Visibility`,
- * `ConnectionState`, `BACKOFF_MS`, `wallClock` and `documentVisibility` are
- * `connection.ts`'s own — the exact types and the exact backoff table
- * `RunConnection` is built from, and the exact `fetchStreamSource` transport
- * (`transport.ts`) both connections open with, unmodified. What this module
- * does *not* share is `RunConnection`'s class body: extracting a fully
- * generic reconnection engine the two could both subclass touches a
- * heavily-tested, load-bearing file this feature does not otherwise need to
- * change, and was not attempted here. `DeploymentConnection` below is a
- * second, smaller state machine over the same primitives — declared here
- * rather than left for a reviewer to notice, since it is the one place FR-008
- * ("reusing … not a second implementation of reconnection") is not met in
- * full.
+ * **Reuse, structural rather than declared.** `DeploymentConnection` is
+ * `connection.ts`'s own `ReconnectingChannel` — the exact engine
+ * `RunConnection` is also built from — opened at this channel's fixed
+ * address, decoding this channel's own frame shape, batching for
+ * `DEPLOYMENT_REFRESH_BATCH_MS` instead of applying on the next scheduler
+ * tick, and routing one event (`resync`) around the batch entirely instead
+ * of through it. State, teardown, the backoff table, the ten-attempt bound
+ * and pausing for a hidden tab are the shared engine's, not a second copy of
+ * either — the two classes below are the whole of what is left over once
+ * that is factored out.
  *
  * **No cursor is presented on reconnect.** `RunConnection` remembers a
  * position so a reconnection resumes; this connection does not, because
@@ -118,206 +110,36 @@ export interface DeploymentConnectionOptions {
   readonly onEvents: (events: readonly DeploymentEvent[]) => void;
   readonly onResync: () => void;
   /**
-   * Called on every failed attempt, with the running count — including a
-   * second, third, ... failure that leaves the state as `reconnecting` both
-   * before and after. `onState` is not that signal: it fires on *change*
-   * (`connection.ts`'s own `#setState` drops a call that would not change
-   * the state string), so a caller reading how many attempts have failed —
-   * this channel's own chip does, to decide when a retry has gone on long
-   * enough to call it `stale` rather than `refreshing` — needs its own hook
-   * rather than reading `.attempts` from inside `onState`.
+   * See `ChannelOptions.onAttempt`. This channel's own chip reads it, to
+   * decide when a retry has gone on long enough to call it `stale` rather
+   * than `refreshing`.
    */
   readonly onAttempt?: (attempts: number) => void;
   readonly scheduler?: Scheduler;
   readonly visibility?: Visibility;
 }
 
-export class DeploymentConnection {
-  readonly #options: DeploymentConnectionOptions;
-  readonly #scheduler: Scheduler;
-  readonly #visibility: Visibility;
-
-  #handle: StreamHandle | null = null;
-  #cancelRetry: (() => void) | null = null;
-  #cancelFlush: (() => void) | null = null;
-  #flushDue = false;
-  #stopWatching: (() => void) | null = null;
-  #buffered: DeploymentEvent[] = [];
-  #state: ConnectionState = 'disconnected';
-  #resting: ConnectionState = 'disconnected';
-  #attempts = 0;
-  #exhausted = false;
-  #closed = false;
-  #owed = false;
-
+/**
+ * The deployment channel: `ReconnectingChannel` opened at a fixed address,
+ * decoding this channel's own frame shape, and batched over a window instead
+ * of the next scheduler tick — with `resync` bypassing that batch entirely.
+ */
+export class DeploymentConnection extends ReconnectingChannel<DeploymentEvent> {
   constructor(options: DeploymentConnectionOptions) {
-    this.#options = options;
-    this.#scheduler = options.scheduler ?? wallClock;
-    this.#visibility = options.visibility ?? documentVisibility;
-  }
-
-  get state(): ConnectionState {
-    return this.#state;
-  }
-
-  get attempts(): number {
-    return this.#attempts;
-  }
-
-  get exhausted(): boolean {
-    return this.#exhausted;
-  }
-
-  /** Start reading, and start listening for the tab going away and coming back. */
-  open(): void {
-    if (this.#closed || this.#stopWatching !== null) return;
-    this.#stopWatching = this.#visibility.onChange(() => {
-      this.#visibilityChanged();
-    });
-    this.#connect();
-  }
-
-  /** Stop, completely — the stream, the retry, the flush and the visibility listener. */
-  close(): void {
-    this.#closed = true;
-    this.#owed = false;
-    this.#tearDown();
-    this.#stopWatching?.();
-    this.#stopWatching = null;
-    this.#buffered = [];
-    this.#setState('disconnected');
-  }
-
-  #tearDown(): void {
-    this.#handle?.close();
-    this.#handle = null;
-    this.#cancelRetry?.();
-    this.#cancelRetry = null;
-    this.#cancelFlush?.();
-    this.#cancelFlush = null;
-    this.#flushDue = false;
-  }
-
-  #setState(state: ConnectionState): void {
-    if (this.#state === state) return;
-    this.#state = state;
-    this.#options.onState(state);
-  }
-
-  #connect(): void {
-    if (this.#closed) return;
-    this.#cancelRetry?.();
-    this.#cancelRetry = null;
-    this.#handle?.close();
-
-    this.#setState(this.#attempts === 0 ? 'connecting' : 'reconnecting');
-    this.#handle = this.#options.source.open(DEPLOYMENT_STREAM_ADDRESS, {
-      onOpen: () => {
-        if (!this.#closed && !this.#visibility.hidden()) this.#setState('connected');
+    super({
+      source: options.source,
+      address: () => DEPLOYMENT_STREAM_ADDRESS,
+      decode: deploymentEventFromFrame,
+      batchDelayMs: DEPLOYMENT_REFRESH_BATCH_MS,
+      isImmediate: (event) => event.kind === RESYNC_KIND,
+      onImmediate: () => {
+        options.onResync();
       },
-      onFrame: (data) => {
-        this.#received(data);
-      },
-      onError: (status) => {
-        this.#failed(status);
-      },
-    });
-  }
-
-  #received(data: string): void {
-    if (this.#closed) return;
-    const event = deploymentEventFromFrame(data);
-    if (event === null) return;
-    if (event.kind === RESYNC_KIND) {
-      // Not batched: a resync is a confession, not a fact to accumulate
-      // alongside whatever else arrived, and it is acted on immediately —
-      // `auto-refresh.tsx` refreshes on it without waiting for the batch
-      // window the way it does for an ordinary event.
-      this.#options.onResync();
-      return;
-    }
-    this.#buffered.push(event);
-    if (this.#visibility.hidden()) return;
-    if (this.#flushDue) return;
-    this.#scheduleFlush();
-  }
-
-  #scheduleFlush(): void {
-    this.#flushDue = true;
-    const already = { run: false };
-    const cancel = this.#scheduler.after(DEPLOYMENT_REFRESH_BATCH_MS, () => {
-      already.run = true;
-      this.#flushDue = false;
-      this.#cancelFlush = null;
-      this.#flush();
-    });
-    if (!already.run) this.#cancelFlush = cancel;
-  }
-
-  #flush(): void {
-    this.#cancelFlush = null;
-    this.#flushDue = false;
-    if (this.#closed || this.#buffered.length === 0) return;
-    const batch = this.#buffered;
-    this.#buffered = [];
-    this.#attempts = 0;
-    this.#setState('connected');
-    this.#options.onEvents(batch);
-  }
-
-  #failed(status: number): void {
-    if (this.#closed) return;
-    this.#tearDown();
-
-    if (status === 401) {
-      this.#setState('disconnected');
-      reportUnauthorized();
-      return;
-    }
-
-    this.#attempts += 1;
-    this.#options.onAttempt?.(this.#attempts);
-    if (this.#attempts > MAX_RECONNECTIONS) {
-      this.#exhausted = true;
-      this.#setState('disconnected');
-      return;
-    }
-
-    if (this.#visibility.hidden()) {
-      this.#owed = true;
-      this.#setState('idle');
-      return;
-    }
-
-    this.#setState('reconnecting');
-    const wait = BACKOFF_MS[Math.min(this.#attempts - 1, BACKOFF_MS.length - 1)] ?? 0;
-    const already = { run: false };
-    const cancel = this.#scheduler.after(wait, () => {
-      already.run = true;
-      this.#connect();
-    });
-    if (!already.run) this.#cancelRetry = cancel;
-  }
-
-  #visibilityChanged(): void {
-    if (this.#closed) return;
-    if (this.#visibility.hidden()) {
-      this.#resting = this.#state;
-      this.#cancelFlush?.();
-      this.#cancelFlush = null;
-      this.#setState('idle');
-      return;
-    }
-
-    this.#setState(this.#resting === 'idle' ? 'connecting' : this.#resting);
-    if (this.#owed) {
-      this.#owed = false;
-      this.#connect();
-      return;
-    }
-    if (this.#buffered.length === 0) return;
-    this.#cancelFlush = this.#scheduler.after(0, () => {
-      this.#flush();
+      onState: options.onState,
+      onEvents: options.onEvents,
+      ...(options.onAttempt === undefined ? {} : { onAttempt: options.onAttempt }),
+      ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
+      ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
     });
   }
 }

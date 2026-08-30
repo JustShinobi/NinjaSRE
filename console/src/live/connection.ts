@@ -13,6 +13,16 @@ import { eventFromFrame, type StreamEvent } from './events';
  *
  * Time, the transport and the tab's visibility are all injected. Nothing here
  * waits, so nothing here flakes, and the whole of it is provable in a unit test.
+ *
+ * The engine underneath (`ReconnectingChannel`, below) is shared with
+ * `deployment.ts`'s `DeploymentConnection`: a run's stream and the
+ * deployment-wide channel differ only in where they open, how they read one
+ * frame, how long they may batch before handing a delivery over, and one
+ * event a run's stream has no equivalent of (the deployment channel's
+ * `resync`). Everything else — state, teardown, the backoff table, the
+ * ten-attempt bound, pausing for a hidden tab and resuming into whatever it
+ * was doing before — is written once, so a fix applied here is a fix applied
+ * to both.
  */
 
 /** What the connection is doing, in the words the indicator uses. */
@@ -81,17 +91,6 @@ export interface Visibility {
   onChange: (listener: () => void) => () => void;
 }
 
-export interface RunConnectionOptions {
-  readonly runId: string;
-  readonly source: StreamSource;
-  /** The cursor to present, read at connect time from whatever holds the state. */
-  readonly cursor: () => string;
-  readonly onState: (state: ConnectionState) => void;
-  readonly onEvents: (events: readonly StreamEvent[]) => void;
-  readonly scheduler?: Scheduler;
-  readonly visibility?: Visibility;
-}
-
 /** The browser's own timer, for a connection nobody injected one into. */
 export const wallClock: Scheduler = {
   after: (ms, run) => {
@@ -115,8 +114,68 @@ export const documentVisibility: Visibility = {
   },
 };
 
-export class RunConnection {
-  readonly #options: RunConnectionOptions;
+/**
+ * What every reconnecting channel needs, parametrized over the handful of
+ * things that actually differ between one and another.
+ */
+export interface ChannelOptions<E> {
+  readonly source: StreamSource;
+  /**
+   * Where to open. Read fresh on every attempt — a run's stream presents
+   * whatever cursor it last reached; the deployment channel's address never
+   * changes.
+   */
+  readonly address: () => string;
+  /** One frame's `data`, turned into an event, or `null` for a frame this channel has nothing to do with. */
+  readonly decode: (data: string) => E | null;
+  /**
+   * How long a batch of decoded events is allowed to accumulate before
+   * `onEvents` receives it, in ms. Nought — the next scheduler tick,
+   * batching only what genuinely arrived in the same instant — unless told
+   * otherwise.
+   */
+  readonly batchDelayMs?: number;
+  /**
+   * An event that must bypass the batch entirely and reach `onImmediate` at
+   * once — the deployment channel's `resync`, a confession rather than a
+   * fact to accumulate alongside whatever else arrived. A run's stream has
+   * nothing like it and leaves both this and `onImmediate` unset.
+   */
+  readonly isImmediate?: (event: E) => boolean;
+  readonly onImmediate?: (event: E) => void;
+  readonly onState: (state: ConnectionState) => void;
+  readonly onEvents: (events: readonly E[]) => void;
+  /**
+   * Called on every failed attempt, with the running count — including a
+   * second, third, ... consecutive failure that leaves the state as
+   * `reconnecting` both before and after. `onState` is not that signal: it
+   * fires on *change* (`#setState` below drops a call that would not change
+   * the state string), so a caller that needs to know how many attempts have
+   * failed — a chip deciding when a retry has gone on long enough to call it
+   * `stale` rather than `refreshing`, say — needs this instead of trying to
+   * infer it from `onState`.
+   */
+  readonly onAttempt?: (attempts: number) => void;
+  readonly scheduler?: Scheduler;
+  readonly visibility?: Visibility;
+}
+
+/**
+ * The backoff, the batching, the visibility pause and the bounded-retry
+ * give-up — written once, and composed by both `RunConnection` and
+ * `DeploymentConnection` rather than reimplemented by either.
+ *
+ * A fix that lands here lands for every channel built on it. Before this was
+ * extracted, `DeploymentConnection` carried a fix `RunConnection` did not:
+ * `onAttempt`, added so a chip could notice a second and third consecutive
+ * failure that `onState` alone never re-announces (`#setState` drops a call
+ * that would not change the state string). Nothing stopped the same gap from
+ * reopening the next time either copy changed on its own; sharing the engine
+ * is what makes "one fix, both channels" a structural fact rather than a
+ * habit to remember.
+ */
+export class ReconnectingChannel<E> {
+  readonly #options: ChannelOptions<E>;
   readonly #scheduler: Scheduler;
   readonly #visibility: Visibility;
 
@@ -125,7 +184,7 @@ export class RunConnection {
   #cancelFlush: (() => void) | null = null;
   #flushDue = false;
   #stopWatching: (() => void) | null = null;
-  #buffered: StreamEvent[] = [];
+  #buffered: E[] = [];
   #state: ConnectionState = 'disconnected';
   /** What it was doing before the tab went away, to be restored on return. */
   #resting: ConnectionState = 'disconnected';
@@ -135,7 +194,7 @@ export class RunConnection {
   /** A reconnection that is owed but must not happen while nobody is looking. */
   #owed = false;
 
-  constructor(options: RunConnectionOptions) {
+  constructor(options: ChannelOptions<E>) {
     this.#options = options;
     this.#scheduler = options.scheduler ?? wallClock;
     this.#visibility = options.visibility ?? documentVisibility;
@@ -204,7 +263,7 @@ export class RunConnection {
     this.#handle?.close();
 
     this.#setState(this.#attempts === 0 ? 'connecting' : 'reconnecting');
-    const address = streamAddress(this.#options.runId, this.#options.cursor());
+    const address = this.#options.address();
     this.#handle = this.#options.source.open(address, {
       onOpen: () => {
         if (!this.#closed && !this.#visibility.hidden()) this.#setState('connected');
@@ -220,10 +279,16 @@ export class RunConnection {
 
   #received(data: string): void {
     if (this.#closed) return;
-    const event = eventFromFrame(data);
+    const event = this.#options.decode(data);
     // A keep-alive and a frame this console cannot read both cost one line of
     // the transcript rather than the rest of the stream.
     if (event === null) return;
+    if (this.#options.isImmediate?.(event) === true) {
+      // Not batched: a confession, not a fact to accumulate alongside
+      // whatever else arrived, so it is acted on immediately.
+      this.#options.onImmediate?.(event);
+      return;
+    }
     this.#buffered.push(event);
     if (this.#visibility.hidden()) return;
     if (this.#flushDue) return;
@@ -243,7 +308,7 @@ export class RunConnection {
   #scheduleFlush(): void {
     this.#flushDue = true;
     const already = { run: false };
-    const cancel = this.#scheduler.after(0, () => {
+    const cancel = this.#scheduler.after(this.#options.batchDelayMs ?? 0, () => {
       already.run = true;
       this.#flushDue = false;
       this.#cancelFlush = null;
@@ -258,10 +323,9 @@ export class RunConnection {
     if (this.#closed || this.#buffered.length === 0) return;
     const batch = this.#buffered;
     this.#buffered = [];
-    // Something arrived, so whatever went wrong before is over. The same rule
-    // the deployment's own reader uses: a delivery resets the attempt count,
-    // because a stream that keeps breaking after every event is a different
-    // failure from one that will not open at all.
+    // Something arrived, so whatever went wrong before is over. A stream
+    // that keeps breaking after every event is a different failure from one
+    // that will not open at all.
     this.#attempts = 0;
     this.#setState('connected');
     this.#options.onEvents(batch);
@@ -281,6 +345,7 @@ export class RunConnection {
     }
 
     this.#attempts += 1;
+    this.#options.onAttempt?.(this.#attempts);
     if (this.#attempts > MAX_RECONNECTIONS) {
       this.#exhausted = true;
       this.#setState('disconnected');
@@ -327,6 +392,46 @@ export class RunConnection {
     // Everything that arrived while the tab was away, applied once, in order.
     this.#cancelFlush = this.#scheduler.after(0, () => {
       this.#flush();
+    });
+  }
+}
+
+export interface RunConnectionOptions {
+  readonly runId: string;
+  readonly source: StreamSource;
+  /** The cursor to present, read at connect time from whatever holds the state. */
+  readonly cursor: () => string;
+  readonly onState: (state: ConnectionState) => void;
+  readonly onEvents: (events: readonly StreamEvent[]) => void;
+  /**
+   * See `ChannelOptions.onAttempt`. Nothing reads this on a run connection
+   * today — the transcript's own badge (`connection-state.tsx`) shows one
+   * word per state, never a count — but the hook exists here too, because
+   * `RunConnection` and `DeploymentConnection` now share the one engine that
+   * raises it; a future reader of `.attempts` gets the fix for free instead
+   * of having to reinvent it the way `DeploymentConnection` once did alone.
+   */
+  readonly onAttempt?: (attempts: number) => void;
+  readonly scheduler?: Scheduler;
+  readonly visibility?: Visibility;
+}
+
+/**
+ * One run's stream: `ReconnectingChannel` opened at this run's own address —
+ * recomputed from its cursor on every attempt — and fed this run's own frame
+ * format.
+ */
+export class RunConnection extends ReconnectingChannel<StreamEvent> {
+  constructor(options: RunConnectionOptions) {
+    super({
+      source: options.source,
+      address: () => streamAddress(options.runId, options.cursor()),
+      decode: eventFromFrame,
+      onState: options.onState,
+      onEvents: options.onEvents,
+      ...(options.onAttempt === undefined ? {} : { onAttempt: options.onAttempt }),
+      ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
+      ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
     });
   }
 }
