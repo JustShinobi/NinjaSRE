@@ -37,6 +37,63 @@ export function tabFrom(value: string): DecisionsTab {
   return DECISIONS_TABS.find((tab) => tab === value) ?? DECISIONS_TABS[0];
 }
 
+/**
+ * The tab bar, in the artboard's own chips rather than the shared
+ * underline-tab pattern (`TabLinks`, `@/components`).
+ *
+ * A local composition rather than a shared-component reskin: `TabLinks` is
+ * used across many screens this feature does not own, and the artboard's
+ * pill treatment is a per-screen visual choice, not (here) a change to what
+ * a tab *is*. Kept to the same contract `TabLinks` already gave this screen
+ * — `tab-links`/`tab-link` test ids, `data-tab`, `aria-current="page"` on
+ * the selected one, an address-driven `href` — so nothing downstream of the
+ * tab bar's own markup had to change.
+ *
+ * No live count on the "Ações" chip the artboard draws one on: that number
+ * is the same one the sidebar badge already carries, and getting it here
+ * would mean fetching approvals regardless of which tab is open — the exact
+ * "a reader looking at Changes should not wait on an Actions fetch nobody
+ * asked for" cost this screen's own read already avoids for the reverse
+ * case. Left for the badge to carry alone; named in the feature's own report
+ * rather than fetched around silently.
+ */
+function DecisionsTabBar({
+  locale,
+  tab,
+}: {
+  readonly locale: Parameters<typeof message>[0];
+  readonly tab: DecisionsTab;
+}): ReactNode {
+  return (
+    <nav aria-label={message(locale, 'decisions.tabs')} data-testid="tab-links">
+      <ul className="flex gap-2">
+        {DECISIONS_TABS.map((each) => {
+          const selected = each === tab;
+          return (
+            <li key={each}>
+              <a
+                href={`?tab=${each}`}
+                data-testid="tab-link"
+                data-tab={each}
+                aria-current={selected ? 'page' : undefined}
+                className={cx(
+                  CHIP_SHAPE,
+                  'px-3 py-2',
+                  selected
+                    ? 'font-semibold edge border-success bg-success-bg text-success'
+                    : 'text-muted',
+                )}
+              >
+                {message(locale, `decisions.tab.${each}`)}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
 export async function DecisionsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { locale, search } = context;
   const state = readViewState(search, DECISIONS_FILTERS);
@@ -53,15 +110,7 @@ export async function DecisionsScreen(context: SurfaceContext): Promise<ReactNod
     <>
       <AreaHeader area={areaFor('decisions')} locale={locale} />
 
-      <TabLinks
-        label={message(locale, 'decisions.tabs')}
-        selected={tab}
-        tabs={DECISIONS_TABS.map((each) => ({
-          id: each,
-          label: message(locale, `decisions.tab.${each}`),
-          href: `?tab=${each}`,
-        }))}
-      />
+      <DecisionsTabBar locale={locale} tab={tab} />
 
       <div className="mt-4">{content}</div>
     </>
