@@ -58,7 +58,7 @@ export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps
   return (
     <div
       data-testid="expired-footer"
-      className="flex items-center gap-3 px-5 py-3 rounded-b-3 bg-warning-bg edge-t border-warning"
+      className="flex items-center gap-3 px-5 py-3 rounded-b-3 bg-warning-bg edge border-warning border-b-0 border-x-0"
     >
       <span aria-hidden="true" className="text-warning shrink-0">
         <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
