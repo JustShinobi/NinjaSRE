@@ -300,7 +300,7 @@ razão, não silêncio.
 
 ## Phase 8: Convergence
 
-- [ ] T034 [US2] Consertar o locator quebrado do teste "within a section,
+- [x] T034 [US2] Consertar o locator quebrado do teste "within a section,
       unhealthy cards draw before healthy ones"
       (`console/tests/e2e/resources-by-node.acceptance.spec.ts`, describe
       `AN-R4/AN-R6`): ele filtra `node-section` com

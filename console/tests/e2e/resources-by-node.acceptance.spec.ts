@@ -169,9 +169,12 @@ test.describe('AN-R4/AN-R6 — resources group by node, worst node and worst res
     page,
   }) => {
     await openResources(page);
+    // Self-referential: data-has-unhealthy lives on the node-section
+    // element itself, not on a descendant, so this is a plain attribute
+    // selector rather than a `has` filter -- `.filter({ has })` only ever
+    // matches a child, never the element carrying the attribute itself.
     const section = page
-      .getByTestId('node-section')
-      .filter({ has: page.locator('[data-has-unhealthy="true"]') })
+      .locator('[data-testid="node-section"][data-has-unhealthy="true"]')
       .first();
     if ((await section.count()) === 0) {
       test.skip(true, 'no unhealthy section in this dataset');
