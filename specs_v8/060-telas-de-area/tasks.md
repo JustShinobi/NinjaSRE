@@ -297,3 +297,28 @@ MVP = Phase 3 (Incidentes) sozinha já entrega valor e valida o vocabulário
 (faixa de tempo, chips, segmented) que as outras três reutilizam. Se o slot
 apertar, a ordem de corte é 6 → 5 → 4, nunca 3 — e o corte é `[~]` com
 razão, não silêncio.
+
+## Phase 8: Convergence
+
+- [ ] T034 [US2] Consertar o locator quebrado do teste "within a section,
+      unhealthy cards draw before healthy ones"
+      (`console/tests/e2e/resources-by-node.acceptance.spec.ts`, describe
+      `AN-R4/AN-R6`): ele filtra `node-section` com
+      `.filter({ has: page.locator('[data-has-unhealthy="true"]') })`, mas
+      `data-has-unhealthy` é atributo do próprio `node-section`
+      (`console/src/surfaces/screens/resources.tsx:611`), nunca de um
+      descendente — `filter({ has })` do Playwright só casa descendente, não
+      o próprio elemento, então a contagem é sempre zero e o teste sempre se
+      autopula com "no unhealthy section in this dataset", em qualquer
+      dataset. O dataset local `populated` tem o dado que a alegação AN-R6
+      precisa: `fixtures/scenarios/populated/estate-resources.json` mostra
+      node02 com 21 saudáveis/11 não saudáveis e node01 com 49/3, as duas
+      seções misturadas — confirmado pelo teste vizinho ("a section holding
+      unhealthy resources sorts before an all-healthy one", mesmo describe)
+      passando de verdade. A metade "entre seções" de AN-R6 está provada; a
+      metade "dentro da seção" nunca roda — mascarada de limite de dado
+      quando é bug de seletor. Localizar a seção pelo próprio atributo
+      (ex.: `page.locator('[data-testid="node-section"][data-has-unhealthy="true"]')`
+      em vez de `.filter({ has })`) e confirmar que o teste passa a exercitar
+      a ordenação real (verde, ou um skip de verdade motivado por dado, não
+      um skip que dispara sempre).
