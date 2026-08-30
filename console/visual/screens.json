@@ -27,13 +27,14 @@
     {
       "id": "agent-1440-light",
       "route": "/agent?tab=topology",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced agent settings” section, holding the budgets this tab already printed but could not change, the three per-role prompt overrides, the operating-context switch and the subagent roster. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route."
     },
     {
       "id": "agent-autonomy-1440-light",
@@ -213,6 +214,18 @@
       }
     },
     {
+      "id": "incidents-1440-light",
+      "route": "/incidents",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": ""
+      },
+      "pending_because": "No baseline ever existed for the grouped incidents list at this address -- confirmed absent by this feature's own Phase 0 reading of this file before any code changed. Registered here now that the screen this feature builds exists; needs a first reviewed capture."
+    },
+    {
       "id": "integrations-1440-light",
       "route": "/integrations",
       "status": "baselined",
@@ -237,24 +250,26 @@
     {
       "id": "knowledge-1440-light",
       "route": "/knowledge",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Documents tab, and the default one now that Knowledge, Memory and Topology are three tabs of a single screen. The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "The bare address now opens on Learned (FR-010), not Documents -- the committed image is a capture of a tab this address no longer shows by default."
     },
     {
       "id": "knowledge-learned-1440-light",
       "route": "/knowledge?tab=learned",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here."
     },
     {
       "id": "knowledge-topology-1440-light",
@@ -270,24 +285,26 @@
     {
       "id": "resources-1440-light",
       "route": "/resources",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "05-screen-estate.png",
         "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
-      }
+      },
+      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows."
     },
     {
       "id": "resources-320-light",
       "route": "/resources",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 320,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
-      }
+      },
+      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width -- and this is also where the S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid does not have that problem, but still needs a first real capture of the new layout."
     },
     {
       "id": "run-detail-1440-dark",
