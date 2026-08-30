@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { TabLinks } from '@/components';
+import { CHIP_SHAPE } from '@/components/status';
+import { cx } from '@/design/cx';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
