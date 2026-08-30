@@ -93,8 +93,8 @@ CONTROL_PATH_PREFIX: Final = "/__mockplane__"
 #: that goes up between two reads is a request that happened.
 REQUEST_COUNTS_PATH: Final = f"{CONTROL_PATH_PREFIX}/requests"
 
-#: A second control route, `POST`-only: end the caller's own currently-open
-#: deployment channel on its next poll tick, once. Exists because a real
+#: A second control route, `POST`-only: disrupt the caller's own deployment
+#: channel for `DEPLOYMENT_STREAM_DISRUPTION_SECONDS`. Exists because a real
 #: browser test cannot otherwise force a disconnect on a connection that is
 #: already open — `page.route()` only ever governs a request made *after* it
 #: is registered, and this channel's one long-lived `fetch()` does not make a
@@ -104,7 +104,35 @@ REQUEST_COUNTS_PATH: Final = f"{CONTROL_PATH_PREFIX}/requests"
 #: per-run stream, which already has `StreamControl.disconnect_after` for the
 #: same purpose at the unit-test level — this is the live-server equivalent,
 #: for the one caller that cannot reach a `MockPlane` instance directly.
+#:
+#: A time window, not a count of connections: a caller such as this feature's
+#: own acceptance spec routinely has more than one page open in the same
+#: browser context, and every one of them shares this mock's one session
+#: (nothing in the console ever sends `SESSION_HEADER`). A page already
+#: closed by the test does not necessarily stop polling on the *mock's* side
+#: the moment it closes — `_serve_deployment_stream`'s own docstring names
+#: why: this ASGI shell is never handed `receive`, so it has no
+#: transport-level signal that a client went away, and keeps its loop running
+#: until its own `MOCK_DEPLOYMENT_STREAM_MAX_SECONDS` bound regardless. A
+#: counter of "how many disruptions are left" decremented by whichever of
+#: several such loops happens to poll first is a race a closed-but-not-yet-
+#: reaped page can win, spending a disruption meant for the page under test —
+#: found by running this exact scenario and watching the connection under
+#: test recover without ever having been the one disrupted. A wall-clock
+#: window has no such race: every loop that checks it, however many there
+#: are, agrees on the same answer.
 DROP_DEPLOYMENT_STREAM_PATH: Final = f"{CONTROL_PATH_PREFIX}/drop-deployment-stream"
+
+#: How long `DROP_DEPLOYMENT_STREAM_PATH` disrupts the caller's deployment
+#: channel — closing it if one happens to be open, refusing outright
+#: otherwise. Long enough that the console's own backoff table produces at
+#: least three consecutive failed attempts before the window closes (the
+#: first three entries of `BACKOFF_MS`, `console/src/live/connection.ts`, sum
+#: to 1.5s), which is what crosses `STALE_AFTER_FAILURES`
+#: (`console/src/live/freshness.ts`) before recovery — and short enough that
+#: a test's own 30-second timeout comfortably covers both the disruption and
+#: the recovery that follows it.
+DEPLOYMENT_STREAM_DISRUPTION_SECONDS: Final = 3.0
 
 #: How many events the stream emits before it drops the connection, when a
 #: caller asks it to drop one. Far enough in that a reducer has state to lose.
@@ -175,17 +203,17 @@ class Session:
     #: same reason `written` is: a test's writes must not leak into another
     #: test's mock, and a session that reset must start this empty too.
     deployment_events: list[dict[str, Any]] = field(default_factory=list)
-    #: Set by `DROP_DEPLOYMENT_STREAM_PATH`, consumed by the next poll tick of
-    #: this session's own open `_serve_deployment_stream` loop, which ends the
-    #: response and clears the flag right back — one drop per request, not a
-    #: standing policy that would also close the very reconnection it caused.
-    deployment_stream_drop_requested: bool = False
+    #: Set by `DROP_DEPLOYMENT_STREAM_PATH` to `time.monotonic()` plus
+    #: `DEPLOYMENT_STREAM_DISRUPTION_SECONDS`; `None` the rest of the time.
+    #: Read, never decremented — see `DROP_DEPLOYMENT_STREAM_PATH`'s own
+    #: docstring for why a wall-clock deadline is what this is, not a count.
+    deployment_stream_disrupted_until: float | None = None
 
     def clear(self) -> None:
         """Forget everything this session wrote."""
         self.written.clear()
         self.deployment_events.clear()
-        self.deployment_stream_drop_requested = False
+        self.deployment_stream_disrupted_until = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -475,7 +503,8 @@ class MockPlane:
             await send({"type": "http.response.body", "body": body})
             return
         if method == "POST" and path == DROP_DEPLOYMENT_STREAM_PATH:
-            self.session(session).deployment_stream_drop_requested = True
+            disrupted_until = time.monotonic() + DEPLOYMENT_STREAM_DISRUPTION_SECONDS
+            self.session(session).deployment_stream_disrupted_until = disrupted_until
             await send(
                 {
                     "type": "http.response.start",
@@ -595,6 +624,27 @@ class MockPlane:
         as open at all — found by running this feature's acceptance spec
         for real and watching `fetch()` never resolve.
         """
+        live = self.session(session)
+        if live.deployment_stream_disrupted_until is not None:
+            if time.monotonic() < live.deployment_stream_disrupted_until:
+                # A connection that has not even opened yet: refused outright,
+                # the same shape a real deployment being unreachable takes
+                # (`fetchStreamSource`'s own `!response.ok` branch), rather
+                # than a 200 that then ends immediately — this is what makes
+                # a *reconnection* attempt fail, not only the stream that was
+                # already open when the disruption was requested.
+                refusal_body = dumps({"streaming": False}).encode()
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 502,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
+                )
+                await send({"type": "http.response.body", "body": refusal_body})
+                return
+            live.deployment_stream_disrupted_until = None
+
         epoch, after = _deployment_cursor_of(headers.get("last-event-id", ""))
         override = self._data.scenario.override_for(endpoint.slug)
         if override is not None and override.status is not None:
@@ -643,13 +693,15 @@ class MockPlane:
         # `http.response.start` back until it does.
         await send({"type": "http.response.body", "body": b": open\n\n", "more_body": True})
         while time.monotonic() < deadline:
-            live = self.session(session)
-            if live.deployment_stream_drop_requested:
-                # A one-shot signal from `DROP_DEPLOYMENT_STREAM_PATH`, consumed
-                # here rather than left standing — the whole point is to end
-                # *this* response and let the client's own retry open a new one,
-                # not to keep closing every connection this session ever opens.
-                live.deployment_stream_drop_requested = False
+            if (
+                live.deployment_stream_disrupted_until is not None
+                and time.monotonic() < live.deployment_stream_disrupted_until
+            ):
+                # Ends *this* response and lets the client's own retry open a
+                # new one, which the check at the top of this method handles
+                # for as long as the window stays open — not a one-shot flag,
+                # so a second, third, ... connection this session happens to
+                # have open when the window starts all see the same answer.
                 await send({"type": "http.response.body", "body": b"", "more_body": False})
                 return
             delivered = False
@@ -957,6 +1009,7 @@ __all__ = [
     "CONTROL_PATH_PREFIX",
     "DEFAULT_DISCONNECT_AFTER",
     "DEFAULT_SESSION",
+    "DEPLOYMENT_STREAM_DISRUPTION_SECONDS",
     "DEPLOYMENT_STREAM_EPOCH",
     "DROP_DEPLOYMENT_STREAM_PATH",
     "REQUEST_COUNTS_PATH",
