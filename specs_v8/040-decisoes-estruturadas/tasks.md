@@ -114,7 +114,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - [x] T011 [P] Unidade pytest do score: a tabela do plano (base por
       `side_effect_level`, +1 por raio, teto 5) — incluindo o caso real do
       staging (escrita reversível, `depth:3` → 3). Confirmar vermelho.
-- [ ] T012 [P] Unidade vitest do cartão: pendente renderiza as seis seções
+- [x] T012 [P] Unidade vitest do cartão: pendente renderiza as seis seções
       nomeadas; expirada renderiza rodapé com os dois controles e sem
       Aprovar; decidida renderiza desfecho; campo ausente vira ausência
       declarada; nenhum JSON fora de `<details>`. **Um caso com interação
@@ -122,7 +122,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       `IncidentDecisionControls`)** — o segundo é o único que o staging
       exercita hoje (plano, Riscos), e um teste só contra o primeiro não o
       cobriria. Confirmar vermelho.
-- [ ] T013 [P] Unidade vitest do badge: só pendentes não expiradas contam;
+- [x] T013 [P] Unidade vitest do badge: só pendentes não expiradas contam;
       expirada sozinha → zero/ausente. Confirmar vermelho.
 - [x] T014 [P] Caracterização (deve passar antes e depois): decidir por
       `POST /v1/interactions/{id}/approve|reject` continua com o

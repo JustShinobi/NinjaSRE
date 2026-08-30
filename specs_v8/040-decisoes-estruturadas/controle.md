@@ -200,6 +200,31 @@ esta onda já achou duas vezes. Corrigido para o seletor real
 **omite o `<span>` inteiro quando a contagem é zero** — absent, não um chip
 "0") antes de aceitar a leitura.
 
+## T012, T013 — testes vitest do console (Fase 1)
+
+**T012** — `console/tests/unit/surfaces/decision-card.test.tsx`, contra um
+`DecisionCard` (`@/surfaces/proposal`) ainda inexistente. Confirmado vermelho
+de verdade: `12 failed`, todos com `Element type is invalid... You likely
+forgot to export your component` — o componente nem existe. Cobre as seis
+seções, os dois ramos de decisão (`DecisionControls` com interação aberta,
+`IncidentDecisionControls` sem — os dois compostos sem edição, só o entorno
+muda), o rodapé expirado, o desfecho decidido, campo ausente, e o medidor de
+risco.
+
+**T013** — dois casos novos em `console/tests/unit/shell/load.test.ts`
+(mesmo arquivo que já cobre `loadAttention`/`countsFrom`, para não duplicar o
+setup de fixture). **Não pude confirmá-los vermelhos — e digo isso nestes
+termos, não finjo que estavam.** Os dois passaram de primeira, sem nenhuma
+mudança de código: `readAttention` (`console/src/shell/load.ts:134`) já
+filtra por `text(record, 'state') !== 'pending'`, sem olhar `expires_at` — o
+que já é exatamente "só pendente conta" **desde que o campo `state` que
+chega do servidor seja verdadeiro**. A lacuna real de FR-020 nunca esteve no
+cliente; está inteira no servidor (nada chama `expire_due()` hoje — achado
+do T004/T002 acima). Deixo os dois testes como caracterização: provam que o
+filtro do lado do console já está certo, e continuam verdes depois de T015
+fechar o lado do servidor — se algum dia regredirem, é o `load.ts` que
+quebrou, não a integração dos dois lados.
+
 ## Ledger de critérios (uma linha por obrigação atômica)
 
 | Peça | Estado | Detalhe |
