@@ -51,7 +51,20 @@ function baseProps(overrides: Partial<DecisionCardProps> = {}): DecisionCardProp
     blastRadiusText: '1 guest · no known dependent service · no HA',
     autonomyText: 'Reversible write — queued, applies only after your yes.',
     rawPayload: JSON.stringify({ capability: 'proxmox_start_guest' }),
-    rawPayloadLabel: 'raw action payload',
+    labels: {
+      steps: 'What will happen',
+      rollback: 'If it goes wrong — rollback',
+      noRollback: 'No rollback recorded — this action cannot be undone.',
+      why: 'Why',
+      evidence: 'Evidence behind this',
+      evidenceLink: 'view',
+      blastRadius: 'Blast radius',
+      rawPayload: 'raw action payload',
+      notRecorded: 'Not recorded.',
+      risk: 'Risk',
+      outcome: 'Decided',
+      appliedAndVerified: 'applied and verified',
+    },
     ...overrides,
   };
 }

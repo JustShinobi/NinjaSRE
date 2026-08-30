@@ -62,6 +62,8 @@ export interface DecisionCardLabels {
   readonly notRecorded: string;
   readonly risk: string;
   readonly outcome: string;
+  /** Appended to the outcome sentence — ", applied and verified", phrased whole. */
+  readonly appliedAndVerified: string;
 }
 
 export interface DecisionCardProps {
@@ -81,7 +83,7 @@ export interface DecisionCardProps {
   readonly blastRadiusText: string;
   readonly autonomyText: string;
   readonly rawPayload: string;
-  readonly rawPayloadLabel: string;
+  readonly labels: DecisionCardLabels;
   /** Shown as the lone numbered step when `steps` is empty but a summary exists. */
   readonly summaryFallback?: string;
   /** Absent for a viewer who may not decide. */
@@ -234,7 +236,13 @@ function RiskGauge({ risk, label }: { readonly risk: DecisionRisk; readonly labe
 }
 
 /** What was decided, in place of any control — a decision does not decide twice. */
-function Outcome({ outcome, label }: { readonly outcome: DecisionOutcome; readonly label: string }): ReactNode {
+function Outcome({
+  outcome,
+  labels,
+}: {
+  readonly outcome: DecisionOutcome;
+  readonly labels: DecisionCardLabels;
+}): ReactNode {
   return (
     <footer
       data-testid="decision-outcome"
@@ -242,26 +250,12 @@ function Outcome({ outcome, label }: { readonly outcome: DecisionOutcome; readon
     >
       <Badge status={outcome.verdict} />
       <span className="text-small text-muted">
-        {label} — {outcome.decidedBy}
-        {outcome.appliedAndVerified ? ', applied and verified' : ''} · {outcome.relativeTime}
+        {labels.outcome} — {outcome.decidedBy}
+        {outcome.appliedAndVerified ? ` ${labels.appliedAndVerified}` : ''} · {outcome.relativeTime}
       </span>
     </footer>
   );
 }
-
-const DEFAULT_LABELS: DecisionCardLabels = {
-  steps: 'What will happen',
-  rollback: 'If it goes wrong — rollback',
-  noRollback: 'No rollback recorded — this action cannot be undone.',
-  why: 'Why',
-  evidence: 'Evidence behind this',
-  evidenceLink: 'view',
-  blastRadius: 'Blast radius',
-  rawPayload: 'raw action payload',
-  notRecorded: 'Not recorded.',
-  risk: 'Risk',
-  outcome: 'Decided',
-};
 
 export function DecisionCard({
   approvalId,
@@ -280,13 +274,12 @@ export function DecisionCard({
   blastRadiusText,
   autonomyText,
   rawPayload,
-  rawPayloadLabel,
+  labels,
   summaryFallback,
   decision,
   expiredFooter,
   outcome,
 }: DecisionCardProps): ReactNode {
-  const labels = DEFAULT_LABELS;
   const rollbackDanger = !reversible;
 
   return (
@@ -338,7 +331,7 @@ export function DecisionCard({
             <RollbackSteps items={rollback} danger={rollbackDanger} notRecorded={labels.noRollback} />
           </Section>
           <details data-testid="raw-payload">
-            <summary className="text-meta text-muted cursor-pointer">{rawPayloadLabel}</summary>
+            <summary className="text-meta text-muted cursor-pointer">{labels.rawPayload}</summary>
             <pre className="mt-2 text-micro text-muted bg-sunken edge border-border rounded-2 p-2 overflow-x-auto font-mono">
               {rawPayload}
             </pre>
@@ -389,7 +382,7 @@ export function DecisionCard({
       {state === 'expired' && expiredFooter !== undefined ? (
         <ExpiredFooterControls {...expiredFooter} />
       ) : outcome !== undefined ? (
-        <Outcome outcome={outcome} label={labels.outcome} />
+        <Outcome outcome={outcome} labels={labels} />
       ) : decision === undefined ? null : (
         <footer data-testid="decision-controls-footer" className="px-5 py-4 edge border-border border-b-0 border-x-0">
           {decision}
