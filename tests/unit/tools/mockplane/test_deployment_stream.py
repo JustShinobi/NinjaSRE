@@ -10,6 +10,7 @@ thirty seconds) to prove a handful of events arrive.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 import pytest
@@ -153,3 +154,64 @@ async def test_disconnect_after_ends_the_response_early(mock: MockPlane) -> None
     _status, messages = await _drive(dropping, max_seconds=0.3, poll_seconds=0.01)
     body = _bodies(messages)
     assert body.count(b"event: run_started") == 1
+
+
+async def test_a_disruption_ends_an_already_open_connection_early(mock: MockPlane) -> None:
+    """`DROP_DEPLOYMENT_STREAM_PATH`'s own reason to exist: a browser test has
+    no other way to force a drop on a connection that is already open and
+    healthy -- `page.route()` only governs a request made after it is
+    registered, and `context.setOffline()` does not sever this mock's
+    already-established response either (both tried against this exact
+    acceptance spec). This is that mechanism's server-side half, driven the
+    same way `test_a_write_made_while_the_connection_is_open_reaches_it`
+    drives a concurrent write: the connection opens normally, then the
+    disruption lands while its poll loop is already running.
+    """
+
+    async def disrupt_soon() -> None:
+        await asyncio.sleep(0.03)
+        mock.session(_SESSION).deployment_stream_disrupted_until = time.monotonic() + 1.0
+
+    disruptor = asyncio.create_task(disrupt_soon())
+    started = time.monotonic()
+    try:
+        status, messages = await _drive(mock, max_seconds=1.0, poll_seconds=0.01)
+    finally:
+        await disruptor
+    elapsed = time.monotonic() - started
+
+    assert status == 200  # it opened normally, before the disruption landed
+    assert _bodies(messages) == b": open\n\n"  # nothing else -- ended right after
+    # Ended within a couple of poll ticks of the disruption landing at 0.03s,
+    # nowhere near the full second `max_seconds` allows -- proof this is the
+    # in-loop check on a connection that was already open, not the refusal a
+    # brand new one gets at the top of the method (the next test).
+    assert elapsed < 0.3
+
+
+async def test_a_new_connection_is_refused_during_the_window_and_normal_after(
+    mock: MockPlane,
+) -> None:
+    """The other half: a *reconnection* attempt made while the window is open
+    must fail too, or only the connection that happened to be open when the
+    drop was requested would ever see it -- the whole point, for the
+    acceptance spec's own reconnection scenario, is a handful of consecutive
+    failed attempts before recovery.
+    """
+    mock.session(_SESSION).deployment_stream_disrupted_until = time.monotonic() + 10.0
+    refused_status, refused_messages = await _drive(mock, max_seconds=0.05)
+    assert refused_status == 502
+    assert b"event:" not in _bodies(refused_messages)
+
+    # The window closing, set directly rather than by sleeping past a real
+    # ten-second deadline: a connection attempted after it should be served
+    # exactly as if no disruption had ever been requested.
+    mock.session(_SESSION).deployment_stream_disrupted_until = time.monotonic() - 1.0
+    mock.answer("POST", "/v1/investigations", session=_SESSION, body={"objective": "x"})
+    recovered_status, recovered_messages = await _drive(mock, max_seconds=0.05)
+    assert recovered_status == 200
+    assert b"run_started" in _bodies(recovered_messages)
+
+    # And the deadline itself was cleared once passed, not left standing as a
+    # stale value every future connection attempt would also have to read.
+    assert mock.session(_SESSION).deployment_stream_disrupted_until is None

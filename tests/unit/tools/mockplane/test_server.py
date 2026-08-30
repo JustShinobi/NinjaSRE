@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import socket
+import time
 import urllib.error
 import urllib.request
 from collections.abc import AsyncIterator
@@ -19,6 +20,8 @@ import pytest
 
 from tools.mockplane.scenarios import Override
 from tools.mockplane.server import (
+    DEPLOYMENT_STREAM_DISRUPTION_SECONDS,
+    DROP_DEPLOYMENT_STREAM_PATH,
     SESSION_HEADER,
     MockPlane,
     OutboundRequestRefused,
@@ -372,6 +375,21 @@ async def test_a_reset_forgets_counts_too(mock: MockPlane) -> None:
     await call(mock, "GET", "/v1/runs")
     mock.reset()
     assert mock.request_counts() == {}
+
+
+async def test_the_drop_deployment_stream_route_sets_a_disruption_deadline(
+    mock: MockPlane,
+) -> None:
+    """`POST DROP_DEPLOYMENT_STREAM_PATH` is a control route too: answered
+    before the gateway's own routing, the same as `/requests`, and it never
+    touches a fixture."""
+    before = time.monotonic()
+    status, body, _ = await call(mock, "POST", DROP_DEPLOYMENT_STREAM_PATH)
+    assert status == 204
+    assert body == b""
+    deadline = mock.session().deployment_stream_disrupted_until
+    assert deadline is not None
+    assert before < deadline <= time.monotonic() + DEPLOYMENT_STREAM_DISRUPTION_SECONDS
 
 
 # --- Determinism ------------------------------------------------------------------
