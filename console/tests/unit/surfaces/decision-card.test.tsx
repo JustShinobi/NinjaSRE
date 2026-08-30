@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { DecisionControls } from '@/surfaces/decision';
+import { IncidentDecisionControls } from '@/surfaces/screens/incident-decision-controls';
 import { DecisionCard, type DecisionCardProps } from '@/surfaces/proposal';
 
 /**
@@ -98,14 +100,37 @@ describe('a pending, unexpired decision', () => {
   });
 
   it('composes DecisionControls, unedited, when an open interaction is given', () => {
-    render(<DecisionCard {...baseProps()} decision={{ kind: 'interaction', interactionId: 'int-1' }} />);
+    const labels = {
+      approve: 'Approve',
+      reject: 'Reject',
+      reason: 'Why',
+      reasonRequired: 'A reason is required.',
+    };
+    render(
+      <DecisionCard
+        {...baseProps()}
+        decision={<DecisionControls interactionId="int-1" labels={labels} />}
+      />,
+    );
 
     expect(screen.getByTestId('decision')).toBeInTheDocument();
     expect(screen.queryByTestId('proposed-action-decision')).not.toBeInTheDocument();
   });
 
   it('composes IncidentDecisionControls, unedited, when there is no open interaction', () => {
-    render(<DecisionCard {...baseProps()} decision={{ kind: 'approval', approvalId: 'apr-1' }} />);
+    const labels = {
+      approve: 'Approve',
+      reject: 'Reject',
+      reason: 'Why',
+      reasonRequired: 'A reason is required.',
+      failed: 'The deployment did not answer.',
+    };
+    render(
+      <DecisionCard
+        {...baseProps()}
+        decision={<IncidentDecisionControls approvalId="apr-1" labels={labels} />}
+      />,
+    );
 
     expect(screen.getByTestId('proposed-action-decision')).toBeInTheDocument();
     expect(screen.queryByTestId('decision')).not.toBeInTheDocument();
@@ -125,7 +150,16 @@ describe('an expired decision', () => {
     render(
       <DecisionCard
         {...baseProps({ state: 'expired' })}
-        expiredFooter={{ explanation: 'The window closed an hour ago.' }}
+        expiredFooter={{
+          approvalId: 'apr-1',
+          labels: {
+            explanation: 'The window closed an hour ago.',
+            repropose: 'Propose again, now',
+            discard: 'Discard',
+            reproposing: 'Asking the deployment',
+            failed: 'The deployment did not answer.',
+          },
+        }}
       />,
     );
 

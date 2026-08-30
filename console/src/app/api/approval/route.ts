@@ -24,6 +24,10 @@ import { SESSION_COOKIE } from '@/session/cookies';
 /** Every operation this courier will forward, and where each goes. */
 const OPERATIONS: Readonly<Record<string, (target: string) => string>> = {
   decide: (target) => `/v1/approvals/${encodeURIComponent(target)}/decision`,
+  // Reproposing and discarding both manage an expired approval rather than
+  // deciding one — the same store, the same courier, a different verb.
+  repropose: (target) => `/v1/approvals/${encodeURIComponent(target)}/repropose`,
+  discard: (target) => `/v1/approvals/${encodeURIComponent(target)}/discard`,
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
