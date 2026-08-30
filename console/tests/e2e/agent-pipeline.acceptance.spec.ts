@@ -62,6 +62,9 @@ test.describe('AN-A1/AN-A2 — the Pipeline tab opens with a six-node metro line
     await page.goto('/agent');
     const nodes = page.getByTestId('pipeline-metro-node');
     const total = await nodes.count();
+    // Never vacuous: a page with no metro nodes yet must fail this claim,
+    // not pass it by having nothing to loop over.
+    expect(total).toBe(STAGE_ORDER.length);
     for (let index = 0; index < total; index += 1) {
       const node = nodes.nth(index);
       await expect(node.getByTestId('pipeline-metro-regime')).toBeVisible();
@@ -145,10 +148,13 @@ test.describe('AN-A5 — the Tools card names X of Y enabled, domain bars, and s
     page,
   }) => {
     await page.goto('/agent');
-    const chip = page
-      .getByTestId('pipeline-summary-tools')
-      .getByTestId('side-effect-chip')
-      .filter({ has: page.locator('[data-role="danger"]') });
+    const card = page.getByTestId('pipeline-summary-tools');
+    // The card itself must exist before "no destructive chip" can be read as
+    // a legitimate zero rather than as the feature not existing yet.
+    await expect(card).toBeVisible();
+    const allChips = card.getByTestId('side-effect-chip');
+    expect(await allChips.count()).toBeGreaterThan(0);
+    const chip = allChips.filter({ has: page.locator('[data-role="danger"]') });
     if ((await chip.count()) === 0) return; // legitimate: no destructive tool enabled here
     await expect(chip.first()).toBeVisible();
   });

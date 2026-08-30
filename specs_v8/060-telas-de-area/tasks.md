@@ -43,10 +43,10 @@ Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 0: Linha de base e caracterização (crava o que a spec deixou nomeado)
 
-- [ ] T001 Rodar `make verify` na árvore intacta; guardar log fora do
+- [x] T001 Rodar `make verify` na árvore intacta; guardar log fora do
       repositório com exit code e contagens. Base não-verde → parar e
       reportar.
-- [ ] T002 Cravar por leitura de código (e registrar em
+- [x] T002 Cravar por leitura de código (e registrar em
       `evidence/caracterizacao.md`, com file:line): (a) a rota e o handler
       do gateway que `ResourcesScreen` consome para a listagem, e os campos
       atuais da resposta; (b) a rota de episódios que a aba Aprendido lê e
@@ -55,13 +55,16 @@ Um `[~]` nunca é um `[x]` envergonhado.
       proposta pendente; (d) o campo exato de contagem que a leitura de
       topologia devolve; (e) onde a contagem "achados degradados sem
       detector" do Painel nasce. Nenhuma implementação antes deste registro.
-- [ ] T003 Registrar as capturas "antes" das quatro telas no staging via
+- [~] T003 Registrar as capturas "antes" das quatro telas no staging via
       Orca browser (dois temas), em `evidence/visual/antes/` — o par de
-      comparação do veredito final.
+      comparação do veredito final. Encerrada sem execução por este
+      implementer: exige o orquestrador (sem alcance a staging/Orca desta
+      worktree). O lead já rodou e comitou as oito capturas em
+      `evidence/visual/antes/` na árvore compartilhada.
 
 ## Phase 1: Acceptance primeiro, confirmado vermelho
 
-- [ ] T004 [P] Escrever
+- [x] T004 [P] Escrever
       `console/tests/e2e/incidents-by-subject.acceptance.spec.ts`
       codificando as alegações de Incidentes (agrupamento, subtítulo humano
       com id mono por último, segmented controls, faixa de 24 h com um ponto
@@ -70,20 +73,20 @@ Um `[~]` nunca é um `[x]` envergonhado.
       também a razão ≤ 1/3 entre assuntos e disparos da amostra 17/50 e a
       expansão completa do assunto mais recorrente. Rodar contra a árvore
       atual e registrar o vermelho de cada uma.
-- [ ] T005 [P] Escrever
+- [x] T005 [P] Escrever
       `console/tests/e2e/resources-by-node.acceptance.spec.ts` (barra
       segmentada proporcional com legenda clicável e filtro na URL, chips de
       tipo com contagem, seções por nó com não-saudáveis primeiro, cards com
       ícone/forma/duração, síntese com "investigar em lote", cartão de zona
       no rodapé). Medir o primeiro paint e afirmar que a síntese vem da
       mesma resposta, sem segunda request. Confirmar vermelho.
-- [ ] T006 [P] Escrever
+- [x] T006 [P] Escrever
       `console/tests/e2e/learned-knowledge.acceptance.spec.ts`
       (Aprendido como default e deep links preservados, filtro agrupado sem
       duplicata guest/container, cards de episódio com forma no resultado e
       link de investigação, painel de propostas pendentes com CTA, faixa
       inferior com contagens). Confirmar vermelho.
-- [ ] T007 [P] Escrever
+- [x] T007 [P] Escrever
       `console/tests/e2e/agent-pipeline.acceptance.spec.ts` (linha de metrô
       com seis nós na ordem servida e regime derivado de `model_role`,
       microcopy de uma frase, chip de runs em voo, três cards com números

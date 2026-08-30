@@ -1,0 +1,54 @@
+# Controle — Telas de área (slot S2)
+
+Estado abaixo verificado contra o código real desta árvore, não contra a
+intenção. Escrito e atualizado a cada commit — não só no relatório final.
+
+## Peça | Estado | Detalhe
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T001 — baseline `make verify` | FEITO | Verde antes de qualquer mudança: Python 0 falhas (log completo salvo fora do repo), console `190 arquivos / 3138 testes` verdes. Log real conferido, não a notificação de fundo. |
+| T002 — caracterização (Fase 0) | FEITO | `specs_v8/060-telas-de-area/evidence/caracterizacao.md` — rota/campo de Recursos (`parent_name` já existe, bug de confiabilidade; `unhealthy_since` não existe), episódios, propostas, topologia, e a fonte de "achados sem detector" (não encontrada pronta — decisão registrada). |
+| T003 — capturas "antes" no staging | Fora do escopo desta worktree (`[~]`) | Sem alcance a staging/Orca por aqui; o lead confirmou que já rodou e comitou as oito capturas em `evidence/visual/antes/`. |
+| T004 — acceptance Incidentes red-first | FEITO (vermelho confirmado) | `console/tests/e2e/incidents-by-subject.acceptance.spec.ts`. Rodado contra `tools.mockplane console --scenario populated` local; 18 de 21 blocos observados vermelhos por falta real (nenhum `data-testid` do feature existe ainda), nenhum passou por medir nada — nenhum vazio verde entre os observados. |
+| T005 — acceptance Recursos red-first | FEITO (spec escrita; vermelho a confirmar no próximo passo) | `console/tests/e2e/resources-by-node.acceptance.spec.ts`. A corrida completa dos 55 testes das quatro specs foi interrompida às 21 de 55 (tempo); os blocos de Recursos ainda não têm linha de log própria — confirmar antes do fechamento. |
+| T006 — acceptance Conhecimento red-first | FEITO (spec escrita; vermelho a confirmar) | `console/tests/e2e/learned-knowledge.acceptance.spec.ts`. Mesma situação de T005. |
+| T007 — acceptance O agente red-first | FEITO (vermelho confirmado) | `console/tests/e2e/agent-pipeline.acceptance.spec.ts`. Rodado; 18 vermelhos reais + 2 achados de teste vazio (passavam sem medir nada porque `pipeline-metro-node`/`side-effect-chip` contam zero elementos hoje) — corrigidos para exigir contagem mínima antes de iterar, e reconfirmados vermelhos por leitura direta (`node:154` e `:59`, rodados isolados após a correção). |
+| T008 — contrato pytest (node/unhealthy_since) | NÃO INICIADO | Depende de T002; a leitura já aponta os dois métodos de porta a criar (`unhealthy_since` em lote; correção de `EstateService.query()` para resolver `parent_name` fora da página). |
+| T009 — unitários vitest (faixa 24h, normalização, regime, efeito colateral, síntese) | NÃO INICIADO | |
+| T010/T011 — contrato do estate + regeneração | NÃO INICIADO | |
+| T012–T016 — Incidentes (US1) | NÃO INICIADO | |
+| T017–T019 — Recursos (US2) | NÃO INICIADO | |
+| T020–T023a — Conhecimento (US3) | NÃO INICIADO | |
+| T024–T026a — O agente (US4) | NÃO INICIADO | |
+| T027–T033 — integração e fechamento | NÃO INICIADO | |
+
+## Achado desde já, para não se perder
+
+- **`console/src/components/navigation.tsx` ganhou `SegmentedLinks`** (+
+  export em `components/index.ts`) — primitiva nova, não um arquivo
+  congelado (só `design/tokens.ts`, `icons.tsx`, `components/status.tsx` e as
+  fontes são da 000). As quatro telas precisam do mesmo padrão (filtro sem
+  `<select>`, estado na URL) e `FilterBar`/`Select` são compartilhados com
+  toda tela fora desta feature — mexer neles reformaria telas sem artboard.
+  Um componente novo, ao lado de `TabLinks` (mesmo padrão de link com estado
+  na URL), evita isso.
+- **Achados de Fase 0 que mudam a Fase 2**: `ResourceSummaryView` já declara
+  `parent_id`/`parent_name` — FR-006 não pede um campo `node` novo, pede
+  corrigir `EstateService.query()` para resolver o pai mesmo fora da página
+  atual. `unhealthy_since` é genuinamente novo, com a fonte já existente
+  (`HealthTransitionRow`) mas sem método em lote.
+- **"achados degradados sem detector" (FR-005/AN-I9) não tem fonte pronta**
+  em lugar nenhum do código — busca exaustiva registrada em
+  `evidence/caracterizacao.md`. Decisão tomada: computado nesta feature,
+  função pura testada, para a 050 reusar.
+- **Dataset local (`populated`) não tem assunto recorrente** (10 incidentes,
+  todos count=1) nem componente `container:`/`guest:` duplicado nos
+  episódios, nem proposta `knowledge` pendente. As alegações que dependem
+  disso são `@staging-safe` e/ou testadas por unidade com dado sintético
+  (T009), nunca inventadas como passando localmente.
+
+## O que fica pendente, nomeado, não escondido
+
+Tudo do Phase 2 em diante — ver tabela acima. Nada foi implementado ainda
+além dos testes de aceitação e da caracterização.
