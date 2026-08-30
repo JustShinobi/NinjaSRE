@@ -34,14 +34,27 @@ export interface ExpiredFooterProps {
   readonly labels: ExpiredFooterLabels;
 }
 
+/** The message field a refused write's JSON body carries, read defensively. */
+function causeOf(body: unknown): string {
+  const detail: unknown = typeof body === 'object' && body !== null ? Reflect.get(body, 'detail') : undefined;
+  return typeof detail === 'string' ? detail : '';
+}
+
 export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps): ReactNode {
   const router = useRouter();
   const [busy, setBusy] = useState<'repropose' | 'discard' | null>(null);
   const [failed, setFailed] = useState(false);
+  // The backend's own named refusal (422 origin gone, 409 already
+  // reproposed) rather than a generic sentence — `ApiProblem`'s message is
+  // written to be shown to whoever asked, so repeating it here is the state
+  // change the card makes, not a stack trace. Empty for a request that never
+  // reached the deployment at all, where there is no cause to name.
+  const [cause, setCause] = useState('');
 
   async function act(operation: 'repropose' | 'discard'): Promise<void> {
     setBusy(operation);
     setFailed(false);
+    setCause('');
     const response = await fetch('/api/approval', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -53,6 +66,9 @@ export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps
       return;
     }
     setFailed(true);
+    if (response !== null) {
+      setCause(causeOf(await response.json().catch(() => null)));
+    }
   }
 
   return (
@@ -91,7 +107,7 @@ export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps
       </div>
       {failed ? (
         <p data-testid="expired-footer-failed" className="text-meta text-danger">
-          {labels.failed}
+          {cause === '' ? labels.failed : cause}
         </p>
       ) : null}
     </div>
