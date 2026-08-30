@@ -2108,6 +2108,29 @@ export const EN = {
   'agent.rank.stages': 'Stages',
   'agent.rank.specialists': 'Specialists',
   'agent.stages.title': 'The stages an investigation runs',
+  'agent.metro.title': 'The six stages of an investigation',
+  'agent.metro.subtitle':
+    'every run walks this line, and the transcript groups by stage',
+  'agent.metro.inFlight': '{count} investigations in flight',
+  'agent.metro.copy.resolve_integrations':
+    'Discovers what this team can call; with nothing, it ends early.',
+  'agent.metro.copy.intake':
+    'Decides whether there is an incident and links it to one already open, when it is the same.',
+  'agent.metro.copy.plan_evidence':
+    'Scores the capabilities and chooses where it is worth starting.',
+  'agent.metro.copy.gather_evidence':
+    'Runs the planned reads and keeps only what supports something.',
+  'agent.metro.copy.diagnose':
+    'Forms hypotheses and tests them against the retained evidence.',
+  'agent.metro.copy.deliver':
+    'Writes the cause, proposes the action, and records the episode.',
+  'agent.metro.tools.ratio': '{enabled} of {total} enabled',
+  'agent.metro.tools.read': 'Reads · {count}',
+  'agent.metro.tools.writeReversible': 'Writes, reversible · {count}',
+  'agent.metro.tools.destructive': 'Destructive · {count}',
+  'agent.metro.team.budget': '{used} of {budget} tokens',
+  'agent.metro.team.empty':
+    'No fact written yet. Environment facts join every investigation\u2019s prompt.',
   'agent.stage.role': 'model role: {role}',
   'agent.stage.noModel': 'no model call',
   'agent.stage.consults': 'Consults:',

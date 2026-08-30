@@ -6,6 +6,14 @@ import {
   ResolvedChip,
   SpecialistStateChip,
 } from '@/components/status';
+import {
+  ActivityIcon,
+  AlertCircleIcon,
+  CheckIcon,
+  ClipboardIcon,
+  SearchIcon,
+  SettingsIcon,
+} from '@/design/icons';
 import { statusPresentation } from '@/design/status';
 import { humaniseIdentifier } from '@/i18n/format';
 import { message, type Locale, type MessageKey } from '@/i18n/messages';
@@ -43,6 +51,7 @@ import {
   text,
   type PanelData,
 } from '../read';
+import { stageRegime, toolSummary } from './agent-pipeline-metro';
 import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
@@ -209,43 +218,88 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
   const address = (wanted: AgentTab): string =>
     node === '' ? `?tab=${wanted}` : `?node=${encodeURIComponent(node)}&tab=${wanted}`;
 
-  const [pipeline, effective, fields, capabilities, entries, outlook] =
-    await Promise.all([
-      tab === 'topology'
-        ? panelRead<unknown>('/v1/agent/pipeline', () =>
-            read('/v1/agent/pipeline', init),
-          )
-        : nothing(),
-      node === '' || tab === 'autonomy' || tab === 'team'
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}', () =>
-            read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
-          ),
-      node === '' || (tab !== 'topology' && tab !== 'tools')
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}/fields', () =>
-            read('/v1/config/{node_id}/fields', { ...init, params: { node_id: node } }),
-          ),
-      tab === 'tools'
-        ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
-        : nothing(),
-      node === '' || tab !== 'tools'
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
-            read('/v1/config/{node_id}/catalogue', {
-              ...init,
-              params: { node_id: node },
-            }),
-          ),
-      node === '' || tab !== 'autonomy'
-        ? nothing()
-        : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
-            read('/v1/autonomy/policy/{node_id}/outlook', {
-              ...init,
-              params: { node_id: node },
-            }),
-          ),
-    ]);
+  // The Pipeline tab's own summary cards read what Tools, Autonomy and Team
+  // Context already read -- the same routes, one more time only on the tab
+  // that shows all three at once, never a new source of any of the three
+  // numbers.
+  const needsSummary = tab === 'topology';
+
+  const [
+    pipeline,
+    effective,
+    fields,
+    capabilities,
+    entries,
+    outlook,
+    runs,
+    summaryCapabilities,
+    summaryEntries,
+    summaryOutlook,
+    summaryContext,
+  ] = await Promise.all([
+    tab === 'topology'
+      ? panelRead<unknown>('/v1/agent/pipeline', () => read('/v1/agent/pipeline', init))
+      : nothing(),
+    node === '' || tab === 'autonomy' || tab === 'team'
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+        ),
+    node === '' || (tab !== 'topology' && tab !== 'tools')
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: node } }),
+        ),
+    tab === 'tools'
+      ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
+      : nothing(),
+    node === '' || tab !== 'tools'
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
+          read('/v1/config/{node_id}/catalogue', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || tab !== 'autonomy'
+      ? nothing()
+      : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
+          read('/v1/autonomy/policy/{node_id}/outlook', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    needsSummary
+      ? panelRead<unknown>('/v1/runs', () => read('/v1/runs', init))
+      : nothing(),
+    needsSummary
+      ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
+      : nothing(),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
+          read('/v1/config/{node_id}/catalogue', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
+          read('/v1/autonomy/policy/{node_id}/outlook', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/operating-context', () =>
+          read('/v1/config/{node_id}/operating-context', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+  ]);
 
   // What the posture as it stands decided about what has actually happened.
   // Complements the representative set rather than replacing it: a deployment
@@ -304,6 +358,12 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             fields={fields}
             nodeId={node}
             writable={may(viewer, WRITE)}
+            runs={runs}
+            summaryCapabilities={summaryCapabilities}
+            summaryEntries={summaryEntries}
+            summaryOutlook={summaryOutlook}
+            summaryContext={summaryContext}
+            address={address}
           />
         ) : null}
         {tab === 'tools' ? (
@@ -356,6 +416,280 @@ function subAgentsOf(values: unknown): readonly SubAgent[] {
   }));
 }
 
+/** One icon per stage, in the order the pipeline serves them. */
+const STAGE_ICON: Readonly<
+  Record<string, (props: { className?: string }) => ReactNode>
+> = {
+  resolve_integrations: SettingsIcon,
+  intake: AlertCircleIcon,
+  plan_evidence: ClipboardIcon,
+  gather_evidence: SearchIcon,
+  diagnose: ActivityIcon,
+  deliver: CheckIcon,
+};
+
+/** The six-node line the Pipeline tab opens with, one look at what a run does. */
+function PipelineMetro({
+  locale,
+  stages,
+  runs,
+}: {
+  readonly locale: Locale;
+  readonly stages: readonly unknown[];
+  readonly runs: PanelData<unknown>;
+}): ReactNode {
+  if (stages.length === 0) return null;
+  const inFlight =
+    runs.status === 'ready'
+      ? list(dataOf(runs), 'runs').filter((run) => text(run, 'status') === 'running')
+          .length
+      : 0;
+  return (
+    <div className="flex flex-col gap-5 rounded-3 edge border-border bg-raised p-5">
+      <div className="flex items-baseline gap-3">
+        <span className="text-strong">{message(locale, 'agent.metro.title')}</span>
+        <span className="text-meta text-muted">
+          {message(locale, 'agent.metro.subtitle')}
+        </span>
+        {inFlight === 0 ? null : (
+          <span
+            data-testid="pipeline-in-flight"
+            className="ml-auto flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
+          >
+            <span aria-hidden="true" className="icon-inline rotate-45 bg-accent" />
+            {message(locale, 'agent.metro.inFlight', { count: inFlight })}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {stages.map((stage) => {
+          const name = text(stage, 'name');
+          const Icon = STAGE_ICON[name] ?? SettingsIcon;
+          const regime = stageRegime(name, text(stage, 'model_role'));
+          return (
+            <div
+              key={name}
+              data-testid="pipeline-metro-node"
+              data-stage={name}
+              className="flex flex-col items-center gap-2 text-center"
+            >
+              <span className="flex size-6 items-center justify-center rounded-full bg-accent-bg text-accent">
+                <Icon className="icon-head" />
+              </span>
+              <span
+                data-testid="pipeline-metro-regime"
+                className="font-mono text-micro text-muted"
+              >
+                {regime}
+              </span>
+              <span
+                data-testid="pipeline-metro-name"
+                className="text-small font-medium"
+              >
+                {humaniseIdentifier(name)}
+              </span>
+              <span data-testid="pipeline-metro-copy" className="text-micro text-muted">
+                {message(locale, `agent.metro.copy.${name}` as MessageKey)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** The Tools card: enabled ratio, top domains, and the three side-effect buckets. */
+function ToolsSummaryCard({
+  locale,
+  capabilities,
+  entries,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly capabilities: PanelData<unknown>;
+  readonly entries: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
+  const tools = rows.filter((row) => row.kind === 'tool');
+  const total = tools.length;
+  const summary = toolSummary(tools);
+  const byDomain = new Map<string, number>();
+  for (const row of tools) {
+    if (row.domain === '') continue;
+    byDomain.set(row.domain, (byDomain.get(row.domain) ?? 0) + 1);
+  }
+  const topDomains = [...byDomain.entries()]
+    .sort(([, left], [, right]) => right - left)
+    .slice(0, 6);
+  const max = topDomains[0]?.[1] ?? 1;
+  return (
+    <div
+      data-testid="pipeline-summary-tools"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('tools')}>{message(locale, 'agent.tab.tools')}</Link>
+      <p className="text-small text-muted">
+        {message(locale, 'agent.metro.tools.ratio', {
+          enabled: summary.enabled,
+          total,
+        })}
+      </p>
+      <div className="flex flex-col gap-2">
+        {topDomains.map(([domain, count]) => (
+          <div
+            key={domain}
+            data-testid="domain-bar"
+            className="flex items-center gap-2 text-micro"
+          >
+            <span className="w-1/4 min-w-0 shrink-0 truncate text-muted">
+              {humaniseIdentifier(domain)}
+            </span>
+            <span className="h-1 flex-1 overflow-hidden rounded-full bg-sunken">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${String((count / max) * 100)}%` }}
+              />
+            </span>
+            <span className="font-mono text-muted">{count}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <span
+          data-testid="side-effect-chip"
+          data-role="success"
+          className="rounded-full bg-success-bg px-2 py-1 text-micro text-success"
+        >
+          {message(locale, 'agent.metro.tools.read', { count: summary.read })}
+        </span>
+        <span
+          data-testid="side-effect-chip"
+          data-role="warning"
+          className="rounded-full bg-warning-bg px-2 py-1 text-micro text-warning"
+        >
+          {message(locale, 'agent.metro.tools.writeReversible', {
+            count: summary.writeReversible,
+          })}
+        </span>
+        <span
+          data-testid="side-effect-chip"
+          data-role="danger"
+          className="rounded-full bg-danger-bg px-2 py-1 text-micro text-danger"
+        >
+          {message(locale, 'agent.metro.tools.destructive', {
+            count: summary.destructive,
+          })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** The Autonomy card: the five-class ladder, no full "Why:" reasoning. */
+function AutonomySummaryCard({
+  locale,
+  outlook,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly outlook: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const classes = list(dataOf(outlook), 'classes');
+  return (
+    <div
+      data-testid="pipeline-summary-autonomy"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('autonomy')}>{message(locale, 'agent.tab.autonomy')}</Link>
+      <ul className="flex flex-col gap-2">
+        {classes.map((entry) => (
+          <li
+            key={text(entry, 'risk_class')}
+            data-testid="autonomy-summary-row"
+            className="flex items-center gap-2 text-small"
+          >
+            <span className="min-w-0 flex-1 truncate">
+              {humaniseIdentifier(text(entry, 'risk_class'))}
+            </span>
+            <span data-testid="autonomy-summary-decision" className="ml-auto">
+              <Badge status={text(entry, 'decision')} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The Team Context card: prompt budget, or an honest empty state. */
+function TeamSummaryCard({
+  locale,
+  context,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly context: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const tokensUsed = number(dataOf(context), 'tokens_used');
+  const tokenBudget = number(dataOf(context), 'token_budget');
+  const hasBudget = tokenBudget > 0;
+  return (
+    <div
+      data-testid="pipeline-summary-team"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('team')}>{message(locale, 'agent.tab.team')}</Link>
+      {hasBudget ? (
+        <p data-testid="team-budget" className="text-small">
+          {message(locale, 'agent.metro.team.budget', {
+            used: tokensUsed,
+            budget: tokenBudget,
+          })}
+        </p>
+      ) : (
+        <div data-testid="team-empty" className="flex flex-col gap-2">
+          <p className="text-small text-muted">
+            {message(locale, 'agent.metro.team.empty')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PipelineSummaryCards({
+  locale,
+  capabilities,
+  entries,
+  outlook,
+  context,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly capabilities: PanelData<unknown>;
+  readonly entries: PanelData<unknown>;
+  readonly outlook: PanelData<unknown>;
+  readonly context: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <ToolsSummaryCard
+        locale={locale}
+        capabilities={capabilities}
+        entries={entries}
+        address={address}
+      />
+      <AutonomySummaryCard locale={locale} outlook={outlook} address={address} />
+      <TeamSummaryCard locale={locale} context={context} address={address} />
+    </div>
+  );
+}
+
 function TopologyTab({
   locale,
   pipeline,
@@ -363,6 +697,12 @@ function TopologyTab({
   fields,
   nodeId,
   writable,
+  runs,
+  summaryCapabilities,
+  summaryEntries,
+  summaryOutlook,
+  summaryContext,
+  address,
 }: {
   readonly locale: Locale;
   readonly pipeline: PanelData<unknown>;
@@ -370,6 +710,12 @@ function TopologyTab({
   readonly fields: PanelData<unknown>;
   readonly nodeId: string;
   readonly writable: boolean;
+  readonly runs: PanelData<unknown>;
+  readonly summaryCapabilities: PanelData<unknown>;
+  readonly summaryEntries: PanelData<unknown>;
+  readonly summaryOutlook: PanelData<unknown>;
+  readonly summaryContext: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
 }): ReactNode {
   const stages = list(dataOf(pipeline), 'stages');
   const roles = list(dataOf(pipeline), 'model_roles').map(String);
@@ -422,6 +768,15 @@ function TopologyTab({
 
   return (
     <>
+      <PipelineMetro locale={locale} stages={stages} runs={runs} />
+      <PipelineSummaryCards
+        locale={locale}
+        capabilities={summaryCapabilities}
+        entries={summaryEntries}
+        outlook={summaryOutlook}
+        context={summaryContext}
+        address={address}
+      />
       <Panel
         title={message(locale, 'agent.stages.title')}
         state={stateOf(pipeline, stages.length === 0)}

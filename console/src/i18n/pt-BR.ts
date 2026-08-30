@@ -1795,6 +1795,27 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.rank.stages': 'Etapas',
   'agent.rank.specialists': 'Especialistas',
   'agent.stages.title': 'As etapas que uma investigação executa',
+  'agent.metro.title': 'Os seis estágios de uma investigação',
+  'agent.metro.subtitle':
+    'todo run percorre esta linha, e o transcript agrupa por estágio',
+  'agent.metro.inFlight': '{count} investigações em voo',
+  'agent.metro.copy.resolve_integrations':
+    'Descobre o que este time pode chamar; sem nada, encerra cedo.',
+  'agent.metro.copy.intake':
+    'Decide se há incidente e liga ao já aberto quando é o mesmo.',
+  'agent.metro.copy.plan_evidence':
+    'Pontua as capacidades e escolhe por onde vale começar.',
+  'agent.metro.copy.gather_evidence':
+    'Executa as leituras planejadas e retém só o que sustenta algo.',
+  'agent.metro.copy.diagnose': 'Forma hipóteses e as testa contra a evidência retida.',
+  'agent.metro.copy.deliver': 'Escreve a causa, propõe a ação e registra o episódio.',
+  'agent.metro.tools.ratio': '{enabled} de {total} habilitadas',
+  'agent.metro.tools.read': 'Lê · {count}',
+  'agent.metro.tools.writeReversible': 'Escreve, reversível · {count}',
+  'agent.metro.tools.destructive': 'Destrutiva · {count}',
+  'agent.metro.team.budget': '{used} de {budget} tokens',
+  'agent.metro.team.empty':
+    'Nenhum fato escrito ainda. Fatos do ambiente entram no prompt de toda investigação.',
   'agent.stage.role': 'papel de modelo: {role}',
   'agent.stage.noModel': 'nenhuma chamada de modelo',
   'agent.stage.consults': 'Consulta:',
