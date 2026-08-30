@@ -203,7 +203,11 @@ describe('the autonomy line of a pending decision', () => {
     approval_id: 'apr-test-1',
     action: 'estate.expand_volume',
     arguments: {},
-    autonomy: { side_effect_level: 'write_irreversible', reversible: false, queued: true },
+    autonomy: {
+      side_effect_level: 'write_irreversible',
+      reversible: false,
+      queued: true,
+    },
     decided_at: null,
     decided_by: null,
     expires_at: '2026-08-07T13:39:00+00:00',
@@ -254,7 +258,11 @@ describe('the autonomy line of a pending decision', () => {
           {
             ...PENDING,
             side_effect_level: 'time_travel',
-            autonomy: { side_effect_level: 'time_travel', reversible: false, queued: true },
+            autonomy: {
+              side_effect_level: 'time_travel',
+              reversible: false,
+              queued: true,
+            },
           },
         ],
       },
@@ -281,7 +289,11 @@ describe('a decision whose answering window has closed', () => {
   const BASE_FIELDS = {
     action: 'estate.start_guest',
     arguments: { guest: 'ct-122' },
-    autonomy: { side_effect_level: 'write_irreversible', reversible: true, queued: true },
+    autonomy: {
+      side_effect_level: 'write_irreversible',
+      reversible: true,
+      queued: true,
+    },
     decided_at: null,
     decided_by: null,
     reason: null,

@@ -32,7 +32,8 @@ test.beforeEach(async ({ context, baseURL }) => {
 
 /** A named string field of an unknown JSON body, or empty — never `[object Object]`. */
 function stringField(body: unknown, key: string): string {
-  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const record =
+    typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
   const found = record[key];
   return typeof found === 'string' ? found : '';
 }
@@ -52,7 +53,9 @@ async function firstCard(page: Page): Promise<Locator> {
 /** The first card in a named state, or `null` when the queue holds none. */
 async function cardInState(page: Page, state: string): Promise<Locator | null> {
   await page.goto('/decisions?tab=actions');
-  const card = page.getByTestId('decision-card').and(page.locator(`[data-state="${state}"]`));
+  const card = page
+    .getByTestId('decision-card')
+    .and(page.locator(`[data-state="${state}"]`));
   if ((await card.count()) === 0) return null;
   return card.first();
 }
@@ -89,18 +92,14 @@ test.describe('AN-01 — the card is titled by a human sentence, never a raw doc
 // =============================================================================
 
 test.describe('AN-02 — nothing on the page reads as raw JSON while every <details> is closed', () => {
-  test(
-    'no visible text contains `{"`',
-    { tag: STAGING_SAFE_TAG },
-    async ({ page }) => {
-      await firstCard(page);
-      const openDetails = page.locator('details[open]');
-      expect(await openDetails.count()).toBe(0);
+  test('no visible text contains `{"`', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+    await firstCard(page);
+    const openDetails = page.locator('details[open]');
+    expect(await openDetails.count()).toBe(0);
 
-      const bodyText = await page.locator('body').innerText();
-      expect(bodyText).not.toContain('{"');
-    },
-  );
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).not.toContain('{"');
+  });
 });
 
 // =============================================================================
@@ -144,9 +143,21 @@ test.describe('AN-04 — the card carries all six named sections', () => {
     async ({ page }) => {
       const card = await firstCard(page);
 
-      for (const section of ['steps', 'rollback', 'why', 'evidence', 'blast-radius', 'autonomy']) {
-        const region = card.locator(`[data-testid="decision-section"][data-section="${section}"]`);
-        await expect(region, `section "${section}" is missing from the card`).toBeVisible();
+      for (const section of [
+        'steps',
+        'rollback',
+        'why',
+        'evidence',
+        'blast-radius',
+        'autonomy',
+      ]) {
+        const region = card.locator(
+          `[data-testid="decision-section"][data-section="${section}"]`,
+        );
+        await expect(
+          region,
+          `section "${section}" is missing from the card`,
+        ).toBeVisible();
       }
 
       // Steps and rollback steps are numbered, one sentence each.
@@ -169,10 +180,14 @@ test.describe('AN-05 — the raw action document exists only behind a closed <de
       const card = await firstCard(page);
       const details = card.getByTestId('raw-payload');
       await expect(details).toBeVisible();
-      expect(await details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+      expect(await details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(
+        false,
+      );
 
       await details.locator('summary').click();
-      expect(await details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+      expect(await details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(
+        true,
+      );
       await expect(details).toContainText('{');
     },
   );
@@ -250,7 +265,8 @@ test.describe('AN-08 — "Propose again, now" produces a new pending decision, o
       // any expired decision at all, which the origin itself still is.
       const [response] = await Promise.all([
         page.waitForResponse(
-          (res) => res.url().includes('/api/approval') && res.request().method() === 'POST',
+          (res) =>
+            res.url().includes('/api/approval') && res.request().method() === 'POST',
         ),
         card.getByTestId('repropose').click(),
       ]);
@@ -265,7 +281,9 @@ test.describe('AN-08 — "Propose again, now" produces a new pending decision, o
       // shows up either as the expanded card or as a one-sentence collapsed
       // row (the "many pending" edge case) — both carry `data-state` now.
       const visible = page
-        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
+        .locator(
+          '[data-testid="decision-card"], [data-testid="decision-row-collapsed"]',
+        )
         .and(page.locator(`[data-approval="${newId}"]`));
       await expect(visible).toHaveAttribute('data-state', 'pending');
     },
@@ -293,7 +311,9 @@ test.describe('AN-09 — the sidebar badge is exactly the pending, unexpired cou
       // `decision-card` — the rest collapse per the "many pending" edge
       // case — and both representations carry `data-state` now.
       const pendingApprovals = await page
-        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
+        .locator(
+          '[data-testid="decision-card"], [data-testid="decision-row-collapsed"]',
+        )
         .and(page.locator('[data-state="pending"]'))
         .count();
 
@@ -304,9 +324,12 @@ test.describe('AN-09 — the sidebar badge is exactly the pending, unexpired cou
       // `sidebar.tsx` never renders the count span at zero (`count === 0 ?
       // null : ...`) — absent, not a chip reading "0" — so an absent badge
       // *is* the zero case, not a locator failure.
-      const navEntry = page.getByTestId('nav-entry').and(page.locator('[data-area="decisions"]'));
+      const navEntry = page
+        .getByTestId('nav-entry')
+        .and(page.locator('[data-area="decisions"]'));
       const badge = navEntry.getByTestId('nav-count');
-      const badgeCount = (await badge.count()) === 0 ? 0 : Number(await badge.first().textContent());
+      const badgeCount =
+        (await badge.count()) === 0 ? 0 : Number(await badge.first().textContent());
 
       expect(badgeCount).toBe(pendingApprovals + pendingProposals);
     },
@@ -333,7 +356,10 @@ test.describe('AN-10 — "Decided recently" lists past decisions with outcome, a
         return;
       }
       const first = items.first();
-      await expect(first).toHaveAttribute('data-verdict', /^(approved|rejected|discarded)$/);
+      await expect(first).toHaveAttribute(
+        'data-verdict',
+        /^(approved|rejected|discarded)$/,
+      );
       const time = first.locator('time');
       await expect(time).toHaveCount(1);
       expect(await time.getAttribute('datetime')).not.toBe('');
@@ -375,7 +401,10 @@ test.describe('AN-12 — the Changes tab, with nothing proposed, is one line and
       await expect(panel).toBeVisible();
       const state = await panel.getAttribute('data-state');
       if (state !== 'empty') {
-        test.skip(true, 'the environment currently holds a change proposal, so the empty state cannot be observed');
+        test.skip(
+          true,
+          'the environment currently holds a change proposal, so the empty state cannot be observed',
+        );
         return;
       }
       const paragraphs = panel.locator('p');
@@ -391,32 +420,31 @@ test.describe('AN-12 — the Changes tab, with nothing proposed, is one line and
 // =============================================================================
 
 test.describe('AN-13 — a failed read says it could not read, and never claims nothing is proposed', () => {
-  test(
-    'the panel reports an error state, not an empty one, when the listing fails',
-    async ({ page }) => {
-      // The mock accepts any credential (`session.ts`'s own comment), so a
-      // forged bearer proves nothing here — the failure has to be produced by
-      // the backing itself. `--scenario degraded` declares `approvals` a
-      // 500 (`fixtures/manifest.json`); against any other scenario this
-      // claim cannot be exercised and the test says so rather than asserting
-      // a false green, the same "skip on a data condition, not a defect"
-      // rule the run-view-narrado spec already applies.
-      await page.goto('/decisions?tab=actions');
-      const panel = page.getByTestId('panel');
-      await expect(panel).toBeVisible();
-      const state = await panel.getAttribute('data-state');
-      if (state !== 'error') {
-        test.skip(
-          true,
-          'this claim needs the mock run under --scenario degraded, where /v1/approvals answers 500',
-        );
-        return;
-      }
-      const body = (await panel.textContent()) ?? '';
-      expect(body).not.toContain('Nothing is waiting on a decision');
-      expect(body).not.toContain('Nada está aguardando');
-    },
-  );
+  test('the panel reports an error state, not an empty one, when the listing fails', async ({
+    page,
+  }) => {
+    // The mock accepts any credential (`session.ts`'s own comment), so a
+    // forged bearer proves nothing here — the failure has to be produced by
+    // the backing itself. `--scenario degraded` declares `approvals` a
+    // 500 (`fixtures/manifest.json`); against any other scenario this
+    // claim cannot be exercised and the test says so rather than asserting
+    // a false green, the same "skip on a data condition, not a defect"
+    // rule the run-view-narrado spec already applies.
+    await page.goto('/decisions?tab=actions');
+    const panel = page.getByTestId('panel');
+    await expect(panel).toBeVisible();
+    const state = await panel.getAttribute('data-state');
+    if (state !== 'error') {
+      test.skip(
+        true,
+        'this claim needs the mock run under --scenario degraded, where /v1/approvals answers 500',
+      );
+      return;
+    }
+    const body = (await panel.textContent()) ?? '';
+    expect(body).not.toContain('Nothing is waiting on a decision');
+    expect(body).not.toContain('Nada está aguardando');
+  });
 });
 
 // =============================================================================
@@ -457,7 +485,10 @@ test.describe('Edge case — several pending decisions: the oldest expanded, the
     const collapsed = page.getByTestId('decision-row-collapsed');
     const total = (await expanded.count()) + (await collapsed.count());
     if (total < 2) {
-      test.skip(true, 'the environment holds fewer than two queued decisions right now');
+      test.skip(
+        true,
+        'the environment holds fewer than two queued decisions right now',
+      );
       return;
     }
     await expect(expanded).toHaveCount(1);

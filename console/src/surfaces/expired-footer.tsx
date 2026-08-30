@@ -36,11 +36,15 @@ export interface ExpiredFooterProps {
 
 /** The message field a refused write's JSON body carries, read defensively. */
 function causeOf(body: unknown): string {
-  const detail: unknown = typeof body === 'object' && body !== null ? Reflect.get(body, 'detail') : undefined;
+  const detail: unknown =
+    typeof body === 'object' && body !== null ? Reflect.get(body, 'detail') : undefined;
   return typeof detail === 'string' ? detail : '';
 }
 
-export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps): ReactNode {
+export function ExpiredFooterControls({
+  approvalId,
+  labels,
+}: ExpiredFooterProps): ReactNode {
   const router = useRouter();
   const [busy, setBusy] = useState<'repropose' | 'discard' | null>(null);
   const [failed, setFailed] = useState(false);
@@ -77,7 +81,16 @@ export function ExpiredFooterControls({ approvalId, labels }: ExpiredFooterProps
       className="flex items-center gap-3 px-5 py-3 rounded-b-3 bg-warning-bg edge border-warning border-b-0 border-x-0"
     >
       <span aria-hidden="true" className="text-warning shrink-0">
-        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <circle cx="10" cy="10" r="7" />
           <path d="M10 6.5v3.5l2.3 1.4" />
         </svg>

@@ -43,7 +43,9 @@ describe('the expired footer, refused', () => {
 
     await userEvent.click(screen.getByTestId('discard'));
 
-    expect(await screen.findByTestId('expired-footer-failed')).toHaveTextContent(LABELS.failed);
+    expect(await screen.findByTestId('expired-footer-failed')).toHaveTextContent(
+      LABELS.failed,
+    );
   });
 
   it('falls back to the generic sentence when a failure body carries no cause', async () => {
@@ -52,7 +54,9 @@ describe('the expired footer, refused', () => {
 
     await userEvent.click(screen.getByTestId('repropose'));
 
-    expect(await screen.findByTestId('expired-footer-failed')).toHaveTextContent(LABELS.failed);
+    expect(await screen.findByTestId('expired-footer-failed')).toHaveTextContent(
+      LABELS.failed,
+    );
   });
 });
 

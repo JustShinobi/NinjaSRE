@@ -46,7 +46,13 @@ export interface DecisionOutcome {
   readonly appliedAndVerified: boolean;
 }
 
-export const DECISION_STATES = ['pending', 'expired', 'approved', 'rejected', 'discarded'] as const;
+export const DECISION_STATES = [
+  'pending',
+  'expired',
+  'approved',
+  'rejected',
+  'discarded',
+] as const;
 
 export type DecisionState = (typeof DECISION_STATES)[number];
 
@@ -116,7 +122,9 @@ function Section({
       data-danger={danger ? 'true' : undefined}
       className="flex flex-col gap-2"
     >
-      <span className="text-micro font-semibold tracking-wide uppercase text-muted">{label}</span>
+      <span className="text-micro font-semibold tracking-wide uppercase text-muted">
+        {label}
+      </span>
       {children}
     </div>
   );
@@ -141,13 +149,21 @@ function Steps({
         : [];
 
   if (shown.length === 0) {
-    return <p className={danger ? 'text-small text-danger' : 'text-small text-muted'}>{notRecorded}</p>;
+    return (
+      <p className={danger ? 'text-small text-danger' : 'text-small text-muted'}>
+        {notRecorded}
+      </p>
+    );
   }
 
   return (
     <ol className="flex flex-col gap-2">
       {shown.map((step) => (
-        <li key={step.ordinal} data-testid="decision-step" className="flex gap-2 items-start">
+        <li
+          key={step.ordinal}
+          data-testid="decision-step"
+          className="flex gap-2 items-start"
+        >
           <span
             data-testid="step-ordinal"
             className={
@@ -161,7 +177,9 @@ function Steps({
           <span className="text-small">
             {step.summary}
             {step.capability === '' ? null : (
-              <span className="ml-2 text-micro text-muted font-mono">({step.capability})</span>
+              <span className="ml-2 text-micro text-muted font-mono">
+                ({step.capability})
+              </span>
             )}
           </span>
         </li>
@@ -189,7 +207,11 @@ function RollbackSteps({
   return (
     <ol className="flex flex-col gap-2">
       {items.map((step) => (
-        <li key={step.ordinal} data-testid="rollback-step" className="flex gap-2 items-start">
+        <li
+          key={step.ordinal}
+          data-testid="rollback-step"
+          className="flex gap-2 items-start"
+        >
           <span
             data-testid="step-ordinal"
             className={
@@ -203,7 +225,9 @@ function RollbackSteps({
           <span className="text-small">
             {step.summary}
             {step.capability === '' ? null : (
-              <span className="ml-2 text-micro text-muted font-mono">({step.capability})</span>
+              <span className="ml-2 text-micro text-muted font-mono">
+                ({step.capability})
+              </span>
             )}
           </span>
         </li>
@@ -213,7 +237,13 @@ function RollbackSteps({
 }
 
 /** The risk gauge: `scale` segments, `score` of them filled. */
-function RiskGauge({ risk, label }: { readonly risk: DecisionRisk; readonly label: string }): ReactNode {
+function RiskGauge({
+  risk,
+  label,
+}: {
+  readonly risk: DecisionRisk;
+  readonly label: string;
+}): ReactNode {
   const segments = Array.from({ length: risk.scale }, (_, index) => index < risk.score);
   return (
     <div
@@ -255,7 +285,8 @@ function Outcome({
       <Badge status={outcome.verdict} />
       <span className="text-small text-muted">
         {labels.outcome} — {outcome.decidedBy}
-        {outcome.appliedAndVerified ? ` ${labels.appliedAndVerified}` : ''} · {outcome.relativeTime}
+        {outcome.appliedAndVerified ? ` ${labels.appliedAndVerified}` : ''} ·{' '}
+        {outcome.relativeTime}
       </span>
     </footer>
   );
@@ -309,7 +340,9 @@ export function DecisionCard({
           </h3>
           <p data-testid="decision-meta" className="text-meta text-muted">
             {requester}
-            {originHref === undefined || originLabel === undefined || originLabel === '' ? null : (
+            {originHref === undefined ||
+            originLabel === undefined ||
+            originLabel === '' ? null : (
               <>
                 {' · '}
                 <Link href={originHref}>{originLabel}</Link>
@@ -330,13 +363,23 @@ export function DecisionCard({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
         <div className="flex flex-col gap-4 px-5 py-4 edge border-border border-y-0 border-l-0">
           <Section name="steps" label={labels.steps}>
-            <Steps items={steps} summaryFallback={summaryFallback} notRecorded={labels.notRecorded} />
+            <Steps
+              items={steps}
+              summaryFallback={summaryFallback}
+              notRecorded={labels.notRecorded}
+            />
           </Section>
           <Section name="rollback" label={labels.rollback} danger={rollbackDanger}>
-            <RollbackSteps items={rollback} danger={rollbackDanger} notRecorded={labels.noRollback} />
+            <RollbackSteps
+              items={rollback}
+              danger={rollbackDanger}
+              notRecorded={labels.noRollback}
+            />
           </Section>
           <details data-testid="raw-payload">
-            <summary className="text-meta text-muted cursor-pointer">{labels.rawPayload}</summary>
+            <summary className="text-meta text-muted cursor-pointer">
+              {labels.rawPayload}
+            </summary>
             <pre className="mt-2 text-micro text-muted bg-sunken edge border-border rounded-2 p-2 overflow-x-auto font-mono">
               {rawPayload}
             </pre>
@@ -357,7 +400,10 @@ export function DecisionCard({
                     data-testid="evidence-item"
                     className="flex items-center gap-2"
                   >
-                    <span className="w-2 h-2 rounded-full bg-success shrink-0" aria-hidden="true" />
+                    <span
+                      className="w-2 h-2 rounded-full bg-success shrink-0"
+                      aria-hidden="true"
+                    />
                     <span className="text-meta min-w-0">{item.summary}</span>
                     <a
                       data-testid="evidence-link"
@@ -389,7 +435,10 @@ export function DecisionCard({
       ) : outcome !== undefined ? (
         <Outcome outcome={outcome} labels={labels} />
       ) : decision === undefined ? null : (
-        <footer data-testid="decision-controls-footer" className="px-5 py-4 edge border-border border-b-0 border-x-0">
+        <footer
+          data-testid="decision-controls-footer"
+          className="px-5 py-4 edge border-border border-b-0 border-x-0"
+        >
           {decision}
         </footer>
       )}

@@ -10,7 +10,12 @@ import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { DecisionCard, type ActionStep, type DecisionCardProps, type EvidenceItem } from '../proposal';
+import {
+  DecisionCard,
+  type ActionStep,
+  type DecisionCardProps,
+  type EvidenceItem,
+} from '../proposal';
 import { sideEffectLabel } from '../side-effects';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode } from '../url-state';
@@ -155,7 +160,10 @@ function evidenceOf(record: unknown): readonly EvidenceItem[] {
 }
 
 /** "N resource(s) known, depth D" — or that the graph could not be read. */
-function blastRadiusTextOf(locale: Parameters<typeof message>[0], record: unknown): string {
+function blastRadiusTextOf(
+  locale: Parameters<typeof message>[0],
+  record: unknown,
+): string {
   const radius = field(record, 'blast_radius');
   if (!flag(radius, 'known')) {
     return message(locale, 'decisions.card.blastRadius.unknown');
@@ -166,13 +174,20 @@ function blastRadiusTextOf(locale: Parameters<typeof message>[0], record: unknow
   });
 }
 
-function autonomyTextOf(locale: Parameters<typeof message>[0], record: unknown): string {
+function autonomyTextOf(
+  locale: Parameters<typeof message>[0],
+  record: unknown,
+): string {
   const autonomy = field(record, 'autonomy');
   const level = text(autonomy, 'side_effect_level');
   const reversible = flag(autonomy, 'reversible');
   return reversible
-    ? message(locale, 'decisions.card.autonomy.reversible', { level: sideEffectLabel(locale, level) })
-    : message(locale, 'decisions.card.autonomy.irreversible', { level: sideEffectLabel(locale, level) });
+    ? message(locale, 'decisions.card.autonomy.reversible', {
+        level: sideEffectLabel(locale, level),
+      })
+    : message(locale, 'decisions.card.autonomy.irreversible', {
+        level: sideEffectLabel(locale, level),
+      });
 }
 
 /**
@@ -208,7 +223,10 @@ function decisionFor(
   return (
     <IncidentDecisionControls
       approvalId={approvalId}
-      labels={{ ...labels, failed: message(locale, 'incident.proposedAction.decisionFailed') }}
+      labels={{
+        ...labels,
+        failed: message(locale, 'incident.proposedAction.decisionFailed'),
+      }}
     />
   );
 }
@@ -254,7 +272,9 @@ function cardPropsFrom(
 }
 
 /** The card's own section labels, resolved once per render rather than per card. */
-function cardLabels(locale: Parameters<typeof message>[0]): DecisionCardProps['labels'] {
+function cardLabels(
+  locale: Parameters<typeof message>[0],
+): DecisionCardProps['labels'] {
   return {
     steps: message(locale, 'decisions.card.steps'),
     rollback: message(locale, 'decisions.card.rollback'),
@@ -294,7 +314,9 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
   // it might be answered through. The API addresses a decision by
   // interaction rather than by approval, and a console that guessed the
   // identifier would be a console that decided the wrong thing exactly once.
-  const runs = [...new Set(queue.map((record) => text(record, 'run_id')).filter((id) => id !== ''))];
+  const runs = [
+    ...new Set(queue.map((record) => text(record, 'run_id')).filter((id) => id !== '')),
+  ];
   const interactions = new Map<string, string>();
   await Promise.all(
     runs.map(async (runId) => {
@@ -304,7 +326,9 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
           params: { run_id: runId },
         }),
       );
-      const open = list(dataOf(answered), 'interactions').find((record) => flag(record, 'is_open'));
+      const open = list(dataOf(answered), 'interactions').find((record) =>
+        flag(record, 'is_open'),
+      );
       if (open !== undefined) {
         interactions.set(runId, text(open, 'interaction_id'));
       }
@@ -322,7 +346,11 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
   let emptyBody = message(locale, 'approvals.empty.body');
   if (cause === null && queue.length === 0) {
     const tree = await optionalRead('/v1/config', () => read('/v1/config', init));
-    const nodeId = resolveNode(readViewState(search, ['node']), viewer, placedTree(dataOf(tree)));
+    const nodeId = resolveNode(
+      readViewState(search, ['node']),
+      viewer,
+      placedTree(dataOf(tree)),
+    );
     if (nodeId !== '') {
       const fields = await optionalRead('/v1/config/{node_id}/fields', () =>
         read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
@@ -361,7 +389,11 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
       <Panel
         title={message(locale, 'approvals.title')}
         state={failed ? 'error' : stateOf(pendingRead, queue.length === 0)}
-        dependency={failed ? dependencyOf(expiredRead.status === 'error' ? expiredRead : pendingRead) : ''}
+        dependency={
+          failed
+            ? dependencyOf(expiredRead.status === 'error' ? expiredRead : pendingRead)
+            : ''
+        }
         labels={panelLabels(locale, message(locale, 'approvals.title'))}
         empty={empty}
         bare
@@ -386,9 +418,13 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
                   data-state={state}
                   className="flex items-center gap-3 px-4 py-2 rounded-2 edge border-border bg-raised"
                 >
-                  <span className="text-small min-w-0 truncate">{text(record, 'title')}</span>
+                  <span className="text-small min-w-0 truncate">
+                    {text(record, 'title')}
+                  </span>
                   <span className="ml-auto text-meta text-muted shrink-0">
-                    {message(locale, 'proposal.risk', { level: String(number(field(record, 'risk'), 'score') || 1) })}
+                    {message(locale, 'proposal.risk', {
+                      level: String(number(field(record, 'risk'), 'score') || 1),
+                    })}
                   </span>
                   <time
                     className="text-meta text-muted shrink-0"
@@ -401,7 +437,11 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
               );
             }
 
-            const cardProps = cardPropsFrom(locale, record, isExpired ? 'expired' : 'pending');
+            const cardProps = cardPropsFrom(
+              locale,
+              record,
+              isExpired ? 'expired' : 'pending',
+            );
             return (
               <div key={id}>
                 <DecisionCard
@@ -411,14 +451,22 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
                         expiredFooter: {
                           approvalId: id,
                           labels: {
-                            explanation: message(locale, 'decisions.expiredFooter.explanation'),
-                            repropose: message(locale, 'decisions.expiredFooter.repropose'),
+                            explanation: message(
+                              locale,
+                              'decisions.expiredFooter.explanation',
+                            ),
+                            repropose: message(
+                              locale,
+                              'decisions.expiredFooter.repropose',
+                            ),
                             discard: message(locale, 'decisions.expiredFooter.discard'),
                             failed: message(locale, 'decisions.expiredFooter.failed'),
                           },
                         },
                       }
-                    : { decision: decisionFor(locale, decidable, record, interactionId) })}
+                    : {
+                        decision: decisionFor(locale, decidable, record, interactionId),
+                      })}
                 />
                 <p className="text-meta text-muted mt-1">
                   <time dateTime={waited.iso} title={waited.absolute}>
@@ -449,12 +497,19 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
             const outcome =
               verdict === 'approved'
                 ? flag(record, 'applied_and_verified')
-                  ? message(locale, 'decisions.decided.outcome.approvedVerified', { who })
+                  ? message(locale, 'decisions.decided.outcome.approvedVerified', {
+                      who,
+                    })
                   : message(locale, 'decisions.decided.outcome.approved', { who })
                 : verdict === 'rejected'
                   ? reason === ''
-                    ? message(locale, 'decisions.decided.outcome.rejectedNoReason', { who })
-                    : message(locale, 'decisions.decided.outcome.rejected', { who, reason })
+                    ? message(locale, 'decisions.decided.outcome.rejectedNoReason', {
+                        who,
+                      })
+                    : message(locale, 'decisions.decided.outcome.rejected', {
+                        who,
+                        reason,
+                      })
                   : message(locale, 'decisions.decided.outcome.discarded', { who });
             return (
               <div

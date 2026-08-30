@@ -31,7 +31,11 @@ function baseProps(overrides: Partial<DecisionCardProps> = {}): DecisionCardProp
     risk: RISK,
     riskLabel: 'Risk 3 of 5',
     steps: [
-      { ordinal: 1, summary: 'Start the guest via Proxmox', capability: 'proxmox_start_guest' },
+      {
+        ordinal: 1,
+        summary: 'Start the guest via Proxmox',
+        capability: 'proxmox_start_guest',
+      },
     ],
     rollback: [
       {
@@ -85,7 +89,14 @@ describe('a pending, unexpired decision', () => {
     render(<DecisionCard {...baseProps()} />);
 
     const card = screen.getByTestId('decision-card');
-    for (const name of ['steps', 'rollback', 'why', 'evidence', 'blast-radius', 'autonomy']) {
+    for (const name of [
+      'steps',
+      'rollback',
+      'why',
+      'evidence',
+      'blast-radius',
+      'autonomy',
+    ]) {
       expect(section(card, name)).toBeTruthy();
     }
   });
@@ -219,7 +230,8 @@ describe('a field the document never named', () => {
       <DecisionCard
         {...baseProps({
           steps: [],
-          summaryFallback: 'Grow the volume that is at the ceiling of its own allocation.',
+          summaryFallback:
+            'Grow the volume that is at the ceiling of its own allocation.',
         })}
       />,
     );
@@ -247,15 +259,17 @@ describe('the risk gauge', () => {
   });
 
   it('fills exactly the served score, out of the served scale', () => {
-    render(<DecisionCard {...baseProps({ risk: { class: 'high', score: 4, scale: 5 } })} />);
+    render(
+      <DecisionCard {...baseProps({ risk: { class: 'high', score: 4, scale: 5 } })} />,
+    );
 
     const gauge = screen.getByTestId('decision-risk');
     expect(gauge).toHaveAttribute('data-risk-score', '4');
     expect(gauge).toHaveAttribute('data-risk-scale', '5');
     const segments = within(gauge).getAllByTestId('risk-segment');
     expect(segments).toHaveLength(5);
-    expect(segments.filter((segment) => segment.getAttribute('data-filled') === 'true')).toHaveLength(
-      4,
-    );
+    expect(
+      segments.filter((segment) => segment.getAttribute('data-filled') === 'true'),
+    ).toHaveLength(4);
   });
 });

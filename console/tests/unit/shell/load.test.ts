@@ -151,8 +151,18 @@ describe('resolving what the shell needs', () => {
             new Response(
               JSON.stringify({
                 approvals: [
-                  { approval_id: 'apr-pending', state: 'pending', summary: 'x', action: 'y' },
-                  { approval_id: 'apr-expired', state: 'expired', summary: 'x', action: 'y' },
+                  {
+                    approval_id: 'apr-pending',
+                    state: 'pending',
+                    summary: 'x',
+                    action: 'y',
+                  },
+                  {
+                    approval_id: 'apr-expired',
+                    state: 'expired',
+                    summary: 'x',
+                    action: 'y',
+                  },
                 ],
               }),
               { status: 200, headers: { 'content-type': 'application/json' } },
@@ -178,7 +188,12 @@ describe('resolving what the shell needs', () => {
             new Response(
               JSON.stringify({
                 approvals: [
-                  { approval_id: 'apr-expired', state: 'expired', summary: 'x', action: 'y' },
+                  {
+                    approval_id: 'apr-expired',
+                    state: 'expired',
+                    summary: 'x',
+                    action: 'y',
+                  },
                 ],
               }),
               { status: 200, headers: { 'content-type': 'application/json' } },

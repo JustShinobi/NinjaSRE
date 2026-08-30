@@ -2486,14 +2486,17 @@ export const EN = {
   'decisions.card.evidenceLink': 'view',
   'decisions.card.blastRadius': 'Blast radius',
   'decisions.card.blastRadius.text': '{count} resource(s) known, depth {depth}',
-  'decisions.card.blastRadius.unknown': 'Unknown — the topology graph could not be read',
+  'decisions.card.blastRadius.unknown':
+    'Unknown — the topology graph could not be read',
   'decisions.card.rawPayload': 'raw action payload',
   'decisions.card.notRecorded': 'Not recorded.',
   'decisions.card.risk': 'Risk',
   'decisions.card.outcome': 'Decided',
   'decisions.card.appliedAndVerified': 'applied and verified',
-  'decisions.card.autonomy.reversible': '{level} — queued, applies only after your yes.',
-  'decisions.card.autonomy.irreversible': '{level} — queued, applies only after your yes.',
+  'decisions.card.autonomy.reversible':
+    '{level} — queued, applies only after your yes.',
+  'decisions.card.autonomy.irreversible':
+    '{level} — queued, applies only after your yes.',
   'decisions.expiredFooter.explanation':
     'The window for this proposal closed — the environment was read before it expired. Propose again to decide on a current reading.',
   'decisions.expiredFooter.repropose': 'Propose again, now',
@@ -2502,7 +2505,8 @@ export const EN = {
   'decisions.decided.heading': 'Decided recently',
   'decisions.decided.empty': 'Nothing has been decided yet.',
   'decisions.decided.outcome.approved': 'approved by {who}',
-  'decisions.decided.outcome.approvedVerified': 'approved by {who}, applied and verified',
+  'decisions.decided.outcome.approvedVerified':
+    'approved by {who}, applied and verified',
   'decisions.decided.outcome.rejected': 'rejected by {who}: {reason}',
   'decisions.decided.outcome.rejectedNoReason': 'rejected by {who}',
   'decisions.decided.outcome.discarded': 'discarded by {who}',
