@@ -66,6 +66,7 @@ from platform.persistence.ports.approval_store import (
     ApprovalState,
     RollbackPlan,
 )
+from platform.persistence.ports.remediation_ledger import VerificationState
 from platform.persistence.ports.transaction import TenantScope, UnitOfWork
 from platform.remediation.errors import RemediationError
 from platform.remediation.gating import RunContext
@@ -243,6 +244,11 @@ class ApprovalView(BaseModel):
     prior_effectiveness: PriorEffectivenessView = Field(default_factory=PriorEffectivenessView)
     created_at: str = ""
     verdict: str | None = None
+    #: Whether an approved action ran and its verification settled — the
+    #: "applied and verified" outcome FR-021 names. Always `False` for
+    #: anything not `approved`: a rejected or discarded decision was never
+    #: carried out, and there is nothing for the remediation ledger to say.
+    applied_and_verified: bool = False
     #: The full stored document, verbatim — the one field the raw-payload
     #: `<details>` renders (FR-004). Present on both the listing and the
     #: detail: a reviewer expanding a collapsed row in a crowded queue should
@@ -541,6 +547,22 @@ async def _origin_of(uow: UnitOfWork, request: ApprovalRequest) -> OriginView:
     return OriginView(run_id=run_id, headline=headline)
 
 
+async def _applied_and_verified(uow: UnitOfWork, request: ApprovalRequest) -> bool:
+    """Return whether an approved action ran and its verification settled.
+
+    Only asked for `approved` rows — a rejected or discarded decision was
+    never carried out, and asking the ledger about it would always answer
+    "no obligation", which is a different fact from "not yet verified".
+    """
+    if request.state is not ApprovalState.APPROVED:
+        return False
+    action = _action_of(request)
+    if action is None:
+        return False
+    outcome = await uow.remediation.get(action.action_id)
+    return outcome is not None and outcome.state is VerificationState.VERIFIED
+
+
 async def _view(
     uow: UnitOfWork, request: ApprovalRequest, plan: RollbackPlan | None
 ) -> ApprovalView:
@@ -576,6 +598,7 @@ async def _view(
         prior_effectiveness=_prior_effectiveness_of(request.arguments),
         created_at=request.requested_at.isoformat(),
         verdict=request.state.value if request.state.is_decided else None,
+        applied_and_verified=await _applied_and_verified(uow, request),
         raw=dict(request.arguments),
     )
 
