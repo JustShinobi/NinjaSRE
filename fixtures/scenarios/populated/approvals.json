@@ -396,6 +396,96 @@
             "summary": "Grow the volume that is at the ceiling of its own allocation.",
             "title": "Grow the volume that is at the ceiling of its own allocation.",
             "verdict": null
+          },
+          {
+            "action": "legacy.rotate_removed_connector_credential",
+            "applied_and_verified": false,
+            "approval_id": "apr-0005",
+            "arguments": {
+              "connector_id": "legacy-example"
+            },
+            "autonomy": {
+              "queued": true,
+              "reversible": false,
+              "side_effect_level": "write_irreversible"
+            },
+            "blast_radius": {
+              "count": 0,
+              "depth": 0,
+              "known": false
+            },
+            "blast_radius_count": 0,
+            "category": "remediation",
+            "created_at": "2026-08-02T11:50:00+00:00",
+            "decided_at": "2026-08-03T11:50:00+00:00",
+            "decided_by": null,
+            "evidence": [
+              {
+                "reference": "integrations:connector:legacy-example",
+                "summary": "Credential due for rotation before the connector was removed"
+              }
+            ],
+            "expires_at": "2026-08-03T11:50:00+00:00",
+            "intent": "",
+            "origin": {
+              "headline": "",
+              "incident_id": "",
+              "run_id": "run-0006"
+            },
+            "prior_effectiveness": {
+              "summary": ""
+            },
+            "raw": {
+              "blast_radius": {
+                "count": 0,
+                "depth": 0,
+                "known": false
+              },
+              "capability": "legacy.rotate_removed_connector_credential",
+              "evidence": [
+                {
+                  "reference": "integrations:connector:legacy-example",
+                  "summary": "Credential due for rotation before the connector was removed"
+                }
+              ],
+              "intent": "",
+              "requester": "alert-router",
+              "rollback": [],
+              "side_effect_level": "write_irreversible",
+              "steps": [
+                {
+                  "capability": "legacy.rotate_removed_connector_credential",
+                  "ordinal": 1,
+                  "summary": "Rotate the credential for the retired connector"
+                }
+              ],
+              "target": {
+                "identifier": "run-0006"
+              }
+            },
+            "reason": null,
+            "requested_at": "2026-08-02T11:50:00+00:00",
+            "requester": "alert-router",
+            "risk": {
+              "class": "medium",
+              "scale": 5,
+              "score": 3
+            },
+            "rollback": [],
+            "rollback_plan": null,
+            "run_id": "run-0006",
+            "side_effect_level": "write_irreversible",
+            "state": "expired",
+            "steps": [
+              {
+                "capability": "legacy.rotate_removed_connector_credential",
+                "ordinal": 1,
+                "summary": "Rotate the credential for the retired connector"
+              }
+            ],
+            "summary": "Rotate the credential for a connector that has since been removed.",
+            "title": "Rotate the credential for a connector that has since been removed.",
+            "verdict": null
           }
         ]
       },

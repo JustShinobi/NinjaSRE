@@ -33,7 +33,7 @@ import socket
 import time
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, MutableMapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final
 from urllib.parse import parse_qsl
@@ -80,6 +80,22 @@ SESSION_HEADER: Final = "x-mockplane-session"
 
 #: The session a client that names none gets.
 DEFAULT_SESSION: Final = "default"
+
+#: The argument key a reproposed decision's origin travels under — mirrors
+#: `gateway/http/routes/approvals.py`'s own `_ORIGIN_APPROVAL_ID_KEY` literal
+#: rather than importing a module-private name across a tool boundary.
+_ORIGIN_APPROVAL_ID_KEY: Final = "origin_approval_id"
+
+#: How far past "now" a freshly reproposed decision's own window reaches —
+#: `policies.approvals.expiry_hours`'s declared default elsewhere in this
+#: dataset (`tools/mockplane/dataset/served.py`), not a value invented here.
+_DEFAULT_APPROVAL_WINDOW: Final = timedelta(hours=4)
+
+#: Who a mock discard is recorded as decided by. The courier's own principal
+#: is not observable from here — the bearer credential the mock accepts is a
+#: name, not an identity the write simulation can look up — so this names the
+#: same synthetic operator the dataset's own decided fixtures already use.
+_MOCK_DECIDER: Final = "user-operator"
 
 #: Where the mock's own telemetry answers. Resolved before the gateway's route
 #: matching and never handed to it, so a caller asking "did the console reach
@@ -455,6 +471,18 @@ class MockPlane:
 
         method = str(scope.get("method", "GET"))
         path = str(scope.get("path", "/"))
+        # ASGI carries the query string as its own `scope` field, never as
+        # part of `path` (`_query_arguments`'s own docstring already assumed
+        # this) — so a bucket read like `?state=expired` was reaching
+        # `answer()` indistinguishable from the bare collection, and every
+        # `state=` bucket silently answered with whichever record the
+        # no-arguments fixture held instead of its own. Route matching and
+        # the request-count ledger keep the bare path — `request_counts()`
+        # is keyed on it without a query string (`test_server.py`) — and only
+        # the target `answer()` actually looks the record up against carries
+        # the query string back on.
+        query_string = bytes(scope.get("query_string", b"")).decode("utf-8", "replace")
+        target = f"{path}?{query_string}" if query_string else path
         headers = {key.decode().lower(): value.decode() for key, value in scope.get("headers", [])}
         session = headers.get(SESSION_HEADER, DEFAULT_SESSION)
 
@@ -479,7 +507,7 @@ class MockPlane:
             return
 
         payload = await self._read_body(receive)
-        answer = self.answer(method, path, session=session, body=payload)
+        answer = self.answer(method, target, session=session, body=payload)
         if answer.latency_ms:
             await asyncio.sleep(answer.latency_ms / 1000.0)
         if answer.refuse:
@@ -843,6 +871,81 @@ class MockPlane:
                         document, "approvals", "approval_id", identifier, "rolled_back"
                     ),
                 )
+            case "approval-repropose":
+                origin_id = arguments.get("approval_id", "")
+                origin = self._lookup_slug("approval-detail", {"approval_id": origin_id}, session)
+                reproposed = answer.body if isinstance(answer.body, Mapping) else {}
+                new_id = str(reproposed.get("approval_id", ""))
+                # The fixture-default success record answers every origin
+                # except the one declared dead (that one carries its own
+                # 422 record instead, matched exactly on `approval_id`, so
+                # `answer` never reaches this branch for it) — a missing
+                # `origin`/`new_id` here means the scenario declared neither,
+                # which this write has nothing to reflect.
+                if origin is None or not isinstance(origin.body, Mapping) or new_id == "":
+                    return
+                now = datetime.now(UTC)
+                fresh = json.loads(json.dumps(origin.body))
+                fresh_arguments = dict(fresh.get("arguments") or {})
+                fresh_arguments[_ORIGIN_APPROVAL_ID_KEY] = origin_id
+                fresh.update(
+                    {
+                        "approval_id": new_id,
+                        "state": "pending",
+                        # A fresh reading of the environment (FR-015), not the
+                        # three-day-old instant the fixture recorded — every
+                        # `?state=pending` read from this point on carries the
+                        # actual call time, not a literal from disk.
+                        "requested_at": now.isoformat(),
+                        "created_at": now.isoformat(),
+                        "expires_at": (now + _DEFAULT_APPROVAL_WINDOW).isoformat(),
+                        "decided_at": None,
+                        "decided_by": None,
+                        "reason": None,
+                        "verdict": None,
+                        "applied_and_verified": False,
+                        "arguments": fresh_arguments,
+                    }
+                )
+                amend(
+                    "approvals",
+                    {"state": "pending"},
+                    lambda document: _prepend(document, "approvals", fresh),
+                )
+                amend("approvals", {}, lambda document: _prepend(document, "approvals", fresh))
+                store.written[("approval-detail", arguments_key({"approval_id": new_id}))] = (
+                    origin.with_body(fresh)
+                )
+            case "approval-discard":
+                target_id = arguments.get("approval_id", "")
+                if target_id == "":
+                    return
+                now = datetime.now(UTC)
+                for bucket in ({"state": "pending"}, {"state": "expired"}, {}):
+                    amend(
+                        "approvals",
+                        bucket,
+                        lambda document: _remove_approval(document, target_id),
+                    )
+                origin = self._lookup_slug("approval-detail", {"approval_id": target_id}, session)
+                if origin is not None and isinstance(origin.body, Mapping):
+                    discarded = json.loads(json.dumps(origin.body))
+                    discarded.update(
+                        {
+                            "state": "discarded",
+                            "decided_at": now.isoformat(),
+                            "decided_by": _MOCK_DECIDER,
+                            "verdict": "discarded",
+                        }
+                    )
+                    store.written[
+                        ("approval-detail", arguments_key({"approval_id": target_id}))
+                    ] = origin.with_body(discarded)
+                    amend(
+                        "approvals",
+                        {"state": "decided", "limit": "10"},
+                        lambda document: _prepend(document, "approvals", discarded),
+                    )
             case _:
                 return
 
@@ -968,6 +1071,23 @@ def _patch_in(document: Any, key: str, id_key: str, identifier: str, status: str
         for item in document[key]:
             if isinstance(item, dict) and item.get(id_key) == identifier:
                 item["state" if "state" in item else "status"] = status
+    return document
+
+
+def _remove_approval(document: Any, approval_id: str) -> Any:
+    """Drop one approval from a bucket's own list — never a database `DELETE`.
+
+    The row itself is never destroyed: this only changes what one cached
+    bucket answers next, the same "reflect one write in what this session
+    reads next" scope every other case here keeps. The row's own transition
+    (to `discarded`) is what a caller sees in the `decided` bucket instead.
+    """
+    if isinstance(document, dict) and isinstance(document.get("approvals"), list):
+        document["approvals"] = [
+            row
+            for row in document["approvals"]
+            if not (isinstance(row, dict) and row.get("approval_id") == approval_id)
+        ]
     return document
 
 

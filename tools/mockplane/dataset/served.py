@@ -174,12 +174,17 @@ def _bootstrap_tokens() -> list[dict[str, Any]]:
 
 
 def _record(
-    slug: str, arguments: Mapping[str, str], body: Any, *, method: str = "GET"
+    slug: str,
+    arguments: Mapping[str, str],
+    body: Any,
+    *,
+    method: str = "GET",
+    status: int = 200,
 ) -> CapturedRecord:
     return CapturedRecord(
         slug=slug,
         arguments=dict(arguments),
-        status=200,
+        status=status,
         body=body,
         provenance=Provenance.GATEWAY,
         request=Request(method=method, path=slug),
@@ -1348,6 +1353,46 @@ _EXPIRED = _decision(
     decided_at=at(days=1, minutes=33),
 )
 
+#: Also past its own window, but its origin cannot be rebuilt — the connector
+#: it named has since been removed from the catalogue. Reproposing it is
+#: refused by name rather than crashing or fabricating a plan (FR-016);
+#: `tools/mockplane/server.py`'s write simulation for `approval-repropose`
+#: keys its refusal to this one approval by id, so every *other* expired
+#: decision still reproposes as the live-origin case does.
+_EXPIRED_DEAD_ORIGIN = _decision(
+    approval_id="apr-0005",
+    run_id="run-0006",
+    action="legacy.rotate_removed_connector_credential",
+    side_effect_level=SIDE_EFFECT_WRITE_IRREVERSIBLE,
+    summary="Rotate the credential for a connector that has since been removed.",
+    title="Rotate the credential for a connector that has since been removed.",
+    requester="alert-router",
+    state="expired",
+    requested_at=at(days=5, minutes=10),
+    expires_at=at(days=4, minutes=10),
+    origin={"run_id": "run-0006", "headline": "", "incident_id": ""},
+    risk={"class": "medium", "score": 3, "scale": 5},
+    steps=(
+        {
+            "ordinal": 1,
+            "summary": "Rotate the credential for the retired connector",
+            "capability": "legacy.rotate_removed_connector_credential",
+        },
+    ),
+    rollback=(),
+    reversible=False,
+    evidence=(
+        {
+            "summary": "Credential due for rotation before the connector was removed",
+            "reference": "integrations:connector:legacy-example",
+        },
+    ),
+    blast_radius={"count": 0, "depth": 0, "known": False},
+    arguments={"connector_id": "legacy-example"},
+    rollback_plan=None,
+    decided_at=at(days=4, minutes=10),
+)
+
 #: Approved, applied and verified.
 _APPROVED = _decision(
     approval_id="apr-0003",
@@ -1392,7 +1437,25 @@ _REJECTED = _decision(
     verdict="rejected",
 )
 
-APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (_PENDING, _EXPIRED, _APPROVED, _REJECTED)
+APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (
+    _PENDING,
+    _EXPIRED,
+    _EXPIRED_DEAD_ORIGIN,
+    _APPROVED,
+    _REJECTED,
+)
+
+#: The approval id `approval-repropose` refuses by name — `server.py`'s write
+#: simulation matches this one exactly and every other expired id falls
+#: through to the generic success record below.
+DEAD_ORIGIN_APPROVAL_ID: Final = str(_EXPIRED_DEAD_ORIGIN["approval_id"])
+
+#: The id `approval-repropose`'s generic (fixture-default) success hands out.
+#: A literal rather than a counter: the mock's write simulation
+#: (`_apply_write` in `server.py`) overwrites every timestamp on it with a
+#: fresh one at call time, so the only thing this literal has to be is
+#: distinct from every approval id the dataset serves elsewhere.
+REPROPOSED_APPROVAL_ID: Final = "apr-1002"
 
 
 def interaction_records() -> tuple[CapturedRecord, ...]:
@@ -1417,7 +1480,20 @@ def interaction_records() -> tuple[CapturedRecord, ...]:
     # `state=pending` read would.
     records.append(_record("approvals", {}, {"approvals": [_PENDING]}))
     records.append(_record("approvals", {"state": "pending"}, {"approvals": [_PENDING]}))
-    records.append(_record("approvals", {"state": "expired"}, {"approvals": [_EXPIRED]}))
+    records.append(
+        _record(
+            "approvals",
+            {"state": "expired"},
+            # The live-origin one first: it is the one every `cardInState`
+            # lookup in the acceptance spec expands, since the screen only
+            # expands `queue[0]` (`approvals.tsx`) and a reproposed origin is
+            # never removed from this bucket — only `discard` does that, by
+            # changing its own state. The dead-origin one rides along after
+            # it, collapsed, so the dataset carries both cases FR-016 and
+            # T031 ask for without disturbing which card the spec exercises.
+            {"approvals": [_EXPIRED, _EXPIRED_DEAD_ORIGIN]},
+        )
+    )
     records.append(
         _record(
             "approvals",
@@ -1431,6 +1507,51 @@ def interaction_records() -> tuple[CapturedRecord, ...]:
                 "approval-detail", {"approval_id": str(approval["approval_id"])}, dict(approval)
             )
         )
+    # A fresh pending decision, on the same mechanism `RequestBuilder.queue()`
+    # composes for the real gateway (FR-015) — the generic (fixture-default)
+    # response every expired id gets, and `server.py`'s `_apply_write`
+    # overwrites every timestamp on it at call time so "a current reading of
+    # the environment" is not a fixed literal three days old.
+    records.append(
+        _record(
+            "approval-repropose",
+            {},
+            {
+                "approval_id": REPROPOSED_APPROVAL_ID,
+                "state": "pending",
+                "created_at": at(),
+            },
+            method="POST",
+            status=201,
+        )
+    )
+    # The one approval id whose origin cannot be rebuilt (FR-016) — refused
+    # by name rather than by the generic success above.
+    records.append(
+        _record(
+            "approval-repropose",
+            {"approval_id": DEAD_ORIGIN_APPROVAL_ID},
+            {
+                "detail": f"{DEAD_ORIGIN_APPROVAL_ID!r}'s stored document no longer "
+                "describes a remediation action that can be rebuilt"
+            },
+            method="POST",
+            status=422,
+        )
+    )
+    records.append(
+        _record(
+            "approval-discard",
+            {},
+            {
+                "approval_id": "",
+                "state": "discarded",
+                "decided_at": at(),
+                "decided_by": "user-operator",
+            },
+            method="POST",
+        )
+    )
     return tuple(records)
 
 

@@ -207,6 +207,20 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="recording that a stored rollback plan was executed",
     ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/repropose",
+        slug="approval-repropose",
+        source=_GATEWAY,
+        summary="a fresh pending decision, queued from an expired one's origin",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/discard",
+        slug="approval-discard",
+        source=_GATEWAY,
+        summary="withdrawing a decision from the queue, marked rather than deleted",
+    ),
     # --- Changes the agent has proposed -----------------------------------------
     ConsoleEndpoint(
         method="GET",
