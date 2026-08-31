@@ -151,7 +151,7 @@
           "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
           "detector": "alertmanager",
           "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:2",
-          "opened_at": "2026-08-30T21:46:00+00:00",
+          "opened_at": "2026-08-30T22:58:00+00:00",
           "origin": "alert",
           "public_id": "inc_566b850277aa6377",
           "run_id": null,
@@ -172,7 +172,7 @@
         "timeline": [
           {
             "actor": "user-lagoon",
-            "at": "2026-08-30T21:46:00+00:00",
+            "at": "2026-08-30T22:58:00+00:00",
             "cause": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 14h ago, on node-node02",
             "detail": "alertmanager delivered an alert about 2 target(s)",
             "kind": "opened"
@@ -479,7 +479,7 @@
           "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
           "detector": "alertmanager",
           "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:3",
-          "opened_at": "2026-08-30T05:46:00+00:00",
+          "opened_at": "2026-08-30T06:58:00+00:00",
           "origin": "alert",
           "public_id": "inc_badb58562475cb42",
           "run_id": null,
@@ -500,7 +500,7 @@
         "timeline": [
           {
             "actor": "user-lagoon",
-            "at": "2026-08-30T05:46:00+00:00",
+            "at": "2026-08-30T06:58:00+00:00",
             "cause": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 30h ago, on node-node02",
             "detail": "alertmanager delivered an alert about 2 target(s)",
             "kind": "opened"
@@ -1728,7 +1728,7 @@
           "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
           "detector": "alertmanager",
           "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:1",
-          "opened_at": "2026-08-31T09:46:00+00:00",
+          "opened_at": "2026-08-31T10:58:00+00:00",
           "origin": "alert",
           "public_id": "inc_fd0c98f2993d06e6",
           "run_id": null,
@@ -1749,7 +1749,7 @@
         "timeline": [
           {
             "actor": "user-lagoon",
-            "at": "2026-08-31T09:46:00+00:00",
+            "at": "2026-08-31T10:58:00+00:00",
             "cause": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 2h ago, on node-node02",
             "detail": "alertmanager delivered an alert about 2 target(s)",
             "kind": "opened"

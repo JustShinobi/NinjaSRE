@@ -19,9 +19,9 @@ import { signIn } from './session';
  * `https://stg-ninjasre.lan.kyo.ninja` (the orchestrator's own pass, per
  * `specs_v8/EXECUCAO.md` §4), not a second suite.
  *
- * AN-03 is written and explicitly skipped: `stage_index` is served by
- * 020-titulo-vivo, a sibling feature in a worktree this one cannot see. The
- * assertion is real and will run once both features share a merged tree.
+ * AN-03 was written and skipped while `stage_index` lived in a sibling
+ * feature's worktree this one could not see. Both features share a tree now,
+ * so it runs.
  */
 
 test.use({ viewport: { width: 1440, height: 1080 } });
@@ -111,7 +111,7 @@ test('AN-02: the new card is titled by the typed objective, never "interactive i
 // AN-03 — the stage bar distinguishes completed/current/future (needs 020)
 // =============================================================================
 
-test.skip('AN-03: the card draws six segments with the current stage distinct from completed and future — needs stage_index from 020-titulo-vivo, not present in this worktree', async ({
+test('AN-03: the card draws six segments with the current stage distinct from completed and future', async ({
   page,
 }) => {
   await page.goto('/');
