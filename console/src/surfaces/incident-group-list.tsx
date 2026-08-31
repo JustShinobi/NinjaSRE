@@ -217,20 +217,35 @@ export function SubjectLine({
  * strip passes both, because two firings an hour apart must read as closer
  * together than two firings twelve hours apart, and ordinal rank cannot
  * tell those two cases apart.
+ *
+ * `width` fixes the axis every bar is placed on. Left unset the strip is as
+ * wide as its own firing count needs, which is what an ordinal row wants and
+ * exactly what a real timeline must not have: an axis whose length varies per
+ * row puts two rows on two scales, and twelve pixels is not enough of one to
+ * tell an hour from a day.
  */
 export function RecurrenceStrip({
   group,
   now,
   windowHours = DEFAULT_TIMELINE_WINDOW_HOURS,
+  width: fixedWidth,
 }: {
   readonly group: IncidentGroup;
   readonly now?: Date;
   readonly windowHours?: number;
+  readonly width?: number;
 }): ReactNode {
   if (group.occurrences.length <= 1) return null;
   const oldestFirst = [...group.occurrences].reverse();
   const barWidth = 3;
-  const width = oldestFirst.length * 6;
+  const width = fixedWidth ?? oldestFirst.length * 6;
+  // The ordinal fallback's own step: the six pixels a self-sized strip has
+  // always used, or the axis divided evenly when the width was fixed from
+  // outside and there is no instant to place a bar by.
+  const step =
+    fixedWidth === undefined
+      ? 6
+      : (width - barWidth) / Math.max(oldestFirst.length - 1, 1);
   // The left edge travels the whole `[0, width - barWidth]` range as a
   // direct linear function of `percent`, so the newest bar's right edge
   // lands exactly on `width` and the oldest bar's left edge exactly on `0`
@@ -256,7 +271,7 @@ export function RecurrenceStrip({
       {oldestFirst.map((occurrence, index) => {
         const percent = byInstant?.get(occurrence.id);
         const x =
-          percent === undefined ? index * 6 : (percent / 100) * (width - barWidth);
+          percent === undefined ? index * step : (percent / 100) * (width - barWidth);
         return (
           <rect
             key={occurrence.id}

@@ -197,7 +197,6 @@ export function RunBand({
   moreHref,
 }: RunBandProps): ReactNode {
   const visible = runs.slice(0, RUN_BAND_VISIBLE_MAX);
-  const overflow = runs.length - visible.length;
 
   return (
     <section
@@ -228,15 +227,18 @@ export function RunBand({
           </span>{' '}
           {message(locale, 'dashboard.runBand.blocked')}
         </span>
-        {overflow > 0 ? (
-          <a
-            href={moreHref}
-            data-testid="run-band-more"
-            className="ml-auto text-meta text-accent hover:underline"
-          >
-            {message(locale, 'dashboard.runBand.more')}
-          </a>
-        ) : null}
+        {/* The band's permanent way out, drawn whether or not a seventh run
+            has pushed a card off the end. The count it would otherwise carry
+            is already beside it — "N em voo" reads the unsliced list — so
+            hiding the link until something overflows only ever removed the
+            one route off this band to the full listing. */}
+        <a
+          href={moreHref}
+          data-testid="run-band-more"
+          className="ml-auto text-meta text-accent hover:underline"
+        >
+          {message(locale, 'dashboard.runBand.more')}
+        </a>
       </header>
 
       {visible.length === 0 ? (

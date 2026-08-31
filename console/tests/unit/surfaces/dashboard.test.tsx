@@ -420,23 +420,73 @@ describe('an indicator of whether the agent itself is working', () => {
   });
 });
 
-// --- 5. Quick actions name their destination and say what it does -------------------------
+// --- 5. The two-column row the artboard draws ---------------------------------------------
 
-describe('quick actions', () => {
-  it('names the destination screen and describes it, rather than a poetic aside', async () => {
+describe('what insists, beside the live activity', () => {
+  it('offers no second navigation beside the two panels of the row', async () => {
     await dashboard('populated');
 
-    const actions = screen.getAllByTestId('quick-action');
-    // Two rather than three: Memory is Knowledge's own "Learned" tab now, so
-    // pointing a second action at the same screen under a second name would
-    // be the same destination offered twice.
-    expect(actions).toHaveLength(2);
-    for (const action of actions) {
-      const href = action.getAttribute('href') ?? '';
-      expect(areaByPath(href), `${href} is not an area`).toBeDefined();
-    }
-    expect(screen.getByText(EN['page.knowledge.title'])).toBeInTheDocument();
-    expect(screen.getByText(EN['page.knowledge.context'])).toBeInTheDocument();
+    // "Ações rápidas" was two links to Knowledge and Autonomy — two areas the
+    // sidebar already carries, under a heading the artboard has no room for
+    // and never draws. What replaces it is the panel the board does put
+    // there: the live activity, beside what insists rather than below it.
+    expect(screen.queryByTestId('quick-actions')).toBeNull();
+    expect(screen.getByTestId('live-activity')).toBeInTheDocument();
+    expect(screen.getByTestId('recurring-problems')).toBeInTheDocument();
+  });
+
+  it('counts the subjects and their firings in the panel header', async () => {
+    await dashboardWithLiveIncidents();
+
+    // Two causes, five firings between them — the same two rows the fold
+    // above asserts, counted in the header instead of left for the reader to
+    // add up.
+    const panel = screen.getByTestId('recurring-problems');
+    expect(within(panel).getByTestId('recurring-tally')).toHaveTextContent(
+      '2 subjects · 5 firings · grouped by subject',
+    );
+  });
+
+  it('says nothing about counts when the incidents could not be read', async () => {
+    serveScenario('populated');
+    const scenario = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const address = new URL(String(input), FIXTURES_BASE);
+      if (address.pathname === '/v1/incidents') {
+        return Promise.resolve(new Response('nope', { status: 500 }));
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await DashboardScreen(await surfaceContext({})));
+
+    // A tally is a claim about the estate. A read that failed has none to
+    // make, and "0 subjects · 0 firings" is the invented zero the panel's own
+    // error state exists to avoid.
+    expect(screen.queryByTestId('recurring-tally')).toBeNull();
+  });
+
+  it('leads out of each panel of the row the way the board does', async () => {
+    await dashboardWithLiveIncidents();
+
+    const subjects = screen.getByTestId('recurring-more');
+    expect(subjects).toHaveTextContent('see all 2 subjects →');
+    expect(subjects.getAttribute('href')).toBe('/incidents');
+
+    const timeline = screen.getByTestId('activity-more');
+    expect(timeline).toHaveTextContent(EN['dashboard.activity.more']);
+    expect(areaByPath(timeline.getAttribute('href') ?? '')).toBeDefined();
+  });
+
+  it('leads to every investigation from the run band, overflowing or not', async () => {
+    await dashboardWithLiveIncidents();
+
+    // The board draws this link with two cards on screen and three runs in
+    // flight, so it is the band's permanent way out rather than a disclosure
+    // that only appears once the sixth card is pushed off.
+    const cards = screen.queryAllByTestId('run-card');
+    expect(cards.length).toBeLessThanOrEqual(6);
+    const more = screen.getByTestId('run-band-more');
+    expect(more.getAttribute('href')).toBe('/runs');
   });
 });
 

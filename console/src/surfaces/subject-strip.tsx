@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import NextLink from 'next/link';
 
-import { Badge } from '@/components/status';
+import { Badge, StatusDot } from '@/components/status';
 import { statusPresentation } from '@/design/status';
 import { formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -17,6 +17,27 @@ import { RecurrenceStrip, SubjectLine, subjectTitle } from './incident-group-lis
  * supplies groups already windowed (`subjectsInWindow`) and filtered to
  * recurring ones (`count > 1`); this component only orders and draws them.
  */
+
+/**
+ * How many rows the strip draws before the rest are behind its own link.
+ *
+ * The artboard draws five and names the total beside them, which is the
+ * shape every other list on this page already has: six run cards, eight
+ * activity entries, five subjects.
+ */
+export const SUBJECT_VISIBLE_MAX = 5;
+
+/**
+ * How wide every row's firing timeline is, in the units its own `viewBox`
+ * counts.
+ *
+ * Fixed, and the same for every row, because the window is the same window
+ * for all of them: a strip sized from its own firing count gives a subject
+ * that fired twice a twelve-pixel axis, on which "an hour apart" and "two
+ * days apart" are the same picture, and puts two rows on two different
+ * scales so neither can be read against the other.
+ */
+const SUBJECT_TIMELINE_WIDTH = 120;
 
 export interface SubjectStripProps {
   readonly locale: Locale;
@@ -71,6 +92,14 @@ function SubjectRow({
         ? {}
         : { title: subjectTitle(group, subjectNames) })}
     >
+      {/* What this row is, before what it says: the severity while the
+          subject is still firing, the outcome once it is over. The same
+          reading `IncidentGroupList` already makes of a group -- severity is
+          an alarm, and an alarm that ended is history rather than a colour
+          still shouting. */}
+      <span data-testid="subject-mark" className="shrink-0">
+        <StatusDot status={group.live ? group.severity : group.state} />
+      </span>
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-small font-medium truncate">{group.title}</span>
         <span data-testid="subject-subtitle" className="text-meta text-muted truncate">
@@ -78,7 +107,12 @@ function SubjectRow({
         </span>
       </div>
       <span className="ml-auto shrink-0" data-testid="subject-timeline">
-        <RecurrenceStrip group={group} now={now} windowHours={SUBJECT_WINDOW_HOURS} />
+        <RecurrenceStrip
+          group={group}
+          now={now}
+          windowHours={SUBJECT_WINDOW_HOURS}
+          width={SUBJECT_TIMELINE_WIDTH}
+        />
       </span>
       <span
         data-testid="subject-chip"
@@ -119,15 +153,17 @@ export function SubjectStrip({
   const names = subjectNames ?? new Map<string, string>();
   return (
     <div className="flex flex-col gap-1 min-w-0">
-      {liveFirst(groups).map((group) => (
-        <SubjectRow
-          key={group.key}
-          group={group}
-          locale={locale}
-          now={now}
-          subjectNames={names}
-        />
-      ))}
+      {liveFirst(groups)
+        .slice(0, SUBJECT_VISIBLE_MAX)
+        .map((group) => (
+          <SubjectRow
+            key={group.key}
+            group={group}
+            locale={locale}
+            now={now}
+            subjectNames={names}
+          />
+        ))}
     </div>
   );
 }

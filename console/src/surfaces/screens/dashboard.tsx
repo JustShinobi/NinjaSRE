@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import {
   AGENT_INCIDENT_STATES,
   HUMAN_INCIDENT_STATES,
@@ -8,7 +10,7 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { timestamp } from '@/i18n/format';
+import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -18,7 +20,6 @@ import { readFailure } from '../failures';
 import { KpiTiles, type KpiData } from '../kpi-tiles';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
-import { DashboardQuickActions } from '../quick-actions';
 import { subjectOf } from '../run-subject';
 import { SetupHero } from '../setup-hero';
 import { SubjectStrip } from '../subject-strip';
@@ -274,6 +275,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     now,
     SUBJECT_WINDOW_HOURS,
   ).filter((group) => group.count > 1);
+  // How many firings those subjects account for between them -- the sum of
+  // exactly the `N×` counts the rows themselves show, so the header and the
+  // rows can never disagree about how much is happening.
+  const firings = recurring.reduce((total, group) => total + group.count, 0);
   // What the estate calls every resource it holds, resolved once for the
   // whole page from the same read -- never a second request, and never per
   // row. A subject the estate does not hold at all simply has no entry, and
@@ -594,39 +599,78 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         timeToCause={kpiOf('time_to_cause')}
       />
 
-      {/* What keeps happening, above the narrative rather than inside it. A
-          cause that fired nine times is one problem and the feed would tell
-          the reader it was nine — which is the whole defect this page was
-          reformulated around. */}
-      <div className="mb-5" data-testid="recurring-problems">
-        <Panel
-          title={message(locale, 'dashboard.recurring.title')}
-          state={stateOf(incidents, recurring.length === 0)}
-          dependency={dependencyOf(incidents)}
-          action={
-            <span className="text-meta text-muted">
-              {message(locale, 'dashboard.recurring.note')}
-            </span>
-          }
-          labels={panelLabels(locale, message(locale, 'dashboard.recurring.title'))}
-          empty={{
-            heading: message(locale, 'dashboard.recurring.empty.heading'),
-            body: message(locale, 'dashboard.recurring.empty.body'),
-            actionLabel: message(locale, 'dashboard.recurring.empty.action'),
-            href: '/incidents',
-          }}
-        >
-          <SubjectStrip
-            locale={locale}
-            now={now}
-            groups={recurring}
-            subjectNames={subjectNames}
-          />
-        </Panel>
-      </div>
-
+      {/* The last row of the page, and one row rather than two: what keeps
+          happening in the wider column, what the deployment has been doing in
+          the narrower one. A cause that fired nine times is one row on the
+          left — the defect this page was reformulated around — and the
+          narrative on the right is what those nine firings looked like as
+          they arrived. Stacking them put a third of a screen between two
+          readings of the same estate, and left the narrower column with
+          nothing to hold but a list of links. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 min-w-0">
+        <div className="lg:col-span-2 min-w-0" data-testid="recurring-problems">
+          <Panel
+            title={message(locale, 'dashboard.recurring.title')}
+            state={stateOf(incidents, recurring.length === 0)}
+            dependency={dependencyOf(incidents)}
+            // How many subjects, how many firings between them, and on which
+            // of the two the rows are grouped — the three facts a reader
+            // would otherwise add up by counting rows. Absent when there are
+            // no rows, because "0 subjects · 0 firings" is a claim about the
+            // estate that a failed read has no standing to make.
+            action={
+              recurring.length === 0 ? undefined : (
+                <span data-testid="recurring-tally" className="text-meta text-muted">
+                  {message(
+                    locale,
+                    recurring.length === 1
+                      ? 'dashboard.recurring.tally.one'
+                      : 'dashboard.recurring.tally',
+                    {
+                      subjects: formatNumber(locale, recurring.length),
+                      firings: formatNumber(locale, firings),
+                    },
+                  )}
+                </span>
+              )
+            }
+            labels={panelLabels(locale, message(locale, 'dashboard.recurring.title'))}
+            empty={{
+              heading: message(locale, 'dashboard.recurring.empty.heading'),
+              body: message(locale, 'dashboard.recurring.empty.body'),
+              actionLabel: message(locale, 'dashboard.recurring.empty.action'),
+              href: '/incidents',
+            }}
+          >
+            <div className="flex flex-col gap-3 min-w-0">
+              <SubjectStrip
+                locale={locale}
+                now={now}
+                groups={recurring}
+                subjectNames={subjectNames}
+              />
+              {/* The strip draws five; this names every one of them and
+                  opens the screen where they all live, grouped the same way.
+                  It is the panel's way out whether or not anything was cut,
+                  because a reader who wants the whole list should not have to
+                  wait for a sixth subject to be offered it. */}
+              <NextLink
+                href="/incidents"
+                data-testid="recurring-more"
+                className="text-meta text-accent hover:underline self-start"
+              >
+                {message(
+                  locale,
+                  recurring.length === 1
+                    ? 'dashboard.recurring.more.one'
+                    : 'dashboard.recurring.more',
+                  { count: formatNumber(locale, recurring.length) },
+                )}
+              </NextLink>
+            </div>
+          </Panel>
+        </div>
+        <div className="min-w-0" data-testid="live-activity">
           <Panel
             title={message(locale, 'dashboard.activity.title')}
             state={stateOf(runs, recent.length === 0)}
@@ -641,14 +685,22 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               href: '/integrations',
             }}
           >
-            <ActivityFeed locale={locale} entries={recent} />
+            <div className="flex flex-col gap-3 min-w-0">
+              <ActivityFeed locale={locale} entries={recent} />
+              {/* Eight entries is a narrative; the rest of it is the run
+                  listing, which is where most of what this feed says
+                  happened — an investigation starting, a cause found —
+                  carries on in full. Incidents and decisions each reach their
+                  own area from their own entry. */}
+              <NextLink
+                href="/runs"
+                data-testid="activity-more"
+                className="text-meta text-accent hover:underline self-start"
+              >
+                {message(locale, 'dashboard.activity.more')}
+              </NextLink>
+            </div>
           </Panel>
-        </div>
-        <div className="flex flex-col gap-5 min-w-0">
-          {/* The remaining plan is the hero above, not a second copy of itself
-              down here. Two checklists on one page is the page disagreeing with
-              itself about where the operator should look. */}
-          <DashboardQuickActions locale={locale} />
         </div>
       </div>
     </>

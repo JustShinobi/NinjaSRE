@@ -1936,15 +1936,16 @@ describe('the dashboard of a deployment that is not set up', () => {
     );
   });
 
-  it('offers the two quick actions the checklist is asking for', async () => {
+  it('sends a reader on from the hero alone, not from a second list beside it', async () => {
     await dashboard('first-run');
 
-    const actions = screen.getAllByTestId('quick-action');
-    expect(actions).toHaveLength(2);
-    for (const action of actions) {
-      const href = action.getAttribute('href') ?? '';
-      expect(areaByPath(href), `${href} is not an area`).toBeDefined();
-    }
+    // The quick-action list that used to sit in the corner of this page is
+    // gone: it pointed at Knowledge and Autonomy, two areas the sidebar
+    // already carries, and the artboard the Painel now follows has a panel
+    // there instead. What remains asking for the next step is the hero.
+    expect(screen.queryAllByTestId('quick-action')).toHaveLength(0);
+    const hero = screen.getByTestId('setup-hero-cta');
+    expect(areaByPath((hero.getAttribute('href') ?? '').split('?')[0] ?? '')).toBeDefined();
   });
 
   it('drops the plan and the warning once the deployment is set up', async () => {

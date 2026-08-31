@@ -608,6 +608,7 @@ export const EN = {
   'dashboard.activity.empty.body':
     'Investigations, incidents and decisions appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
   'dashboard.activity.empty.action': 'Connect a source',
+  'dashboard.activity.more': 'full timeline →',
   'dashboard.liveActivity.count': '{count}×',
   'dashboard.liveActivity.investigationStarted': 'Investigation started',
   'dashboard.liveActivity.causeFound': 'Cause found',
@@ -624,11 +625,6 @@ export const EN = {
   'dashboard.hero.empty.body':
     'This is drawn from the deployment’s own setup checklist, and it did not answer. Everything else on this page is unaffected.',
   'dashboard.hero.empty.action': 'Open first steps',
-  'dashboard.quickActions.title': 'Quick actions',
-  'dashboard.quickActions.empty.heading': 'Nothing to do from here',
-  'dashboard.quickActions.empty.body':
-    'These are the destinations the setup checklist is asking for. It is asking for none.',
-  'dashboard.quickActions.empty.action': 'Go to the overview',
   'dashboard.guardian.title': 'Guardian',
   'dashboard.guardian.posture': 'Posture',
   'dashboard.guardian.liveness': 'Liveness',
@@ -1000,7 +996,12 @@ export const EN = {
   'dashboard.stat.unattended.context.none': 'nothing has closed yet',
   'dashboard.attention.more': 'and {count} more waiting',
   'dashboard.recurring.title': 'What keeps happening',
-  'dashboard.recurring.note': 'Grouped by subject, not by firing',
+  'dashboard.recurring.tally':
+    '{subjects} subjects · {firings} firings · grouped by subject',
+  'dashboard.recurring.tally.one':
+    '{subjects} subject · {firings} firings · grouped by subject',
+  'dashboard.recurring.more': 'see all {count} subjects →',
+  'dashboard.recurring.more.one': 'see the subject →',
   'dashboard.recurring.empty.heading': 'Nothing has recurred',
   'dashboard.recurring.empty.body':
     'A condition that fires more than once on the same subject is collected here, so a problem that keeps coming back is one row rather than a page of them.',

@@ -630,6 +630,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.activity.empty.body':
     'Investigações, incidentes e decisões aparecem aqui à medida que acontecem. Conecte uma fonte de infraestrutura e a primeira varredura começa em até um minuto.',
   'dashboard.activity.empty.action': 'Conectar uma fonte',
+  'dashboard.activity.more': 'linha do tempo completa →',
   'dashboard.liveActivity.count': '{count}×',
   'dashboard.liveActivity.investigationStarted': 'Investigação iniciada',
   'dashboard.liveActivity.causeFound': 'Causa encontrada',
@@ -646,11 +647,6 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.hero.empty.body':
     'Isto é lido a partir da checklist de configuração da própria instalação, e ela não respondeu. O resto desta página não é afetado.',
   'dashboard.hero.empty.action': 'Abrir os primeiros passos',
-  'dashboard.quickActions.title': 'Ações rápidas',
-  'dashboard.quickActions.empty.heading': 'Nada a fazer a partir daqui',
-  'dashboard.quickActions.empty.body':
-    'Estes são os destinos que a checklist de configuração está pedindo. Não está pedindo nenhum.',
-  'dashboard.quickActions.empty.action': 'Ir para a visão geral',
   'dashboard.guardian.title': 'Guardião',
   'dashboard.guardian.posture': 'Postura',
   'dashboard.guardian.liveness': 'Vivacidade',
@@ -798,7 +794,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.unattended.context.none': 'nada foi fechado ainda',
   'dashboard.attention.more': 'e mais {count} esperando',
   'dashboard.recurring.title': 'O que insiste em acontecer',
-  'dashboard.recurring.note': 'Agrupado por assunto, não por disparo',
+  'dashboard.recurring.tally':
+    '{subjects} assuntos · {firings} disparos · agrupado por assunto',
+  'dashboard.recurring.tally.one':
+    '{subjects} assunto · {firings} disparos · agrupado por assunto',
+  'dashboard.recurring.more': 'ver os {count} assuntos →',
+  'dashboard.recurring.more.one': 'ver o assunto →',
   'dashboard.recurring.empty.heading': 'Nada se repetiu',
   'dashboard.recurring.empty.body':
     'Uma condição que dispara mais de uma vez no mesmo assunto é reunida aqui, para que um problema recorrente seja uma linha e não uma página delas.',

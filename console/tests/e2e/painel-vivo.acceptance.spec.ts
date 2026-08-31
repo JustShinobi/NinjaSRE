@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
 import { signIn } from './session';
 
@@ -70,6 +76,31 @@ function subjectRows(page: Page): Locator {
 
 function activityEntries(page: Page): Locator {
   return page.getByTestId('activity-feed-entry');
+}
+
+/**
+ * Ask for the reader's own language, the way the console's own toggle does.
+ *
+ * The suite runs `locale: 'en-GB'` (`playwright.config.ts:40`), so no test in
+ * this file can see a pt-BR string unless it says so — while the artboard is
+ * drawn entirely in pt-BR. The `ninjasre_locale` cookie is what `requestLocale`
+ * prefers over `accept-language`, so this is a reader choosing a language and
+ * not a harness override of one.
+ */
+async function readInPortuguese(
+  context: BrowserContext,
+  baseURL: string | undefined,
+): Promise<void> {
+  const url = new URL(baseURL ?? 'http://127.0.0.1:8423');
+  await context.addCookies([
+    {
+      name: 'ninjasre_locale',
+      value: 'pt-BR',
+      domain: url.hostname,
+      path: '/',
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 /** Start an investigation from the topbar's existing control and return its objective. */
@@ -404,20 +435,123 @@ test(
   'AN-11: the panel is named "O que insiste em acontecer", in the board\'s own words',
   { tag: STAGING_SAFE_TAG },
   async ({ context, page, baseURL }) => {
-    const url = new URL(baseURL ?? 'http://127.0.0.1:8423');
-    await context.addCookies([
-      {
-        name: 'ninjasre_locale',
-        value: 'pt-BR',
-        domain: url.hostname,
-        path: '/',
-        sameSite: 'Lax',
-      },
-    ]);
+    await readInPortuguese(context, baseURL);
     await page.goto('/');
     await expect(
       page.getByTestId('recurring-problems').getByRole('heading', { level: 3 }),
     ).toHaveText('O que insiste em acontecer');
+  },
+);
+
+// =============================================================================
+// The artboard's own layout: one row, two panels, and the way out of each
+// =============================================================================
+
+// Everything below reads the page the board draws rather than a claim the
+// spec numbers. The operator compared the two renderings side by side and
+// found the console had stacked what the board puts in one row, dropped both
+// footer links and the header tally, and grown a "Ações rápidas" panel the
+// board has no room for. None of it was visible to this suite, because every
+// test above locates a panel by `data-testid` and none of them asks where the
+// panel actually is.
+
+test(
+  'the recurring subjects and the live activity share one row, wide beside narrow',
+  { tag: STAGING_SAFE_TAG },
+  async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('recurring-problems')).toBeVisible();
+    await expect(page.getByTestId('live-activity')).toBeVisible();
+    const recurring = await page.getByTestId('recurring-problems').boundingBox();
+    const activity = await page.getByTestId('live-activity').boundingBox();
+    if (recurring === null || activity === null) {
+      throw new Error('both panels of the row must be on the page to be measured');
+    }
+
+    // One row: their vertical extents overlap, rather than one beginning
+    // where the other ended.
+    expect(recurring.y).toBeLessThan(activity.y + activity.height);
+    expect(activity.y).toBeLessThan(recurring.y + recurring.height);
+    // Wide beside narrow, in that order — the board gives what insists the
+    // larger share and the narrative the smaller one.
+    expect(recurring.x + recurring.width).toBeLessThanOrEqual(activity.x + 1);
+    expect(recurring.width).toBeGreaterThan(activity.width);
+  },
+);
+
+test(
+  'the recurring panel counts its subjects and their firings in its own header',
+  { tag: STAGING_SAFE_TAG },
+  async ({ context, page, baseURL }) => {
+    await readInPortuguese(context, baseURL);
+    await page.goto('/');
+    // Guarded on the rows, never on the tally itself: a guard that skips when
+    // the element under test is missing is a test that cannot fail.
+    if ((await subjectRows(page).count()) === 0) {
+      test.skip(true, 'nothing repeated in the window, so there is no tally to read');
+    }
+    await expect(page.getByTestId('recurring-tally')).toHaveText(
+      /\d+ assuntos? · \d+ disparos · agrupado por assunto/,
+    );
+  },
+);
+
+test(
+  'each panel of the row leads out of itself, the way the board leads out of it',
+  { tag: STAGING_SAFE_TAG },
+  async ({ context, page, baseURL }) => {
+    await readInPortuguese(context, baseURL);
+    await page.goto('/');
+
+    // The same guard as the tally, for the same reason: the rows decide
+    // whether the panel has anything at all, and the link is what is on trial.
+    if ((await subjectRows(page).count()) === 0) {
+      test.skip(true, 'nothing repeated in the window, so the panel has no list to open');
+    }
+    const subjects = page.getByTestId('recurring-more');
+    await expect(subjects).toHaveText(/ver os? .*assuntos? →/);
+    await expect(subjects).toHaveAttribute('href', '/incidents');
+
+    await expect(page.getByTestId('activity-more')).toHaveText(
+      'linha do tempo completa →',
+    );
+  },
+);
+
+test(
+  'the run band always offers the way to every investigation',
+  { tag: STAGING_SAFE_TAG },
+  async ({ context, page, baseURL }) => {
+    await readInPortuguese(context, baseURL);
+    await page.goto('/');
+    // Drawn on the board beside two cards and three runs in flight: a
+    // permanent way out of the band, never a disclosure that appears only
+    // once a seventh run pushes the sixth card off.
+    //
+    // The case that used to hide it — fewer runs in flight than the card cap
+    // — is not one this backing can be held to: the tests above start
+    // investigations of their own, so by the time this runs the mock's flight
+    // count has drifted past six and the band overflows either way. The
+    // deterministic red for the hidden link is `dashboard.test.tsx`'s own
+    // ("leads to every investigation from the run band, overflowing or not"),
+    // against a scenario with nothing overflowing. What this adds is the
+    // wording and the destination on the deployed page, and against staging —
+    // ordinarily nothing in flight at all — it is the whole claim.
+    const more = page.getByTestId('run-band-more');
+    await expect(more).toBeVisible();
+    await expect(more).toHaveText('todas as investigações →');
+    await expect(more).toHaveAttribute('href', '/runs');
+  },
+);
+
+test(
+  'the Painel offers no navigation panel the board does not draw',
+  { tag: STAGING_SAFE_TAG },
+  async ({ page }) => {
+    await page.goto('/');
+    // "Ações rápidas" pointed at Knowledge and Autonomy, two areas already in
+    // the sidebar, from a heading the artboard never uses.
+    await expect(page.getByTestId('quick-actions')).toHaveCount(0);
   },
 );
 

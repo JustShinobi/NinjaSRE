@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { SubjectStrip } from '@/surfaces/subject-strip';
+import { SUBJECT_VISIBLE_MAX, SubjectStrip } from '@/surfaces/subject-strip';
 import type { IncidentGroup } from '@/surfaces/incident-groups';
 
 /**
@@ -48,6 +48,23 @@ function group(over: Partial<IncidentGroup> = {}): IncidentGroup {
 }
 
 const NOW = new Date('2026-08-27T10:00:00.000Z');
+
+/** `count` firings of one subject, one hour apart, newest first. */
+function firings(key: string, count: number): IncidentGroup {
+  return group({
+    key,
+    count,
+    occurrences: Array.from({ length: count }, (_unused, index) => ({
+      id: `${key}-${String(index)}`,
+      publicId: `inc_${key}_${String(index)}`,
+      summary: '',
+      state: 'investigating',
+      severity: 'critical',
+      at: new Date(NOW.getTime() - index * 60 * 60 * 1000).toISOString(),
+      runId: '',
+    })),
+  });
+}
 
 describe('SubjectStrip', () => {
   it('renders one row per group', () => {
@@ -260,5 +277,65 @@ describe('SubjectStrip', () => {
     const hourDistance = barDistance(rows[0]);
     const twelveHourDistance = barDistance(rows[1]);
     expect(hourDistance).toBeLessThan(twelveHourDistance);
+  });
+
+  it('draws every subject over the same span, so two rows can be compared', () => {
+    // A strip whose width is a function of its own firing count is not a
+    // timeline: two firings get twelve pixels, in which "an hour apart" and
+    // "a day apart" land on the same two dots. The window is the same
+    // window for every row, so the axis it is drawn on has to be too.
+    render(
+      <SubjectStrip
+        locale="en"
+        now={NOW}
+        groups={[firings('few', 2), firings('many', 6)]}
+      />,
+    );
+
+    const widths = screen
+      .getAllByTestId('subject-row')
+      .map((row) => row.querySelector('svg')?.getAttribute('width'));
+    expect(widths[0]).toBe(widths[1]);
+    expect(Number(widths[0])).toBeGreaterThanOrEqual(96);
+  });
+
+  it('draws at most five subjects, however many the window holds', () => {
+    render(
+      <SubjectStrip
+        locale="en"
+        now={NOW}
+        groups={Array.from({ length: 8 }, (_unused, index) =>
+          firings(`subject-${String(index)}`, 2),
+        )}
+      />,
+    );
+    expect(screen.getAllByTestId('subject-row')).toHaveLength(SUBJECT_VISIBLE_MAX);
+    expect(SUBJECT_VISIBLE_MAX).toBe(5);
+  });
+
+  it('marks a row by its severity while live, and by its outcome once settled', () => {
+    render(
+      <SubjectStrip
+        locale="en"
+        now={NOW}
+        groups={[
+          group({ key: 'live' }),
+          group({ key: 'settled', live: false, state: 'resolved' }),
+        ]}
+      />,
+    );
+
+    const shapeOf = (row: HTMLElement | undefined): string | null | undefined => {
+      if (row === undefined) throw new Error('the row this test is about is not there');
+      return within(row)
+        .getByTestId('subject-mark')
+        .querySelector('[data-shape]')
+        ?.getAttribute('data-shape');
+    };
+    const rows = screen.getAllByTestId('subject-row');
+    // Critical, and still happening: the square the severity scale gives it.
+    expect(shapeOf(rows[0])).toBe('square');
+    // Over: the circle that means an outcome, not an alarm.
+    expect(shapeOf(rows[1])).toBe('filled-circle');
   });
 });
