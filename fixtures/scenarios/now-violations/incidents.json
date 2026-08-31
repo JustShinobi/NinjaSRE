@@ -295,6 +295,72 @@
           {
             "close_reason": "",
             "closed_at": null,
+            "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
+            "detector": "alertmanager",
+            "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:1",
+            "opened_at": "2026-08-31T09:31:00+00:00",
+            "origin": "alert",
+            "public_id": "inc_fd0c98f2993d06e6",
+            "run_id": null,
+            "self_resolved": false,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "ct-104",
+              "node-node02"
+            ],
+            "summary": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 2h ago, on node-node02",
+            "suppressed_by": "",
+            "team_node_id": "",
+            "title": "RedisExporterDown"
+          },
+          {
+            "close_reason": "",
+            "closed_at": null,
+            "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
+            "detector": "alertmanager",
+            "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:2",
+            "opened_at": "2026-08-30T21:31:00+00:00",
+            "origin": "alert",
+            "public_id": "inc_566b850277aa6377",
+            "run_id": null,
+            "self_resolved": false,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "ct-104",
+              "node-node02"
+            ],
+            "summary": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 14h ago, on node-node02",
+            "suppressed_by": "",
+            "team_node_id": "",
+            "title": "RedisExporterDown"
+          },
+          {
+            "close_reason": "",
+            "closed_at": null,
+            "correlation_key": "alert:alertmanager:RedisExporterDown:ct-104",
+            "detector": "alertmanager",
+            "incident_id": "alert:alertmanager:ct-104:redis-exporter-down:3",
+            "opened_at": "2026-08-30T05:31:00+00:00",
+            "origin": "alert",
+            "public_id": "inc_badb58562475cb42",
+            "run_id": null,
+            "self_resolved": false,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "ct-104",
+              "node-node02"
+            ],
+            "summary": "redis exporter probes on aspen (ct-104) have failed repeatedly, most recently 30h ago, on node-node02",
+            "suppressed_by": "",
+            "team_node_id": "",
+            "title": "RedisExporterDown"
+          },
+          {
+            "close_reason": "",
+            "closed_at": null,
             "correlation_key": "alert:alertmanager:c046a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
             "detector": "alertmanager",
             "incident_id": "alert:alertmanager:c046a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0@2026-08-22T23:43:23.303208+00:00",

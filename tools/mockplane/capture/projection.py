@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
 from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
@@ -27,6 +27,7 @@ from platform.incidents import correlation
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.incident_store import public_incident_id
 from platform.persistence.ports.run_trace_store import RunStatus
+from tools.mockplane.anonymise.timeshift import reference_instant
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -336,7 +337,10 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     """
     observations = tuple(_observations(reading))
     base_incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
-    incidents = (*base_incidents, *_unattended_alert_incident(reading, base_incidents))
+    with_unattended = (*base_incidents, *_unattended_alert_incident(reading, base_incidents))
+    # Appended last, never inserted earlier: incidents[0] is what the demo
+    # seeder's own timeline attaches a run to, and this must never be it.
+    incidents = (*with_unattended, *_recurring_incidents(reading, with_unattended))
     # The demonstration seeder gives a full timeline to exactly one incident:
     # the first body ``incident-detail.json`` records
     # (``platform/startup/demo/seeder.py``'s ``_seed_incidents`` reads only
@@ -587,6 +591,87 @@ def _unattended_alert_incident(
                 f"investigated it yet"
             ),
         },
+    )
+
+
+def _recurring_incidents(
+    reading: ClusterReading, prior: Sequence[Mapping[str, Any]]
+) -> tuple[dict[str, Any], ...]:
+    """Return three firings of one alert on one guest, sharing a `correlation_key`.
+
+    Every incident this module builds elsewhere carries a single `opened_at`
+    derived from `reading.captured_at`, which the anonymisation pipeline
+    (`tools.mockplane.anonymise.timeshift`) then moves onto the dataset's
+    fixed reference instant — which is exactly why none of them can ever be
+    a *repeat within a trailing window measured from wall-clock now*: every
+    one of them gets a day older each day this dataset is not regenerated,
+    and the Painel's own 48h subject window (`SUBJECT_WINDOW_HOURS`)
+    eventually excludes all of them regardless of whether any two share a
+    `correlation_key` — which none currently do; one incident per detector
+    is `_incidents`'s own rule, by design, and no two firings of one alert
+    exist anywhere else in this dataset.
+
+    So these three are timestamped backwards through the pipeline's own
+    shift rather than forwards from the capture: each raw `opened_at` here
+    is chosen so that once `shift` adds back the fixed
+    `reference_instant() - captured_at` offset every other timestamp in this
+    document receives, what lands in the committed fixture reads as
+    "wall-clock now" minus a few hours — surviving calendar drift the same
+    way `dashboardWithLiveIncidents`'s `hoursAgo(n)` fix does for the unit
+    suite, and regenerating identically for whichever day `mockplane build`
+    next runs on, never for the day it happened to run on before.
+    """
+    claimed = {subject for incident in prior for subject in incident["subjects"]}
+    guest = next(
+        (candidate for candidate in reading.guests if resource_id_of(candidate) not in claimed),
+        None,
+    )
+    if guest is None:
+        return ()
+
+    offset = reference_instant() - datetime.fromisoformat(reading.captured_at)
+    subject = resource_id_of(guest)
+    node = node_resource_id(guest.node)
+    correlation_key = correlation.for_alert(
+        source=_ALERT_SOURCE, fingerprint=f"RedisExporterDown:{subject}"
+    )
+    # Rounded to the minute, and read once rather than once per occurrence:
+    # `test_two_builds_of_one_scenario_are_byte_identical` calls this
+    # pipeline twice in immediate succession and still expects one answer,
+    # which full microsecond precision would break on every run. Minute
+    # granularity survives that without giving up what this exists for —
+    # nothing regenerated an hour apart, let alone a day apart, needs
+    # microseconds to still land inside a 48h window.
+    now = datetime.now(UTC).replace(second=0, microsecond=0)
+
+    def _raw_opened_at(hours_ago: float) -> str:
+        wanted = now - timedelta(hours=hours_ago)
+        return (wanted - offset).isoformat()
+
+    # Newest first, matching every other incident list in this module.
+    return tuple(
+        {
+            "incident_id": f"alert:alertmanager:{subject}:redis-exporter-down:{ordinal}",
+            "title": "RedisExporterDown",
+            "severity": "critical",
+            "state": "open",
+            "origin": "alert",
+            "opened_at": _raw_opened_at(hours_ago),
+            "closed_at": None,
+            "subjects": [subject, node],
+            "detector": "alertmanager",
+            "correlation_key": correlation_key,
+            "run_id": None,
+            "team_node_id": "",
+            "self_resolved": False,
+            "suppressed_by": "",
+            "close_reason": "",
+            "summary": (
+                f"redis exporter probes on {guest.name} ({subject}) have failed "
+                f"repeatedly, most recently {hours_ago:g}h ago, on {node}"
+            ),
+        }
+        for ordinal, hours_ago in ((1, 2.0), (2, 14.0), (3, 30.0))
     )
 
 
