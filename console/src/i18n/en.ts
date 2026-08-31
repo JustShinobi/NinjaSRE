@@ -415,6 +415,13 @@ export const EN = {
   'status.credential.degraded': 'Degraded',
   'status.credential.failing': 'Failing',
   'status.credential.unknown': 'Unknown',
+  'status.resource.healthy': 'healthy',
+  'status.resource.degraded': 'degraded',
+  'status.resource.unhealthy': 'unhealthy',
+  'status.resource.unknown': 'unknown',
+  'status.resource.stale': 'stale',
+  'status.resource.maintenance': 'in maintenance',
+  'status.resource.absent': 'absent',
   'status.credential.unknown.explain':
     "This deployment's gateway could not be reached, so the real state could not be read.",
 
@@ -948,6 +955,18 @@ export const EN = {
   'incidents.group.since': 'recurring since {since}',
   'incidents.group.expand': 'Show every firing of {title}',
   'incidents.group.summary': '{subjects} subjects · {firings} firings',
+  'incidents.filter.state.investigating': 'Investigating',
+  'incidents.filter.state.resolved': 'Resolved',
+  'incidents.filter.severity.critical': 'Critical',
+  'incidents.header.summary':
+    '{subjects} subjects · {firings} firings · {critical} critical in progress',
+  'incidents.timeline.title': 'Firings in the last 24h',
+  'incidents.timeline.now': 'now',
+  'incidents.timeline.overflow': 'and {count} more before yesterday',
+  'incidents.cause.live': 'investigation in progress →',
+  'incidents.cause.found': 'Last cause found:',
+  'incidents.coverage.gap': '{count} degraded findings have no detector watching them',
+  'incidents.coverage.action': 'Turn on a detector →',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
   // --- Why this deployment is empty, as opposed to what the feature is for ----
@@ -1171,6 +1190,19 @@ export const EN = {
   'resources.none.action': 'Declare them',
   'resources.summary.watched': 'watched',
   'resources.summary.unaccounted': 'unaccounted for',
+  'resources.summary.watched.count': '{count} watched',
+  'resources.summary.legend': '{count} {health}',
+  'resources.card.lastSeen': 'seen {when}',
+  'resources.card.unhealthySince': '{since} out',
+  'resources.filter.kind.any': 'All',
+  'resources.node.none': 'No node declared',
+  'resources.node.count': '{count} resources on this node',
+  'resources.node.unhealthyCount': '{count} unhealthy',
+  'resources.synthesis.line':
+    '{count} {kind} unhealthy since {since} — all on {node}, same start window',
+  'resources.synthesis.action': 'investigate as a batch →',
+  'resources.synthesis.objective':
+    'What took down {count} {kind} on {node} since {since}?',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':
@@ -1193,6 +1225,9 @@ export const EN = {
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
+  'resources.undeclared.title': 'Not in the inventory',
+  'resources.undeclared.body':
+    'The source reports these and the declared inventory does not name them. Add them to the inventory, or ignore them if they should not be tracked.',
   'resources.unresolved.title': 'Alerts for things not here',
   'resources.unresolved.body':
     'Something is alerting about a target this estate does not hold. Either nobody has swept it, or an alert receiver is pointed at the wrong deployment — and both are worth knowing.',
@@ -1321,6 +1356,22 @@ export const EN = {
   'memory.column.occurred': 'Occurred',
   'memory.filter.component': 'Component',
   'memory.filter.outcome': 'Outcome',
+  'memory.componentType.service': 'services',
+  'memory.componentType.node': 'nodes',
+  'memory.componentType.guest': 'guests',
+  'memory.componentType.cluster': 'cluster',
+  'memory.episode.openInvestigation': 'open investigation →',
+  'memory.count': '{count} episodes',
+  'memory.learned.title': 'What the agent learned from this',
+  'memory.learned.empty':
+    'Nothing distilled yet. Learnings are proposed once episodes agree, and wait here for review.',
+  'memory.learned.from': 'from {run}',
+  'memory.learned.promote': 'promote to document',
+  'memory.preview.documents': '{count} documents ingested',
+  'memory.preview.documents.empty': 'Documents — nothing ingested yet',
+  'memory.preview.open': 'open →',
+  'memory.preview.topology': '{count} nodes observed',
+  'memory.preview.topology.empty': 'Topology — nothing observed yet',
   'memory.search': 'Search episodes',
   'memory.stats.title': 'What the corpus holds',
   'memory.stats.episodes': 'Episodes',
@@ -2057,6 +2108,29 @@ export const EN = {
   'agent.rank.stages': 'Stages',
   'agent.rank.specialists': 'Specialists',
   'agent.stages.title': 'The stages an investigation runs',
+  'agent.metro.title': 'The six stages of an investigation',
+  'agent.metro.subtitle':
+    'every run walks this line, and the transcript groups by stage',
+  'agent.metro.inFlight': '{count} investigations in flight',
+  'agent.metro.copy.resolve_integrations':
+    'Discovers what this team can call; with nothing, it ends early.',
+  'agent.metro.copy.intake':
+    'Decides whether there is an incident and links it to one already open, when it is the same.',
+  'agent.metro.copy.plan_evidence':
+    'Scores the capabilities and chooses where it is worth starting.',
+  'agent.metro.copy.gather_evidence':
+    'Runs the planned reads and keeps only what supports something.',
+  'agent.metro.copy.diagnose':
+    'Forms hypotheses and tests them against the retained evidence.',
+  'agent.metro.copy.deliver':
+    'Writes the cause, proposes the action, and records the episode.',
+  'agent.metro.tools.ratio': '{enabled} of {total} enabled',
+  'agent.metro.tools.read': 'Reads · {count}',
+  'agent.metro.tools.writeReversible': 'Writes, reversible · {count}',
+  'agent.metro.tools.destructive': 'Destructive · {count}',
+  'agent.metro.team.budget': '{used} of {budget} tokens',
+  'agent.metro.team.empty':
+    'No fact written yet. Environment facts join every investigation\u2019s prompt.',
   'agent.stage.role': 'model role: {role}',
   'agent.stage.noModel': 'no model call',
   'agent.stage.consults': 'Consults:',

@@ -116,6 +116,42 @@ UI. A spec os trata como fatos.
 
 ---
 
+## Débito herdado do S1, a fechar por esta feature (achado do gate de análise)
+
+O confronto do S1 (`specs_v8/CONFRONTO.md` §6) atribuiu a esta feature, por
+prova e não por suposição, três das sete falhas pré-existentes da suíte
+transversal (`markdown`, `identifier-as-name`, `two-placeholders` em
+`/incidents/{id}`; as de `/runs/{id}` não são desta feature). Confirmado por
+leitura de código nesta análise: a listagem agrupada de hoje
+(`console/src/surfaces/incident-group-list.tsx`) não expõe nenhum elemento
+com `data-testid="row"` — só `incident-group`, `incident-group-summary`,
+`incident-occurrence` — e o único link para `/incidents/{publicId}` de cada
+occurrence vive dentro do `<details>` fechado por padrão, sem alcance a um
+clique. `openNowLabel`
+(`console/tests/e2e/transversal-rules.spec.ts:601-620`) navega para
+`/incidents`, clica `getByTestId('row').first()` e só então lê a tela — um
+contrato que a listagem agrupada de hoje não cumpre, e que a Regra 7 de
+`tasks.md` já proíbe fechar por allowlist/`test.fixme`. O contrato
+`data-testid="row"` é o mesmo que toda tela "Now" que passa nessa suíte já
+segue (`console/src/surfaces/rows.tsx:352`, a `RowList` genérica). FR-001
+cravou o fechamento real desta dívida: a linha fechada (sem expandir) carrega
+`data-testid="row"` com um link a um clique para `/incidents/{publicId}` da
+occurrence mais nova do grupo — `group.occurrences[0].publicId`, já ordenado
+"mais novo primeiro" por `groupBySubject`
+(`console/src/surfaces/incident-groups.ts:70-71`), o mesmo fato que AN-I8 já
+usa como resumo da linha (tempo relativo do disparo mais novo). Nenhum campo
+novo, nenhuma ordenação nova — só o testid e o link que faltam.
+
+Os outros dois itens herdados do mesmo §6: a normalização
+`container:`/`guest:` já está coberta sem lacuna por FR-011/AN-C2/T009b/T021.
+A ausência de baseline visual capturável em `resources-1440-light` e
+`resources-320-light` (a lista de hoje virtualiza altura fixa,
+`console/src/surfaces/rows.tsx:130`, ~3160px de overflow que nenhuma janela
+captura por inteiro) é resolvida em substância pela Fase 4: FR-007 substitui
+essa lista virtualizada por uma grade de cards em fluxo normal do documento,
+sem componente de scroll interno. T029 crava que confirmar essas duas
+capturas de verdade é parte do fechamento, não um efeito colateral presumido.
+
 ## Alegações normativas
 
 Frases curtas, individualmente testáveis. As marcadas **[staging]** são
@@ -451,7 +487,11 @@ outras três abas ainda completas.
   forma humana dos `subjects` + nó quando conhecido + id mono truncado por
   último; strip de recorrência (SVG, uma barra por occurrence, opacidade
   crescente), chips severidade/estado, `N×` mono, tempo relativo de
-  `lastAt`. Nada disso pede endpoint novo (fato 1).
+  `lastAt`. Nada disso pede endpoint novo (fato 1). A linha fechada (sem
+  expandir) carrega `data-testid="row"` com um link a um clique para
+  `/incidents/{publicId}` de `group.occurrences[0]` (a occurrence mais nova,
+  já ordenada primeiro) — fecha de verdade a dívida transversal herdada do
+  S1 em `/incidents/{id}` descrita acima, sem allowlist.
 - **FR-002** A expansão da linha renderiza a faixa "Disparos nas últimas
   24 h" a partir de `group.occurrences`: eixo horizontal com rótulos de
   borda (início da janela, "agora"), ponto por occurrence posicionado

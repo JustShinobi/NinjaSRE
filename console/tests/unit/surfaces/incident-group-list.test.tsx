@@ -39,7 +39,15 @@ function group(overrides: Partial<IncidentGroup> = {}): IncidentGroup {
 }
 
 function list(groups: readonly IncidentGroup[]): void {
-  render(<IncidentGroupList groups={groups} locale="en" now={NOW} zone="UTC" />);
+  render(
+    <IncidentGroupList
+      groups={groups}
+      locale="en"
+      now={NOW}
+      zone="UTC"
+      runHeadlines={new Map()}
+    />,
+  );
 }
 
 describe('severity yields to state once a cause is over', () => {

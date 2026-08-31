@@ -6466,6 +6466,18 @@
               }
             ],
             "title": "Team Node Id"
+          },
+          "unhealthy_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unhealthy Since"
           }
         },
         "required": [

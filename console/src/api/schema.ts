@@ -6535,6 +6535,8 @@ export interface components {
             stored_health: string;
             /** Team Node Id */
             team_node_id?: string | null;
+            /** Unhealthy Since */
+            unhealthy_since?: string | null;
         };
         /** RevocationResult */
         RevocationResult: {

@@ -218,15 +218,12 @@ describe('a deployment that has investigated and written nothing down', () => {
 });
 
 describe('a corpus with episodes in it', () => {
-  it('keeps episodes and strategies as two panels', async () => {
+  it('draws one card per episode, never a Strategies panel the artboard does not show', async () => {
     serveScenario('populated');
     await renderMemory();
 
-    const panels = screen.getAllByTestId('panel');
-    expect(panels.length).toBe(2);
-    expect(screen.getByText('Episodes')).toBeInTheDocument();
-    expect(screen.getByText('Strategies')).toBeInTheDocument();
-    expect(screen.getAllByTestId('row').length).toBe(5);
+    expect(screen.getAllByTestId('episode-card').length).toBe(5);
+    expect(screen.queryByText('Strategies')).toBeNull();
   });
 
   it('carries no orphaned "Episodes: N" counter beside the header', async () => {
@@ -234,17 +231,6 @@ describe('a corpus with episodes in it', () => {
     await renderMemory();
 
     expect(screen.queryByText(/Episodes:\s*\d/)).toBeNull();
-  });
-
-  it('still explains what a strategy is, in its own words, with no episode data', async () => {
-    serveScenario('populated');
-    await renderMemory();
-
-    expect(
-      screen.getByText(
-        'A strategy is synthesised once enough episodes agree about what worked. Not enough have been recorded.',
-      ),
-    ).toBeInTheDocument();
   });
 });
 
@@ -274,12 +260,11 @@ describe('a filter with nothing behind it but "Any"', () => {
     });
     await renderMemory();
 
-    const filters = screen.getAllByTestId('filter');
-    expect(
-      filters.some((filter) => filter.getAttribute('data-filter') === 'outcome'),
-    ).toBe(true);
-    expect(
-      filters.some((filter) => filter.getAttribute('data-filter') === 'component'),
-    ).toBe(false);
+    // The outcome control renders (two real outcomes among the episodes);
+    // the component filter does not (every episode carries an empty
+    // components list) -- the same "furniture" rule the incidents screen's
+    // segmented controls follow.
+    expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
+    expect(screen.queryByTestId('component-filter')).toBeNull();
   });
 });

@@ -187,7 +187,7 @@ describe('where a resource’s signals come from', () => {
     serveScenarioExcept('populated', ['/v1/estate/resources/']);
     await resources({ selected: SELECTED });
 
-    expect(screen.getAllByTestId('row').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('resource-card').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('signal-source')).toBeNull();
   });
 });

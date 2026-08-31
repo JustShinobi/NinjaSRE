@@ -112,6 +112,10 @@ class ResourceSummaryView(BaseModel):
     maintenance_until: datetime | None = None
     maintenance_reason: str = ""
     explanation: str = ""
+    #: When this resource's present, unbroken unhealthy streak began. Absent
+    #: for anything not currently unhealthy, and for an unhealthy resource
+    #: whose streak predates the stored transition history.
+    unhealthy_since: datetime | None = None
 
 
 class ResourceListView(BaseModel):
@@ -350,6 +354,7 @@ def _row(view: ResourceView) -> ResourceSummaryView:
         maintenance_until=resource.maintenance_until,
         maintenance_reason=resource.maintenance_reason,
         explanation=view.explanation,
+        unhealthy_since=view.unhealthy_since,
     )
 
 

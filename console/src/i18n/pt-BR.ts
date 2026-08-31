@@ -449,6 +449,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'status.credential.degraded': 'Degradada',
   'status.credential.failing': 'Falhando',
   'status.credential.unknown': 'Desconhecida',
+  'status.resource.healthy': 'saudável',
+  'status.resource.degraded': 'degradado',
+  'status.resource.unhealthy': 'não saudável',
+  'status.resource.unknown': 'desconhecido',
+  'status.resource.stale': 'desatualizado',
+  'status.resource.maintenance': 'em manutenção',
+  'status.resource.absent': 'ausente',
   'status.credential.unknown.explain':
     'O gateway deste deployment não pôde ser contatado, então o estado real não pôde ser lido.',
 
@@ -746,6 +753,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.group.since': 'recorrente desde {since}',
   'incidents.group.expand': 'Mostrar cada disparo de {title}',
   'incidents.group.summary': '{subjects} assuntos · {firings} disparos',
+  'incidents.filter.state.investigating': 'Investigando',
+  'incidents.filter.state.resolved': 'Resolvido',
+  'incidents.filter.severity.critical': 'Crítico',
+  'incidents.header.summary':
+    '{subjects} assuntos · {firings} disparos · {critical} críticos em investigação',
+  'incidents.timeline.title': 'Disparos nas últimas 24 h',
+  'incidents.timeline.now': 'agora',
+  'incidents.timeline.overflow': 'e mais {count} antes de ontem',
+  'incidents.cause.live': 'investigação em andamento →',
+  'incidents.cause.found': 'Última causa encontrada:',
+  'incidents.coverage.gap': '{count} achados degradados estão sem detector ligado',
+  'incidents.coverage.action': 'Ligar detector →',
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':
@@ -941,6 +960,19 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.none.action': 'Declarar',
   'resources.summary.watched': 'observados',
   'resources.summary.unaccounted': 'sem estado',
+  'resources.summary.watched.count': '{count} vigiados',
+  'resources.summary.legend': '{count} {health}',
+  'resources.card.lastSeen': 'visto {when}',
+  'resources.card.unhealthySince': '{since} fora',
+  'resources.filter.kind.any': 'Todos',
+  'resources.node.none': 'Sem nó declarado',
+  'resources.node.count': '{count} recursos neste nó',
+  'resources.node.unhealthyCount': '{count} não saudáveis',
+  'resources.synthesis.line':
+    '{count} {kind} não saudáveis há mais de {since} — todos em {node}, mesma janela de início',
+  'resources.synthesis.action': 'investigar em lote →',
+  'resources.synthesis.objective':
+    'O que derrubou {count} {kind} em {node} desde {since}?',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.divergent.hint':
@@ -963,6 +995,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',
+  'resources.undeclared.title': 'Fora do inventário',
+  'resources.undeclared.body':
+    'A fonte reporta estes e o inventário declarado não os nomeia. Adicione-os ao inventário, ou ignore se não deveriam ser rastreados.',
   'resources.unresolved.title': 'Alertas sobre o que não está aqui',
   'resources.unresolved.body':
     'Algo está alertando sobre um alvo que este parque não contém. Ou ninguém o varreu ainda, ou um receptor de alertas aponta para a implantação errada — e vale saber qual dos dois.',
@@ -1081,6 +1116,22 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.column.occurred': 'Ocorreu',
   'memory.filter.component': 'Componente',
   'memory.filter.outcome': 'Desfecho',
+  'memory.componentType.service': 'serviços',
+  'memory.componentType.node': 'nós',
+  'memory.componentType.guest': 'guests',
+  'memory.componentType.cluster': 'cluster',
+  'memory.episode.openInvestigation': 'abrir investigação →',
+  'memory.count': '{count} episódios',
+  'memory.learned.title': 'O que o agente aprendeu com isso',
+  'memory.learned.empty':
+    'Nada destilado ainda. Aprendizados são propostos quando episódios concordam entre si, e esperam aqui por revisão.',
+  'memory.learned.from': 'de {run}',
+  'memory.learned.promote': 'promover a documento',
+  'memory.preview.documents': '{count} documentos ingeridos',
+  'memory.preview.documents.empty': 'Documentos — nada ingerido ainda',
+  'memory.preview.open': 'abrir →',
+  'memory.preview.topology': '{count} nós observados',
+  'memory.preview.topology.empty': 'Topologia — nada observado ainda',
   'memory.search': 'Procurar episódios',
   'memory.stats.title': 'O que o acervo contém',
   'memory.stats.episodes': 'Episódios',
@@ -1744,6 +1795,27 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.rank.stages': 'Etapas',
   'agent.rank.specialists': 'Especialistas',
   'agent.stages.title': 'As etapas que uma investigação executa',
+  'agent.metro.title': 'Os seis estágios de uma investigação',
+  'agent.metro.subtitle':
+    'todo run percorre esta linha, e o transcript agrupa por estágio',
+  'agent.metro.inFlight': '{count} investigações em voo',
+  'agent.metro.copy.resolve_integrations':
+    'Descobre o que este time pode chamar; sem nada, encerra cedo.',
+  'agent.metro.copy.intake':
+    'Decide se há incidente e liga ao já aberto quando é o mesmo.',
+  'agent.metro.copy.plan_evidence':
+    'Pontua as capacidades e escolhe por onde vale começar.',
+  'agent.metro.copy.gather_evidence':
+    'Executa as leituras planejadas e retém só o que sustenta algo.',
+  'agent.metro.copy.diagnose': 'Forma hipóteses e as testa contra a evidência retida.',
+  'agent.metro.copy.deliver': 'Escreve a causa, propõe a ação e registra o episódio.',
+  'agent.metro.tools.ratio': '{enabled} de {total} habilitadas',
+  'agent.metro.tools.read': 'Lê · {count}',
+  'agent.metro.tools.writeReversible': 'Escreve, reversível · {count}',
+  'agent.metro.tools.destructive': 'Destrutiva · {count}',
+  'agent.metro.team.budget': '{used} de {budget} tokens',
+  'agent.metro.team.empty':
+    'Nenhum fato escrito ainda. Fatos do ambiente entram no prompt de toda investigação.',
   'agent.stage.role': 'papel de modelo: {role}',
   'agent.stage.noModel': 'nenhuma chamada de modelo',
   'agent.stage.consults': 'Consulta:',

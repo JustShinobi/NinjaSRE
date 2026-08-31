@@ -61,7 +61,7 @@ describe('where the selected resource’s detail sits', () => {
 
     const header = screen.getByTestId('resource-detail-header');
     const signals = screen.getByTestId('resource-signals');
-    const [firstRow] = screen.getAllByTestId('row');
+    const [firstRow] = screen.getAllByTestId('resource-card');
     if (firstRow === undefined) throw new Error('no rows rendered');
 
     expect(precedes(header, firstRow)).toBe(true);
