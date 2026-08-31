@@ -74,4 +74,19 @@ describe('positionOnTimeline', () => {
     expect(result.points).toHaveLength(0);
     expect(result.overflowCount).toBe(0);
   });
+
+  it('honours a caller-supplied window instead of the 24h default', () => {
+    // 30 hours old: inside a 48h window, outside the default 24h one.
+    const result = positionOnTimeline(
+      [
+        occurrence({ id: 'a', at: '2026-08-26T06:00:00Z' }), // 6h old, inside both
+        occurrence({ id: 'b', at: '2026-08-25T06:00:00Z' }), // 30h old
+      ],
+      NOW,
+      48,
+    );
+
+    expect(result.points.map((point) => point.id)).toEqual(['a', 'b']);
+    expect(result.overflowCount).toBe(0);
+  });
 });
