@@ -251,6 +251,7 @@ export function Textarea({
   rows = 4,
   value,
   onValueChange,
+  'data-testid': testId,
 }: TextareaProps): ReactNode {
   const id = useId();
   return (
@@ -266,6 +267,7 @@ export function Textarea({
         onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
           onValueChange?.(event.target.value);
         }}
+        data-testid={testId}
         className={cx(
           'px-3 py-2 rounded-2 edge border-border-strong bg-surface text-text text-body w-full',
           error === undefined ? '' : INVALID,

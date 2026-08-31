@@ -5,7 +5,7 @@ import { cx } from '@/design/cx';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import type { IncidentGroup } from './incident-groups';
-import { positionOnTimeline } from './incident-timeline';
+import { DEFAULT_TIMELINE_WINDOW_HOURS, positionOnTimeline } from './incident-timeline';
 
 /**
  * One row per cause, and every firing of it one disclosure away.
@@ -74,13 +74,13 @@ const IDENTIFIER_HEAD = 8;
  * the test is the shape of the string, never a list of prefixes this file
  * would have to keep in step with whatever the gateway starts sending.
  */
-function isOpaque(subject: string): boolean {
+export function isOpaque(subject: string): boolean {
   const tail = subject.slice(subject.indexOf('-') + 1);
   return subject.includes('-') && tail.length >= 24 && /^[0-9a-f]+$/u.test(tail);
 }
 
 /** `subject`, shortened when it is a key and untouched when it is a name. */
-function shortenIdentifier(subject: string): string {
+export function shortenIdentifier(subject: string): string {
   if (!isOpaque(subject)) return subject;
   const prefix = subject.slice(0, subject.indexOf('-') + 1);
   return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}…`;
@@ -94,7 +94,7 @@ function shortenIdentifier(subject: string): string {
  * in the estate route) — neither is a name gained, and printing the id
  * twice under two labels is not the fix this screen owes.
  */
-function resolvedName(
+export function resolvedName(
   subject: string,
   subjectNames: ReadonlyMap<string, string>,
 ): string | undefined {
@@ -103,7 +103,7 @@ function resolvedName(
 }
 
 /** The full subject line, offered only where the visible one was shortened or renamed. */
-function subjectTitle(
+export function subjectTitle(
   group: IncidentGroup,
   subjectNames: ReadonlyMap<string, string>,
 ): string | undefined {
@@ -150,7 +150,7 @@ function lastSettledWithRun(
  * already readable on arrival (`adguard-primary`) is still left exactly as
  * it is.
  */
-function SubjectLine({
+export function SubjectLine({
   group,
   subjectNames,
 }: {
@@ -187,11 +187,47 @@ function SubjectLine({
   );
 }
 
-/** One vertical bar per occurrence, opacity rising toward the most recent. */
-function RecurrenceStrip({ group }: { readonly group: IncidentGroup }): ReactNode {
+/**
+ * One vertical bar per occurrence, height/opacity rising toward the most
+ * recent.
+ *
+ * `now` switches the bars from evenly-spaced ordinal rank to real position
+ * inside `windowHours`, via `positionOnTimeline` -- the same function
+ * `TwentyFourHourStrip` below uses for its own axis. Omitted, the strip
+ * keeps the ordinal, evenly-spaced layout unchanged: the Incidents screen's
+ * own compact row (below, in `IncidentGroupList`) leaves `now` unset, since
+ * its own expansion already draws an accurate proportional axis and does
+ * not need a second one in the collapsed row. The Painel's "what insists"
+ * strip passes both, because two firings an hour apart must read as closer
+ * together than two firings twelve hours apart, and ordinal rank cannot
+ * tell those two cases apart.
+ */
+export function RecurrenceStrip({
+  group,
+  now,
+  windowHours = DEFAULT_TIMELINE_WINDOW_HOURS,
+}: {
+  readonly group: IncidentGroup;
+  readonly now?: Date;
+  readonly windowHours?: number;
+}): ReactNode {
   if (group.occurrences.length <= 1) return null;
   const oldestFirst = [...group.occurrences].reverse();
+  const barWidth = 3;
   const width = oldestFirst.length * 6;
+  // The left edge travels the whole `[0, width - barWidth]` range as a
+  // direct linear function of `percent`, so the newest bar's right edge
+  // lands exactly on `width` and the oldest bar's left edge exactly on `0`
+  // -- never clamped, which would collapse two occurrences both near `now`
+  // onto the same pixel and erase the exact distinction this exists to draw.
+  const byInstant =
+    now === undefined
+      ? undefined
+      : new Map(
+          positionOnTimeline(group.occurrences, now, windowHours).points.map(
+            (point) => [point.id, point.percent] as const,
+          ),
+        );
   return (
     <svg
       data-testid="incident-recurrence-strip"
@@ -201,18 +237,23 @@ function RecurrenceStrip({ group }: { readonly group: IncidentGroup }): ReactNod
       aria-hidden="true"
       className={cx('shrink-0', group.live ? 'text-danger' : 'text-muted')}
     >
-      {oldestFirst.map((occurrence, index) => (
-        <rect
-          key={occurrence.id}
-          x={index * 6}
-          y={16 - (6 + index * (10 / Math.max(oldestFirst.length - 1, 1)))}
-          width={3}
-          height={6 + index * (10 / Math.max(oldestFirst.length - 1, 1))}
-          rx={1.5}
-          fill="currentColor"
-          opacity={0.35 + (0.65 * index) / Math.max(oldestFirst.length - 1, 1)}
-        />
-      ))}
+      {oldestFirst.map((occurrence, index) => {
+        const percent = byInstant?.get(occurrence.id);
+        const x =
+          percent === undefined ? index * 6 : (percent / 100) * (width - barWidth);
+        return (
+          <rect
+            key={occurrence.id}
+            x={x}
+            y={16 - (6 + index * (10 / Math.max(oldestFirst.length - 1, 1)))}
+            width={barWidth}
+            height={6 + index * (10 / Math.max(oldestFirst.length - 1, 1))}
+            rx={1.5}
+            fill="currentColor"
+            opacity={0.35 + (0.65 * index) / Math.max(oldestFirst.length - 1, 1)}
+          />
+        );
+      })}
     </svg>
   );
 }

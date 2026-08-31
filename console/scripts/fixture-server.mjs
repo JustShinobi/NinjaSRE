@@ -76,6 +76,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/identity/tokens': 'tokens',
   '/audit/events': 'audit-events',
   '/v1/estate/summary': 'estate-summary',
+  '/v1/overview': 'overview',
   '/v1/estate/resources': 'estate-resources',
   '/v1/estate/resources/{resource_id}': 'estate-resource-detail',
   '/v1/estate/unresolved-alert-targets': 'estate-unresolved-targets',

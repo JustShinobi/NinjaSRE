@@ -36,7 +36,7 @@ from tools.mockplane.endpoints import CONSOLE_ENDPOINTS, endpoint_by_slug
 from tools.mockplane.identifiers import IdentifierList
 from tools.mockplane.paths import scenario_dir
 from tools.mockplane.records import CapturedRecord, Provenance, Request
-from tools.mockplane.scenarios import arguments_key, write_fixture
+from tools.mockplane.scenarios import arguments_key, read_fixture, write_fixture
 
 #: The scenarios that hold committed files, and what each one is built from.
 BUILT_SCENARIOS: Final[tuple[str, ...]] = (
@@ -241,6 +241,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
         *_write_responses(),
         _gemini_models_record(),
         _gemini_verify_record(),
+        served.overview_record(populated=True),
     )
 
 
@@ -308,6 +309,19 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "problems": 0,
             "maintenance": 0,
             "absent": 0,
+        },
+        "overview": {
+            "captured_at": now,
+            "watched": {"value": 0, "breakdown": {}, "series": [], "note": ""},
+            "degraded": {
+                "value": 0,
+                "breakdown": {},
+                "series": [],
+                "note": "no_detector_enabled",
+            },
+            "self_resolved": {"value": None, "breakdown": {}, "series": [], "note": ""},
+            "success_rate": {"value": None, "breakdown": {}, "series": [], "note": ""},
+            "time_to_cause": {"value": None, "breakdown": {}, "series": [], "note": ""},
         },
         "estate-resources": {"resources": []},
         "estate-unresolved-targets": {"targets": []},
@@ -996,6 +1010,40 @@ def write_scenario(
     return tuple(written)
 
 
+def sync_now_violations_incidents(root: Path | None = None) -> Path:
+    """Keep `now-violations`'s own `incidents.json` in step with `populated`'s.
+
+    `now-violations` is not one of `BUILT_SCENARIOS`: its own `runs.json`,
+    `run-detail.json` and `run-replay.json` hold a specific run-status edge
+    case (`tools.check_run_status_vocabulary`'s own fixture) this module has
+    no generator for, and rebuilding the scenario from the standard pipeline
+    would lose it. But `now-violations` derives from `populated`
+    (`fixtures/scenarios/manifest.json`) and declares no `incident-detail`
+    override of its own, so it always answers that endpoint with whichever
+    incidents `populated` currently has — and `mockplane verify`'s
+    referential check fails the moment `now-violations`'s own, separately
+    committed `incidents.json` disagrees with that about which incidents
+    exist. This keeps exactly that one file in step, leaves the other three
+    committed files in the directory untouched, and keeps the one incident
+    `now-violations` adds beyond `populated`'s own (a hex-heavy identifier,
+    the scenario's actual reason to exist) rather than discarding it.
+    """
+    now_violations_path = scenario_dir("now-violations", root) / "incidents.json"
+    populated_path = scenario_dir("populated", root) / "incidents.json"
+    _, current = read_fixture(now_violations_path)
+    _, fresh = read_fixture(populated_path)
+
+    fresh_ids = {incident["incident_id"] for incident in fresh[0].body["incidents"]}
+    own_only = [
+        incident
+        for incident in current[0].body["incidents"]
+        if incident["incident_id"] not in fresh_ids
+    ]
+    combined = current[0].with_body({"incidents": [*fresh[0].body["incidents"], *own_only]})
+    write_fixture(now_violations_path, "incidents", (combined,))
+    return now_violations_path
+
+
 def write_all(
     root: Path | None = None,
     identifiers: IdentifierList | None = None,
@@ -1005,6 +1053,14 @@ def write_all(
     written: list[Path] = []
     for scenario in scenarios:
         written.extend(write_scenario(scenario, root, identifiers))
+    # Only against the real tree. `now-violations` is not one of
+    # `BUILT_SCENARIOS` and a scratch `root` (a reproducibility test's
+    # `tmp_path`, most often) never has one to read the scenario's own
+    # hand-added incident back from -- and nothing checks that scenario
+    # there anyway, since `BUILT_SCENARIOS` is exactly what a caller passing
+    # its own `root` is proving reproduces, never a scenario outside it.
+    if root is None and "populated" in scenarios:
+        written = [*written, sync_now_violations_incidents(root)]
     return tuple(written)
 
 
@@ -1031,6 +1087,7 @@ __all__ = [
     "processed_for",
     "records_for",
     "restricted_records",
+    "sync_now_violations_incidents",
     "uncovered_slugs",
     "write_all",
     "write_scenario",

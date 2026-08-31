@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { groupBySubject } from '@/surfaces/incident-groups';
+import {
+  SUBJECT_WINDOW_HOURS,
+  groupBySubject,
+  subjectsInWindow,
+} from '@/surfaces/incident-groups';
 
 /**
  * Folding a repeating estate back into the problems it actually has.
@@ -168,5 +172,111 @@ describe('groupBySubject', () => {
 
   it('is empty for an empty listing rather than one empty group', () => {
     expect(groupBySubject([])).toEqual([]);
+  });
+});
+
+describe('subjectsInWindow', () => {
+  const now = new Date('2026-08-27T12:00:00.000Z');
+
+  it('keeps only the occurrences the window reaches, and recounts to match', () => {
+    const groups = groupBySubject([
+      incident({ incident_id: 'in', opened_at: '2026-08-27T06:00:00.000Z' }), // 6h ago
+      incident({ incident_id: 'out', opened_at: '2026-08-20T06:00:00.000Z' }), // 7d ago
+    ]);
+
+    const windowed = subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS);
+
+    expect(windowed).toHaveLength(1);
+    expect(windowed[0]?.count).toBe(1);
+    expect(windowed[0]?.occurrences.map((one) => one.id)).toEqual(['in']);
+  });
+
+  it('drops a subject entirely when the window reaches none of its firings', () => {
+    const groups = groupBySubject([
+      incident({
+        incident_id: 'a',
+        correlation_key: 'k-stale',
+        opened_at: '2026-08-01T00:00:00.000Z',
+      }),
+    ]);
+
+    expect(subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS)).toEqual([]);
+  });
+
+  it('sums to the same total the unwindowed listing reports for the window', () => {
+    const records = [
+      incident({ incident_id: 'a', opened_at: '2026-08-27T10:00:00.000Z' }),
+      incident({ incident_id: 'b', opened_at: '2026-08-26T20:00:00.000Z' }),
+      incident({ incident_id: 'c', opened_at: '2026-08-20T00:00:00.000Z' }), // outside
+    ];
+    const inWindow = records.filter(
+      (record) =>
+        now.getTime() - Date.parse(String(record.opened_at)) <=
+        SUBJECT_WINDOW_HOURS * 3_600_000,
+    );
+
+    const windowed = subjectsInWindow(
+      groupBySubject(records),
+      now,
+      SUBJECT_WINDOW_HOURS,
+    );
+    const total = windowed.reduce((sum, group) => sum + group.count, 0);
+
+    expect(total).toBe(inWindow.length);
+  });
+
+  it("preserves the group's own live state and severity rather than rederiving them", () => {
+    // A subject investigated right now, whose only 48h-old firing already
+    // resolved: the row must still read as live, because the investigation
+    // is a fact about right now that a window over the firings cannot see.
+    const groups = groupBySubject([
+      incident({
+        incident_id: 'a',
+        correlation_key: 'k-live',
+        state: 'investigating',
+        severity: 'high',
+        opened_at: '2026-08-27T10:00:00.000Z',
+      }),
+    ]);
+
+    const windowed = subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS);
+
+    expect(windowed[0]?.live).toBe(true);
+    expect(windowed[0]?.state).toBe('investigating');
+    expect(windowed[0]?.severity).toBe('high');
+  });
+
+  it('keeps the pre-sorted order — live and severe subjects first', () => {
+    const groups = groupBySubject([
+      incident({
+        incident_id: 'a',
+        correlation_key: 'k-done',
+        state: 'resolved',
+        opened_at: '2026-08-27T11:00:00.000Z',
+      }),
+      incident({
+        incident_id: 'b',
+        correlation_key: 'k-live',
+        state: 'investigating',
+        opened_at: '2026-08-27T10:00:00.000Z',
+      }),
+    ]);
+
+    expect(
+      subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS).map((group) => group.key),
+    ).toEqual(['k-live', 'k-done']);
+  });
+
+  it('recomputes lastAt/firstAt from the surviving occurrences alone', () => {
+    const groups = groupBySubject([
+      incident({ incident_id: 'a', opened_at: '2026-08-27T09:00:00.000Z' }),
+      incident({ incident_id: 'b', opened_at: '2026-08-27T03:00:00.000Z' }),
+      incident({ incident_id: 'c', opened_at: '2026-08-10T00:00:00.000Z' }), // outside
+    ]);
+
+    const windowed = subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS);
+
+    expect(windowed[0]?.lastAt).toBe('2026-08-27T09:00:00.000Z');
+    expect(windowed[0]?.firstAt).toBe('2026-08-27T03:00:00.000Z');
   });
 });

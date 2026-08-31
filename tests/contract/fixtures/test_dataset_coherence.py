@@ -8,7 +8,9 @@ assertions that keep it worth having.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -128,6 +130,67 @@ def test_a_node_still_has_a_set_of_failed_units() -> None:
 # --- Determinism of what is committed ---------------------------------------------
 
 
+#: `_recurring_incidents` (`tools.mockplane.capture.projection`) marks its
+#: three occurrences with this string in their `correlation_key`, timed
+#: from the real clock on purpose so they keep landing inside the Painel's
+#: 48h subject window instead of ageing out of it -- the one deliberate
+#: exception to every other byte in this dataset being reproducible
+#: forever. `_PLACEHOLDER` is what both reproducibility checks below
+#: substitute for the timestamps that fact makes non-reproducible.
+_WALL_CLOCK_RELATIVE_MARKER = "RedisExporterDown"
+_PLACEHOLDER = "<wall-clock relative, see projection.py>"
+
+
+def _is_recurring(correlation_key: object) -> bool:
+    return _WALL_CLOCK_RELATIVE_MARKER in str(correlation_key)
+
+
+def _body_without_wall_clock_timestamps(slug: str | None, body: Any) -> Any:
+    """Return one record's own `body`, the recurring subject's timestamps blanked.
+
+    Two slugs carry one: `incidents`' own `incidents[].opened_at`, and
+    `incident-detail`'s `incident.opened_at` plus every `timeline[].at` --
+    the same fact, told three times over because three different screens
+    read it from three different shapes.
+    """
+    if not isinstance(body, dict):
+        return body
+    if slug == "incidents":
+        incidents = [
+            {**incident, "opened_at": _PLACEHOLDER}
+            if _is_recurring(incident.get("correlation_key"))
+            else incident
+            for incident in body.get("incidents", ())
+        ]
+        return {**body, "incidents": incidents}
+    if slug == "incident-detail":
+        incident = body.get("incident")
+        if not isinstance(incident, dict) or not _is_recurring(incident.get("correlation_key")):
+            return body
+        timeline = [
+            {**entry, "at": _PLACEHOLDER} if isinstance(entry, dict) and "at" in entry else entry
+            for entry in body.get("timeline", ())
+        ]
+        return {**body, "incident": {**incident, "opened_at": _PLACEHOLDER}, "timeline": timeline}
+    return body
+
+
+def _file_without_wall_clock_timestamps(data: bytes) -> bytes:
+    """Return one committed fixture file, its own body blanked the same way."""
+    try:
+        payload = json.loads(data)
+    except ValueError:
+        return data
+    if not isinstance(payload, dict):
+        return data
+    slug = payload.get("slug")
+    responses = [
+        {**response, "body": _body_without_wall_clock_timestamps(slug, response.get("body"))}
+        for response in payload.get("responses", ())
+    ]
+    return dumps({**payload, "responses": responses}).encode("utf-8")
+
+
 def test_rebuilding_the_dataset_reproduces_what_is_committed(tmp_path: Path) -> None:
     build.write_all(tmp_path)
     for scenario in build.BUILT_SCENARIOS:
@@ -135,18 +198,40 @@ def test_rebuilding_the_dataset_reproduces_what_is_committed(tmp_path: Path) -> 
         rebuilt = sorted((tmp_path / "scenarios" / scenario).glob("*.json"))
         assert [path.name for path in committed] == [path.name for path in rebuilt], scenario
         for first, second in zip(committed, rebuilt):
-            assert first.read_bytes() == second.read_bytes(), (
+            assert _file_without_wall_clock_timestamps(
+                first.read_bytes()
+            ) == _file_without_wall_clock_timestamps(second.read_bytes()), (
                 f"{first.name} in {scenario} differs from what the builder produces; "
                 f"run 'python -m tools.mockplane build'"
             )
 
 
+def _records_without_wall_clock_timestamps(records: list[dict[str, Any]]) -> bytes:
+    """Return one build's flat record list, each body blanked the same way.
+
+    `CapturedRecord.as_json()`'s own shape holds `body` directly rather than
+    wrapped in a file's `responses` list, so this calls the same body-level
+    helper `_file_without_wall_clock_timestamps` calls per response, once
+    per record instead.
+    """
+    normalised = [
+        {
+            **record,
+            "body": _body_without_wall_clock_timestamps(record.get("slug"), record.get("body")),
+        }
+        for record in records
+    ]
+    return dumps(normalised).encode("utf-8")
+
+
 def test_two_builds_of_one_scenario_are_byte_identical() -> None:
     first = build.processed_for("populated")
     second = build.processed_for("populated")
-    assert dumps([record.as_json() for record in first.records]) == dumps(
-        [record.as_json() for record in second.records]
-    )
+    first_json = [record.as_json() for record in first.records]
+    second_json = [record.as_json() for record in second.records]
+    assert _records_without_wall_clock_timestamps(
+        first_json
+    ) == _records_without_wall_clock_timestamps(second_json)
 
 
 def test_the_committed_files_are_written_in_the_canonical_form() -> None:

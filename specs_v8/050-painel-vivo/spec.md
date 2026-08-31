@@ -107,8 +107,9 @@ propose-only não executa nada no estate).
   resumo do plano (o que vai acontecer e a reversão) antes de qualquer botão
   ser clicável — nunca aprovação cega.
 - **AN-07** Aprovar na banda fecha a aprovação e a banda reflete isso sem
-  reload.
+  reload. **[staging-write]**
 - **AN-08** Recusar na banda exige uma razão não vazia antes de submeter.
+  **[staging-write]**
 - **AN-09** Cada um dos cinco KPIs mostra o número, a sparkline e a legenda
   com a decomposição que o artboard desenha. **[staging]**
 - **AN-10** Nenhum número do Painel diverge da fonte que o serve: a contagem
@@ -309,9 +310,12 @@ todo, mas depende só de composição sobre o que as outras histórias já prova
 - **FR-002**: O card DEVE desenhar a barra de seis segmentos com três estados
   distintos — concluído, corrente, futuro — derivados do `stage_index` que a
   020 serve na listagem (último estágio **completado**): concluídos são os
-  segmentos ≤ `stage_index`, corrente é `stage_index + 1` (limitado a 6),
-  futuros os demais; entre leituras, os eventos `stage_completed` do stream
-  avançam o mesmo índice.
+  segmentos ≤ `stage_index`, corrente é `stage_index + 1` quando esse valor
+  ainda nomeia um segmento, futuros os demais; entre leituras, os eventos
+  `stage_completed` do stream avançam o mesmo índice. Com `stage_index == 6`
+  num run ainda não terminado os seis são concluídos e **não há corrente** —
+  um segmento não pode carregar os dois estados. Ausência do campo significa
+  nenhum estágio completado: os seis desenham futuro.
 - **FR-003**: O segmento corrente DEVE carregar o shimmer da fundação; os
   demais, cor estática dos tokens.
 - **FR-004**: Um run novo DEVE entrar na banda por evento do stream, sem

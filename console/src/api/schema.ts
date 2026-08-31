@@ -2160,6 +2160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Return the five KPI tiles the Painel renders, from one read.
+         */
+        get: operations["overview_v1_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/proposals": {
         parameters: {
             query?: never;
@@ -5318,6 +5338,28 @@ export interface components {
             resolution: string;
         };
         /**
+         * KpiView
+         * @description One KPI: its current value, a decomposition, and a daily trend.
+         *
+         *     `value` is `None` — never a fabricated zero — when nothing in the window
+         *     can answer the question, which for a rate is "no terminal item yet".
+         */
+        KpiView: {
+            /** Breakdown */
+            breakdown?: {
+                [key: string]: number;
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Series */
+            series?: components["schemas"]["SeriesPointView"][];
+            /** Value */
+            value?: number | null;
+        };
+        /**
          * LinkedDocumentView
          * @description One document somebody has written about this resource.
          *
@@ -5794,6 +5836,22 @@ export interface components {
             scope: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * OverviewView
+         * @description The five KPI tiles the Painel renders, from one read.
+         */
+        OverviewView: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            degraded: components["schemas"]["KpiView"];
+            self_resolved: components["schemas"]["KpiView"];
+            success_rate: components["schemas"]["KpiView"];
+            time_to_cause: components["schemas"]["KpiView"];
+            watched: components["schemas"]["KpiView"];
         };
         /**
          * PipelineView
@@ -6796,6 +6854,16 @@ export interface components {
             ok: boolean;
             /** Passed */
             passed: string[];
+        };
+        /**
+         * SeriesPointView
+         * @description One daily bucket of a KPI's sparkline.
+         */
+        SeriesPointView: {
+            /** Date */
+            date: string;
+            /** Value */
+            value: number;
         };
         /**
          * ShippedDetectorView
@@ -10906,6 +10974,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_v1_overview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewView"];
                 };
             };
             /** @description Validation Error */

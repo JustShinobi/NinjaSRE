@@ -580,6 +580,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="the estate in one line per kind, with the counts a tile shows",
     ),
+    # --- The Painel's overview ------------------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/overview",
+        slug="overview",
+        source=_GATEWAY,
+        summary="the five KPI tiles the Painel renders, each with a decomposition and a daily series",
+    ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/estate/resources",

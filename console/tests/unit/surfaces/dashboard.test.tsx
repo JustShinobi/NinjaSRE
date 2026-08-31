@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AGENT_INCIDENT_STATES, HUMAN_INCIDENT_STATES } from '@/design/status';
 import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
-import { AttentionBlock } from '@/surfaces/attention';
 import { Figure } from '@/surfaces/figure';
 import { DashboardScreen, oldestAttention } from '@/surfaces/screens/dashboard';
 import { surfaceContext } from '@/surfaces/context';
@@ -28,6 +27,14 @@ vi.mock('next/headers', () => ({
 }));
 
 const FIXTURES_BASE = ['http:', '//fixtures.invalid'].join('');
+
+/** `hours` before the real clock, as an ISO instant -- so a fixture that
+ * needs to sit inside `subjectsInWindow`'s trailing 48h stays inside it
+ * whenever the suite runs, rather than decaying out of the window the
+ * day after whichever date it was written against. */
+function hoursAgo(hours: number): string {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -80,11 +87,32 @@ async function dashboardWithRaisedFailure(): Promise<void> {
  * which is the whole point: the screen used to drop an incident only when its
  * state equalled that word, so the drop never happened.
  */
+function emptyCollectionResponse(key: string): Response {
+  return new Response(JSON.stringify({ [key]: [] }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/** Whether `path` is one this file isolates away from the "populated" baseline
+ * so an incidents-only override is not diluted by that scenario's own
+ * pending approvals, proposals and runs. */
+function isolatedEmptyPath(path: string): string | null {
+  if (path === '/v1/approvals') return 'approvals';
+  if (path === '/v1/proposals') return 'proposals';
+  if (path === '/v1/runs') return 'runs';
+  return null;
+}
+
 async function dashboardWithFinishedIncidents(): Promise<void> {
   serveScenario('populated');
   const scenario = globalThis.fetch;
   vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
     const path = new URL(String(input), FIXTURES_BASE).pathname;
+    const isolated = isolatedEmptyPath(path);
+    if (isolated !== null) {
+      return Promise.resolve(emptyCollectionResponse(isolated));
+    }
     if (path === '/v1/incidents') {
       return Promise.resolve(
         new Response(
@@ -142,7 +170,9 @@ async function dashboardWithFinishedIncidents(): Promise<void> {
  * Render the dashboard over live incidents in all four live states, plus a
  * cause that fired three times.
  */
-async function dashboardWithLiveIncidents(): Promise<void> {
+async function dashboardWithLiveIncidents(
+  options: { isolate?: boolean } = {},
+): Promise<void> {
   serveScenario('populated');
   const scenario = globalThis.fetch;
   const firing = (over: Record<string, unknown>): Record<string, unknown> => ({
@@ -155,7 +185,7 @@ async function dashboardWithLiveIncidents(): Promise<void> {
     severity: 'critical',
     detector: 'alertmanager',
     subjects: ['one'],
-    opened_at: '2026-08-26T09:00:00.000Z',
+    opened_at: hoursAgo(1),
     ...over,
   });
   const incidents = [
@@ -165,14 +195,14 @@ async function dashboardWithLiveIncidents(): Promise<void> {
       public_id: 'b',
       state: 'awaiting_human',
       summary: 'asked a person',
-      opened_at: '2026-08-26T08:00:00.000Z',
+      opened_at: hoursAgo(2),
     }),
     firing({
       incident_id: 'c',
       public_id: 'c',
       state: 'investigating',
       summary: 'agent is reading',
-      opened_at: '2026-08-26T07:00:00.000Z',
+      opened_at: hoursAgo(3),
     }),
     firing({
       incident_id: 'd',
@@ -180,7 +210,7 @@ async function dashboardWithLiveIncidents(): Promise<void> {
       state: 'remediating',
       correlation_key: 'detector:b:resource:two',
       summary: 'agent is changing',
-      opened_at: '2026-08-26T06:00:00.000Z',
+      opened_at: hoursAgo(4),
     }),
     firing({
       incident_id: 'e',
@@ -188,7 +218,7 @@ async function dashboardWithLiveIncidents(): Promise<void> {
       state: 'resolved',
       correlation_key: 'detector:b:resource:two',
       summary: 'over',
-      opened_at: '2026-08-26T05:00:00.000Z',
+      opened_at: hoursAgo(5),
     }),
   ];
   vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
@@ -206,101 +236,18 @@ async function dashboardWithLiveIncidents(): Promise<void> {
         }),
       );
     }
-    return scenario(input as Parameters<typeof fetch>[0], init);
-  });
-  render(await DashboardScreen(await surfaceContext({})));
-}
-
-/** Render the dashboard over three incidents that ended, two of them on their own. */
-async function dashboardWithClosedIncidents(): Promise<void> {
-  serveScenario('populated');
-  const scenario = globalThis.fetch;
-  const closed = [
-    { state: 'resolved', self_resolved: true },
-    { state: 'resolved', self_resolved: true },
-    { state: 'closed_without_action', self_resolved: false },
-  ].map((over, index) => ({
-    incident_id: `inc-${String(index)}`,
-    public_id: `inc-${String(index)}`,
-    correlation_key: `detector:a:resource:${String(index)}`,
-    title: 'A condition',
-    summary: '',
-    severity: 'critical',
-    detector: 'alertmanager',
-    subjects: [],
-    opened_at: '2026-08-26T06:00:00.000Z',
-    closed_at: '2026-08-26T07:00:00.000Z',
-    ...over,
-  }));
-  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
-    const address = new URL(String(input), FIXTURES_BASE);
-    if (address.pathname === '/v1/incidents') {
-      const wanted = address.searchParams.getAll('state');
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            incidents: wanted.length === 0 ? closed : [],
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      );
-    }
-    return scenario(input as Parameters<typeof fetch>[0], init);
-  });
-  render(await DashboardScreen(await surfaceContext({})));
-}
-
-/** Render the dashboard with a run list every one of which settled clean. */
-async function dashboardWithNothingButCleanFinishes(): Promise<void> {
-  serveScenario('populated');
-  const scenario = globalThis.fetch;
-  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
-    const path = new URL(String(input), FIXTURES_BASE).pathname;
-    if (path === '/v1/runs') {
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            runs: [
-              {
-                run_id: 'run-clean-1',
-                status: 'completed',
-                trigger: 'alert',
-                started_at: '2026-08-07T10:00:00.000Z',
-                finished_at: '2026-08-07T10:01:00.000Z',
-                summary: 'Nothing was wrong; the alert cleared on its own.',
-              },
-              {
-                run_id: 'run-clean-2',
-                status: 'completed',
-                trigger: 'manual',
-                started_at: '2026-08-07T09:00:00.000Z',
-                finished_at: '2026-08-07T09:01:00.000Z',
-                summary: 'A second investigation, also concluded cleanly.',
-              },
-            ],
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      );
-    }
-    return scenario(input as Parameters<typeof fetch>[0], init);
-  });
-  render(await DashboardScreen(await surfaceContext({})));
-}
-
-/** Render the populated dashboard with a deliberately mixed health summary. */
-async function dashboardWithHealthSummary(summary: unknown): Promise<void> {
-  serveScenario('populated');
-  const scenario = globalThis.fetch;
-  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
-    const path = new URL(String(input), FIXTURES_BASE).pathname;
-    if (path === '/v1/estate/summary') {
-      return Promise.resolve(
-        new Response(JSON.stringify(summary), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
+    // `isolate` neutralises the "populated" scenario's own pending
+    // approvals, proposals and runs -- the header's "blocked on you" count
+    // reads all four sources together, and the incidents override above
+    // *replaces* what the fixture would otherwise serve rather than adding
+    // to it, so a test asserting the incidents' own contribution has to
+    // silence the other three or it is comparing against a number this
+    // function never controlled in the first place.
+    if (options.isolate === true) {
+      const isolated = isolatedEmptyPath(address.pathname);
+      if (isolated !== null) {
+        return Promise.resolve(emptyCollectionResponse(isolated));
+      }
     }
     return scenario(input as Parameters<typeof fetch>[0], init);
   });
@@ -321,25 +268,25 @@ describe('what a failed run reads as', () => {
     expect(document.body.innerHTML).not.toContain('NINJASRE_INVESTIGATOR');
   });
 
-  it('says what an operator can do about it, in words meant for them', async () => {
-    await dashboardWithRaisedFailure();
-
-    expect(screen.getByText(EN['failure.investigator.title'])).toBeInTheDocument();
+  // 050-painel-vivo narrowed the visible "needs you" band to pending
+  // remediation decisions only, so the translated failure message this
+  // checked for -- previously drawn as an attention row -- has no surface
+  // left to render on. Skipped, not deleted; see the note beside the other
+  // failed-run test below and this feature's control file.
+  it.skip('says what an operator can do about it, in words meant for them -- no surface for this in the redesigned band; see 050-painel-vivo/controle.md', () => {
+    expect(EN['failure.investigator.title']).toBeTruthy();
   });
 
-  it('sends the band to the pending setup step, not to the run', async () => {
-    await dashboardWithRaisedFailure();
-
-    const row = screen
-      .getAllByTestId('attention-row')
-      .find((candidate) => candidate.getAttribute('data-kind') === 'failure');
-    if (row === undefined) {
-      throw new Error('no attention row was drawn for the failed run');
-    }
-    // Not the model step by name: this failure is the deployment's own runtime,
-    // never a configuration field, so the band sends somebody to the guided
-    // setup itself rather than to a step that may already be finished.
-    expect(within(row).getByRole('link')).toHaveAttribute('href', '/first-run');
+  // 050-painel-vivo narrowed the visible "needs you" band to pending
+  // remediation decisions only (Main.dc.html draws nothing else there), so
+  // a failed run's own row -- and the link to /first-run this test checks
+  // -- has no home in the redesigned band. Named in this feature's control
+  // file as a capability with no explicit replacement, rather than silently
+  // dropped: skipped, not deleted, so whoever decides where it belongs next
+  // finds the test rather than rediscovering the gap from a bug report.
+  it.skip('sends the band to the pending setup step, not to the run -- no surface for this in the redesigned band; see 050-painel-vivo/controle.md', () => {
+    // Intentionally left unimplemented pending a decision on where a
+    // systemic run failure should now be surfaced.
   });
 });
 
@@ -414,104 +361,62 @@ describe('a summary figure’s visible drill-down', () => {
 });
 
 describe('the figures on a populated deployment', () => {
-  it('explains the degraded count rather than leaving it to guess', async () => {
-    await dashboard('populated');
-
-    const degraded = screen
-      .getAllByTestId('figure')
-      .find(
-        (figure) =>
-          figure.getAttribute('data-figure') === EN['dashboard.stat.degraded'],
-      );
-    expect(degraded).toBeDefined();
-    // 14 detectors watching, all live in the populated dataset — the fact
-    // that bridges "14 unhealthy" and "Incidents: none".
-    expect(degraded?.textContent).toMatch(/14 of 14/);
+  // 050-painel-vivo moved the degraded KPI from a client computation over
+  // `/v1/estate/summary` and `/v1/detectors` to GET /v1/overview's own
+  // `degraded` field, read verbatim by KpiTiles (FR-019: no client
+  // recomputation of a number the endpoint already answers). The claims
+  // these three tests held -- the "N of M detectors" legend, degraded vs.
+  // unhealthy counting only the two problem states, the drill-down href --
+  // are the gateway's own aggregation and the tile's own rendering now, not
+  // this screen's: tests/contract/gateway/test_overview_routes.py and
+  // kpi-tiles.test.tsx ("names the no-detector case on the degraded tile,
+  // with a link to configuration"). Skipped, not deleted, because a screen
+  // that stubs `/v1/estate/summary`/`/v1/detectors` no longer changes what
+  // this KPI shows -- only stubbing `/v1/overview` itself would, which is
+  // exactly the property FR-019 asks for.
+  it.skip('explains the degraded count rather than leaving it to guess -- moved to GET /v1/overview; see kpi-tiles.test.tsx and test_overview_routes.py', () => {
+    // Intentionally left unimplemented: the computation this asserted no
+    // longer lives in this screen.
   });
 
-  it('counts only degraded and unhealthy states, not unknown or stale observations', async () => {
-    await dashboardWithHealthSummary({
-      total: 10,
-      problems: 4,
-      by_health: { healthy: 4, degraded: 2, unhealthy: 2, unknown: 3, stale: 3 },
-      by_kind: {},
-    });
-
-    const degraded = screen
-      .getAllByTestId('figure')
-      .find(
-        (figure) =>
-          figure.getAttribute('data-figure') === EN['dashboard.stat.degraded'],
-      );
-    expect(degraded).toBeDefined();
-    if (degraded === undefined) throw new Error('the degraded figure was not rendered');
-    expect(within(degraded).getByTestId('stat-value')).toHaveTextContent('4');
-    expect(degraded).toHaveTextContent('4 open findings');
+  it.skip('counts only degraded and unhealthy states, not unknown or stale observations -- moved to GET /v1/overview; see test_overview_routes.py', () => {
+    // Intentionally left unimplemented: the computation this asserted no
+    // longer lives in this screen.
   });
 
-  it('sends the problem figure to the resource list that contains both problem states', async () => {
-    await dashboard('populated');
-
-    const degraded = screen
-      .getAllByTestId('figure')
-      .find(
-        (figure) =>
-          figure.getAttribute('data-figure') === EN['dashboard.stat.degraded'],
-      );
-    expect(degraded).toHaveAttribute('href', '/resources?health=problem');
+  it.skip("sends the problem figure to the resource list that contains both problem states -- the href is KpiTiles' own now; see kpi-tiles.test.tsx", () => {
+    // Intentionally left unimplemented: the href this asserted is declared
+    // inside kpi-tiles.tsx, not derived here.
   });
 });
 
 // --- 4. At least one number is about the agent, not the estate ----------------------------
 
 describe('an indicator of whether the agent itself is working', () => {
-  it('shows a success rate figure, drawn from the runs the deployment recorded', async () => {
-    await dashboard('populated');
-
-    const figures = screen.getAllByTestId('figure');
-    const successRate = figures.find(
-      (figure) =>
-        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
-    );
-    expect(successRate).toBeDefined();
-    // 5 succeeded (by role) of 7 settled runs in the populated dataset. The
-    // degraded run (run-0102) counts here too: the persistence store has no
-    // status word of its own for "finished, but the answer came from
-    // incomplete evidence" — it writes `completed` the same as a clean
-    // finish — so the run status this figure reads from carries no signal
-    // to withhold it on.
-    expect(successRate?.textContent).toContain('71');
+  // 050-painel-vivo moved the success-rate KPI from a client computation
+  // over the runs listing to GET /v1/overview's own `success_rate` field.
+  // The three claims these tests held -- the settled/succeeded arithmetic,
+  // the unmeasured em dash, the drill-down href when nothing has failed --
+  // are the gateway's own aggregation and the tile's own rendering now:
+  // tests/contract/gateway/test_overview_routes.py and kpi-tiles.test.tsx
+  // ("says a rate with nothing to measure is unmeasured, never a fabricated
+  // zero"). Skipped, not deleted, for the same reason as the degraded KPI
+  // above: stubbing the runs listing no longer changes what this tile
+  // shows, which is the point of reading only the overview.
+  it.skip('shows a success rate figure, drawn from the runs the deployment recorded -- moved to GET /v1/overview; see kpi-tiles.test.tsx and test_overview_routes.py', () => {
+    // Intentionally left unimplemented: the computation this asserted no
+    // longer lives in this screen.
   });
 
-  it('shows no rate at all when nothing has settled yet', async () => {
-    // A deployment with no runs is where this page starts, not an edge case
-    // to tolerate — dividing zero by zero is not "0%", it is a figure with
-    // nothing behind it, and the em dash says so instead of a false number.
-    await dashboard('empty');
-
-    const figures = screen.getAllByTestId('figure');
-    const successRate = figures.find(
-      (figure) =>
-        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
-    );
-    expect(successRate).toBeDefined();
-    expect(successRate?.textContent).toContain('—');
-    expect(successRate?.getAttribute('href')).toBe('/runs');
+  it.skip('shows no rate at all when nothing has settled yet -- moved to GET /v1/overview; see kpi-tiles.test.tsx', () => {
+    // Intentionally left unimplemented: the null-value case this asserted
+    // is KpiTiles' own rendering now, exercised directly with a null value.
   });
 
-  it('sends the drill-down at /runs, not /runs?status=failed, when nothing failed', async () => {
-    // The failed-only filter is a shortcut to the runs that need attention.
-    // A deployment with none owes the operator the ordinary list, not a
-    // filtered one that would show nothing.
-    await dashboardWithNothingButCleanFinishes();
-
-    const figures = screen.getAllByTestId('figure');
-    const successRate = figures.find(
-      (figure) =>
-        figure.getAttribute('data-figure') === EN['dashboard.stat.successRate'],
-    );
-    expect(successRate?.textContent).toContain('100');
-    expect(successRate?.getAttribute('href')).toBe('/runs');
+  it.skip('sends the drill-down at /runs, not /runs?status=failed, when nothing failed -- KpiTiles links successRate to /runs unconditionally; see kpi-tiles.tsx', () => {
+    // Intentionally left unimplemented: the conditional href this asserted
+    // does not exist in the new tile, which the control file names as a
+    // simplification the artboard itself does not distinguish either.
   });
 });
 
@@ -550,61 +455,59 @@ describe('the estate panel that used to be a plain inventory', () => {
   });
 });
 
-// --- 7. The oldest badge explains itself instead of shouting ------------------------------
+// --- 7. What is waiting on a person is counted correctly, even though the
+//        band that used to list every kind of it now shows only decisions --
 
-describe('the "needs you" band’s oldest badge', () => {
-  it('is not drawn in shouting capitals', () => {
-    render(
-      <AttentionBlock
-        heading="1 item needs you"
-        oldest="Waiting longest: 2h 14m"
-        rows={[
-          {
-            id: 'a-1',
-            kind: 'approval',
-            title: 'Reclaim 41 GiB on local-lvm',
-            detail: 'awaiting decision',
-            href: '/approvals?selected=a-1',
-            since: '2h ago',
-          },
-        ]}
-        openLabel="Open"
-        moreLabel={(over) => `and ${String(over)} more waiting`}
-        moreHref="/decisions"
-      />,
-    );
+describe('the header\'s "blocked on you" count', () => {
+  // 050-painel-vivo narrowed the visible band from a general "waiting on a
+  // person" list (approvals, proposals, incidents, failed runs together) to
+  // the inline decision band Main.dc.html draws -- pending remediations
+  // only. The header count above the run band is the one place the broader
+  // figure survives, reading the same underlying list these tests always
+  // checked; what moved is that a row is no longer drawn for a kind the
+  // decision band cannot render a decision control for, so these tests now
+  // check the count rather than a row's text. The "oldest badge shouts"
+  // case this section covered before is retired outright: the per-card
+  // "since" replaced a single badge for the whole band, and there is
+  // nothing left to test about capitalisation of a rendering that no
+  // longer exists.
+  //
+  // A failed run that raised a configuration exception (`InvestigatorNotConfigured`)
+  // used to get its own row here, pointed at `/first-run`. That specific
+  // sentence has no home in the redesigned Painel and is named, not
+  // silently dropped, in this feature's control file -- a future feature
+  // owns deciding whether it needs one.
 
-    const badge = screen.getByText('Waiting longest: 2h 14m');
-    expect(badge.className).not.toMatch(/\buppercase\b/);
-  });
-
-  it('does not ask a person to look at an incident that has already ended', async () => {
+  it('does not count an incident that has already ended as one waiting on a person', async () => {
     // The regression this replaces: the screen dropped an incident only when
     // its state equalled `closed`, a word the store's enumeration does not
     // contain, so nothing was ever dropped and three finished incidents were
     // counted as three things waiting on a person.
+    //
+    // The fixture also isolates away the "populated" scenario's own
+    // pending approvals, proposals and runs (see isolatedEmptyPath), so the
+    // count read here is the incidents' own contribution alone: zero, for
+    // three incidents that have all ended.
     await dashboardWithFinishedIncidents();
 
-    const band = screen.queryByTestId('attention');
-    const rows = band === null ? [] : within(band).queryAllByTestId('attention-row');
-    const titles = rows.map((row) => row.textContent);
-    expect(titles.some((text) => text.includes('cleared upstream'))).toBe(false);
-    expect(titles.some((text) => text.includes('maintenance window'))).toBe(false);
-    expect(titles.some((text) => text.includes('shut by an operator'))).toBe(false);
+    expect(screen.getByTestId('run-band-blocked-count')).toHaveTextContent('0');
   });
 
   it('tells the narrative that a self-resolved incident ended well', async () => {
     // The same comparison, a second time: because `closed` never matched, the
     // success branch of the activity feed was unreachable and an incident that
-    // resolved itself was drawn in the same red as a live outage.
+    // resolved itself was drawn in the same red as a live outage. 050-painel-vivo
+    // gives this its own 'resolution' kind (a filled circle) rather than the
+    // danger-coloured 'incident' square its opening earns.
     await dashboardWithFinishedIncidents();
 
-    const entries = screen.queryAllByTestId('activity-entry');
+    const entries = screen.queryAllByTestId('activity-feed-entry');
     const resolved = entries.find((entry) =>
       entry.textContent.includes('cleared upstream'),
     );
     expect(resolved).toBeDefined();
-    expect(resolved?.querySelector('[class*="danger"]')).toBeNull();
+    expect(resolved?.getAttribute('data-kind')).toBe('resolution');
+    expect(resolved?.querySelector('[class*="bg-danger"]')).toBeNull();
   });
 
   it('asks for live incidents by name rather than hoping they are recent', async () => {
@@ -655,30 +558,32 @@ describe('the "needs you" band’s oldest badge', () => {
     // remediated is the agent's, and a product whose claim is that it works
     // without you must not use its first screen to count its own work as your
     // backlog. Only what nothing has picked up, or what stopped to ask a
-    // person, belongs in the band.
-    await dashboardWithLiveIncidents();
+    // person, counts toward "blocked on you" -- checked by count, since the
+    // redesigned band no longer draws a row per incident (see the header
+    // count section above for why).
+    // Isolated the same way the test above is: with the "populated"
+    // scenario's own approvals, proposals and runs silenced, the count is
+    // the incidents' own contribution alone.
+    await dashboardWithLiveIncidents({ isolate: true });
 
-    const band = screen.getByTestId('attention');
-    const kinds = within(band)
-      .getAllByTestId('attention-row')
-      .map((row) => row.textContent);
-    expect(kinds.some((text) => text.includes('nobody has picked up'))).toBe(true);
-    expect(kinds.some((text) => text.includes('asked a person'))).toBe(true);
-    expect(kinds.some((text) => text.includes('agent is reading'))).toBe(false);
-    expect(kinds.some((text) => text.includes('agent is changing'))).toBe(false);
+    // Two of the five fired incidents need a person (`open`, `awaiting_human`);
+    // the other two (`investigating`, `remediating`) are the agent's own
+    // work and must add nothing.
+    expect(screen.getByTestId('run-band-blocked-count')).toHaveTextContent('2');
   });
 
-  it('folds what keeps happening into one row per cause', async () => {
+  it('folds what keeps happening into one row per cause, windowed to the last 48h', async () => {
+    // 050-painel-vivo replaced the flat IncidentGroupList disclosure on this
+    // screen with SubjectStrip, windowed to SUBJECT_WINDOW_HOURS -- the same
+    // five firings/two causes claim, read off the new component's own rows.
     await dashboardWithLiveIncidents();
 
     const panel = screen.getByTestId('recurring-problems');
-    const groups = within(panel).getAllByTestId('incident-group');
-    // Five firings, two causes.
-    expect(groups).toHaveLength(2);
-    expect(groups.map((group) => group.getAttribute('data-count')).sort()).toEqual([
-      '2',
-      '3',
-    ]);
+    const rows = within(panel).getAllByTestId('subject-row');
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.map((row) => within(row).getByTestId('subject-count').textContent).sort(),
+    ).toEqual(['2×', '3×']);
   });
 
   it('counts only what the agent is holding, whatever the deployment answers with', async () => {
@@ -691,51 +596,46 @@ describe('the "needs you" band’s oldest badge', () => {
     await dashboardWithLiveIncidents();
 
     // One `investigating`, one `remediating`, out of five incidents served.
-    expect(screen.getByTestId('tally-held')).toHaveTextContent('2');
+    expect(screen.getByTestId('run-band-followed-count')).toHaveTextContent('2');
   });
 
-  it('leads with whether the deployment is working before what it has left', async () => {
+  it('leads with what is running before what needs a decision', async () => {
     await dashboardWithLiveIncidents();
 
-    const band = screen.getByTestId('guardian-band');
-    const attention = screen.getByTestId('attention');
-    // The band is the first thing on the page. `compareDocumentPosition` says
-    // so structurally rather than by reading class names, so a later layout
-    // change cannot quietly put the backlog back on top.
-    expect(band.compareDocumentPosition(attention)).toBe(
+    const band = screen.getByTestId('run-band');
+    const decisions = screen.getByTestId('attention-decision-band');
+    // The run band is the first thing on the page. `compareDocumentPosition`
+    // says so structurally rather than by reading class names, so a later
+    // layout change cannot quietly put the decision band back on top.
+    expect(band.compareDocumentPosition(decisions)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
 
-  it('shows five figures, and two of them are about the agent', async () => {
+  it('shows five KPI tiles, two of them about the agent rather than the estate', async () => {
+    // 050-painel-vivo replaced the client-computed <Figure> grid with
+    // KpiTiles reading GET /v1/overview -- five named tiles rather than a
+    // count, since which five is the claim (selfResolved and successRate are
+    // the two the reference design leads with and this page, until then,
+    // never asked).
     await dashboardWithLiveIncidents();
 
-    const figures = screen.getAllByTestId('figure');
-    expect(figures).toHaveLength(5);
-    const labels = figures.map((figure) => figure.getAttribute('data-figure'));
-    expect(labels).toContain(EN['dashboard.stat.unattended']);
-    // Four of the five count things. The fifth says how long an answer takes,
-    // which is what somebody deciding whether to wait for the agent asks and
-    // no tile on this page answered until it was added.
-    expect(labels).toContain(EN['dashboard.stat.successRate']);
-    expect(labels).toContain(EN['dashboard.stat.timeToCause']);
-    // The two the band and the feed now answer better than a tile could.
-    expect(labels).not.toContain(EN['dashboard.stat.healthy']);
-    expect(labels).not.toContain(EN['dashboard.stat.runs']);
+    const tiles = screen.getAllByTestId('kpi-tile');
+    expect(tiles).toHaveLength(5);
+    const kinds = tiles.map((tile) => tile.getAttribute('data-kpi'));
+    expect(kinds.sort()).toEqual(
+      ['watched', 'degraded', 'selfResolved', 'successRate', 'timeToCause'].sort(),
+    );
   });
 
-  it('counts an incident that closed itself as one nobody had to touch', async () => {
-    await dashboardWithClosedIncidents();
-
-    const figure = screen
-      .getAllByTestId('figure')
-      .find(
-        (one) => one.getAttribute('data-figure') === EN['dashboard.stat.unattended'],
-      );
-    expect(figure).toBeDefined();
-    // Two of the three terminal incidents carry `self_resolved`.
-    expect(figure).toHaveTextContent('67%');
-    expect(figure).toHaveTextContent('2 of 3 incidents closed themselves');
+  // 050-painel-vivo moved the "closed on their own" KPI from a client
+  // computation over the incidents listing to GET /v1/overview's own
+  // `self_resolved` field. The 67%/"2 of 3" arithmetic this asserted is the
+  // gateway's own aggregation now: tests/contract/gateway/test_overview_routes.py
+  // and kpi-tiles.test.tsx ("shows the watched count and its breakdown...").
+  it.skip('counts an incident that closed itself as one nobody had to touch -- moved to GET /v1/overview; see kpi-tiles.test.tsx and test_overview_routes.py', () => {
+    // Intentionally left unimplemented: the computation this asserted no
+    // longer lives in this screen.
   });
 
   it('chooses the oldest timestamp rather than the last source group', () => {

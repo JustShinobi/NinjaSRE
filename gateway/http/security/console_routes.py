@@ -109,6 +109,11 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/proposals/{proposal_id}/decision",
         permission=Permission.APPROVAL_REVIEW,
     ),
+    # --- The Painel's own overview ---------------------------------------------
+    # ``estate.read`` because the overview is the estate's own summary widened
+    # with a daily series — the same right ``/v1/estate/summary`` already
+    # takes, for a document that supersedes it as the dashboard's source.
+    Route(method="GET", path="/v1/overview", permission=Permission.ESTATE_READ),
     # --- Learned material ------------------------------------------------------
     Route(method="GET", path="/v1/topology/{node_id}", permission=Permission.MEMORY_READ),
     Route(method="GET", path="/v1/knowledge/documents", permission=Permission.KNOWLEDGE_READ),

@@ -25,11 +25,12 @@ organisation as an ordinary column and the dispatcher reads it without a scope.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKeyConstraint,
@@ -855,6 +856,28 @@ class SignalRow(Base):
     labels: Mapped[dict[str, Any]] = _json()
 
 
+class EstateDailySnapshotRow(Base):
+    """One organisation's estate, counted on one day.
+
+    The primary key is the natural key, ``(org_id, snapshot_date)``, so an
+    upsert is ``ON CONFLICT DO NOTHING`` rather than a check-then-insert: two
+    sweeps racing to record the same day cannot produce two rows, and neither
+    has to look before it writes.
+    """
+
+    __tablename__ = "estate_daily"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    snapshot_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    counts_by_kind: Mapped[dict[str, Any]] = _json()
+    counts_by_health: Mapped[dict[str, Any]] = _json()
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class TransitDeliveryRow(Base):
     """One crossing of the deployment's boundary, whichever way it went.
 
@@ -1153,6 +1176,7 @@ __all__ = [
     "Credential",
     "DiscoverySweep",
     "Episode",
+    "EstateDailySnapshotRow",
     "EstateResource",
     "Evidence",
     "HealthTransitionRow",

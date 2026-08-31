@@ -103,6 +103,30 @@
       }
     },
     {
+      "id": "dashboard-1440-dark",
+      "route": "/",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The Painel's own content rather than the shell around it (see shell-1440-dark for the frame): the \"Em execu\u00e7\u00e3o agora\" run band with a stage bar per card, the \"precisa de voc\u00ea\" decision band with the plan and the reversal visible before either control, the five KPI tiles with sparkline and decomposition, \"o que insiste em acontecer\" as a per-subject strip, and \"atividade ao vivo\" as a shaped vertical timeline. Did not exist as its own registered screen before this feature -- the four existing \"shell-*\" entries at this route deliberately compare only the frame around it, so the body this feature rebuilt had no baseline of its own to fail against."
+      },
+      "pending_because": "New content, first capture pending review against design/padrao-2026-08/Main.dc.html -- not to be supplied by this feature's own gate run (the LLM visual review and the baseline acceptance belong to the orchestrator's Orca Browser gate, per specs_v8/EXECUCAO.md \u00a73)."
+    },
+    {
+      "id": "dashboard-1440-light",
+      "route": "/",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The same content as dashboard-1440-dark, under the light token set. Did not exist as its own registered screen before this feature."
+      },
+      "pending_because": "New content, first capture pending review against design/padrao-2026-08/DashboardLight.dc.html -- not to be supplied by this feature's own gate run (the LLM visual review and the baseline acceptance belong to the orchestrator's Orca Browser gate, per specs_v8/EXECUCAO.md \u00a73)."
+    },
+    {
       "id": "decisions-1440-light",
       "route": "/decisions?tab=actions",
       "status": "pending",

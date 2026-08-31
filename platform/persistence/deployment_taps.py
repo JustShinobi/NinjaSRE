@@ -141,7 +141,7 @@ class _EventPublishingUnitOfWork:
 
     Every other port — `run_traces`, `config`, `identity`, and the rest — is
     exactly what the wrapped unit of work already returns: this changes two of
-    eighteen properties and forwards everything else, including
+    nineteen properties and forwards everything else, including
     `mark_rollback_only`, unmodified.
     """
 
