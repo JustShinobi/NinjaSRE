@@ -207,7 +207,31 @@ test('AN-06: the "needs you" band shows the plan summary and rollback before any
 });
 
 // =============================================================================
+// AN-08 — rejecting requires a non-empty reason before it may submit
+// =============================================================================
+
+test('AN-08: rejecting requires a non-empty reason before submission is possible', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const card = decisionBand(page).getByTestId('attention-decision-card').first();
+  if ((await card.count()) === 0) {
+    test.skip(true, 'the mock scenario carries no pending approval to reject');
+  }
+  await card.getByTestId('attention-reject').click();
+  const reasonField = card.getByTestId('attention-reject-reason');
+  await expect(reasonField).toBeVisible();
+  const submit = card.getByTestId('attention-reject-submit');
+  await expect(submit).toBeDisabled();
+  await reasonField.fill('not a real problem');
+  await expect(submit).toBeEnabled();
+});
+
+// =============================================================================
 // AN-07 — approving in the band closes it without reload
+// Runs after AN-08: both need the mock scenario's one pending approval,
+// and only this one actually decides it (AN-08 never submits), so this
+// order is what lets each see a still-pending card. T040/convergence.
 // =============================================================================
 
 test('AN-07: approving from the band closes the approval and the band reflects it without reload', async ({
@@ -230,26 +254,7 @@ test('AN-07: approving from the band closes the approval and the band reflects i
     .toBeLessThan(before);
 });
 
-// =============================================================================
-// AN-08 — rejecting requires a non-empty reason before it may submit
-// =============================================================================
 
-test('AN-08: rejecting requires a non-empty reason before submission is possible', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const card = decisionBand(page).getByTestId('attention-decision-card').first();
-  if ((await card.count()) === 0) {
-    test.skip(true, 'the mock scenario carries no pending approval to reject');
-  }
-  await card.getByTestId('attention-reject').click();
-  const reasonField = card.getByTestId('attention-reject-reason');
-  await expect(reasonField).toBeVisible();
-  const submit = card.getByTestId('attention-reject-submit');
-  await expect(submit).toBeDisabled();
-  await reasonField.fill('not a real problem');
-  await expect(submit).toBeEnabled();
-});
 
 // =============================================================================
 // AN-09 — every KPI shows number, sparkline and a decomposed legend
