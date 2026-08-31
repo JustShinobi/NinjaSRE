@@ -221,3 +221,274 @@ as telas de uma vez.
 
 **O custo, dito por inteiro**: numa tela em pt-BR, o chip é a única palavra
 em inglês da linha.
+
+---
+
+# Varredura do Painel, 2026-08-31
+
+O que segue saiu de uma comparação elemento a elemento do Painel contra
+`DashboardLight.dc.html` e `Main.dc.html` — os dois são o mesmo board, com uma
+única diferença fora de cor no diff inteiro (`.card` tem `box-shadow` no claro
+e nenhuma no escuro). Três rodadas anteriores nesta tela compararam por
+reação, item a item conforme se notava, e o operador achou mais divergências a
+olho depois de cada uma. Esta enumerou primeiro e decidiu depois: 38 itens,
+dos quais 8 viraram conserto, 20 entram aqui, 7 são de outra feature e 3 são
+diferença de dado, não de código.
+
+Uma nota que vale para tudo abaixo: **dado de staging não é divergência.** O
+board desenha sete assuntos recorrentes e o deployment tem três; desenha um
+run em voo e a captura tem zero. Onde a diferença vem do que o estate contém,
+está dito, e não foi "consertado".
+
+## 13. Contagens da barra lateral e do sino não contam o que o agente segura
+
+O board mostra `Incidentes 4` na navegação e um badge no sino. O console não
+mostra nenhum dos dois, porque `countsFrom`
+(`console/src/shell/load.ts:305-319`) deriva as contagens da listagem de
+atenção, e o commit `d019dd77` estreitou essa listagem deliberadamente a
+`open` e `awaiting_human`.
+
+**Por quê.** O raciocínio daquele commit é explícito e é bom: um produto que
+investiga sozinho não deve contar o próprio trabalho como pendência de quem
+olha. Um incidente em `investigating` ou `remediating` está sendo tratado pelo
+agente — colocá-lo num badge é pedir atenção para o que já tem dono, e o badge
+que pede atenção sem motivo é o badge que ninguém olha na terceira semana.
+
+**O custo, dito por inteiro**: a navegação fica sem número numa tela onde o
+board tem dois, e quem quiser saber quantos incidentes existem ao todo tem que
+abrir `/incidents`. O comportamento **não muda**; fica registrado porque é
+desvio visível do board e porque a próxima varredura ia reencontrá-lo.
+
+## 14. Um tratamento de contagem para toda área, não um por área
+
+O board pinta as duas contagens da navegação de formas diferentes: `Incidentes`
+é texto mono cru em vermelho, sem pílula; `Decisões` é uma pílula sólida âmbar
+com texto branco. O sino ganha uma terceira variação — pílula sólida âmbar,
+texto branco, 9,5px.
+
+O console desenha as três iguais: a pílula suave da fundação
+(`bg-danger-bg text-danger`, `console/src/shell/sidebar.tsx:213`) na navegação,
+e `bg-danger` no sino (`console/src/shell/topbar.tsx:186`).
+
+**Por quê.** As três contam a mesma coisa — quantos itens de uma área esperam
+uma pessoa — e três desenhos para um fato são três coisas para reconciliar
+quando uma quarta área ganhar contagem. A pílula é o tratamento de contagem da
+fundação e vale para as dezoito áreas, incluindo as que ainda não existem.
+
+## 15. Nenhuma marca de "tem coisa rodando" por área na navegação
+
+O board põe um losango de 8px à direita de `Investigações`, que é o vocabulário
+dele para "há trabalho em voo aqui". O console não tem marca por área: o
+`nav-arriving` (`console/src/shell/sidebar.tsx:118-126`) só pulsa durante uma
+navegação, que é outro fato.
+
+**Por quê.** É a mesma regra dos registros 3 e 10 — um portador de frescor por
+quadro. A banda "Em execução agora" está na mesma tela dizendo, com nome e
+barra de estágio, exatamente o que está rodando; um losango na navegação dizendo
+de novo é uma segunda afirmação que discorda da primeira sempre que uma das
+duas chega antes.
+
+## 16. O rótulo de grupo da navegação não é caixa alta
+
+O board escreve `AGORA`, `AMBIENTE`, `CONFIGURAÇÃO` a 10,5px com
+`letter-spacing: .1em` e `text-transform: uppercase`. O console usa o degrau
+`micro` da escala (11px/600, sem tracking, sem caixa alta) —
+`console/src/shell/sidebar.tsx:170`.
+
+**Por quê.** `micro` é o degrau declarado para exatamente este papel, e a
+escala de tipo não abre exceção por tela. Caixa alta com tracking é um quarto
+tratamento tipográfico que só existiria aqui.
+
+## 17. A busca diz "Procurar", sem reticências
+
+Board: `Buscar recursos, investigações, incidentes…`. Console:
+`Procurar recursos, investigações, incidentes` (`shell.search`).
+
+**Por quê.** É a mesma string que a paleta de comandos usa, e ela é
+alcançável de toda tela por `Ctrl K`. Duas palavras para a mesma caixa, uma na
+topbar e outra na paleta, é pior que a palavra que o board não escolheu. As
+reticências prometem um menu que abre digitando, o que a paleta faz — e a
+topbar, que só abre a paleta, não deve prometê-lo duas vezes.
+
+## 18. A topbar carrega dois controles que o board não desenha
+
+O board desenha, à direita da busca: chip "Ao vivo", ícone de tema, sino,
+"Parar automação", "Investigar", avatar. O console carrega ainda o **nome do
+deployment** (`console/src/shell/topbar.tsx:126-131`) e o **alternador de
+densidade** (`:154-173`).
+
+**Por quê.** O nome existe porque um operador com três deployments abertos tem
+três abas, e uma aba que diz só "Painel" é uma aba onde ele age por engano — o
+mesmo motivo pelo qual o `<title>` carrega o deployment. A densidade fica ao
+lado do tema porque são a mesma classe de coisa: como este leitor lê, guardado
+para ele, sem mudar nada que outra pessoa veja. Nenhum dos dois é da 050; os
+dois aparecem em toda rota.
+
+## 19. O avatar é azul, não verde
+
+Board: círculo de 30px preenchido com o acento, iniciais em branco. Console:
+`bg-info-bg text-info` a `size-5` (`console/src/components/navigation.tsx:343`).
+
+**Por quê.** O acento neste console significa **interação** — é a cor do que se
+clica. Um avatar preenchido de acento é uma superfície que promete uma ação que
+ela não tem (o menu abre no `summary`, não no círculo). `info` é o papel que a
+fundação já usa para "isto é uma pessoa", e o avatar aparece em toda tela.
+
+## 20. O subtítulo do Painel não é palavra por palavra o do board
+
+Board: `O que precisa de alguém, o que está rodando, e como o ambiente está.`
+Console (`page.dashboard.context`): `O que precisa de uma pessoa, o que está em
+curso e como está o parque.`
+
+**Por quê.** A substância é a mesma e a fonte é o inglês (`What needs a person,
+what is running, and how the estate is.`), do qual o pt-BR é tradução — o
+registro 6 já diz que este console é i18n e que as strings do board entram como
+pt-BR. `parque` é a palavra que o catálogo usa para *estate* em todas as telas;
+trocá-la aqui faria o Painel discordar de `/resources` e de `/incidents` numa
+palavra só.
+
+## 21. O cabeçalho da banda e os títulos de painel usam o degrau `strong`
+
+O board escreve `Em execução agora` a 14px/600 e os títulos de painel a 15px/600
+em Space Grotesk (`class="sg"`). O console usa `text-strong` — 16px/600, IBM
+Plex Sans, porque `text-strong` carrega tamanho e peso e não família
+(`console/src/design/tokens.ts:408`).
+
+**Por quê.** `strong` é o degrau declarado para o título de uma região, e ele
+titula região em dezoito telas. Um tamanho por tela é a escala de tipo deixando
+de ser escala. A família display fica onde a fundação a pôs: no título da
+página e nos números dos KPIs, que é onde ela vende.
+
+## 22. O card de run não ganha um chip "agora mesmo", e todos têm a mesma superfície
+
+O board dá ao run recém-chegado um chip `agora mesmo`, uma borda de acento, um
+anel e uma sombra; aos demais, fundo rebaixado e borda comum. O console desenha
+todo card igual (`bg-raised`, `console/src/surfaces/run-band.tsx:152`) e marca a
+chegada só com `slide-in`.
+
+**Por quê.** O chip é um terceiro indicador de frescor na mesma tela, que é o
+que o registro 10 já recusou duas vezes; e a idade relativa já está no card, no
+tempo decorrido. A animação de chegada é o que diz "isto acabou de entrar", ela
+toca só na montagem real do nó, e ela some sozinha — que é exatamente o que uma
+afirmação sobre "agora" deve fazer, ao contrário de um chip que continua dizendo
+`agora mesmo` cinco minutos depois.
+
+## 23. A idade e o risco da decisão não cabem numa linha de metadados
+
+O board escreve, sob o título, `remediação reversível · risco 3 de 5 ·
+esperando há 1 h` — uma linha, texto corrido. O console põe a idade no canto
+superior direito do card e o risco na própria linha, como `RiskLadder`
+(`console/src/surfaces/attention.tsx:106-118`).
+
+**Por quê.** A FR-009 exige o risco como **medidor de cinco posições**, e um
+medidor não é texto: "risco 3 de 5" escrito por extenso é a mesma informação
+sem a comparação visual que faz alguém parar antes de aprovar o quarto. **O
+requisito ganha do artboard**, e este é o caso em que ele ganha.
+
+## 24. "Ver plano →" é link, não chip
+
+O board desenha os três controles do card como chips do mesmo tamanho:
+`Aprovar` preenchido, `Recusar` vazado, `Ver plano →` vazado. No console os
+dois primeiros são botões e o terceiro é um link
+(`console/src/surfaces/attention.tsx:160-166`).
+
+**Por quê.** Dois deles decidem e um navega, e este console não desenha
+navegação como botão — é a lição que `panel.tsx` já registrou por escrito ao
+aposentar o botão-com-âncora-escondida de todo estado vazio. Um chip que parece
+com "Aprovar" e leva para outra tela é a forma de errar que a diferença existe
+para evitar.
+
+## 25. A legenda "nenhum detector" é acento, não âmbar
+
+Board: `nenhum detector promove a incidente` em `#8a5a12`. Console: a mesma
+frase em `text-accent`, porque ela é o único link daquele tile
+(`console/src/surfaces/kpi-tiles.tsx:231-238`).
+
+**Por quê.** Acento significa interação neste console e a frase leva a
+`/config?tab=detectors`. Pintá-la de âmbar faria um link ler diferente de todos
+os outros links da página, e a cor do estado passaria a competir com a cor do
+que se clica.
+
+## 26. A unidade não encolhe dentro do número
+
+O board escreve `100` a 30px com `%` a 18px, e `1m 15s` com o `m` e o `s` a
+18px. O console encolhe só o `%` (`text-meta`) e deixa a duração inteira no
+tamanho do número, porque ela vem de `formatDuration`.
+
+**Por quê.** `formatDuration` é o formatador compartilhado; partir a string
+por unidade dentro deste componente é um segundo vocabulário de duração, e o
+console tem durações em run view, em incidentes e em decisões, todas por ele.
+
+## 27. O total do painel fica à direita, não colado ao título
+
+Board: `O que insiste em acontecer` e `7 assuntos · 40 disparos · agrupado por
+assunto` adjacentes, na mesma linha de base, com 10px entre eles. Console: o
+total vai para o slot `action` de `Panel`, que é alinhado à direita
+(`console/src/surfaces/panel.tsx:172`).
+
+**Por quê.** O slot `action` é alinhado à direita em 32 rotas. Uma exceção por
+tela é uma segunda gramática de painel, e a gramática de painel é o que faz
+seis regiões independentes lerem como uma página.
+
+## 28. A linha de disparos é desenhada também no assunto encerrado
+
+O board omite a mini-linha do tempo nas linhas resolvidas. O console desenha em
+todas (`console/src/surfaces/subject-strip.tsx:109-116`).
+
+**Por quê.** A AN-11 exige a mini-linha do tempo por assunto, e um assunto que
+disparou sete vezes e parou é exatamente o caso em que *quando* ele disparou é
+a informação toda — foi de hora em hora ontem, ou uma vez por mês desde março?
+A linha é o único lugar da tela que responde. **O requisito ganha do artboard.**
+
+## 29. As entradas da atividade ficam separadas por um fio
+
+O board separa as entradas pelo trilho vertical, e nada mais. Sem o trilho
+(registro 9), o console mantém o fio de 1px entre entradas
+(`console/src/surfaces/activity-feed.tsx:116`).
+
+**Por quê.** É o que sobrou de estrutura na coluna. Oito entradas de duas
+linhas cada, sem trilho e sem fio, leem como um parágrafo. O fio cai junto com
+o registro 9, no dia em que a escala ganhar o degrau que o trilho precisa.
+
+## 30. O ícone de parada entra num controle que aparece em toda tela
+
+O board desenha um quadrado dentro de um círculo antes de `Parar automação`. O
+console não desenhava ícone nenhum; agora desenha (`StopIcon`,
+`console/src/design/icons.tsx`), e o controle mora na topbar, não no Painel.
+
+**Por quê o conserto mesmo sendo território do shell.** A regra que ele
+restabelece não é do board: é a regra de que cor nunca carrega significado
+sozinha. O botão de parada era o único controle destrutivo do console
+identificado apenas por ser vermelho. O acréscimo é um glifo aditivo, não muda
+comportamento, não muda a superfície de props de nenhum export, e
+`icon-export-surface.test.tsx` — que existe para provar que nada foi renomeado
+nem removido — recebeu o nome novo explicitamente no fim da lista.
+
+**O que isto arrasta**: o ícone aparece em toda rota, porque o controle
+aparece em toda rota. Está dito aqui para que não seja redescoberto como
+efeito colateral do Painel.
+
+## 31. Quatro itens da tela pertencem à fundação e não foram tocados
+
+Ficam nomeados, com dono, porque uma varredura que os omitisse faria a próxima
+recomeçar por eles:
+
+| O que o board faz | O que o console faz | Dono |
+|---|---|---|
+| Cabeçalho de página sem ícone, título e subtítulo na mesma linha de base (idêntico em `Incidents`, `Resources`, `Investigations`) | `PageHeader` desenha um poço de ícone em acento e empilha título sobre subtítulo (`console/src/components/layout.tsx:60-79`) | fundação visual — 32 rotas |
+| Sem fio entre o cabeçalho do card e o corpo | `Panel` desenha o fio (`console/src/surfaces/panel.tsx:163`) | fundação visual |
+| Lavagem radial de acento no fundo do quadro, `padding 24px 28px` no conteúdo | sem lavagem, `p-5` (`console/src/shell/shell.tsx:283`) | shell |
+| Quadro de 1080px sem rolagem, com a última linha em `flex: 1` | a página rola | modelo de rolagem do shell — `scroll-budget.spec.ts` |
+
+## 32. Um assunto pode aparecer com a chave crua do deployment
+
+Na captura de staging, duas linhas de "O que insiste em acontecer" têm por
+subtítulo `unresolved-target:traefik.lan.kyo.ninja · Traefik Dashbo…`. O
+prefixo `unresolved-target:` é a chave que o próprio deployment grava quando
+não resolve o alvo do alerta, e `isOpaque`
+(`console/src/surfaces/incident-group-list.tsx:170-204`) não a considera
+identificador interno — ela nomeia o host, então passa.
+
+Não foi mexido aqui: `incident-group-list.tsx` é da 060 e a suíte dela já está
+vermelha por motivo independente. Fica nomeado para a 060 decidir se
+`unresolved-target:` é palavra de máquina que a FR-024 devia barrar.
