@@ -40,7 +40,9 @@ from config.constants.security import (
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from core.llm.registry import default_registry
+from core.state.types import StageName
 from gateway.http.routes.integrations import _direction as route_direction
+from gateway.http.routes.investigations import stage_index_of
 from gateway.webhooks.router import PROFILES
 from gateway.webhooks.sources import alertmanager
 from integrations._catalogue.discovery import catalogue as integration_catalogue
@@ -957,6 +959,38 @@ def _run_calls(run_id: str) -> tuple[ToolCallRecord, ...]:
     )
 
 
+def _last_completed_stage(run: Mapping[str, Any]) -> str:
+    """Return the name of the last of the six stages this run's trace ended.
+
+    Read straight from ``_STAGES`` wherever a per-stage trace is declared for
+    this run — the same sequence ``run-replay`` already serves under
+    ``"stages"`` — so a run's list entry and its own stage-by-stage record can
+    never disagree about how far it got. That covers ``run-0001`` (all six,
+    including the failed-stage case in ``run-0004``, whose recorded stage
+    still *ended* — the trace records a stage on completion, failed or not,
+    the same rule ``platform.runs.recorder.RunRecorder.record_stage`` writes
+    by) and the in-flight ``run-0003``/``run-0005``.
+
+    A run with no entry there falls into one of two cases, and they are not
+    treated alike. ``completed`` still reads as finished: this pipeline runs
+    ``core.state.types.STAGE_ORDER`` strictly in sequence and nothing marks a
+    run complete without carrying it through ``deliver``, so a completed run
+    this dataset never bothered narrating turn by turn is not a run that
+    skipped delivery — it is one this fixture drew without that detail.
+    Every other status left with no trace (only ``run-0006``, cancelled)
+    reports none completed: a cancellation can land at any boundary, and
+    this fixture never recorded which one, so naming one would be exactly
+    the decorative number a served value is supposed to not be.
+    """
+    identifier = str(run["run_id"])
+    declared = _STAGES.get(identifier, ())
+    if declared:
+        return str(declared[-1]["stage"])
+    if str(run.get("status", "")) == "completed":
+        return StageName.DELIVER.value
+    return ""
+
+
 def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> dict[str, Any]:
     """Return ``run`` in the shape the console's investigation summary answers in.
 
@@ -978,6 +1012,11 @@ def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> d
     - ``incident_id`` is read back from the same incident this run is
       attached to in the estate half of this dataset — the one place that
       link is recorded — never invented here.
+    - ``last_completed_stage`` and ``stage_index`` come from the same trace
+      ``run-replay`` serves, positioned through the gateway's own
+      ``stage_index_of`` rather than a second lookup table, so a fixture and
+      a live deployment never place the same stage name at two different
+      positions.
     """
     identifier = str(run["run_id"])
     trigger = str(run.get("trigger") or "")
@@ -985,12 +1024,15 @@ def _run_detail(run: Mapping[str, Any], incident_by_run: Mapping[str, str]) -> d
     headline = (
         str(run["headline"]) if "headline" in run else synthesize_headline(objective=objective)
     )
+    last_stage = _last_completed_stage(run)
     return {
         **run,
         "headline": headline,
         "report": str(run.get("summary") or ""),
         "incident_id": incident_by_run.get(identifier, ""),
         "touched_resources": list(touched_resources_of(_run_calls(identifier))),
+        "last_completed_stage": last_stage,
+        "stage_index": stage_index_of(last_stage),
     }
 
 

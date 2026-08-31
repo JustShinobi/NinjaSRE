@@ -4,7 +4,9 @@
       "arguments": {},
       "body": {
         "finished_at": null,
+        "last_completed_stage": "",
         "run_id": "run-0007",
+        "stage_index": 0,
         "started_at": "2026-08-07T12:00:00+00:00",
         "status": "running",
         "summary": null,

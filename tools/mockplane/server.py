@@ -31,6 +31,7 @@ import contextlib
 import json
 import socket
 import time
+import uuid
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, MutableMapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -824,7 +825,26 @@ class MockPlane:
 
         match endpoint.slug:
             case "investigation-start":
-                started = answer.body if isinstance(answer.body, Mapping) else {}
+                started = dict(answer.body) if isinstance(answer.body, Mapping) else {}
+                # The canned record answers every call with the same identity,
+                # so the response this caller reads back is exactly what the
+                # fixture promises — unchanged here. What goes into *this
+                # session's own* "runs" list is a different concern: the run
+                # band keys each card by `run_id`
+                # (`console/src/surfaces/run-band.tsx`'s `RunCard`), and
+                # prepending the identical id a second time gives two list
+                # entries the same React key. That is undefined reconciliation,
+                # not a cosmetic duplicate — observed for real as a sibling
+                # page's own stage bar losing its "current" segment on the
+                # next live refresh, for a run its own trace never touched. A
+                # live deployment never has this problem because
+                # `RunRecorder.start_run` mints a fresh identifier on every
+                # call; this gives the session's own copy of the record the
+                # same property, cheaply — a suffix nothing earlier in this
+                # session has used — without touching what the response
+                # itself already said.
+                if "run_id" in started:
+                    started["run_id"] = f"{started['run_id']}-{uuid.uuid4().hex[:8]}"
                 amend("runs", {}, lambda document: _prepend(document, "runs", dict(started)))
                 run_id = str(started.get("run_id", ""))
                 if run_id:

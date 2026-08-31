@@ -118,9 +118,13 @@ test('AN-03: the card draws six segments with the current stage distinct from co
   const card = runCards(page).first();
   const segments = card.getByTestId('run-card-stage');
   await expect(segments).toHaveCount(6);
-  await expect(
-    segments.filter({ has: page.locator('[data-state="current"]') }),
-  ).toHaveCount(1);
+  // `.and(...)`, not `.filter({ has: ... })`: the state this claim asks about
+  // is `data-state` on the segment itself, not on some descendant of it — the
+  // segment is a bare `<span>` with no children at all
+  // (`console/src/surfaces/run-band.tsx`'s `StageSegment`), so `has` could
+  // never match here regardless of what the console renders. `.and()` is the
+  // combinator for "the same element also matches this locator".
+  await expect(segments.and(page.locator('[data-state="current"]'))).toHaveCount(1);
 });
 
 // =============================================================================

@@ -759,6 +759,13 @@ def _write_responses() -> tuple[CapturedRecord, ...]:
         "started_at": served.at(minutes=0),
         "finished_at": None,
         "summary": None,
+        # Explicit rather than merely absent: a run one instant old has
+        # completed none of the six stages, and saying so with a real ``0``
+        # is what lets the run band draw its first segment "current" — the
+        # stage about to run — instead of reading a missing field and
+        # drawing all six "future" for a run that is, in fact, under way.
+        "last_completed_stage": "",
+        "stage_index": 0,
     }
     cancelled = {
         "run_id": "run-0003",

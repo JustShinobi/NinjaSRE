@@ -255,7 +255,14 @@ def test_a_write_is_reflected_in_the_next_read(mock: MockPlane) -> None:
     mock.answer("POST", "/v1/investigations", body={"objective": "look at the volume"})
     after = json.loads(mock.answer("GET", "/v1/runs").body)["runs"]
     assert len(after) == before + 1
-    assert after[0]["run_id"] == "run-0007"
+    # A suffix, not the fixture's bare identity: a second call in the same
+    # session must not prepend the same `run_id` a second time, because the
+    # run band keys its cards by exactly that field and two list entries
+    # sharing one React key is undefined reconciliation, once observed for
+    # real. The response a caller reads back is untouched — this is what
+    # this *session's own list* remembers about the write afterwards.
+    assert after[0]["run_id"].startswith("run-0007-")
+    assert after[0]["run_id"] != "run-0007"
 
 
 def test_approving_an_interaction_closes_it_on_the_next_read(mock: MockPlane) -> None:
