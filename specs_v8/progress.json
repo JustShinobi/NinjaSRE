@@ -9,7 +9,7 @@
   "claimed_at": "2026-08-28T00:18:52+00:00",
   "baseline_commit": "2542361d2ae13e13d8ee7a1855baa99b2d5ee936",
   "baseline_status_empty": true,
-  "checkpoint_seq": 54
+  "checkpoint_seq": 61
  },
  "feature_order": [
   "specs_v8/000-fundacao-visual",
@@ -253,8 +253,8 @@
    "commit": "20c4f6bc"
   }
  ],
- "last_checkpoint": "2026-08-31T16:55:53.961179+00:00",
- "next_action": "S3 staging measurement is complete and positive: SC1 proven end to end on the slot's single UI-created run, SC2 proven by the real measure and by an API sweep, estate_daily single-photograph confirmed, and 040's expire_due repair confirmed live. Outstanding: (1) the painel-vivo staging-safe tagging repair, in flight, without which a staging acceptance selects zero tests and exits 0; (2) an assertion on the recurring panel's title so that divergence cannot recur silently; (3) re-run make verify after the i18n fix; (4) an independent spec-verifier per feature against the merged tree; (5) an operator decision on the board-copy differences that no acceptance criterion covers, and on the now-absent pending approval the S5 demo was relying on.",
+ "last_checkpoint": "2026-08-31T18:45:06.764569+00:00",
+ "next_action": "Re-run the 050 verifier against the repaired tree. 020 is PASS. Then write the S3 section of CONFRONTO.md.",
  "fingerprint": "ee50642429f9f4b9",
  "features": [
   {
@@ -2763,6 +2763,26 @@
     "the_proof": "the S2-era approval (requested 2026-08-27T03:37, expires_at 03:52) has decided_at 2026-08-31T01:39 — four days after its own deadline, which is the instant the corrected listing first read it. A second one, requested 2026-08-31T04:24 with a 04:39 deadline, expired at 04:46 — seven minutes late instead of four days. The repair works, and the two timings tell the story on their own.",
     "the_cost": "there is now NO pending approval in staging. The proposal S2 reserved for the S5 demo expired rather than being decided, and 050's AN-07/AN-08 have nothing live to act on. This is a correct outcome of a correct fix, but S5 must now generate a fresh proposal instead of relying on the reserved one."
    }
+  },
+  "live_run_observation": {
+   "at": "2026-08-31T17:35:27.591591+00:00",
+   "how": "a recorder polled agent_runs inside the cluster every 10s for 55 minutes, emitting a line only when a run's (id, status, headline) triple changed — deduplicated on the triple, never on a string carrying a clock. Machine-recorded, independent of anything the lead read off a screen.",
+   "SC2_live_clause_CLOSED_by_direct_observation": {
+    "run_id": "fdbc7407be60",
+    "trigger": "alert",
+    "caught_running_at": "16:59:20Z",
+    "headline_while_running": "InstanceDown on 10.20.20.60:8080",
+    "verdict": "exactly the '<alertname> on <recurso>' shape SC2 demands, seen on a real alert run in flight in the real deployment. This was the last clause of SC2 still owed, and it is now observed rather than inferred.",
+    "headline_after_completion": "'Runner-orchestrator instance down alert was caused by an intentional administrative shutdown of LXC container 150 by root@pam on node pve01' — the delivery's own sentence, the same arc the interactive run showed.",
+    "objective_meanwhile": "the full alert context text, unchanged by the headline transition — objective says what to investigate, headline is the short subject line, which is the design."
+   },
+   "SC1_live_clause_corroborated_machine_side": {
+    "run_id": "0a8e5cb259614ac7baeaaea1bc0566e8",
+    "caught_running_at": "16:48:19Z",
+    "headline_while_running": "byte-identical to the objective",
+    "then": "at 16:49:19Z, completed, headline replaced by the delivery's sentence",
+    "why_it_matters": "the 020 verifier recorded the mid-flight evidence as resting on one Orca capture. It does not: the recorder independently captured the same transition from the database, so the running-state claim has a machine witness as well as a screenshot."
+   }
   }
  },
  "visual_gate_S3": {
@@ -2781,11 +2801,13 @@
   ],
   "locale": "pt-BR, selected the way a reader's own toggle does it (the ninjasre_locale cookie, which requestLocale prefers over accept-language). The console's DEFAULT_LOCALE is 'en', so the English first render was correct behaviour and not a defect — worth stating because it looks like one.",
   "evidence": [
-   "specs_v8/050-painel-vivo/evidence/visual/dashboard-dark.png",
-   "specs_v8/050-painel-vivo/evidence/visual/dashboard-light.png",
-   "specs_v8/020-titulo-vivo/evidence/visual/run-view-objective-as-title-light.png"
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-dark.png (final state)",
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-light.png (final state)",
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-dark-live-run.png (live card, six stage segments, 46s)",
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-light-live-run.png (live card, 26s)",
+   "specs_v8/020-titulo-vivo/evidence/visual/run-view-objective-as-title-light.png (mid-flight, H1 is the typed objective)"
   ],
-  "status": "failed",
+  "status": "passed",
   "what_is_conforme": [
    "every section the 050 spec names is present and populated with real data in both themes: the run band with a live card, the 'needs you' band, the five KPI tiles each with value, sparkline and decomposition legend, the per-subject grouping, and the live activity timeline",
    "AN-03's six stage segments are drawn on the live card with the current one distinct from completed and future — visible in both captures",
@@ -2821,6 +2843,201 @@
     "id": "board-copy-differences-outside-050s-acceptance-criteria",
     "note": "the board says 'Parar automação', 'só propõe', 'O agente', 'atualizado por eventos · sem recarregar', 'nenhum detector promove a incidente' and 'manual · você'; the console says 'Parar a automação', 'apenas propõe', 'Agente', a different Painel subtitle, 'Nenhum detector promove achado a incidente' and 'Manual'. Unlike the recurring title, no acceptance criterion demands the board's wording for these, and most are shell chrome owned by earlier features. They need either a DIVERGENCIAS.md entry or a fix, and that call is the operator's rather than mine."
    }
-  ]
+  ],
+  "recurring_title_after_redeploy": "CONFORME — the live Painel now reads 'O que insiste em acontecer' in the real deployment. The blocking divergence is closed.",
+  "final": "CONFORME in both themes, re-checked on the live screen after the second redeploy: the section reads 'O que insiste em acontecer', and a scan of the whole accessibility snapshot returns zero matches for res-[0-9a-f]{8} and zero for hex >= 16. The InstanceDown row reads 'InstanceDown · pve01'. Other rows kept their metadata chains, so nothing was stripped wholesale.",
+  "a_choice_recorded_rather_than_hidden": "the two final captures carry no live card, because the slot's one run had long finished. EXECUCAO.md section 4 permits one run creation per slot and it was spent, so no second run was opened to make a prettier capture. The live-card evidence is preserved separately instead."
+ },
+ "staging_acceptance_S3": {
+  "at": "2026-08-31T17:12:20.921150+00:00",
+  "how": "run_staging with its own --grep=@staging-safe plus --grep-invert=AN-01, scoped to painel-vivo.acceptance.spec.ts and transversal-rules.spec.ts. spec_validation browser passes no Playwright flags through, so the run went via tools.console_e2e.run_staging directly.",
+  "the_defect_found_before_running_anything": "painel-vivo.acceptance.spec.ts carried NO staging tag at all while its docstring claimed two (@staging-write, @staging), neither of which is the @staging-safe that run_staging greps for. A staging pass would have selected zero tests and exited 0 — success while measuring nothing. Repaired in 62f81665 before the pass ran.",
+  "an01_excluded_and_why": "AN-01 is the claim that creates a run. EXECUCAO.md section 4 allows exactly one run creation per slot and the lead had already spent it creating 0a8e5cb2 through the console's own modal, which is also what gave the visual gate a live card. AN-01 is additionally red on the mock backing already, for the documented 070-iniciar-investigacao dependency (submit navigates to /runs/{id} instead of staying on /) — confirmed independently by the lead, whose own manual creation navigated the same way. Excluding it therefore costs no information and avoids a second run.",
+  "result": "8 failed, 1 skipped, 26 passed (3.4m). REAL_EXIT=1, read from the log file.",
+  "log": "/tmp/claude-999/-srv-workspaces-NinjaSRE/ac4c771a-2196-4c94-b39f-1a8bb5987308/scratchpad/staging-pass.log",
+  "failures": {
+   "transversal_runs_id_x5": {
+    "reading": "INHERITED, not S3. All five time out on getByTestId('row'), the debt progress.json already attributes to whoever reformed /runs away from the generic table.",
+    "the_asymmetry_holds": "the same five rules PASS on /, /incidents, /runs, /decisions and /incidents/{id} against real staging data, and fail only on /runs/{id}. All five going green together would have meant the scenario was weakened; they did not."
+   },
+   "AN-11": {
+    "reading": "NOT a defect — the fix is not deployed. Staging serves the 13:57:51Z build, which predates d2a5a3d9. The assertion received 'O que continua acontecendo' from the real deployment, which is the divergence it was written to catch, so the failure is the test working.",
+    "consequence": "it turns green on the next deploy, and until then it is the one red that a redeploy is expected to clear."
+   },
+   "AN-12": {
+    "reading": "A GENUINE, UNREPAIRED DEFECT, and only real data exercises it.",
+    "evidence": "expect(subtitle).not.toMatch(/^res-[0-9a-f]{8}/) received 'res-76ab1466…' — a raw resource identifier printed as a subject subtitle, which is exactly what AN-12 bans.",
+    "why_it_hid": "the claim skips on the mock backing for want of subject rows, so the deterministic suite never ran it. It is visible in the lead's own dashboard-dark.png capture, in the third subject row — the automated check caught what the eye passed over.",
+    "owner": "to be settled by the verifier: 050's territory on the face of it, but the fallback that produces the raw id may be inherited."
+   },
+   "AN-17": {
+    "reading": "A GENUINE staging-only defect, undiagnosed by the lead and handed to the verifier.",
+    "evidence": "Minified React error #418 (hydration mismatch) on the Painel, in both themes, against staging. Passes on the mock backing.",
+    "not_yet_known": "the cause. Relative timestamps in the live activity feed are a plausible server/client divergence, but that is a guess and is recorded as one."
+   }
+  },
+  "what_passed_and_matters": "26 green against the real deployment, including AN-13 (live activity timeline), AN-15 (stream down, freshness chip falls back and the Painel keeps serving), AN-16 (empty 'needs you' band) and the transversal rules on five of six route shapes."
+ },
+ "wave_level_finding": {
+  "id": "playwright-renders-english-against-a-ptBR-board",
+  "at": "2026-08-31T17:12:20.921150+00:00",
+  "raised_by": "the subagent that wrote the recurring-title assertion, correcting the lead's brief",
+  "claim": "console/playwright.config.ts:40 sets locale: 'en-GB', so every e2e test renders the console in English while design/padrao-2026-08 is drawn entirely in pt-BR. The whole artboard-conformance surface is invisible to Playwright by construction — a naive assertion on a board string fails against the English pair rather than catching a pt-BR divergence.",
+  "why_it_matters": "it is the mechanism, not the instance. The recurring-panel divergence is one symptom; the finding says the suite cannot see this class of defect at all, which is why the Orca visual gate caught it and the green suite did not.",
+  "status": "CONFIRMED by the 050 verifier, independently and empirically. locale: 'en-GB' sits in the shared top-level `use` block of playwright.config.ts, inherited by every project. It belongs to the wave confrontation and to whoever owns the console harness — not to 020 or 050.",
+  "note": "the assertion added in ec1d8336 works around it per-test by setting the ninjasre_locale cookie, which is a fix for one claim and not for the surface."
+ },
+ "verifiers_S3": {
+  "020-titulo-vivo": {
+   "at": "2026-08-31T17:31:40.306258+00:00",
+   "verdict": "PASS",
+   "went_further_than_the_lead": [
+    "swept the entire 725-row agent_runs table for banned headline shapes and found zero, where the lead had swept 50 through the API",
+    "independently confirmed the deploy boundary from kubectl: the three containers actually started 13:57:53-57Z",
+    "found 7 runs after the boundary rather than the lead's 5 — the difference is elapsed time, not a discrepancy"
+   ],
+   "answers_to_the_two_questions_put_to_it": {
+    "SC1_live_poll": "REAL BUT NARROW GAP, correctly named. Nobody polled the live API through all six values mid-flight. What carries the claim instead: the lead's own capture is a genuine non-terminal frame (status Running, stage 1 done, stage 2 active), the six stage_completed rows have increasing sequence and realistic wall-clock gaps, and a contract test proves the read mechanism reports a true mid-run 3-of-6 against a controlled fixture. Mechanism proven; the literal staging clause not exercised.",
+    "A7_sample_size": "THE CLAIM DOES NOT OUTRUN THE SAMPLE, and the five rows were never load-bearing. All 155 pre-deploy empty-headline rows also have objective='', and summary_of() computes headline or synthesize_headline(objective=...) — a pure function that returns the same sentence for all 155. The spot-check sits on top of a code-and-data proof rather than standing in for an unknown population."
+   },
+   "findings": [
+    {
+     "severity": "MEDIUM",
+     "id": "SC4-not-literally-true",
+     "note": "the transversal suite is not green: 5 of 7 failures are the same pre-existing /runs/{id} defect, where runs.tsx and RunCard emit no data-testid='row'. It blocks 020's own new ban equally with three older families. Inherited and already named as unowned; 020's 'titulo inventado' passes on 5 of 6 routes."
+    },
+    {
+     "severity": "MEDIUM",
+     "id": "test-first-broken-phases-2-3",
+     "note": "self-disclosed in controle.md: persistence/recorder/sanitisation code preceded T003/T004, so red-before-green was never observed for much of the contract. Compensated by 13 hand-verified wire cuts with captured output; the verifier spot-checked the SC3 one and found it genuine. A real Article XII deviation, named rather than hidden."
+    },
+    {
+     "severity": "INFO",
+     "id": "notification-lied-again",
+     "note": "the verifier's own transversal background run reported success while its log's real exit was 1. Independent corroboration of this wave's standing lesson: read the exit from the log, never from the notification."
+    }
+   ],
+   "visual": "PASS — reopened the run route in Orca Browser independently; the mid-flight and completed states are consistent with each other, with A1/A3/A6, and with the RunView mockup's h1-is-the-subject convention.",
+   "scope": "confirmed by diff-stat rather than asserted: 050, the three post-merge commits and the title-wording defect are not 020's."
+  },
+  "050-painel-vivo": {
+   "at": "2026-08-31T17:33:21.260755+00:00",
+   "verdict": "FAIL",
+   "why": "two normative acceptance criteria fail against real staging data, both root-caused to code 050 itself wrote — not inherited, not a mock-only edge — and the slot's own visual gate has not reached CONFORME.",
+   "findings": [
+    {
+     "id": "AN-12",
+     "severity": "HIGH",
+     "status": "repair dispatched",
+     "root_cause": "console/src/surfaces/screens/dashboard.tsx:598 renders SubjectStrip with no subjectNames map. The optional prop is never supplied, so SubjectLine (incident-group-list.tsx:153-188) always falls through to the raw shortened subject string.",
+     "the_fix_already_exists_here": "incidents.tsx:283-296,408 (060, untouched this slot) builds subjectNames from an already-existing GET /v1/estate/resources read. No new endpoint needed — this is a composition gap in 050's own file.",
+     "why_the_suite_missed_it": "the mock dataset's recurring subjects carry human-readable raw strings, so the fallback never produced anything that looked wrong. The ledger recorded AN-11/AN-12 green against that dataset — the 'measures nothing' pattern again."
+    },
+    {
+     "id": "AN-17",
+     "severity": "HIGH",
+     "status": "repair dispatched",
+     "root_cause": "kpi-tiles.tsx: Tile wraps its entire body in NextLink when given href (~148-153); the degraded tile's href becomes /config?tab=detectors when note==='no_detector_enabled' (~256-260), while degradedLegend (~224-231) independently renders its own second NextLink inside that body. Nested anchors, invalid HTML, React #418.",
+     "confirmed_three_ways": "a stderr hydration warning from a local vitest run; orca eval against the live tab returning {outerAnchorHref:'/config?tab=detectors', innerAnchorCount:1}; the live accessibility snapshot showing link[e12] containing link[e20].",
+     "not_an_edge_case": "it is staging's current real state — no detector is enabled there.",
+     "why_the_suite_missed_it": "kpi-tiles.test.tsx:109 renders exactly this scenario and asserts nothing about console errors or DOM validity."
+    },
+    {
+     "id": "SC-008",
+     "severity": "OPEN",
+     "note": "the visual gate is DESVIO, not CONFORME, and stays so until a redeploy carries d2a5a3d9 to staging and one more Orca capture is taken. The verifier confirmed live that both themes still read the pre-fix wording, and found no third deviation VEREDITO.md had missed."
+    },
+    {
+     "id": "T010-ledger-misattribution",
+     "severity": "MODERATE",
+     "note": "tasks.md T010 credits 060's incident-decision-controls.test.tsx. 050 in fact built its own attention-decision-controls.tsx, and the requirement IS tested — at attention.test.tsx:142-172. A citation error, not a missing test. Correction dispatched."
+    }
+   ],
+   "verified_clean": [
+    "migration chain parsed independently across all 21 revisions: one head, correctly re-pointed, no branch",
+    "models.py is a true union of 020's column and 050's snapshot row",
+    "GET /v1/overview well-formed, honest None semantics, ESTATE_READ declared in console_routes.py:116 — the verifier's own first grep was a false negative and it said so",
+    "scope: routes.ts untouched, 060's incident-decision-controls.tsx untouched, 050's shared-infrastructure edits additive and backward-compatible with 060's call site verified unchanged",
+    "the /runs/{id} asymmetry is real: data-testid='row' genuinely absent from runs.tsx, five rules green on five route shapes and red only on that one",
+    "the AN-01 exclusion was legitimate under EXECUCAO.md section 4"
+   ],
+   "proved_rather_than_accepted": "the pre-fix tagging bug was demonstrated, not taken on faith: the verifier checked out 62f81665~1, found zero tags despite the docstring, then ran playwright --grep=@nonexistent --list and confirmed 'No tests found' with exit 0.",
+   "taken_on_trust": "the estate_daily 'exactly one row, no duplicate snapshot_date' SQL claim — the verifier has no cluster or database access from its machine — while independently corroborating the resulting value of 93 from the live tile."
+  }
+ },
+ "repair_cycle_S3": {
+  "at": "2026-08-31T17:50:04.998800+00:00",
+  "cycle": "1 of at most 2",
+  "verdict": "both defects repaired, test-first with the red watched rather than assumed",
+  "AN-12": {
+   "red_first": "a new unit test in dashboard.test.tsx failed with 'Unable to find an element by: [data-testid=\"incident-subject-name\"]' before any implementation change. It uses a synthetic res-<hex> subject that satisfies isOpaque, plus an /v1/estate/resources stub naming it — the shape the committed fixture's own recurring subject never produces.",
+   "fix": "dashboard.tsx now performs a panelRead('/v1/estate/resources') — no new endpoint — builds the resource_id to display_name map the way incidents.tsx:283-296 already does, and passes it to SubjectStrip as subjectNames.",
+   "commit": "421bf8b0"
+  },
+  "AN-17": {
+   "red_first": "a new unit test in kpi-tiles.test.tsx failed with the dumped DOM showing exactly the reported structure: an outer <a href='/config?tab=detectors'> wrapping the whole tile, containing an inner <a> of the same href around the legend.",
+   "the_choice_and_why_the_first_attempt_was_abandoned": "the implementer first tried rendering degradedLegend as plain text and keeping Tile's own href. That broke the pre-existing must-not-regress assertion at kpi-tiles.test.tsx:114, because tileFor() returns the inner kpi-tile div and a card-wrapping anchor is that div's ANCESTOR, invisible to within(tile).getByRole('link'). So it went the other way: drop Tile's href in the no_detector_enabled state and keep the legend's own anchor. A detector-enabled deployment still wraps the whole card; a no-detector one gets exactly one link, to configuration. Reachable either way, never nested.",
+   "commit": "2092abce"
+  },
+  "ledger_corrections": {
+   "commit": "e005670d",
+   "what": "T010's citation corrected to attention.test.tsx:137-175 and to 050's own AttentionDecisionControls rather than 060's component; the stale VEREDITO.md line tightened to name what ec1d8336's assertion guards."
+  },
+  "a_correction_the_implementer_made_to_the_lead": "the brief implied AN-12 was skipped in the mock acceptance suite. It is not — it PASSES there, both before and after, because the committed dataset's recurring subject is a human-readable string that never triggers the opaque-id fallback. Coincidental green, not a skip, which is why the real regression pin had to be written at unit level with a synthetic res-<hex> id rather than left to the Playwright run to catch.",
+  "gates": "touched vitest files 27 passed / 9 skipped; full console unit suite 3234 passed / 9 skipped; tsc --noEmit exit 0; prettier and eslint clean on all four TS files; acceptance on the mock backing 6 failed / 13 passed with the same six pre-existing 070-dependency names red. Every exit read from a log file."
+ },
+ "final_gate_S3": {
+  "at": "2026-08-31T18:02:16.788261+00:00",
+  "make_verify": "MAKE_VERIFY_EXIT=0 read from the log; 13157 passed, 32 skipped, zero FAILED or ERROR lines; console 3234 passed / 9 skipped (up from 3232 at merge — exactly the two new regression pins); benchmarks 38 passed."
+ },
+ "redeploy_S3": {
+  "at": "2026-08-31T18:02:16.788261+00:00",
+  "components": "all three, taken from the descriptor with no COMPONENTS override",
+  "deploy_exit": "DEPLOY_EXIT=0, gitops 1af7b81c240f",
+  "the_rollout_lie_caught_a_third_time_and_a_sharper_version": "Argo reported Synced/Healthy while the three new pods were three seconds old and not ready, with all three old pods still ready and serving. Then `kubectl rollout status` reported all three 'successfully rolled out' while a listing taken immediately after STILL showed proxy and web old pods ready. Neither signal means the old replicas stopped serving. Only polling until the namespace held exactly three pods, all started 17:55:26Z, established it.",
+  "routes_warmed": "nine console routes, authenticated with a real session cookie so the pages actually render rather than redirecting to /sign-in, twice. All 200 with real bodies (146KB-436KB). /agent is ~2s in both laps, so that is its steady state and not a cold render."
+ },
+ "staging_acceptance_S3_after_repair": {
+  "at": "2026-08-31T18:02:16.788261+00:00",
+  "result": "5 failed, 1 skipped, 29 passed (3.3m). REAL_EXIT=1 read from the log. Was 8 failed / 26 passed before the repair.",
+  "what_turned_green": "exactly the three feature failures — AN-11, AN-12 and AN-17.",
+  "what_stayed_red": "exactly the five inherited /runs/{id} transversal rules, by name and unchanged. The asymmetry the wave demands held: what this slot owned went green, what it does not own stayed red, and nothing was loosened to move the count."
+ },
+ "repair_cycle_2_S3": {
+  "at": "2026-08-31T18:02:16.788261+00:00",
+  "cycle": "2 of at most 2",
+  "status": "CLOSED",
+  "how_it_was_found": "by reading the live screen after the redeploy, not by re-running the suite. The suite said AN-12 was green.",
+  "finding": "the previous repair resolved the estate name — the row went from 'res-76ab1466…' to 'pve01 · res-76ab1466…' — but the raw identifier is STILL printed as line text after the name.",
+  "why_that_is_still_a_violation": "SC-007 (spec.md:452) bans the pattern in ANY visible text of the Painel, not in a subtitle's prefix. FR-024 (spec.md:384) says the internal identifier appears at most as a tooltip and NEVER as text of the line. The live text matches res-[0-9a-f]{8} and is line text, so both are violated.",
+  "why_the_suite_said_otherwise": "AN-12 asserts /^res-[0-9a-f]{8}/ — anchored. Once the fix put 'pve01' in front, the anchor stopped matching and the claim went green while the banned string stayed on screen. Its companion /[0-9a-f]{16,}/ misses too, because the rendered id is ellipsis-truncated to 8 hex characters. A test that goes green because the defect moved sideways.",
+  "dispatched": "stop printing the identifier as line text (measuring first whether the estate lacks the name or the map fails to reach it, since the two have different fixes), and strengthen AN-12 to SC-007's actual wording — unanchored, over the Painel's visible text — with the red confirmed against today's code first.",
+  "the_diagnosis_that_mattered": "the map was never the problem. The estate does hold a name for res-76ab1466… — provable from the code alone, because the pre-fix SubjectLine had exactly two branches and the observed 'pve01 · res-76ab1466…' can only come from the name-resolved one. It was a fallback-rendering decision: the resolved branch printed the shortened id unconditionally, even once a real name existed.",
+  "blast_radius_gated_deliberately": "the fix is conditioned on isOpaque(subject) so that 060's incidents-by-subject.acceptance.spec.ts:122-137, which asserts toContainText('ct-102') on this same shared component, keeps passing. ct-102 matches neither banned pattern.",
+  "commits": [
+   "f84b3aa3 (fix plus four test files)",
+   "fffb7a73 (controle.md section 11)"
+  ],
+  "isolation_technique_worth_keeping": "to prove nothing was loosened, the implementer stashed ONLY the implementation file while holding the tightened tests constant, and ran both sides: 6 failed / 13 passed identically, same six names. That separates 'the test changed' from 'the code changed', which a plain before/after does not."
+ },
+ "blast_radius_check_060": {
+  "at": "2026-08-31T18:45:06.764569+00:00",
+  "why": "repair cycle 2 touched console/src/surfaces/incident-group-list.tsx, a component 060 shares. The implementer read 060's suite and pinned against it at unit level but did not execute it, and said so.",
+  "result": "060's incidents-by-subject acceptance: 1 failed, 15 passed (B060_EXIT=1). The failure is SC-001, 'the grouped view holds at most a third of the rows the flat view holds' — 11 received where <= 5 expected.",
+  "attributed_by_measurement_not_reasoning": "the same file was reverted to f84b3aa3~1 and the suite re-run: 1 failed / 15 passed, the SAME test, identically. The repair did not cause it. Pre-existing and 060's.",
+  "hypothesis_labelled_as_one": "060 passed as PASS in slot S2 and this is red now, so something changed underneath it. A plausible cause is the fixture regeneration in 20c4f6bc, which rewrote 239 files and could have moved the flat/grouped ratio this test measures. That is a hypothesis, not a finding — whoever reconverges 060 should settle it.",
+  "owner": "060, and the wave confrontation"
+ },
+ "redeploy_2_S3": {
+  "at": "2026-08-31T18:45:06.764569+00:00",
+  "deploy_exit": "DEPLOY_EXIT=0, gitops 2a3a355acd8a",
+  "a_trap_the_lead_set_for_itself_and_caught": "the poll condition was 'exactly 3 pods and 3 ready', which was ALREADY TRUE of the previous deploy's steady state. It reported SETTLED after one poll while the pods still carried the old 17:55:26Z start time and the new rollout had not begun. Measuring then would have measured the previous build. The condition has to exclude the old generation explicitly — 3 pods, 3 ready, AND zero pods from the old start time — which is what finally established the 18:38:32Z generation. Same class of error as trusting Synced/Healthy, committed by the lead's own script rather than by a tool.",
+  "routes_warmed": "nine routes, authenticated, twice, against the genuinely new pods — the earlier warm hit the mixed generation and was redone."
+ },
+ "staging_acceptance_S3_final": {
+  "at": "2026-08-31T18:45:06.764569+00:00",
+  "result": "5 failed, 1 skipped, 29 passed (3.2m). REAL_EXIT=1 read from the log.",
+  "verdict": "every 050 claim is green against the real deployment, including the tightened AN-12. The five reds are exactly the inherited /runs/{id} transversal rules, by name, unchanged across all three staging runs today (8 failed, then 5, then 5).",
+  "the_progression": "8 failed / 26 passed before the repairs; 5 failed / 29 passed after cycle 1; 5 failed / 29 passed after cycle 2 with the assertion tightened — the same count, but now earned rather than granted by an anchored regex."
  }
 }

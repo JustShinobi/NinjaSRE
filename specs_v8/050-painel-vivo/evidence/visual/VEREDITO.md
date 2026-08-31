@@ -1,76 +1,92 @@
 # Veredito visual — 050 Painel vivo, slot S3
 
 Feito no Orca Browser contra o staging (`https://stg-ninjasre.lan.kyo.ninja/`),
-depois do deploy dos três componentes e das rotas aquecidas, com um run vivo
-na tela. Locale pt-BR, escolhido pelo cookie `ninjasre_locale` — que é como um
-leitor troca de idioma, e o que `requestLocale` prefere sobre o
-`accept-language`. O `DEFAULT_LOCALE` do console é `en`, então a primeira
-renderização em inglês era o comportamento correto e não um defeito.
+depois do deploy dos três componentes, do rollout confirmado por listagem de
+pods e das nove rotas aquecidas autenticadas. Locale pt-BR, escolhido pelo
+cookie `ninjasre_locale` — que é como um leitor troca de idioma, e o que
+`requestLocale` prefere sobre o `accept-language`. O `DEFAULT_LOCALE` do
+console é `en`, então a primeira renderização em inglês era comportamento
+correto e não defeito.
 
 | Tela | Tema | Veredito |
 |---|---|---|
-| `/` | dark | **DESVIO** — um, nomeado abaixo. Todo o resto confere. |
-| `/` | light | **DESVIO** — o mesmo, e nada além dele. |
+| `/` | dark | **CONFORME** |
+| `/` | light | **CONFORME** |
 
-## O desvio
+Os dois desvios que este gate encontrou foram corrigidos e reconferidos na
+tela viva, não no código.
 
-**"O que continua acontecendo" onde o board manda "O que insiste em acontecer".**
+## O que este gate achou, e a suíte verde não
 
-O board diz a frase nos dois artboards (`Main.dc.html`, `DashboardLight.dc.html`).
-A própria spec da 050 a repete sete vezes, entre elas a AN-11 e a SC-006. O
-console desenhava outra, e nada em `DIVERGENCIAS.md` registra a troca — e
-desvio sem registro aprovado é FAIL de slot pelo §3 do `EXECUCAO.md`.
+**1. "O que continua acontecendo" onde o board manda "O que insiste em
+acontecer".** Os dois artboards dizem a frase; a própria spec a repete sete
+vezes, entre elas a AN-11 e a SC-006. Nada em `DIVERGENCIAS.md` registrava a
+troca, e desvio sem registro é FAIL de slot pelo §3 do `EXECUCAO.md`.
 
-Passou por baixo da suíte porque **nenhum teste afirma o nome da seção**: a
-AN-11 e as vizinhas localizam o painel por `data-testid`. A suíte ficava verde
-enquanto a tela dizia outra coisa — a mesma família de "medir nada" que esta
-onda vem encontrando.
+Passou por baixo da suíte porque **nenhum teste afirmava o nome da seção** —
+localizavam o painel por `data-testid`. E, mais fundo: `playwright.config.ts:40`
+fixa `locale: 'en-GB'`, então **nenhum teste e2e conseguia ver uma string em
+pt-BR**, enquanto o board é inteiramente pt-BR. A superfície de conformidade
+com o artboard era invisível ao Playwright por construção. Isso é achado de
+onda, não da 050, e está no confronto.
 
-O comentário de seção do próprio catálogo pt-BR, na linha 599, ainda diz
-"O que insiste em acontecer". A string embaixo dele discordava do seu próprio
-cabeçalho.
+Corrigido em `pt-BR.ts:800`; asserção nova em `painel-vivo.acceptance.spec.ts`
+com controle negativo nos dois sentidos.
 
-Corrigido pelo lead em `pt-BR.ts:800`, como dono do single-write de i18n no
-merge. A asserção sobre o título existe agora — `console/tests/e2e/
-painel-vivo.acceptance.spec.ts` (commit `ec1d8336`), o teste
-`'AN-11: the panel is named "O que insiste em acontecer", in the board's own
-words'`: troca para o cookie `ninjasre_locale=pt-BR`, abre `/` e lê o `<h3>`
-de nível 3 dentro de `data-testid="recurring-problems"`, sem guarda de skip
-— uma janela sem recorrências ainda renderiza o cabeçalho, então o teste
-segue sendo uma asserção real mesmo vazia. É exatamente o que falhava antes
-dela existir: com a grafia antiga restaurada a alegação falha citando o
-`<h3>` que de fato encontrou, e o portão não pode mais fechar verde com o
-nome errado. O par em inglês fica como está: o item 6 do `DIVERGENCIAS.md`
-deixa o inglês livre.
+**2. Identificador cru como texto de linha.** A linha do `InstanceDown` lia
+`res-76ab1466…`. O primeiro reparo resolveu o nome do estate e ela passou a
+ler `pve01 · res-76ab1466…` — e a AN-12 **ficou verde**, porque seu regex era
+ancorado em `^res-` e o `pve01` entrou na frente.
+
+Isso não fechava nada. A **SC-007** proíbe o padrão em *qualquer texto visível*
+do Painel, e a **FR-024** diz que o identificador interno aparece *no máximo
+como tooltip, nunca como texto da linha*. O teste tinha ficado verde porque o
+defeito andou de lado.
+
+Achado lendo a tela depois do deploy, não rodando a suíte. Segundo reparo: com
+`isOpaque(subject)` — condicionado assim para não quebrar a 060, que afirma
+`toContainText('ct-102')` no mesmo componente compartilhado — a linha passa a
+mostrar só o nome, e o id vive apenas no `title`. A asserção foi reescrita para
+a redação real da SC-007: sem âncora, sobre o texto visível do Painel.
+
+Reconferido na tela viva: **zero ocorrências** de `res-[0-9a-f]{8}` e zero de
+hex ≥16 no snapshot inteiro. A linha lê `InstanceDown · pve01`. As demais
+linhas mantiveram suas cadeias de metadados intactas — o conserto não decepou
+metadado por atacado.
 
 ## O que confere
 
-- Todas as seções que a spec nomeia estão lá e com dado real, nos dois temas:
-  a banda de execução com cartão vivo, a banda "Precisa de você", os cinco KPIs
-  com valor, sparkline e legenda de decomposição, o agrupamento por assunto e a
-  linha do tempo de atividade ao vivo.
-- Os seis segmentos de estágio da AN-03 aparecem no cartão vivo, com o atual
-  distinto do concluído e do futuro — visível nas duas capturas.
-- O cartão é titulado pelo objetivo digitado, palavra por palavra: a alegação
-  da 020 vista na tela, não no banco.
-- O chip de frescor foi apanhado nos dois estados entre as duas capturas
-  ("Ao vivo" e "Atualizando").
+- Todas as seções que a spec nomeia, com dado real, nos dois temas: banda de
+  execução, "Precisa de você", os cinco KPIs com valor, sparkline e legenda de
+  decomposição, o agrupamento por assunto e a atividade ao vivo.
+- Os seis segmentos de estágio da AN-03 no cartão vivo, com o atual distinto do
+  concluído e do futuro — em `dashboard-{dark,light}-live-run.png`.
+- O cartão titulado pelo objetivo digitado, palavra por palavra: a alegação da
+  020 vista na tela.
+- O chip de frescor apanhado nos dois estados entre as capturas.
 
 ## Observações que não são defeitos desta feature
 
-- Os chips de assunto dizem "Resolved" num console em pt-BR. É deliberado e
+- Os chips de assunto dizem "Resolved" num console pt-BR. É deliberado e
   documentado: `status.tsx:192` diz que o `Badge` é "o único chip que carrega
   uma palavra que o deployment escreveu, não uma que este console escolheu".
   Vale decisão do operador só porque a mesma palavra sai "Resolvido" em
-  `/incidents` — duas telas nomeando uma coisa de dois jeitos.
+  `/incidents`.
 - `dashboard.kpi.sparkline.label` é `'Tendência de {count} dias'`, então com
   `count=1` anuncia "Tendência de 1 dias". É nome acessível da sparkline, não
-  texto desenhado, então não afeta a comparação com o artboard — mas é erro de
-  concordância de verdade, numa chave da própria 050.
+  texto desenhado — não afeta a comparação com o artboard, mas é erro de
+  concordância numa chave da própria 050.
 
 ## Evidência
 
-- `dashboard-dark.png` — `/`, tema escuro, run vivo aos 46s
-- `dashboard-light.png` — `/`, tema claro, run vivo aos 26s
+| Arquivo | O que mostra |
+|---|---|
+| `dashboard-dark.png` | `/`, escuro, estado final pós-reparos |
+| `dashboard-light.png` | `/`, claro, estado final pós-reparos |
+| `dashboard-dark-live-run.png` | `/`, escuro, com o run vivo aos 46s e os seis segmentos |
+| `dashboard-light-live-run.png` | `/`, claro, com o run vivo aos 26s |
 
-Ambas com o run `0a8e5cb259614ac7baeaaea1bc0566e8`, o único criado no slot.
+As duas com cartão vivo trazem o run `0a8e5cb259614ac7baeaaea1bc0566e8`, o
+único criado no slot. As duas finais não têm cartão porque ele terminou — e o
+§4 do `EXECUCAO.md` dá um run por slot, então não se abre outro para render
+uma captura mais bonita.
