@@ -1,13 +1,14 @@
 # Controle — 050-painel-vivo
 
 Estado verificado contra o código atual em `wt/v8-050-painel-vivo`, commit
-`15981428`. `make verify` confirmado verde duas vezes nesta rodada — uma
-antes da convergência (`86965248`), uma depois, em árvore limpa e sem
-nenhuma modificação concorrente (`b5b5d967`) — log completo preservado fora
-do repositório em ambos os casos. Este arquivo é reescrito a cada commit; a
+`817d989f`. `make verify` confirmado verde três vezes ao longo das rodadas
+registradas aqui — duas na rodada da convergência (`86965248` antes,
+`b5b5d967` depois), uma nesta terceira rodada (T042, árvore limpa, sem
+nenhuma modificação concorrente) — log completo preservado fora do
+repositório em todos os casos. Este arquivo é reescrito a cada commit; a
 versão que importa é a do commit mais recente.
 
-Duas rodadas de trabalho estão registradas aqui. A primeira fechou os
+Três rodadas de trabalho estão registradas aqui. A primeira fechou os
 quatro itens que a rodada anterior tinha deixado abertos
 (`activity-feed.tsx`, `screens.json`, `make verify`, `test_console_gate.py`),
 corrigiu três defeitos reais que a suíte de aceitação expôs em componentes
@@ -19,9 +20,16 @@ XII.3), escreveu o teste comportamental que faltava para
 `EstateSnapshotStore`, resolveu a colisão de estado compartilhado entre
 AN-07/AN-08, e deu ao dataset simulado um assunto genuinamente recorrente —
 o que por sua vez expôs e exigiu corrigir uma suposição que dois testes de
-reprodutibilidade do próprio repositório faziam (§9.5). O acceptance spec
-está agora em **6 failed, 1 skipped, 11 passed** — de 12 failed/4 skipped/2
-passed no início de tudo. As seis que continuam vermelhas (AN-01, AN-02,
+reprodutibilidade do próprio repositório faziam (§9.5). A terceira (T042,
+§6) corrigiu o posicionamento do mini-timeline de `SubjectStrip`: a segunda
+rodada tinha deixado isso como uma ressalva aberta, com uma leitura do
+artboard que se provou errada — o §6 abaixo mantém o texto antigo, marcado
+como tal, e explica por quê. O acceptance spec permanece em **6 failed, 1
+skipped, 11 passed** em todas as três rodadas — de 12 failed/4 skipped/2
+passed no início de tudo — porque AN-11/AN-12 só exigem visibilidade e
+contagem, nunca posição; a prova de que o posicionamento agora é por
+instante, não por ordinal, vive num teste de unidade novo (§6), não no
+acceptance spec. As seis que continuam vermelhas (AN-01, AN-02,
 AN-04×2, AN-05, AN-14) são dependência declarada de
 **070-iniciar-investigacao**, confirmada pelo orquestrador lendo o próprio
 código — não desta feature.
@@ -69,11 +77,11 @@ não o código. Achado pela convergência lendo o código, não por mim.
 | Gancho de escrita diária | FEITO | `platform/estate/discovery/runner.py::TopologyDiscoveryRunner._confirm_daily_snapshot` |
 | `GET /v1/overview` | FEITO, testado contra fakes (5/5 verde) | `gateway/http/routes/overview.py` |
 | `subjectsInWindow`/`SUBJECT_WINDOW_HOURS` | FEITO, testado (17/17 verde), **agora consumida por `dashboard.tsx`** | `console/src/surfaces/incident-groups.ts:188-230` |
-| `positionOnTimeline` generalizada | FEITO, testado (7/7 verde) — não consumida por `subject-strip.tsx`, ver §6 | `console/src/surfaces/incident-timeline.ts:44-76` |
+| `positionOnTimeline` generalizada | FEITO, testado (7/7 verde) — **agora consumida por `RecurrenceStrip`/`subject-strip.tsx` também, T042, ver §6** | `console/src/surfaces/incident-timeline.ts:44-76` |
 | **Acceptance spec (17 alegações, 18 casos)** | FEITO — vermelho real confirmado antes de qualquer implementação | `console/tests/e2e/painel-vivo.acceptance.spec.ts` |
 | `run-band.tsx` | FEITO, testado (9/9 verde), **composta** | `console/src/surfaces/run-band.tsx` |
 | `kpi-tiles.tsx` | FEITO (testids corrigidos nesta rodada) **e composta em `dashboard.tsx` nesta rodada** | `console/src/surfaces/kpi-tiles.tsx`; AN-09 fecha por causa disto |
-| `subject-strip.tsx` | FEITO (testids corrigidos nesta rodada) **e composta em `dashboard.tsx` nesta rodada**, substituindo `IncidentGroupList` | `console/src/surfaces/subject-strip.tsx`; AN-15 fecha por causa disto |
+| `subject-strip.tsx` | FEITO (testids corrigidos numa rodada anterior) **e composta em `dashboard.tsx`**; posicionamento do mini-timeline por instante corrigido no T042 (ver §6) | `console/src/surfaces/subject-strip.tsx`; AN-15 fecha por causa disto |
 | `AttentionDecisionControls` (novo) + `attention.tsx` recomposta | FEITO — extraído desta banda porque `IncidentDecisionControls` (o componente compartilhado da 040/060) usa um testid único e um fluxo que não correspondem ao acceptance spec nem ao artboard | `console/src/surfaces/attention-decision-controls.tsx` (novo) |
 | `console/src/surfaces/activity-feed.tsx` (novo) | FEITO — quatro formas, `collapseFeed` | `console/src/surfaces/activity-feed.tsx`, composta em `dashboard.tsx` |
 | Composição completa de `dashboard.tsx` | **FEITO** — as cinco regiões do artboard (run-band, attention, kpi-tiles, subject-strip, activity-feed) estão todas compostas; `/v1/estate/summary` e `/v1/detectors` removidos do `Promise.all` porque nada mais os lê | `console/src/surfaces/screens/dashboard.tsx` |
@@ -234,17 +242,102 @@ Inalterado: Postgres real inalcançável aqui. Pendente para quem tiver
 Postgres alcançável:
 `uv run pytest tests/contract/persistence/test_estate_daily_snapshot_migration.py -v`.
 
-## 6. Ressalva sobre o "mini-timeline" de assunto (FR-023), inalterada
+## 6. O "mini-timeline" de assunto (FR-023) — fechado no T042; a ressalva das duas rodadas anteriores estava errada
 
-`subject-strip.tsx` usa `RecurrenceStrip` (barras por ocorrência) para
-`data-testid="subject-timeline"`, não `positionOnTimeline` (pontos
-proporcionais numa janela real) — o artboard (`Main.dc.html:255-289`)
-desenha barras de altura/opacidade crescente sem posicionamento
-proporcional real, o que faz `RecurrenceStrip` a leitura visualmente fiel.
-O acceptance spec só exige que o elemento exista e seja visível. A
-generalização de `positionOnTimeline` (rodada anterior, 7/7 verde) fica como
-capacidade não consumida por este componente específico, não como código
-morto — a Incidents screen a usa para outra coisa.
+**Isto substitui a ressalva que ficou registrada, sem mudar, por duas
+rodadas.** Ela não é apagada: seu texto original vem logo abaixo, marcado
+como tal, porque um registro que muda de ideia em silêncio não ensina nada
+ao próximo leitor.
+
+### 6.1 O que ficou escrito nas duas rodadas anteriores (texto original, mantido para o registro)
+
+> `subject-strip.tsx` usa `RecurrenceStrip` (barras por ocorrência) para
+> `data-testid="subject-timeline"`, não `positionOnTimeline` (pontos
+> proporcionais numa janela real) — o artboard (`Main.dc.html:255-289`)
+> desenha barras de altura/opacidade crescente sem posicionamento
+> proporcional real, o que faz `RecurrenceStrip` a leitura visualmente fiel.
+> O acceptance spec só exige que o elemento exista e seja visível. A
+> generalização de `positionOnTimeline` (rodada anterior, 7/7 verde) fica como
+> capacidade não consumida por este componente específico, não como código
+> morto — a Incidents screen a usa para outra coisa.
+
+### 6.2 Por que essa leitura estava errada
+
+A frase-chave era "o artboard desenha barras... sem posicionamento
+proporcional real". Isso nunca foi conferido contra a própria geometria do
+SVG que `Main.dc.html:255-289` contém — só contra a impressão visual de
+"altura/opacidade crescente". Lendo as coordenadas `x` de fato:
+
+- as barras de `InstanceDown` estão em x = 10, 28, 46, 64, **88**, 106 —
+  intervalos de 18, 18, 18, **24**, 18, não um passo fixo;
+- as de `RedisExporterDown` estão em 2, **16**, 34, 52, 70, 88, 106 — uma
+  abertura de 14, depois 18 constante;
+- a contagem de barras não bate com a contagem que o rótulo ao lado declara:
+  sete barras contra "8×", seis contra "8×", quatro contra "6×".
+
+Espaçamento irregular e uma contagem de marcas menor que o total são
+exatamente o que posicionar por instante dentro de uma janela produz (uma
+ocorrência ausente ou fora da janela simplesmente não desenha marca, e duas
+ocorrências próximas no tempo desenham marcas próximas). Não é o que
+posicionamento ordinal produziria — ordinal é, por construção, uniforme e
+sempre igual à contagem total. O artboard e o `spec.md` sempre concordaram
+entre si; o código é que estava fora dos dois. As duas rodadas anteriores
+inverteram a conclusão: leram "altura/opacidade crescente" (verdadeiro,
+e inalterado por este T042) como se fosse "sem posicionamento real"
+(falso), sem medir a própria peça que citavam como prova.
+
+### 6.3 O que foi feito
+
+`RecurrenceStrip` (`console/src/surfaces/incident-group-list.tsx:205-259`)
+ganhou dois parâmetros opcionais, `now?: Date` e `windowHours?: number`
+(default `DEFAULT_TIMELINE_WINDOW_HOURS`). Quando `now` é passado, o `x` de
+cada barra vem de `positionOnTimeline(group.occurrences, now,
+windowHours).points` — a mesma função que `TwentyFourHourStrip`, no mesmo
+arquivo, já usava para o próprio eixo, sem uma segunda implementação da
+matemática proporcional — com `percent` mapeado linearmente sobre
+`[0, largura − largura_da_barra]`. Esse mapeamento nunca trunca
+(`Math.min`): truncar colapsaria duas ocorrências ambas perto de `now` no
+mesmo pixel, apagando exatamente a distinção que FR-023 pede para
+desenhar. Omitido, o componente mantém o layout ordinal byte a byte — a
+chamada da Incidents screen (`incident-group-list.tsx:459`, dentro de
+`IncidentGroupList`) não passa `now` nem `windowHours` e não foi tocada:
+zero risco para aquela tela, que pertence a outra feature.
+
+`subject-strip.tsx:81` agora passa `now={now}` e
+`windowHours={SUBJECT_WINDOW_HOURS}` — a mesma constante de 48h que
+`dashboard.tsx` já usa para recortar os grupos antes de chegarem aqui
+(`incident-groups.ts:188`), importada, não reinventada.
+
+**O teste que prova a diferença**, e não apenas a existência do elemento:
+`subject-strip.test.tsx:189`, "positions bars by each occurrence's own
+instant in the window, not by ordinal rank" — duas ocorrências a uma hora
+de distância devem desenhar barras mais próximas entre si do que duas a
+doze horas de distância; a asserção lê o atributo `x` dos `<rect>`
+renderizados via `querySelectorAll`, nunca apenas que eles existem.
+Confirmado vermelho duas vezes, não uma: antes de implementar (`expected 6
+to be less than 6`), e de novo depois, revertendo só a linha de
+`subject-strip.tsx` que passa `now`/`windowHours` (sem tocar
+`incident-group-list.tsx`) e rodando o teste de novo — mesmo erro, mesma
+mensagem, porque com exatamente duas ocorrências o posicionamento ordinal
+espaça todo par pelo mesmo deslocamento fixo (`index * 6` = 6 nas duas
+strips), então a distância dá idêntica para os dois pares e "mais
+próximas" nunca pode ser verdadeira. Restaurada a linha, a árvore volta a
+bater exatamente com o commit (`git diff` vazio) e a suíte volta a 11/11.
+Depois da implementação: 11/11 em `subject-strip.test.tsx` (10
+pré-existentes + 1 novo), 27/27 nos três arquivos afetados
+(`subject-strip.test.tsx`, `incident-group-list.test.tsx`,
+`incident-timeline.test.ts`), 3228 passed/9 skipped na suíte inteira do
+console (`console_gate test`), e o acceptance spec inalterado em 6
+failed/1 skipped/11 passed — AN-11 e AN-12 seguem verdes porque só exigem
+visibilidade, contagem e papel do chip, nunca posição; a prova de
+posição vive no teste de unidade, não neles.
+
+**Nenhuma divergência foi registrada em `design/padrao-2026-08/DIVERGENCIAS.md`,
+e `spec.md` não foi tocado** — US3/AC2 e FR-023 já liam exatamente o que o
+código agora faz. O ramo que o T042 deixou em aberto ("implementar
+posicionamento real, ou registrar a divergência e emendar a spec") se
+resolveu no primeiro, não no segundo, porque a divergência nunca existiu:
+era uma leitura errada da peça que a citava como prova do contrário.
 
 ## 7. Achados de processo desta rodada
 
@@ -259,6 +352,21 @@ morto — a Incidents screen a usa para outra coisa.
   mecanicamente, sem exceção de contexto**
   (`tests/unit/surfaces/masking.test.tsx`). `attention-decision-controls.tsx`
   e `attention.tsx` reescritos para "abre"/"aparece" em vez de "revela".
+- **Nesta terceira rodada (T042), `make verify` pegou uma violação real na
+  primeira tentativa**: `prettier --check` reprovou `incident-group-list.tsx`
+  e `subject-strip.test.tsx` (a nova assinatura de `RecurrenceStrip` e o
+  novo teste, ambos formatados à mão antes do gate correr). Corrigido com
+  `pnpm exec prettier --write` nos dois arquivos, sem tocar lógica; a
+  releitura confirmou `EXIT:0`. Citado aqui porque a primeira leitura deste
+  gate nesta rodada foi vermelha de verdade, não um exercício — exatamente o
+  tipo de coisa que este arquivo existe para não esconder.
+- **A notificação de tarefa em segundo plano mentiu de novo, pela terceira
+  vez identificada nesta onda**: ao reexecutar o acceptance spec para o
+  fechamento deste T042, a notificação relatou "exit code 0" para um
+  comando cujo próprio log termina em `EXIT:1` (Playwright sai != 0 quando
+  há teste vermelho — esperado aqui, são as seis falhas nomeadas de
+  `investigate.tsx`). Confirmado só pela leitura do log, nunca pela
+  notificação.
 
 ## 8. Declarações para o orquestrador aplicar no merge
 
@@ -481,3 +589,22 @@ verde nas duas vezes.
   skipped, 11 passed** (43.6s/43.9s nas duas últimas leituras, idênticas
   em contagem). Pulada: só AN-03. Vermelhas: só a família
   `investigate.tsx` (AN-01, AN-02, AN-04×2, AN-05, AN-14) — ver §8.
+
+### 10.1 Terceira rodada (T042) — reconfirmado, não apenas repetido
+
+- `make verify`: **verde**, lido do próprio log (não da notificação de
+  tarefa em segundo plano, que mentiu de novo — ver §7), no commit
+  `817d989f` em árvore limpa. `13128 passed, 32 skipped` no suíte principal
+  (idêntico à rodada anterior — este T042 não adiciona nem remove teste
+  Python), `38 passed, 13160 deselected` nos benchmarks (idêntico), zero
+  linha `FAILED`/`ERROR` no log inteiro.
+- `console_gate test`: **3228 passed | 9 skipped** — um a mais que a
+  rodada anterior (3227), exatamente o novo teste de posicionamento em
+  `subject-strip.test.tsx`.
+- Acceptance spec: reexecutado do zero nesta rodada, **6 failed, 1 skipped,
+  11 passed**, mesma contagem e as mesmas seis vermelhas nomeadas acima —
+  AN-11 e AN-12 confirmados `✓` na leitura do log. O T042 não muda essa
+  contagem porque AN-11/AN-12 nunca testaram posição, só visibilidade — a
+  prova de posição é o teste de unidade citado no §6.3, confirmado vermelho
+  duas vezes (antes de implementar, e de novo revertendo só a linha de
+  `subject-strip.tsx` depois) e verde depois de cada correção.
