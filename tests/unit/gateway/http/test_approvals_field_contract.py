@@ -96,7 +96,9 @@ def plane() -> Any:
     control_plane.restore(previous)
 
 
-def _action(*, action_id: str = "action-1", capability: str = SCALE) -> RemediationAction:
+def _action(
+    *, action_id: str = "action-1", capability: str = SCALE, operation: str = ""
+) -> RemediationAction:
     return RemediationAction(
         action_id=action_id,
         capability=capability,
@@ -112,6 +114,7 @@ def _action(*, action_id: str = "action-1", capability: str = SCALE) -> Remediat
         team_node_id=TEAM_PAYMENTS,
         risk_class="low",
         rollback_planned=True,
+        operation=operation,
     )
 
 
@@ -183,6 +186,41 @@ async def test_a_pending_approval_carries_every_field_the_shape_names(
     assert record["decided_at"] is None
     assert record["decided_by"] is None
     assert record["verdict"] is None
+
+
+async def test_the_first_step_does_not_repeat_the_why_sentence(
+    plane: _Plane, deployment: Deployment, client: AsyncClient
+) -> None:
+    """`intent` is the reviewer's "why" — the reason the capability's own
+    metadata declares approval is needed. The first step is what the action
+    executes. A card that prints the same sentence in both is a card that
+    reads as saying one thing twice rather than two things once each."""
+    desk = await _desk(deployment)
+    await desk.requests.queue(_action())
+
+    record = (await _list(client, deployment))["approvals"][0]
+    assert record["intent"] == "checkout is saturating its replicas"
+    assert record["steps"], "expected at least one step"
+    assert record["steps"][0]["summary"] != record["intent"]
+    assert record["steps"][0]["summary"] != ""
+
+
+async def test_the_first_step_names_the_capability_and_its_own_arguments(
+    plane: _Plane, deployment: Deployment, client: AsyncClient
+) -> None:
+    """Once the why sentence no longer sits in the step, the step still has
+    something genuine of its own to show: which capability runs, and against
+    which arguments — not a second copy of the justification."""
+    desk = await _desk(deployment)
+    await desk.requests.queue(
+        _action(operation="scale_workload(environment='production', replicas=4)")
+    )
+
+    record = (await _list(client, deployment))["approvals"][0]
+    step = record["steps"][0]
+    assert step["capability"] == SCALE
+    assert step["summary"] == "scale_workload(environment='production', replicas=4)"
+    assert step["summary"] != record["intent"]
 
 
 async def test_a_field_the_stored_document_never_named_reads_as_a_declared_absence(
