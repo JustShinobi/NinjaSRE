@@ -98,3 +98,43 @@ mover do valor tabelado também.
 perto de 1.9:1 sobre todo fundo escuro. É uma propriedade real do padrão
 aprovado, não um efeito colateral desta feature, e fica aqui para que
 ninguém a redescubra como defeito nem a "conserte" em silêncio.
+
+## 8. Dois desfechos de episódio que o board não desenha
+
+`Knowledge.dc.html` desenha um único desfecho — `inconclusivo`, em âmbar
+vazado — e o console o segue exatamente. Mas a enumeração que o produto
+declara tem quatro membros: `resolved`, `mitigated`, `inconclusive` e
+`false_positive`. Dois deles não têm desenho em lugar nenhum do board.
+
+**Onde eles vivem hoje.** O caminho de escrita de uma investigação real não
+produz nenhum dos dois: `MemoryEpisode.outcome` é `RESOLVED if resolved else
+INCONCLUSIVE` — um booleano. Quem os produz é o semeador da demonstração, que
+mapeia as palavras do próprio dataset (`platform/startup/demo/seeder.py`), e
+ele é alcançável de um root que serve: a rota de primeira execução e o comando
+de setup. Ou seja, um deployment real pode ter episódios `mitigated` e
+`false_positive` — no inquilino da demonstração, que é a primeira coisa que um
+operador novo vê.
+
+**O que foi decidido.** Os dois entram no mapa de status, com valores
+derivados do próprio vocabulário e não inventados:
+
+| Palavra | Papel | Forma | Por quê |
+|---|---|---|---|
+| `mitigated` | `warning` | `dimmed-circle` | o sintoma parou e a causa não foi consertada. Não é `success` pela mesma razão que `closed_without_action` não é: desenhar de verde uma coisa inacabada é como a taxa de sucesso de um deployment mente. Círculo porque a investigação terminou ali; esmaecido porque não é o que `resolved` afirma. |
+| `false_positive` | `neutral` | `dash` | o alerta estava errado e não havia o que consertar. Nada foi feito e nada é devido — o traço é o que isso significa em todo lugar onde ele aparece neste mapa. Quem precisa de atenção é o detector, não o ambiente. |
+
+**Por que os dois, e não um.** A recomendação que chegou primeiro era declarar
+só `mitigated`, com o argumento de que dois dos cinco episódios do dataset
+simulado são `mitigated` enquanto nada produz `false_positive`. O argumento é
+circular: aquele dataset diz `mitigated` porque foi editado para dizer, seguindo
+o mesmo mapeamento do semeador que também produz `false_positive`. Os dois estão
+na mesmíssima posição, e tratá-los de forma diferente registraria uma assimetria
+que o produto não tem.
+
+**O que isto não conserta, e é maior.** Uma investigação de verdade não
+consegue dizer "mitiguei" nem "era falso positivo" — o caminho de escrita
+colapsa quatro palavras num booleano. E essas são justamente as duas que um
+corpus de aprendizado mais precisa distinguir: um falso positivo é problema do
+detector, uma mitigação é um conserto pela metade. Enquanto o colapso existir,
+estas duas formas só aparecem na demonstração. Está registrado no confronto da
+onda, porque é lacuna de produto e não de desenho.
