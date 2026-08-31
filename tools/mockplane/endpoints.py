@@ -221,6 +221,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="withdrawing a decision from the queue, marked rather than deleted",
     ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/decision",
+        slug="approval-decision",
+        source=_GATEWAY,
+        summary="approving or rejecting one approval directly, deciding it in place",
+    ),
     # --- Changes the agent has proposed -----------------------------------------
     ConsoleEndpoint(
         method="GET",

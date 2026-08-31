@@ -201,7 +201,24 @@ test.describe('AN-06 — a pending, unexpired decision shows Approve and Reject'
   test('the pending card in the mock queue is decidable', async ({ page }) => {
     const card = await cardInState(page, 'pending');
     if (card === null) {
-      test.skip(true, 'the mock queue holds no pending, unexpired approval right now');
+      // Not a data accident this run happens not to hit: `approvals.tsx`
+      // only ever expands `queue[0]` of `[...expired, ...pending]`, and
+      // every built scenario's own dataset carries two expired decisions
+      // ahead of any pending one (FR-016's live-origin and dead-origin
+      // pair). No built scenario can put a pending card in this slot
+      // without first discarding both away — a structural property of the
+      // queue and the dataset, not a condition that resolves by choosing a
+      // different one. `decision-card.test.tsx` ("a pending, unexpired
+      // decision" / "composes IncidentDecisionControls, unedited, when
+      // there is no open interaction") is what proves this claim's render
+      // at the unit level today; the click-through test at the end of this
+      // file proves it live, by discarding both expired decisions through
+      // the same courier the expired footer itself posts to and then
+      // deciding the pending card that becomes the hero.
+      test.skip(
+        true,
+        'the combined queue always opens on an expired decision while any exists, and every built scenario carries two — this shape cannot occur here by construction, not by chance',
+      );
       return;
     }
     // Both live decision paths compose without edits: an approval whose run
@@ -494,4 +511,109 @@ test.describe('Edge case — several pending decisions: the oldest expanded, the
     await expect(expanded).toHaveCount(1);
     await expect(collapsed).toHaveCount(total - 1);
   });
+});
+
+// =============================================================================
+// IncidentDecisionControls — deciding a pending approval with no open run
+// =============================================================================
+
+test.describe('IncidentDecisionControls decides a pending approval directly, not through an interaction', () => {
+  test(
+    'rejecting the card posts to the approval store and the card leaves the pending queue',
+    async ({ page }) => {
+      // Arrange. Reach a hero card that is pending with no open
+      // interaction — the shape `decisionFor` (`approvals.tsx`) composes
+      // `IncidentDecisionControls` for, and the only decide-in-place shape
+      // a deployment with no live run (staging, today) ever offers. The
+      // combined queue always opens on an expired decision while any
+      // exists (both built-in ones do), so this reaches that shape itself
+      // — through the same courier `ExpiredFooterControls` already posts
+      // to for every repropose and discard, never a fabricated write path.
+      await page.goto('/decisions?tab=actions');
+      const liveOriginExpired = page
+        .getByTestId('decision-card')
+        .and(page.locator('[data-state="expired"]'));
+      await expect(liveOriginExpired).toBeVisible();
+      const originId = await liveOriginExpired.getAttribute('data-approval');
+
+      const reproposed = await page.request.post('/api/approval', {
+        data: { operation: 'repropose', target: originId, payload: {} },
+      });
+      expect(reproposed.ok()).toBe(true);
+      const freshId = stringField(await reproposed.json(), 'approval_id');
+      expect(freshId).not.toBe('');
+      expect(freshId).not.toBe(originId);
+
+      // Both expired decisions have to go: the origin just reproposed
+      // (reproposing never removes it from `state=expired`) and the one
+      // whose origin cannot be rebuilt. Neither discard depends on the
+      // other's order.
+      for (let cleared = 0; cleared < 2; cleared += 1) {
+        await page.goto('/decisions?tab=actions');
+        const hero = page
+          .getByTestId('decision-card')
+          .and(page.locator('[data-state="expired"]'));
+        await expect(hero).toBeVisible();
+        const expiredId = await hero.getAttribute('data-approval');
+        const discarded = await page.request.post('/api/approval', {
+          data: { operation: 'discard', target: expiredId, payload: {} },
+        });
+        expect(discarded.ok()).toBe(true);
+      }
+
+      // The hero is now the freshly reproposed decision. Its run carries
+      // only a closed interaction, so `decisionFor` finds no open one and
+      // composes `IncidentDecisionControls` — unedited, exactly as
+      // `approvals.tsx` composes it for staging today.
+      await page.goto('/decisions?tab=actions');
+      const hero = page
+        .getByTestId('decision-card')
+        .and(page.locator(`[data-approval="${freshId}"]`));
+      await expect(hero).toHaveAttribute('data-state', 'pending');
+
+      const controls = hero.getByTestId('decision-control');
+      await expect(controls).toHaveCount(2);
+      const approve = controls.first();
+      const reject = controls.last();
+      await expect(approve).toBeEnabled();
+      // Disabled until a reason is typed — the console's own gate ahead of
+      // the same rule the gateway enforces: rejecting with no reason is
+      // refused.
+      await expect(reject).toBeDisabled();
+
+      // Act. A real click, not a simulated event — the first one this
+      // control has ever received in this suite.
+      await hero
+        .getByLabel('Why it is being rejected')
+        .fill('Wrong volume; the alert misidentified the guest.');
+      await expect(reject).toBeEnabled();
+
+      const [decisionResponse] = await Promise.all([
+        page.waitForResponse(
+          (res) => res.url().includes('/api/approval') && res.request().method() === 'POST',
+        ),
+        reject.click(),
+      ]);
+      expect(decisionResponse.ok()).toBe(true);
+
+      // Assert. The write actually landed. A fresh navigation rather than
+      // trusting the in-place `router.refresh()` this control already
+      // triggers on its own: this session's reproposed id is shared with
+      // whichever other test in this file reproposed the same live-origin
+      // expired decision first (the mock hands out one fixed fresh id per
+      // origin, `REPROPOSED_APPROVAL_ID`), so the combined queue can carry
+      // this id twice for one render, and a soft refresh reconciling a
+      // list that briefly held a duplicate key is not the claim this test
+      // makes. The card left the pending queue, and the decision reads
+      // back from "Decided recently" as a rejection — not just that a
+      // button existed to click.
+      await page.goto('/decisions?tab=actions');
+      await expect(page.locator(`[data-approval="${freshId}"]`)).toHaveCount(0);
+      const decided = page
+        .getByTestId('decided-item')
+        .and(page.locator('[data-verdict="rejected"]'))
+        .filter({ hasText: 'Grow the volume that is at the ceiling of its own allocation.' });
+      await expect(decided).toBeVisible();
+    },
+  );
 });

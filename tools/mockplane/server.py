@@ -97,6 +97,11 @@ _DEFAULT_APPROVAL_WINDOW: Final = timedelta(hours=4)
 #: same synthetic operator the dataset's own decided fixtures already use.
 _MOCK_DECIDER: Final = "user-operator"
 
+#: The verdicts `POST /v1/approvals/{approval_id}/decision` accepts — mirrors
+#: `gateway/http/routes/approvals.py`'s own `_VERDICTS` literal rather than
+#: importing a module-private name across a tool boundary.
+_DECISION_VERDICTS: Final = frozenset({"approve", "reject"})
+
 #: Where the mock's own telemetry answers. Resolved before the gateway's route
 #: matching and never handed to it, so a caller asking "did the console reach
 #: you" cannot collide with a path the console itself requests — no served
@@ -970,6 +975,64 @@ class MockPlane:
                         {"state": "decided", "limit": "10"},
                         lambda document: document,
                     )
+            case "approval-decision":
+                # `IncidentDecisionControls` — the only decide-in-place path
+                # staging exercises for a real approval today, since staging
+                # has no live run for a decision to answer through an
+                # interaction instead (`gateway/http/routes/approvals.py`'s
+                # own module docstring). Never reached by the mock before
+                # this case existed: `answer()` returned a bare 404 for every
+                # `POST .../decision`, so no acceptance run ever proved this
+                # button does anything.
+                target_id = arguments.get("approval_id", "")
+                verdict = str((body or {}).get("verdict", "")) if body is not None else ""
+                if target_id == "" or verdict not in _DECISION_VERDICTS:
+                    return
+                now = datetime.now(UTC)
+                decision_reason = str((body or {}).get("reason") or "") or None
+                verdict_state = "approved" if verdict == "approve" else "rejected"
+                # A decision only ever answers a *pending* approval — an
+                # expired one goes through `approval-repropose`/
+                # `approval-discard` instead (FR-014) — so only the bare and
+                # `pending` buckets can hold this id.
+                for bucket in ({}, {"state": "pending"}):
+                    amend(
+                        "approvals",
+                        bucket,
+                        lambda document: _remove_approval(document, target_id),
+                    )
+                origin = self._lookup_slug("approval-detail", {"approval_id": target_id}, session)
+                if origin is not None and isinstance(origin.body, Mapping):
+                    decided = json.loads(json.dumps(origin.body))
+                    decided.update(
+                        {
+                            "state": verdict_state,
+                            "verdict": verdict_state,
+                            "decided_at": now.isoformat(),
+                            "decided_by": _MOCK_DECIDER,
+                            "reason": decision_reason,
+                        }
+                    )
+                    store.written[
+                        ("approval-detail", arguments_key({"approval_id": target_id}))
+                    ] = origin.with_body(decided)
+                    amend(
+                        "approvals",
+                        {"state": "decided", "limit": "10"},
+                        lambda document: _prepend(document, "approvals", decided),
+                    )
+                else:
+                    amend(
+                        "approvals",
+                        {"state": "decided", "limit": "10"},
+                        lambda document: document,
+                    )
+                # Same fallback hazard `approval-repropose`/`approval-discard`
+                # guard against: a pending decision is never in `expired`,
+                # but that bucket still needs its own exact-match override,
+                # or a later `?state=expired` read falls through to the bare
+                # bucket this write just changed.
+                amend("approvals", {"state": "expired"}, lambda document: document)
             case _:
                 return
 

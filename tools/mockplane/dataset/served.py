@@ -1552,6 +1552,28 @@ def interaction_records() -> tuple[CapturedRecord, ...]:
             method="POST",
         )
     )
+    # Deciding an approval directly — the path staging exercises for every
+    # real approve and reject today, since staging has no live run for a
+    # decision to answer through an interaction instead
+    # (`gateway/http/routes/approvals.py::decide_approval`). One generic
+    # (fixture-default) success record, the same simplification
+    # `proposal-decision` above already makes for the same reason: the served
+    # answer is the same shape either way, and which verdict actually landed
+    # is what the `approvals` buckets `server.py`'s write simulation rewrites
+    # answer on the next read, not this response's own body.
+    records.append(
+        _record(
+            "approval-decision",
+            {},
+            {
+                "approval_id": "",
+                "state": "approved",
+                "decided_at": at(),
+                "decided_by": "user-operator",
+            },
+            method="POST",
+        )
+    )
     return tuple(records)
 
 
