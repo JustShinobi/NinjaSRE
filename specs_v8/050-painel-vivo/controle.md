@@ -1,23 +1,30 @@
 # Controle — 050-painel-vivo
 
-Estado verificado contra o código atual em `wt/v8-050-painel-vivo`. `make
-verify` confirmado verde no commit `86965248` (log completo preservado fora
-do repositório); os commits de documentação que seguem não tocam código.
-Este arquivo é reescrito a cada commit; a versão que importa é a do commit
-mais recente.
+Estado verificado contra o código atual em `wt/v8-050-painel-vivo`, commit
+`15981428`. `make verify` confirmado verde duas vezes nesta rodada — uma
+antes da convergência (`86965248`), uma depois, em árvore limpa e sem
+nenhuma modificação concorrente (`b5b5d967`) — log completo preservado fora
+do repositório em ambos os casos. Este arquivo é reescrito a cada commit; a
+versão que importa é a do commit mais recente.
 
-Esta rodada fechou os quatro itens que a rodada anterior deixou abertos
+Duas rodadas de trabalho estão registradas aqui. A primeira fechou os
+quatro itens que a rodada anterior tinha deixado abertos
 (`activity-feed.tsx`, `screens.json`, `make verify`, `test_console_gate.py`),
 corrigiu três defeitos reais que a suíte de aceitação expôs em componentes
-que a rodada anterior tinha marcado como prontos (`kpi-tiles.tsx`,
-`subject-strip.tsx`, `attention.tsx`) e, numa segunda parte pedida
-explicitamente pelo orquestrador depois de uma correção de rumo, **compôs
-`KpiTiles` e `SubjectStrip` em `dashboard.tsx`** — a lacuna que a rodada
-anterior tinha deixado nomeada. Duas alegações fecham por causa disso
-(AN-09, AN-15). As seis que continuam vermelhas (AN-01, AN-02, AN-04×2,
-AN-05, AN-14) são uma descoberta desta rodada, confirmada pelo orquestrador
-lendo o próprio código, e são dependência declarada de
-**070-iniciar-investigacao** — não desta feature.
+já marcados como prontos (`kpi-tiles.tsx`, `subject-strip.tsx`,
+`attention.tsx`) e, depois de uma correção de rumo do orquestrador, **compôs
+`KpiTiles` e `SubjectStrip` em `dashboard.tsx`**. A segunda é uma
+convergência (T038–T041, §9): mediu o efeito no corpus sintético (Artigo
+XII.3), escreveu o teste comportamental que faltava para
+`EstateSnapshotStore`, resolveu a colisão de estado compartilhado entre
+AN-07/AN-08, e deu ao dataset simulado um assunto genuinamente recorrente —
+o que por sua vez expôs e exigiu corrigir uma suposição que dois testes de
+reprodutibilidade do próprio repositório faziam (§9.5). O acceptance spec
+está agora em **6 failed, 1 skipped, 11 passed** — de 12 failed/4 skipped/2
+passed no início de tudo. As seis que continuam vermelhas (AN-01, AN-02,
+AN-04×2, AN-05, AN-14) são dependência declarada de
+**070-iniciar-investigacao**, confirmada pelo orquestrador lendo o próprio
+código — não desta feature.
 
 ## 0. Duas decisões já resolvidas, inalteradas — não relitigar
 
@@ -41,6 +48,16 @@ Inalterado: `plan.md` decisão 4 cita `POST /v1/interactions/{id}/approve`;
 o código sempre usou `POST /v1/approvals/{approval_id}/decision`, via
 `/api/approval`, porque uma remediação proposta é um `ApprovalRequest`, não
 uma interação de run vivo.
+
+### 0.3 Um segundo defeito do plan.md, achado pela convergência
+
+`plan.md` ("Qual composition root constrói isto") cita
+`gateway/http/security/route_permissions.py:98` como onde a permissão de
+`GET /v1/overview` é declarada. A permissão está, de fato, declarada — mas
+em `gateway/http/security/console_routes.py`, não em `route_permissions.py`.
+A rota sobe corretamente e `UndeclaredRoute` continua protegendo contra uma
+rota sem permissão declarada; é a referência do plano que está desatualizada,
+não o código. Achado pela convergência lendo o código, não por mim.
 
 ## 1. Peça por peça
 
@@ -286,3 +303,181 @@ morto — a Incidents screen a usa para outra coisa.
   permanecem `it.skip` com a razão na própria linha.
 - **Chaves i18n órfãs, inalterado**: `dashboard.attention.*` e
   `dashboard.band.*` continuam sem consumidor. Não removidas.
+
+## 9. Convergência (T038–T041)
+
+Quatro tarefas anexadas por `speckit-converge` (append-only, `tasks.md`
+Phase 6), depois de uma leitura independente do código — não da minha
+palavra. As quatro foram trabalhadas, nenhuma outra coisa foi tocada.
+
+### 9.1 T038 — o efeito no corpus sintético, medido (Artigo XII.3)
+
+`make verify`'s própria cadeia de dependências não inclui `test-synthetic`
+— confirmado lendo o `Makefile`: `verify` depende de `test`, que é só
+`pytest`; `test-synthetic` é um alvo à parte. Um `make verify` verde nunca
+tinha medido isto, e T003/T031 diziam isso mesmo, em aberto, desde o
+início.
+
+`make test-synthetic` (offline, sem credenciais):
+
+```
+level solve rate  attempts
+1     100%        1        A single obvious cause with corroborating evidence.
+2     100%        2        One planted confounder that must be explicitly ruled out.
+3     100%        1        Several plausible causes requiring evidence to discriminate.
+4     100%        1        The most prominent signal is misleading; the true cause is secondary.
+
+5/5 attempts passed (100%) in 0.1s
+SYNTHETIC_EXIT=0
+```
+
+**O efeito, dito como efeito, não como um código de saída**: nenhum. 5/5
+cenários resolvidos nos quatro níveis de dificuldade declarados, taxa de
+100% em todos. Esperado — esta feature não toca o loop de raciocínio ou de
+chamada de ferramentas que o corpus sintético exercita; ela adiciona uma
+tela de console, um endpoint de leitura (`GET /v1/overview`) e um escritor
+de fotografia diária do estate, nenhum dos quais o investigador atravessa
+durante uma investigação. Evidência: `evidence/test-synthetic.log`. Fecha
+T003 e T031 de fato — "não medido" deixa de ser verdade.
+
+### 9.2 T039 — o teste comportamental do `EstateSnapshotStore`
+
+`tests/contract/persistence/test_estate_daily_snapshot.py`, novo, 6/6 verde
+contra `[fakes]` (Postgres inalcançável nesta worktree, inalterado — ver
+§5). Prova, lendo o comportamento real de `FakeEstateSnapshotStore` e
+`PostgresEstateSnapshotStore` antes de escrever cada asserção, não supondo:
+
+- gravar duas vezes no mesmo `(org_id, snapshot_date)` confirma a primeira
+  gravação em vez de sobrescrever — `record()` devolve o valor realmente
+  armazenado, nunca o argumento que a segunda chamada ofereceu;
+- dias distintos geram linhas distintas;
+- `list_daily` devolve a série do mais antigo para o mais novo,
+  independente da ordem de escrita;
+- dias fora de `[since, until]` são excluídos;
+- quando mais dias existem do que `limit` permite, os mantidos são os mais
+  antigos dentro da janela pedida — a mesma regra
+  `ORDER BY snapshot_date ASC LIMIT` que o Postgres usa, e o mesmo
+  `sort()` + fatiamento que o fake usa;
+- um `limit` acima de `MAX_OVERVIEW_DAILY_BUCKETS` levanta `BoundExceeded`.
+
+### 9.3 T040 — a colisão de estado compartilhado AN-07/AN-08
+
+Confirmado exatamente como a convergência descreveu: AN-08
+(`painel-vivo.acceptance.spec.ts`) nunca chama `attention-reject-submit` —
+só verifica que o campo de razão aparece e que o botão de envio fica
+desabilitado até haver texto. Reordenado para rodar antes de AN-07 no
+arquivo (a numeração da alegação não mudou, só a ordem de execução, com um
+comentário explicando por quê). Resultado real: AN-08 passa agora; AN-07
+continua passando, decidindo a mesma aprovação que AN-08 deixou pendente.
+
+### 9.4 T041 — um assunto genuinamente recorrente no dataset `populated`
+
+`incidents.json` tinha 10 incidentes com 10 `correlation_key`s distintas —
+uma por detector, por desenho deliberado de `_incidents()` ("Grouped by
+detector rather than by subject"). Nenhuma janela de tempo resolveria isso:
+`groupBySubject(...).filter(g => g.count > 1)` estava estruturalmente
+sempre vazio, o que é a causa real de AN-11/AN-12 pularem, não (só) a data
+fixa decair.
+
+`_recurring_incidents()`, nova em `tools/mockplane/capture/projection.py`:
+três disparos de um alerta (`RedisExporterDown`) num mesmo convidado,
+compartilhando uma `correlation_key`. Cronometrados **para trás através do
+deslocamento fixo do pipeline de anonimização**, não para frente a partir
+da captura — o `opened_at` bruto é calculado como
+`(agora - horas_atrás) - offset`, onde `offset = reference_instant() -
+captured_at` é a MESMA constante que todo outro timestamp do dataset já
+recebe — de forma que, depois do `shift()` do pipeline somar esse mesmo
+offset de volta, o valor que sobra no arquivo committed lê como "agora do
+relógio real menos algumas horas". Arredondado ao minuto (não ao
+microssegundo) para que duas construções próximas no tempo continuem
+produzindo o mesmo byte. Anexado depois de `_unattended_alert_incident`,
+nunca antes — `incidents[0]` é o que o seeder de demonstração anexa um run
+a, e não podia mudar de identidade.
+
+**Efeito colateral achado e corrigido no caminho**: `now-violations` (um
+dos nove cenários declarados, fora de `BUILT_SCENARIOS` — não é
+reconstruído por `mockplane build`) deriva de `populated`
+(`fixtures/scenarios/manifest.json`) e não declara seu próprio
+`incident-detail`, então sempre respondia esse endpoint com o que
+`populated` tivesse. Seu próprio `incidents.json`, congelado desde antes
+desta rodada, listava os 10 incidentes originais mais um que é a própria
+razão do cenário existir (um identificador hexadecimal, para testar algo
+sobre vocabulário/"now"). Com os 3 novos incidentes em `populated`, o
+`incident-detail` herdado passou a nomear incidentes que a própria
+declaração de `now-violations` não tinha — `mockplane verify` pegou isso
+(`now-violations: incident-detail/incident/incident_id refers to incident
+'...'`, 3 problemas). `sync_now_violations_incidents()`, nova em
+`tools/mockplane/dataset/build.py`, mantém só esse um arquivo em dia — lê
+`now-violations`'s próprio incidente extra de volta, funde com os
+incidentes atuais de `populated`, e escreve via `write_fixture` (o único
+caminho sancionado, `tests/architecture/test_one_fictional_deployment.py`
+continua verde) — sem tocar os outros três arquivos do cenário nem o
+incidente que ele próprio adiciona. Roda automaticamente sempre que
+`populated` é reconstruída, guardado para nunca rodar contra uma raiz de
+teste temporária (nenhum `now-violations` comprometido existe lá para ler
+de volta, e nada valida esse cenário ali de qualquer forma).
+
+### 9.5 O preço da reprodutibilidade — achado tarde, corrigido, não escondido
+
+**Confirmando o pedido explícito do orquestrador**: sim, o dataset ainda
+regenera limpo depois desta mudança no gerador — mas a resposta precisa é
+mais específica do que "sim".
+
+`fixtures/scenarios/populated/overview.json` continua **perfeitamente
+byte-idêntico**, para sempre: mesmo SHA-256
+(`5729fdb2b1e9acd3053e71ba70f5f79a85736889bacf66e3084ef398b3dd18b8`) antes e
+depois de T041, porque `_recurring_incidents` não o toca.
+
+`incidents.json`, `incident-detail.json` (ambos de `populated`) e o
+`incidents.json` de `now-violations` **não são mais byte-idênticos ao
+longo do tempo, por desenho** — só os três campos `opened_at` (e os
+`timeline[].at` correspondentes) dos três disparos recorrentes mudam a
+cada minuto civil diferente em que `mockplane build` roda. É exatamente a
+mesma troca que `dashboardWithLiveIncidents`'s `hoursAgo(n)` já fez no
+suite de unidade: a data fixa que decai é pior do que um valor que se
+move, para um dado cuja função é ficar dentro de uma janela de 48h medida
+contra o relógio real. Confirmado com `git status --short` vazio logo após
+duas reconstruções na mesma execução (nada além dos três campos muda);
+confirmado de novo com `sha256sum` idêntico para `overview.json`
+especificamente.
+
+**O que isto quebrou, e que eu só achei rodando os testes deste próprio
+repositório, não por antecipação**: dois testes de reprodutibilidade que
+já existiam —
+`test_rebuilding_the_dataset_reproduces_what_is_committed` e
+`test_two_builds_of_one_scenario_are_byte_identical`
+(`tests/contract/fixtures/test_dataset_coherence.py`) — comparavam bytes
+crus, sem exceção. O primeiro passou por sorte na minha primeira leitura
+(rodei dentro do mesmo minuto civil do commit); falhou de verdade na
+segunda, minutos depois, e falhou de novo isolado, provando que não era
+uma corrida (eu tinha, por engano, rodado uma reconstrução manual
+concorrente com um `make verify` em andamento — descartei essa hipótese
+rodando o teste sozinho, em árvore limpa, sem nada concorrente, e ele
+falhou do mesmo jeito). **Corrigido nos dois testes, não relaxando a
+asserção em geral** — uma função nomeada
+(`_body_without_wall_clock_timestamps`) apaga exatamente os campos que
+`_recurring_incidents` declara serem relativos ao relógio, nos dois
+formatos envolvidos (`incidents.json`'s lista, `incident-detail.json`'s
+`incident` + `timeline`), e só para o `correlation_key` que carrega a
+marca `RedisExporterDown` — qualquer outro byte do dataset que divergisse
+continuaria fazendo os dois testes falharem exatamente como antes.
+Confirmado depois de uma sequência real de 121 testes (16s) e uma
+reconstrução fresca, ambas cruzando minutos civis diferentes do commit —
+verde nas duas vezes.
+
+## 10. `make verify`, `test_console_gate.py` e o acceptance spec — o estado final
+
+- `make verify`: **verde**, `MAKE_VERIFY_EXIT=0`, no commit `b5b5d967`,
+  rodado em árvore limpa, sem nenhuma modificação concorrente desta vez
+  (a rodada anterior, contaminada pelo meu próprio experimento de
+  reprodutibilidade em paralelo, foi descartada e não é citada como
+  evidência). `13128 passed, 32 skipped` (+6 sobre a rodada anterior, os
+  seis novos testes de T039), `38 passed` nos benchmarks, `3227 passed | 9
+  skipped` no console.
+- `test_console_gate.py`: inalterado desde a rodada anterior — 17/17,
+  1411.32s reais — nada nesta rodada de convergência tocou nada que aquele
+  gate cobre.
+- Acceptance spec, `evidence/acceptance-current-state.log`: **6 failed, 1
+  skipped, 11 passed** (43.6s/43.9s nas duas últimas leituras, idênticas
+  em contagem). Pulada: só AN-03. Vermelhas: só a família
+  `investigate.tsx` (AN-01, AN-02, AN-04×2, AN-05, AN-14) — ver §8.
