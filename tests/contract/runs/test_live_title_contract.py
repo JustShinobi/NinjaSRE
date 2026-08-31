@@ -267,9 +267,43 @@ class TestTheListKnowsWhatStageALiveRunReached:
         assert response.json()["last_completed_stage"] == "plan_evidence"
         assert response.json()["stage_index"] == 3
 
-    async def test_a_freshly_started_run_reports_no_stage_yet(
+    async def test_get_v1_runs_reports_the_same_stage_the_console_actually_reads(
         self, deployment: Deployment
     ) -> None:
+        # The console's list screens (runs, agent, memory, incidents,
+        # dashboard) all read GET /v1/runs, never GET /v1/investigations —
+        # confirmed by grep across console/src/surfaces/screens/*.tsx and
+        # console/src/shell/load.ts. A field that only reached
+        # /v1/investigations would exist in the API and nowhere the product
+        # actually shows it (Article XIV).
+        async with deployment.gateway.begin(_scope()) as uow:
+            recorder = RunRecorder(store=uow.run_traces)
+            await recorder.start_run(
+                trigger=TRIGGER_INTERACTIVE,
+                principal_id="operator-1",
+                team_node_id=TEAM,
+                run_id="run-via-runs-list",
+                objective="Investigate node pressure",
+            )
+            for stage in ("resolve_integrations", "intake"):
+                await recorder.record_stage(run_id="run-via-runs-list", stage=stage)
+
+        listing = await deployment.client.get(
+            "/v1/runs", headers=bearer(deployment.operator_secret)
+        )
+        detail = await deployment.client.get(
+            "/v1/runs/run-via-runs-list", headers=bearer(deployment.operator_secret)
+        )
+
+        listed = next(
+            item for item in listing.json()["runs"] if item["run_id"] == "run-via-runs-list"
+        )
+        assert listed["last_completed_stage"] == "intake"
+        assert listed["stage_index"] == 2
+        assert detail.json()["last_completed_stage"] == "intake"
+        assert detail.json()["stage_index"] == 2
+
+    async def test_a_freshly_started_run_reports_no_stage_yet(self, deployment: Deployment) -> None:
         async with deployment.gateway.begin(_scope()) as uow:
             recorder = RunRecorder(store=uow.run_traces)
             await recorder.start_run(

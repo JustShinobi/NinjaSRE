@@ -6,6 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signIn } from './session';
 import {
   identifierAsName,
+  inventedRunTitle,
   liveControlOnTerminalRun,
   negativeAssertionAfterFailedRead,
   rawMarkdown,
@@ -172,6 +173,7 @@ type Rule =
   | 'value-column'
   | 'markdown'
   | 'identifier-as-name'
+  | 'invented-run-title'
   | 'two-placeholders'
   | 'live-control'
   | 'negative-assertion';
@@ -729,6 +731,44 @@ test.describe('identificador como nome: nothing here is a name only because it i
       expect(
         found,
         `${label} shows an identifier standing in for a name: "${found ?? ''}"`,
+      ).toBeNull();
+    });
+  }
+});
+
+// --- Rule: invented run title --------------------------------------------
+
+test.describe('titulo inventado: no run title is a sentence invented from its own trigger', () => {
+  for (const label of NOW_LABELS) {
+    test(label, { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+      test.fixme(
+        exceptionFor(label, 'invented-run-title') !== undefined,
+        exceptionFor(label, 'invented-run-title')?.reason ?? '',
+      );
+
+      await openNowLabel(page, label);
+
+      let found: string | null = null;
+      for (const line of await pageHeaderLines(page)) {
+        found = inventedRunTitle(line);
+        if (found !== null) break;
+      }
+      if (found === null) {
+        for (const cells of await rowCells(page)) {
+          for (const cell of cells) {
+            // Same first-line convention as identifier-as-name above: index
+            // 0's cell also carries the row link's screen-reader-only
+            // "Open" label on its own line.
+            const value = cell.split('\n')[0]?.trim() ?? '';
+            found = inventedRunTitle(value);
+            if (found !== null) break;
+          }
+          if (found !== null) break;
+        }
+      }
+      expect(
+        found,
+        `${label} shows an invented run title: "${found ?? ''}"`,
       ).toBeNull();
     });
   }

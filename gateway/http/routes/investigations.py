@@ -9,7 +9,7 @@ a single step.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import StreamingResponse
@@ -138,9 +138,11 @@ async def stages_of(run_ids: Sequence[str], uow: Any) -> Mapping[str, str]:
     A thin pass-through kept here so every reader of this module's
     ``InvestigationSummary`` fetches stages the same way — a list that
     called the store directly would be a second place this batching rule
-    could be forgotten.
+    could be forgotten. ``uow`` is untyped here the same way ``linked_summary``
+    below takes it, so the store's own return type is made explicit again on
+    the way out rather than surfacing as ``Any``.
     """
-    return await uow.run_traces.last_completed_stages(run_ids)
+    return cast(Mapping[str, str], await uow.run_traces.last_completed_stages(run_ids))
 
 
 def with_stage(summary: InvestigationSummary, stage: str) -> InvestigationSummary:
@@ -221,9 +223,7 @@ async def list_investigations(
         shown = [run for run in runs if visible(run, auth)]
         stages = await stages_of([run.run_id for run in shown], uow)
     return InvestigationList(
-        investigations=[
-            with_stage(summary_of(run), stages.get(run.run_id, "")) for run in shown
-        ]
+        investigations=[with_stage(summary_of(run), stages.get(run.run_id, "")) for run in shown]
     )
 
 

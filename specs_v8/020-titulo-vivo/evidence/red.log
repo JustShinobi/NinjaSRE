@@ -136,3 +136,47 @@ Nenhum fio ficou cortado no commit do resgate.
   batching. Pendente se houver tempo.
 - Round-trip de `objective` em T004 (persistência): implementado e coberto,
   não desconectado manualmente.
+
+--- 9. Corte de fio manual #5: contagem de queries (N+1) em list_investigations ---
+
+Mudança: substituí a chamada única `stages = await stages_of([run.run_id for
+run in shown], uow)` por um laço `for run in shown: one = await
+stages_of([run.run_id], uow)` — uma chamada por run, simulando exatamente o
+N+1 que o batching existe para evitar.
+
+$ uv run pytest "tests/contract/runs/test_live_title_contract.py::TestTheListKnowsWhatStageALiveRunReached::test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls" -v
+
+FAILED test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls
+    assert calls["last_completed_stages"] == 1
+    AssertionError: assert 50 == 1
+
+Restaurado (`stages = await stages_of([run.run_id for run in shown], uow)`
+antes do laço). Confirmei `grep -c WIRE-CUT` = 0 depois.
+
+--- 10. Corte de fio manual #6: round-trip de `objective` no Postgres (T004) ---
+
+Mudança em platform/persistence/postgres/repositories/run_trace_store.py,
+start_run: `objective=run.objective,` -> `objective="",  # WIRE-CUT` na
+construção de `models.AgentRun`.
+
+$ uv run pytest "tests/contract/persistence/test_run_trace_store.py::test_starting_a_run_with_an_objective_persists_it" -v --postgres
+
+FAILED test_starting_a_run_with_an_objective_persists_it[postgres]
+    assert reread.objective == "Find the leak in checkout"
+    AssertionError: assert '' == 'Find the leak in checkout'
+PASSED test_starting_a_run_with_an_objective_persists_it[fakes]
+    (o fake guarda o dataclass inteiro, então não é afetado por este corte —
+    isola corretamente o mecanismo específico do Postgres, sem falso-negativo)
+
+Restaurado. Rodei de novo contra Postgres real (--postgres, docker local):
+2 passed (fakes + postgres) — a migração 0020 também aplicou de novo sem
+erro nessa segunda rodada, confirmando a cadeia de revisões.
+
+--- 11. Varredura final: nenhum corte de fio sobrou em nenhuma linguagem ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" --include="*.ts" --include="*.tsx" .
+(nenhum resultado — grep saiu com status 1)
+
+Todos os seis mecanismos de backend e o detector novo do console foram
+cortados à mão, confirmados vermelhos com a mensagem real, e restaurados
+para verde antes de seguir.

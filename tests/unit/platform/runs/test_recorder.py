@@ -212,6 +212,129 @@ async def test_a_secret_in_a_payload_is_removed_before_it_is_stored(
     assert "[REDACTED]" in str(call.arguments)
 
 
+async def test_the_objective_is_stored_and_becomes_the_provisional_headline(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    writer = recorder(uow, clock)
+
+    run = await writer.start_run(
+        trigger=TRIGGER_ALERT,
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+        objective="Investigate checkout latency",
+    )
+
+    stored = await uow.run_traces.get_run(run.run_id)
+    assert stored is not None
+    assert stored.objective == "Investigate checkout latency"
+    assert stored.headline == "Investigate checkout latency"
+
+
+async def test_alert_labels_become_the_provisional_headline_never_the_objective(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    writer = recorder(uow, clock)
+
+    run = await writer.start_run(
+        trigger=TRIGGER_ALERT,
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+        alert_labels={"alertname": "RedisExporterDown", "instance": "redis-1"},
+    )
+
+    stored = await uow.run_traces.get_run(run.run_id)
+    assert stored is not None
+    assert stored.headline == "RedisExporterDown on redis-1"
+    assert stored.objective == ""
+
+
+async def test_a_secret_in_the_objective_is_redacted_before_the_headline_is_derived(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    # The same marker the payload-redaction test above uses, so this exercises
+    # the identical rule rather than a stand-in pattern invented for this test.
+    ruleset = Ruleset(
+        rules=(
+            GuardrailRule(
+                name="aws-access-key",
+                patterns=(re.compile(r"AKIA[0-9A-Z]{16}"),),
+                action=GuardrailAction.REDACT,
+                replacement="[REDACTED]",
+            ),
+        )
+    )
+    writer = recorder(uow, clock, guardrails=GuardrailEngine(ruleset=ruleset))
+
+    run = await writer.start_run(
+        trigger=TRIGGER_ALERT,
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+        objective="Rotate the key AKIAIOSFODNN7EXAMPLE before it leaks further",
+    )
+
+    stored = await uow.run_traces.get_run(run.run_id)
+    assert stored is not None
+    assert "AKIAIOSFODNN7EXAMPLE" not in stored.objective
+    assert "[REDACTED]" in stored.objective
+    assert "AKIAIOSFODNN7EXAMPLE" not in stored.headline
+    start_events = [
+        event
+        for event in (await uow.run_traces.events_for_run(run.run_id))
+        if event.kind == TraceEventKind.RUN_STARTED.value
+    ]
+    assert start_events, "no run_started event was recorded"
+    assert "AKIAIOSFODNN7EXAMPLE" not in str(start_events[0].payload)
+    assert set(start_events[0].payload) == {"trigger", RUN_METADATA_TEAM}
+
+
+async def test_a_secret_in_an_alert_label_is_redacted_before_the_headline_is_derived(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    ruleset = Ruleset(
+        rules=(
+            GuardrailRule(
+                name="aws-access-key",
+                patterns=(re.compile(r"AKIA[0-9A-Z]{16}"),),
+                action=GuardrailAction.REDACT,
+                replacement="[REDACTED]",
+            ),
+        )
+    )
+    writer = recorder(uow, clock, guardrails=GuardrailEngine(ruleset=ruleset))
+
+    run = await writer.start_run(
+        trigger=TRIGGER_ALERT,
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+        alert_labels={"alertname": "DiskFull", "instance": "AKIAIOSFODNN7EXAMPLE"},
+    )
+
+    stored = await uow.run_traces.get_run(run.run_id)
+    assert stored is not None
+    assert "AKIAIOSFODNN7EXAMPLE" not in stored.headline
+
+
+async def test_a_subagent_run_records_its_own_objective(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    writer = recorder(uow, clock)
+    parent = await writer.start_run(
+        trigger=TRIGGER_ALERT, principal_id=PRINCIPAL, team_node_id=TEAM
+    )
+
+    child = await writer.start_subagent_run(
+        parent_run_id=parent.run_id,
+        objective="Check the replica lag on redis-1",
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+    )
+
+    stored = await uow.run_traces.get_run(child.run_id)
+    assert stored is not None
+    assert stored.objective == "Check the replica lag on redis-1"
+    assert stored.headline == "Check the replica lag on redis-1"
+
+
 async def test_an_oversized_result_is_truncated_with_a_marker(
     uow: UnitOfWork, clock: Callable[[], datetime]
 ) -> None:
