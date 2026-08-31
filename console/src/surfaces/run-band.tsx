@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import { isSettled } from '@/design/status';
 import { formatDuration, formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -226,7 +228,10 @@ export function RunBand({
 
       {visible.length === 0 ? (
         <p data-testid="run-band-empty" className="text-small text-muted">
-          {message(locale, 'dashboard.runBand.empty')}
+          {message(locale, 'dashboard.runBand.empty')}{' '}
+          <NextLink href="/runs" className="text-accent hover:underline">
+            {message(locale, 'dashboard.runBand.empty.action')}
+          </NextLink>
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

@@ -532,7 +532,8 @@ export const EN = {
   'dashboard.runBand.followed': 'followed',
   'dashboard.runBand.blocked': 'blocked on you',
   'dashboard.runBand.more': 'all investigations →',
-  'dashboard.runBand.empty': 'Nothing is running right now.',
+  'dashboard.runBand.empty': 'Nothing is running right now — every investigation has finished or none has started.',
+  'dashboard.runBand.empty.action': 'Start one →',
 
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',

@@ -61,39 +61,26 @@ describe('inFlightRuns', () => {
 });
 
 describe('runCardOf', () => {
+  const now = new Date('2026-08-27T12:00:00.000Z');
+
   it('reads the title from the served headline, never deriving one', () => {
-    const card = runCardOf(
-      run({ headline: 'Look for anomalies on the Proxmox cluster' }),
-      'en',
-      new Date('2026-08-27T12:00:00.000Z'),
-      'UTC',
-    );
+    const card = runCardOf(run({ headline: 'Look for anomalies on the Proxmox cluster' }), now);
 
     expect(card.title).toBe('Look for anomalies on the Proxmox cluster');
   });
 
   it('carries no stage index when the field is absent from the record', () => {
-    const card = runCardOf(run({}), 'en', new Date('2026-08-27T12:00:00.000Z'), 'UTC');
+    const card = runCardOf(run({}), now);
     expect(card.stageIndex).toBeUndefined();
   });
 
   it('carries the served stage index when present', () => {
-    const card = runCardOf(
-      run({ stage_index: 3 }),
-      'en',
-      new Date('2026-08-27T12:00:00.000Z'),
-      'UTC',
-    );
+    const card = runCardOf(run({ stage_index: 3 }), now);
     expect(card.stageIndex).toBe(3);
   });
 
   it('treats an out-of-range stage index as absent rather than crashing the bar', () => {
-    const card = runCardOf(
-      run({ stage_index: 99 }),
-      'en',
-      new Date('2026-08-27T12:00:00.000Z'),
-      'UTC',
-    );
+    const card = runCardOf(run({ stage_index: 99 }), now);
     expect(card.stageIndex).toBeUndefined();
   });
 });

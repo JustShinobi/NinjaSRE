@@ -12,10 +12,12 @@ que importa é a do commit mais recente.
 | Porta `EstateSnapshotStore` + fake + Postgres + migração `0021` | FEITO (mypy+ruff limpos; Postgres real não alcançável nesta worktree, ver §3) | ver commits anteriores |
 | Gancho de escrita diária | FEITO | `platform/estate/discovery/runner.py::TopologyDiscoveryRunner._confirm_daily_snapshot` |
 | `GET /v1/overview` | FEITO, testado contra fakes (5/5 verde) | `gateway/http/routes/overview.py` |
-| `subjectsInWindow`/`SUBJECT_WINDOW_HOURS` em `incident-groups.ts` | Teste escrito, vermelho confirmado (`subjectsInWindow is not a function`) — implementação ainda não escrita |
+| `subjectsInWindow`/`SUBJECT_WINDOW_HOURS` em `incident-groups.ts` | FEITO, testado (17/17 verde) | vermelho confirmado antes (`subjectsInWindow is not a function`), depois implementado |
+| `positionOnTimeline` generalizada para janela configurável | FEITO, testado (7/7 verde) | `console/src/surfaces/incident-timeline.ts` — reusada pelo subject-strip com 48h em vez de reescrita |
 | **Acceptance spec (17 alegações, 18 casos)** | **FEITO — vermelho real confirmado** | `console/tests/e2e/painel-vivo.acceptance.spec.ts` — ver §2 |
-| `run-band.tsx`, `kpi-tiles.tsx`, `subject-strip.tsx`, `activity-feed.tsx`, recomposição de `dashboard.tsx`, `attention.tsx` | NÃO INICIADO | próxima ação |
-| i18n, `screens.json`, dataset/OpenAPI/cliente regenerados | NÃO INICIADO | |
+| `run-band.tsx` (banda "Em execução agora") | FEITO, testado (9/9 verde), typecheck+lint limpos | `console/src/surfaces/run-band.tsx` — decisão FR-001 aplicada e testada (ver §5); estado vazio nomeia o próximo passo com link para `/runs` |
+| `kpi-tiles.tsx`, `subject-strip.tsx`, `activity-feed.tsx`, `attention.tsx` (recomposta), recomposição de `dashboard.tsx` | NÃO INICIADO | próxima ação, nesta ordem |
+| `screens.json`, dataset/OpenAPI/cliente regenerados | NÃO INICIADO | |
 
 ## 2. O vermelho do acceptance spec, com a mensagem real de cada alegação
 
@@ -84,21 +86,71 @@ onde Postgres for alcançável.
 
 ## 4. O que fica pendente, nomeado
 
-- Toda a construção de tela (run-band, attention, kpi-tiles, subject-strip,
-  activity-feed, dashboard.tsx) — próxima ação, nesta ordem, um componente por
-  vez, cada um fechando as alegações que só ele resolve.
-- `subjectsInWindow` — teste vermelho escrito, implementação pendente.
-- i18n, `screens.json`, dataset simulado (assuntos ≥3, aprovação pendente
+**Peças ainda desta worktree, não terminadas:**
+
+- Construção de tela: `attention.tsx` (recomposta), `kpi-tiles.tsx`,
+  `subject-strip.tsx`, `activity-feed.tsx`, recomposição de `dashboard.tsx` —
+  `run-band.tsx` e `subjectsInWindow` já estão feitos e testados (ver §1).
+- `screens.json`, dataset simulado (assuntos ≥3, aprovação pendente
   suficiente para AN-06/07/08/16 pararem de pular), documento OpenAPI e
-  cliente TS regenerados.
-- T008 contra Postgres real — do orquestrador ou de um ambiente com Docker
-  funcional para testcontainers.
-- T002, T033–T036 — do orquestrador.
+  cliente TS regenerados — nenhum ainda rodado.
 
-## 5. Decisão de design registrada: "runs não terminados" (FR-001)
+**T008, minha, tentada e não completável nesta worktree** — não uma
+reatribuição: escrevi o teste
+(`tests/contract/persistence/test_estate_daily_snapshot_migration.py`),
+tentei rodá-lo, e ele não encontra Postgres alcançável aqui (nem
+`NINJASRE_TEST_DATABASE_URL`, nem `testcontainers` conseguindo abrir um
+container, embora `docker ps` responda). Confirmei que a mesma limitação já
+valia, antes de eu tocar em qualquer coisa, para o teste de migração
+pré-existente `test_incident_public_id_migration.py` — não é um defeito desta
+migração. Pendente para quem tiver Postgres alcançável: rodar
+`uv run pytest tests/contract/persistence/test_estate_daily_snapshot_migration.py -v`.
 
-Ver commit anterior — resumo: `!isSettled(status)` de `@/design/status`
-(já exportada, já testada, já congelada), resultando em `{running, suspended}`.
-A consulta de evidência 1 do `spec.md` (`status NOT IN ('completed','failed',
-'cancelled')`) mede a coisa errada depois desta decisão — a corrigida é
-`status IN ('running', 'suspended')`.
+**T002, T033, T034, T035, T036 — reatribuídas ao orquestrador pelo próprio
+`tasks.md`, antes de esta sessão começar.** O arquivo de tarefas rotula cada
+uma delas explicitamente `(orquestrador)`: T002 é a captura "antes" do
+staging; T033 é o deploy; T034 é o acceptance contra staging real (safe e
+write); T035 são as consultas de evidência no banco de staging; T036 é o gate
+visual via Orca Browser. Nenhuma delas foi tentada, adiada ou pulada por
+mim — uma worktree isolada não alcança o cluster nem o banco de staging, e o
+próprio `tasks.md` já sabia disso ao marcá-las assim. O que entrego no lugar
+de cada uma (a consulta corrigida para a evidência 1, a rota/tema exata para
+cada captura) está nomeado onde cada uma é citada acima.
+
+## 5. Decisão de design registrada e agora implementada: "runs não terminados" (FR-001)
+
+**O achado**: 11 runs não terminados no staging (achado do lead, 2026-08-31),
+todos `interrupted`, sem título, 4–8 dias parados. A leitura literal da
+consulta de evidência 1 do `spec.md` (`status NOT IN ('completed','failed',
+'cancelled')`) — que inclui `interrupted` — encheria a banda de seis cartões
+com zumbis e empurraria para fora o único run genuinamente em voo.
+
+**A regra, nomeada e testada**: `inFlightRuns` em
+`console/src/surfaces/run-band.tsx` filtra por `!isSettled(status)`, onde
+`isSettled` vem de `@/design/status` (frozen, já exportada, já testada pela
+000, já usada por `dashboard.tsx` hoje para outro cálculo desta mesma tela) e
+declara `interrupted` como assentado — a mesma dupla `{running, suspended}`
+que `incident-detail.tsx`'s próprio `LIVE_RUN_STATUSES` local já usa para a
+mesma pergunta em outra tela. Testada em
+`console/tests/unit/surfaces/run-band.test.ts::inFlightRuns` (caso nomeado:
+"the zombie band"), que prova especificamente que `interrupted` é excluído.
+
+**As quatro condições que a decisão precisa satisfazer, verificadas**:
+1. Regra nomeada e testada — `inFlightRuns` + teste, acima.
+2. A constante de seis cartões concorda com a regra — `RUN_BAND_VISIBLE_MAX = 6`
+   fatia o mesmo array que `inFlightRuns` produziu; não há um segundo filtro.
+3. As contagens do cabeçalho concordam — `run-band-flight-count` lê
+   `runs.length` do mesmo array `inFlightRuns` sem fatiar, nunca uma
+   recontagem paralela.
+4. A banda vazia nomeia o próximo passo com link — corrigido nesta rodada:
+   o estado vazio agora diz por que está vazio ("toda investigação terminou
+   ou nenhuma foi iniciada") e linka para `/runs` via `next/link`
+   (`dashboard.runBand.empty.action`), nos dois idiomas.
+
+**Consequência para a evidência do orquestrador (T035)**: a consulta 1 do
+`spec.md` mede a coisa errada depois desta decisão. A corrigida, que
+corresponde ao que a banda de fato mostra:
+
+```sql
+SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
+```

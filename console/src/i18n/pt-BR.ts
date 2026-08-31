@@ -554,7 +554,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.runBand.followed': 'acompanhados',
   'dashboard.runBand.blocked': 'bloqueado em você',
   'dashboard.runBand.more': 'todas as investigações →',
-  'dashboard.runBand.empty': 'Nada está rodando agora.',
+  'dashboard.runBand.empty': 'Nada está rodando agora — toda investigação terminou ou nenhuma foi iniciada.',
+  'dashboard.runBand.empty.action': 'Investigar algo →',
 
   'dashboard.attention.title': 'Precisa de você',
   'dashboard.attention.count': '{count} itens precisam de você',
