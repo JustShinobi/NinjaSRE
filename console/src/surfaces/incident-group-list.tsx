@@ -49,6 +49,17 @@ export interface IncidentGroupListProps {
    * row instead of a prop it would have had to fabricate.
    */
   readonly runHeadlines?: ReadonlyMap<string, string>;
+  /**
+   * The estate's own name for every subject this page already resolved it
+   * for, keyed by the id the subject is carried as — the same "resolved once
+   * for the whole page, never per row" shape as `runHeadlines`.
+   *
+   * Optional, and empty when absent: a caller that never fetched the estate
+   * still gets a correct render, with every subject shown exactly as it was
+   * before this map existed — the shortened id, honestly, rather than a name
+   * invented for it.
+   */
+  readonly subjectNames?: ReadonlyMap<string, string>;
 }
 
 /** How much of an opaque identifier is enough to recognise it by. */
@@ -75,9 +86,31 @@ function shortenIdentifier(subject: string): string {
   return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}…`;
 }
 
-/** The full subject line, offered only where the visible one was shortened. */
-function subjectTitle(group: IncidentGroup): string | undefined {
-  return group.subjects.some(isOpaque) ? group.subjects.join(' · ') : undefined;
+/**
+ * The estate's own name for `subject`, when it taught this page one.
+ *
+ * `undefined` both when nothing resolved it and when the gateway's own
+ * fallback echoed the id back as the name (`display_name or resource_id`,
+ * in the estate route) — neither is a name gained, and printing the id
+ * twice under two labels is not the fix this screen owes.
+ */
+function resolvedName(
+  subject: string,
+  subjectNames: ReadonlyMap<string, string>,
+): string | undefined {
+  const found = subjectNames.get(subject);
+  return found !== undefined && found !== subject ? found : undefined;
+}
+
+/** The full subject line, offered only where the visible one was shortened or renamed. */
+function subjectTitle(
+  group: IncidentGroup,
+  subjectNames: ReadonlyMap<string, string>,
+): string | undefined {
+  const changed = group.subjects.some(
+    (subject) => isOpaque(subject) || resolvedName(subject, subjectNames) !== undefined,
+  );
+  return changed ? group.subjects.join(' · ') : undefined;
 }
 
 /** The newest occurrence's short address — `groupBySubject` orders newest first. */
@@ -109,21 +142,47 @@ function lastSettledWithRun(
   );
 }
 
-/** One severity/subject line, with an opaque token in monospace, a name left as prose. */
-function SubjectLine({ group }: { readonly group: IncidentGroup }): ReactNode {
+/**
+ * One severity/subject line: the estate's name first when this page has one,
+ * the id last as a trailing, shortened detail — never the id standing alone
+ * as the row's whole identity when a name was there to give it. An opaque
+ * token with no resolved name still renders in monospace, as before; a name
+ * already readable on arrival (`adguard-primary`) is still left exactly as
+ * it is.
+ */
+function SubjectLine({
+  group,
+  subjectNames,
+}: {
+  readonly group: IncidentGroup;
+  readonly subjectNames: ReadonlyMap<string, string>;
+}): ReactNode {
   if (group.subjects.length === 0) {
     return <>{group.detector}</>;
   }
   return (
     <>
-      {group.subjects.map((subject, index) => (
-        <span key={subject}>
-          {index > 0 ? ' · ' : ''}
-          <span className={isOpaque(subject) ? 'font-mono' : undefined}>
-            {shortenIdentifier(subject)}
+      {group.subjects.map((subject, index) => {
+        const name = resolvedName(subject, subjectNames);
+        return (
+          <span key={subject}>
+            {index > 0 ? ' · ' : ''}
+            {name === undefined ? (
+              <span className={isOpaque(subject) ? 'font-mono' : undefined}>
+                {shortenIdentifier(subject)}
+              </span>
+            ) : (
+              <span data-testid="incident-subject-name" data-resource-id={subject}>
+                {name}
+                <span className="font-mono text-muted">
+                  {' '}
+                  · {shortenIdentifier(subject)}
+                </span>
+              </span>
+            )}
           </span>
-        </span>
-      ))}
+        );
+      })}
     </>
   );
 }
@@ -273,6 +332,7 @@ export function IncidentGroupList({
   now,
   zone,
   runHeadlines = new Map(),
+  subjectNames = new Map(),
 }: IncidentGroupListProps): ReactNode {
   const firings = groups.reduce((total, group) => total + group.count, 0);
   return (
@@ -348,11 +408,11 @@ export function IncidentGroupList({
                     <span
                       data-testid="incident-group-subjects"
                       className="text-meta text-muted truncate"
-                      {...(subjectTitle(group) === undefined
+                      {...(subjectTitle(group, subjectNames) === undefined
                         ? {}
-                        : { title: subjectTitle(group) })}
+                        : { title: subjectTitle(group, subjectNames) })}
                     >
-                      <SubjectLine group={group} />
+                      <SubjectLine group={group} subjectNames={subjectNames} />
                     </span>
                   </span>
                   <RecurrenceStrip group={group} />

@@ -322,3 +322,32 @@ razão, não silêncio.
       em vez de `.filter({ has })`) e confirmar que o teste passa a exercitar
       a ordenação real (verde, ou um skip de verdade motivado por dado, não
       um skip que dispara sempre).
+
+## Phase 9: Reparos do gate visual do slot S2
+
+Quatro desvios que o veredito visual em staging encontrou contra
+`design/padrao-2026-08/`, cada um com teste vermelho-primeiro confirmado
+contra o build real antes da correção.
+
+- [x] T035 [US1] Incidentes: resolver o nome da estante para um assunto
+      opaco em vez de mostrar só o id encurtado
+      (`console/src/surfaces/incident-group-list.tsx`: `SubjectLine`,
+      `subjectTitle`, `resolvedName` novo). A tela já buscava
+      `/v1/estate/resources` para o cartão de cobertura de detector
+      (`console/src/surfaces/screens/incidents.tsx`); apenas construiu, da
+      mesma leitura, um mapa `resource_id -> display_name` (`subjectNames`,
+      resolvido uma vez por página, nunca por linha — o mesmo padrão de
+      `runHeadlines`) e passou para `IncidentGroupList`. Nenhuma mudança de
+      gateway: o campo já existe em `ResourceSummaryView.display_name`
+      (`gateway/http/routes/estate.py`). Um assunto que a estante
+      genuinamente não tem (`cluster`, um datastore, um job de backup) não
+      ganha entrada no mapa e continua a renderizar o id encurtado, nunca
+      em branco. Prova: dois testes novos em
+      `incidents-by-subject.acceptance.spec.ts`; confirmado vermelho contra
+      o build sem o wiring (`element(s) not found` no locator
+      `incident-subject-name`), verde depois.
+
+## Phase 10: Reparos ainda pendentes desta rodada
+
+Registrados aqui à medida que cada um fecha; ver a seção "O que fica
+pendente" no `controle.md` para o estado agregado no meio da execução.

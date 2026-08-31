@@ -134,3 +134,25 @@ verificável, não uma desculpa.
   ainda solta), re-baseline visual local e relatório final do fan-out não
   feitos nesta passada — ver a seção de fechamento abaixo.
 - **T031/T032** — do lead (staging, Orca browser).
+
+## Reparos do gate visual — slot S2
+
+Quatro desvios que `evidence/visual/VEREDITO.md` encontrou contra o staging
+real, cada um fechado nesta passada com teste vermelho-primeiro confirmado
+contra o build real, e um corte de fio depois do verde provando que o teste
+falha de verdade. Tabela à parte da acima porque nasce de um veredito, não
+de uma tarefa planejada antes da execução.
+
+| Desvio | Estado | Detalhe |
+|---|---|---|
+| 1. Incidentes — subtítulo é identificador, não nome (T035) | FEITO | `console/src/surfaces/incident-group-list.tsx`: `SubjectLine` e `subjectTitle` agora resolvem o nome da estante por `resolvedName` (novo), que só aceita um nome quando ele difere do próprio id — a queda do gateway para `display_name or resource_id` (`gateway/http/routes/estate.py`, `_row`) não conta como nome ganho. `console/src/surfaces/screens/incidents.tsx`: mapa `subjectNames` (`resource_id -> display_name`) construído uma vez por página a partir da MESMA leitura de `/v1/estate/resources` que o cartão de cobertura de detector já fazia (linha ~183) — nenhuma segunda requisição, nenhuma mudança de gateway. Um assunto que a estante genuinamente não tem (`cluster`, um datastore, um job de backup, no dado local) não ganha entrada no mapa e continua a mostrar o id encurtado, nunca em branco — comportamento herdado, não reescrito. |
+
+## Achados do slot, registrados para não se perderem (continuação)
+
+7. **`ResourceSummaryView.display_name` já cai para o próprio `resource_id`
+   quando o recurso não tem nome** (`gateway/http/routes/estate.py`, `_row`:
+   `display_name=resource.display_name or resource.resource_id`). Um mapa de
+   nomes que confiasse cegamente nesse campo teria mostrado o id duas vezes
+   sob dois rótulos diferentes em vez de uma vez só — `resolvedName` em
+   `incident-group-list.tsx` existe por isso: só conta como nome quando
+   `display_name !== resource_id`.

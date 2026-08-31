@@ -280,6 +280,21 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
         )
       : 0;
 
+  // What the estate calls every resource it holds, resolved once for the
+  // whole page from the same read the coverage card already makes -- never a
+  // second request, and never per row. A subject the estate does not hold at
+  // all (a backup job, a datastore, the cluster itself: none of them are
+  // resources in this table) simply has no entry, and `IncidentGroupList`
+  // renders that honestly, as the shortened id, rather than inventing one.
+  const subjectNames = new Map<string, string>();
+  if (resources.status === 'ready') {
+    for (const record of list(dataOf(resources), 'resources')) {
+      const id = text(record, 'resource_id');
+      const name = text(record, 'display_name');
+      if (id !== '' && name !== '') subjectNames.set(id, name);
+    }
+  }
+
   const showPreview = incidents.status === 'ready' && records.length === 0;
 
   return (
@@ -390,6 +405,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
             now={now}
             zone={zone}
             runHeadlines={runHeadlines}
+            subjectNames={subjectNames}
           />
         ) : (
           <RowList

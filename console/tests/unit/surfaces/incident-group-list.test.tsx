@@ -100,6 +100,61 @@ describe('the subject line carries something a person can read', () => {
   });
 });
 
+describe("the subject line prefers the estate's own name over the key that reaches it", () => {
+  it('shows the resolved name first, with the id kept as a trailing detail', () => {
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['res-dde476d5aa11bb22cc33dd44ee55ff66'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={
+          new Map([['res-dde476d5aa11bb22cc33dd44ee55ff66', 'runner-orchestrator']])
+        }
+      />,
+    );
+
+    const subjects = screen.getByTestId('incident-group-subjects');
+    expect(subjects).toHaveTextContent('runner-orchestrator');
+    // The id is not lost -- it moves to a trailing, shortened detail rather
+    // than standing alone as the row's whole identity.
+    expect(subjects).toHaveTextContent('res-dde476d5…');
+    const named = screen.getByTestId('incident-subject-name');
+    expect(named).toHaveAttribute(
+      'data-resource-id',
+      'res-dde476d5aa11bb22cc33dd44ee55ff66',
+    );
+  });
+
+  it('renders the plain shortened id, honestly, when the estate does not hold the subject', () => {
+    // No `subjectNames` at all -- the same page that never fetched the
+    // estate must still render exactly as it did before this map existed.
+    list([group()]);
+
+    const subjects = screen.getByTestId('incident-group-subjects');
+    expect(subjects).toHaveTextContent('res-7a73b8aa…');
+    expect(screen.queryByTestId('incident-subject-name')).toBeNull();
+  });
+
+  it('does not repeat the id as if it were a name when the estate only echoes the id back', () => {
+    // The gateway itself falls back to the id as `display_name` when a
+    // resource has none -- that is not a name gained, and must not render
+    // as one.
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['ct-102'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={new Map([['ct-102', 'ct-102']])}
+      />,
+    );
+
+    expect(screen.queryByTestId('incident-subject-name')).toBeNull();
+    expect(screen.getByTestId('incident-group-subjects')).toHaveTextContent('ct-102');
+  });
+});
+
 describe('the row still says everything it said before', () => {
   it('keeps the title, the state and the count', () => {
     list([group()]);
