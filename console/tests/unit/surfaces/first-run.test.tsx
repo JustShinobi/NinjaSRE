@@ -1945,7 +1945,9 @@ describe('the dashboard of a deployment that is not set up', () => {
     // there instead. What remains asking for the next step is the hero.
     expect(screen.queryAllByTestId('quick-action')).toHaveLength(0);
     const hero = screen.getByTestId('setup-hero-cta');
-    expect(areaByPath((hero.getAttribute('href') ?? '').split('?')[0] ?? '')).toBeDefined();
+    expect(
+      areaByPath((hero.getAttribute('href') ?? '').split('?')[0] ?? ''),
+    ).toBeDefined();
   });
 
   it('drops the plan and the warning once the deployment is set up', async () => {

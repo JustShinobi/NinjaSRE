@@ -506,7 +506,10 @@ test(
     // The same guard as the tally, for the same reason: the rows decide
     // whether the panel has anything at all, and the link is what is on trial.
     if ((await subjectRows(page).count()) === 0) {
-      test.skip(true, 'nothing repeated in the window, so the panel has no list to open');
+      test.skip(
+        true,
+        'nothing repeated in the window, so the panel has no list to open',
+      );
     }
     const subjects = page.getByTestId('recurring-more');
     await expect(subjects).toHaveText(/ver os? .*assuntos? →/);
