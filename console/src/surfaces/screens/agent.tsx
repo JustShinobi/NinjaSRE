@@ -93,6 +93,14 @@ import { TeamTab } from './team-context';
  * newest: what the team's own operating context says, absorbed whole from
  * the screen that used to carry it on its own address — see `team-context.tsx`'s
  * own note on why it moved rather than staying linked from here.
+ *
+ * `'topology'` is a stable internal slug, not what the first tab is called —
+ * it names the URL (`?tab=topology`), `data-tab`, and the branches below,
+ * and stays put so an existing deep link keeps landing on the same content.
+ * What a viewer reads is `agent.tab.topology`'s own translated value, which
+ * says "Pipeline" — the word the board uses for what this tab draws now
+ * that its hero is the six-stage metro line rather than the hierarchy graph
+ * the slug is named for.
  */
 export const AGENT_TABS = ['topology', 'tools', 'autonomy', 'team'] as const;
 
@@ -461,7 +469,34 @@ function PipelineMetro({
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="relative grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {/*
+         * The rail: what makes six stages read as the one sequence every run
+         * walks, rather than six unrelated cards. Drawn only once the grid is
+         * a single row (`lg`) -- at the narrower two/three-column layouts the
+         * stages wrap onto more than one line, and one line spanning the
+         * full width would cut across rows that are not actually adjacent.
+         *
+         * Insets are computed from the stage count rather than a literal
+         * "6", landing on the horizontal centre of the first and the last
+         * icon: half a column's own width, where a column's width already
+         * subtracts the gaps `gap-4` puts between columns (`--space-4`, the
+         * same token `gap-4` itself draws from) -- not an approximation.
+         * Positioned behind the row in DOM order, so each icon's own opaque
+         * fill paints over the segment directly behind it, and the rail only
+         * shows in the space between stages, the way the board draws it.
+         */}
+        <div
+          aria-hidden="true"
+          data-testid="pipeline-metro-rail"
+          className="absolute top-0 hidden h-6 items-center lg:flex"
+          style={{
+            insetInlineStart: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
+            insetInlineEnd: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
+          }}
+        >
+          <span className="h-0 w-full edge border-border" />
+        </div>
         {stages.map((stage) => {
           const name = text(stage, 'name');
           const Icon = STAGE_ICON[name] ?? SettingsIcon;

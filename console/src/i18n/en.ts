@@ -2105,7 +2105,7 @@ export const EN = {
 
   // --- The agent: what it is, what it can do, what it will do alone ------------
   'agent.tabs': 'What the agent is, can do, and will do alone',
-  'agent.tab.topology': 'Topology',
+  'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Tools',
   'agent.tab.autonomy': 'Autonomy',
   'agent.graph.title':

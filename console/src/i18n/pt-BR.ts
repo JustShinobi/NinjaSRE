@@ -1793,7 +1793,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.agent.context':
     'O que ele é, o que ele pode fazer e o que ele vai fazer sem perguntar a ninguém.',
   'agent.tabs': 'O que o agente é, o que pode e o que fará sozinho',
-  'agent.tab.topology': 'Topologia',
+  'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Ferramentas',
   'agent.tab.autonomy': 'Autonomia',
   'agent.graph.title': 'A investigação, do orquestrador até os especialistas',
