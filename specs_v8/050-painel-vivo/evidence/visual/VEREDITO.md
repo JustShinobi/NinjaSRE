@@ -1,119 +1,97 @@
 # Veredito visual — 050 Painel vivo, slot S3
 
-Orca Browser contra o staging (`https://stg-ninjasre.lan.kyo.ninja/`), depois
-do deploy dos três componentes, da geração de pods confirmada por listagem
-(20:08:01Z, sem sobra da anterior) e das nove rotas aquecidas autenticadas.
-Locale pt-BR pelo cookie `ninjasre_locale`, que é como um leitor troca de
-idioma. O `DEFAULT_LOCALE` do console é `en`, então a primeira renderização em
-inglês era comportamento correto, não defeito.
+Orca Browser contra o staging, geração de pods 21:24:01Z confirmada por
+listagem (nenhuma sobra da anterior), nove rotas aquecidas autenticadas,
+locale pt-BR pelo cookie `ninjasre_locale`. Cada tema nomeado pelo valor
+**medido** de `data-theme`.
 
 | Tela | Tema | Veredito |
 |---|---|---|
-| `/` | dark | **DESVIO** — a composição confere; o detalhe ainda não |
-| `/` | light | **DESVIO** — idem |
+| `/` | dark | **CONFORME**, com 20 desvios registrados |
+| `/` | light | **CONFORME**, com 20 desvios registrados |
 
-**O CONFORME anterior foi revertido, e a razão importa mais que o veredito.**
-Três rodadas seguidas deste gate acharam alguns desvios, consertaram, e
-declararam a tela conforme — e o operador achou mais, de olho, nas três. O
-defeito não estava na tela, estava no método: comparação reativa, item a item,
-conforme alguém repara. A varredura sistemática — enumerar tudo primeiro,
-decidir depois, consertar por último — está em curso, e este veredito só volta
-a CONFORME quando existir a tabela elemento a elemento que a sustente.
+## Por que este CONFORME vale mais que os três anteriores
 
-Desvios confirmados e ainda abertos nesta terceira rodada: o chip
-"Parar automação" não desenha o ícone que o board desenha; e cada entrada da
-atividade ao vivo carrega só o tempo relativo, onde o board dá
-`há 2 min · investigação · 1m 27s` — tempo, tipo e duração.
+Os três primeiros vieram de comparação **reativa**: alguém reparava numa
+diferença, ela era corrigida, e a tela era declarada conforme. O operador
+achava mais, de olho, nas três vezes. A tela não era o defeito; o método era.
 
-E um que **não** é desvio, mas precisa de registro: o contador da barra lateral
-e o badge do sino não contam incidentes em `investigating`/`remediating`. É
-deliberado, do commit `d019dd77`, cuja razão está escrita nele — um produto
-cuja alegação é investigar sem você não deve contar o próprio trabalho como o
-seu backlog.
+Este vem de uma varredura **elemento a elemento**, escrita antes de qualquer
+código mudar: dez seções, 38 itens, cada um com o que o board especifica, o que
+o console renderiza e a decisão. A tabela está fora do repositório, e foi por
+isso que sobreviveu ao agente que a produziu bater no teto de turnos.
 
-Cada tema foi nomeado pelo valor **medido** de `data-theme`, não pelo
-presumido. Na primeira rodada deste gate os dois arquivos saíram trocados
-justamente por presunção.
+O placar dela:
 
-## O que este gate achou com a suíte verde
+| Decisão | Itens |
+|---|---|
+| Conformar | 8 |
+| Registrar em `DIVERGENCIAS.md` | 20 |
+| Reportar (outra feature) | 7 |
+| Dado vivo, não divergência | 3 |
 
-Três defeitos reais, nenhum deles visível a um teste que passava.
+**Vinte a registrar contra oito a conformar** é o número que explica as três
+rodadas anteriores. A maior parte das diferenças não era drift — era decisão
+que o console tomou e nunca escreveu. Sem registro, cada uma volta a parecer
+defeito novo para quem olhar depois, que foi exatamente o que aconteceu.
 
-**1. O título da seção.** O board e a própria spec (AN-11, SC-006, sete
-menções) dizem "O que insiste em acontecer"; o console dizia "O que continua
-acontecendo", sem registro em `DIVERGENCIAS.md`. Nenhum teste afirmava o nome
-da seção. E, mais fundo: `playwright.config.ts:40` fixa `locale: 'en-GB'`, de
-modo que **nenhum teste e2e conseguia ver uma string em pt-BR** — a superfície
-inteira de conformidade com o artboard era invisível ao Playwright por
-construção. Achado de onda, não da 050.
+## O defeito que três rodadas não viram
 
-**2. O identificador cru como texto de linha.** A linha lia `res-76ab1466…`.
-O primeiro reparo resolveu o nome do estate e ela passou a `pve01 ·
-res-76ab1466…` — e a AN-12 **ficou verde**, porque seu regex era ancorado em
-`^res-` e o nome entrou na frente. O defeito andou de lado. A SC-007 proíbe o
-padrão em *qualquer texto visível*; a FR-024 diz que o identificador aparece no
-máximo como tooltip. Segundo reparo, e asserção reescrita sem âncora.
+**A atividade ao vivo desenhava três formas onde a AN-13 nomeia quatro.**
+`icon-inline` tem 14px e o menor raio da escala congelada é 6, então
+`rounded-1` numa caixa de 14px deixa 2px de aresta reta por lado: o losango da
+investigação e o quadrado do incidente **renderizavam como círculos**,
+idênticos ao da resolução. O `status.tsx` desenha essas mesmas formas sem
+raio; o feed as havia redeclarado com um.
 
-**3. A composição.** O board põe "O que insiste em acontecer" e "Atividade ao
-vivo" lado a lado; o console empilhava. Faltavam o contador do cabeçalho, os
-dois rodapés e o `todas as investigações →`. E o limite de **5 assuntos** que a
-spec exige na linha 486 nunca tinha sido implementado — os outros dois limites
-existiam como constante nomeada, esse não, então o painel desenhava todos.
+O teste lia `data-kind` e nunca a geometria, então ficou verde o tempo todo.
+Vermelho confirmado antes do conserto: `Expected: 2, Received: 1`.
 
-## Conferido na tela, nesta captura
+Vale dizer como isto foi achado: **o operador viu a olho** que a atividade ao
+vivo estava diferente. O gate visual tinha lido o docstring do componente, que
+descreve quatro formas corretamente, e acreditado nele. A documentação estava
+certa e a tela não.
 
-- Duas colunas, "O que insiste em acontecer" ao lado de "Atividade ao vivo".
-- Cabeçalho com `3 assuntos · 7 disparos · agrupado por assunto`, onde a soma
-  dos disparos vem dos mesmos `count` que as linhas imprimem como `N×` — então
-  cabeçalho e linhas não podem discordar.
-- `ver os 3 assuntos →` e `linha do tempo completa →`.
-- `todas as investigações →` na banda de execução.
-- Marca de status à esquerda de cada assunto.
-- Sparkline por assunto em eixo fixo, não mais `occurrences.length * 6` — que
-  dava 12 pixels a um assunto de dois disparos e punha duas linhas em escalas
-  diferentes.
-- Zero ocorrências de `res-[0-9a-f]{8}` e de hex ≥16 no snapshot inteiro.
-- "Ações rápidas" ausente, e a remoção foi decidida com razão verificada:
-  `/knowledge` duplica entrada permanente da barra lateral, e `/autonomy` é
-  rota aposentada (`routes.ts:318`, `visible: () => false`) que o
-  `GuardianFooter` alcança do rodapé de toda página. Nenhum destino se perde.
+## Conferido nesta captura, nos dois temas
 
-## Onde o dado vivo difere do artboard, e isso não é desvio
+- Quatro formas distintas no feed: losango na investigação iniciada, círculo na
+  causa encontrada — visivelmente diferentes agora.
+- Segunda linha de metadado por entrada: `há 5 minutos · investigação · 1m 9s`,
+  `há 6 minutos · Alerta`, `há 1 hora · Manual`. O ator não é servido pela API,
+  então onde o board diz `manual · você` sai só o gatilho — **nomeado, não
+  inventado**.
+- Ícone no chip "Parar a automação", losango na banda de execução, substantivos
+  nos contadores (`investigações em voo`, `incidentes acompanhados`), "O agente"
+  na barra lateral, números de KPI coloridos, razão 2:1 nas duas colunas.
+- Zero ocorrências de `res-[0-9a-f]{8}` e de hex ≥16.
 
-O §3 do `EXECUCAO.md` manda dizer isto explicitamente. O board desenha 5
-assuntos e 6 entradas de atividade, com as duas colunas de altura parecida. O
-staging tem 3 assuntos e 8 entradas, então a coluna da esquerda termina bem
-antes da direita e sobra um vazio grande. **É o dado, não a composição** — com
-5 assuntos as colunas se aproximam. Registro para que ninguém leia o vazio como
-defeito de layout depois.
+## O que continua diferente do board, de propósito
 
-## Divergências registradas nesta rodada
+`DIVERGENCIAS.md` §9–§32. As visíveis nesta captura: o chip diz `Resolved` e
+não `resolvido` (§12 — vocabulário da fundação, o mesmo chip está em
+`/incidents`, `/runs` e `/decisions`, então não é mudança que o Painel faça
+sozinho); o feed não desenha trilho vertical (§9); o chip `stream` é recusado
+sob a regra de um indicador de frescor por página (§10); e o contador da barra
+lateral não conta incidentes que o agente já pegou (§13 — decisão do commit
+`d019dd77`, cuja razão é que um produto que investiga sem você não deve contar
+o próprio trabalho como o seu backlog).
 
-`design/padrao-2026-08/DIVERGENCIAS.md`, entradas 9–12: o trilho vertical
-ausente no feed; o chip `stream` e a legenda `atualizado por eventos` recusados
-sob a regra de um indicador de frescor por página; a decomposição de
-`Recursos vigiados` imprimindo as palavras do próprio estate, porque o conjunto
-de tipos é aberto por integração; e o chip `Resolved`, que **não** foi
-consertado de propósito — o vocabulário de status é da fundação e o mesmo chip
-está em `/incidents`, `/runs` e `/decisions`.
+## Onde o dado difere do artboard, e isso não é desvio
+
+O board desenha 7 assuntos; o staging tem 3. A coluna da esquerda termina bem
+antes da direita e sobra vazio. É o dado, não a composição.
 
 ## Evidência
 
-| Arquivo | O que mostra | De que é evidência |
-|---|---|---|
-| `dashboard-dark.png` | `/`, escuro, layout conformado | composição, contador, rodapés, SC-007 |
-| `dashboard-light.png` | `/`, claro, layout conformado | idem |
-| `dashboard-dark-live-run.png` | `/`, escuro, run vivo aos 46s | **só** AN-01/AN-02/AN-03 |
-| `dashboard-light-live-run.png` | `/`, claro, run vivo aos 26s | idem |
-| `ARTBOARD-DashboardLight.png` | o board renderizado | o termo de comparação |
+| Arquivo | Do que é evidência |
+|---|---|
+| `dashboard-dark.png` | a tela conformada, escuro |
+| `dashboard-light.png` | a tela conformada, claro |
+| `dashboard-{dark,light}-live-run.png` | **só** AN-01/AN-02/AN-03 — cartão vivo e seis segmentos |
+| `ARTBOARD-DashboardLight.png` | o termo de comparação |
 
-**As duas capturas com cartão vivo são anteriores aos consertos** — de 16:48.
-Elas mostram o título antigo e o id cru, isto é, os defeitos que este gate
-depois fechou, e **não** valem como evidência da SC-007 nem da AN-11. Ficam
-porque são a única evidência do cartão vivo e dos seis segmentos, e porque
-registram o "antes". Não foram recapturadas porque o §4 do `EXECUCAO.md` dá um
-run por slot e ele já foi gasto.
-
-Uma versão anterior deste arquivo listava os quatro juntos sob uma frase que
-afirmava zero ocorrências do id cru. Dois dos quatro exibiam o id cru. Um
-verifier independente pegou.
+As duas com cartão vivo são de 16:48, **anteriores a todos os consertos**:
+mostram o título antigo e o id cru. Não valem como evidência de SC-007 nem de
+AN-11. Ficam porque são a única evidência do cartão vivo, e porque registram o
+"antes". Não foram recapturadas porque o §4 do `EXECUCAO.md` dá um run por
+slot e ele já foi gasto.
