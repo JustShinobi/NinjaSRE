@@ -446,3 +446,45 @@ contra o build real antes da correção.
 
 Registrados aqui à medida que cada um fecha; ver a seção "O que fica
 pendente" no `controle.md` para o estado agregado no meio da execução.
+
+## Phase 10: Segunda rodada de reparos do gate visual — O agente
+
+- [x] T039 [US4] O agente: os seis estágios desenham como estações (círculo,
+      anel, chão) em vez de ícone solto, na cor certa para cada um dos três
+      tratamentos que o board desenha
+      (`console/src/surfaces/screens/agent-pipeline-metro.ts`:
+      `StageTreatment`, `stageTreatment` (nova, testada) e
+      `STAGE_TREATMENT_CLASSES` (novo, testado) — a estação que já passou
+      (anel e ícone na cor de destaque, chão no tom de sucesso), a que roda
+      agora (chão preenchido na cor de destaque, ícone na cor de contraste,
+      halo pulsante) e a que ainda não foi alcançada (anel na borda forte,
+      chão neutro, ícone apagado). `console/src/surfaces/screens/agent.tsx`:
+      o `<span>` do ícone cresceu de `size-6` (32px) para `size-7` (48px,
+      o degrau mais próximo que a escala tem do 54px do board) com
+      `edge-emphasis` (2px, o mesmo valor exato do board) por anel;
+      `data-testid="pipeline-metro-station"` e `data-treatment` novos para
+      leitura direta. Nada em `console/src/design/` foi tocado — todo token
+      (`accent`, `on-accent`, `success-bg`, `border-border-strong`,
+      `neutral-bg`, `muted`, mais os utilitários já existentes `edge-emphasis`
+      e `pulse-live`/`pulse-live-ring`) já existia e bateu, valor por valor,
+      com o hexadecimal que o board usa no tema escuro. Nenhum dado no
+      ambiente local nem em staging nomeia em qual dos seis estágios um run
+      em execução está (`InvestigationSummary` não tem esse campo hoje), então
+      `currentStageName` fica honestamente `undefined` na tela real e todo
+      nó desenha "ainda não alcançado" — o mecanismo aceita os outros dois
+      tratamentos e é testado para eles, sem fingir um estágio ao vivo que o
+      dado não sustenta. **Prova**: dois testes novos em
+      `agent-pipeline.acceptance.spec.ts` (geometria real da estação — raio,
+      largura de borda, tamanho — e o tratamento honesto contra o dataset
+      local), vermelhos confirmados contra o build sem a mudança
+      (`pipeline-metro-station`: `Expected: 6, Received: 0`), verdes depois;
+      treze testes novos em `agent-pipeline-metro.test.ts` para
+      `stageTreatment`/`STAGE_TREATMENT_CLASSES` isolados, vermelhos primeiro
+      (`stageTreatment is not a function`), verdes depois. Corte de fio
+      duplo: (a) `edge-emphasis` removido da estação reproduziu
+      `Expected: > 0, Received: 0` na largura de borda medida; (b) o ramo
+      "passado" de `stageTreatment` colapsado para sempre `not-reached`
+      reproduziu vermelho isolado só no teste que fixa esse ramo — ambos
+      restaurados, `git diff` limpo, verdes de novo.
+      `console/visual/screens.json`: motivo de `agent-1440-light` (já
+      `pending`) estendido para nomear esta mudança, sem rodar aceite.

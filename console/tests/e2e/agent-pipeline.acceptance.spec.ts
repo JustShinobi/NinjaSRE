@@ -140,6 +140,69 @@ test.describe('the metro line is joined by a rail, the device that makes six nod
 });
 
 // =============================================================================
+// Slot S2 visual-gate repair, round 2 — each stage draws as a station (a
+// ringed, fully-rounded well around the icon) in the treatment its place in
+// the pipeline earns, instead of a bare icon with nothing around it
+// =============================================================================
+
+test.describe('each of the six stages draws inside a ringed circular well, not a bare icon', () => {
+  test('every station is a large, fully rounded well with a real border around it', async ({
+    page,
+  }) => {
+    await page.goto('/agent');
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+    const stations = page.getByTestId('pipeline-metro-station');
+    await expect(stations).toHaveCount(STAGE_ORDER.length);
+    const total = await stations.count();
+    for (let index = 0; index < total; index += 1) {
+      const station = stations.nth(index);
+      const box = await station.boundingBox();
+      if (box === null) {
+        throw new Error('expected the station to report a layout box');
+      }
+      // A bare `icon-head` glyph alone renders at 20px; the well the board
+      // draws it in is far larger than that on either axis, and square.
+      expect(box.width).toBeGreaterThanOrEqual(40);
+      expect(box.height).toBeGreaterThanOrEqual(40);
+      expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(1);
+      const style = await station.evaluate((element) => {
+        const computed = getComputedStyle(element);
+        return {
+          borderTopWidth: computed.borderTopWidth,
+          borderTopStyle: computed.borderTopStyle,
+          borderTopLeftRadius: computed.borderTopLeftRadius,
+        };
+      });
+      expect(style.borderTopStyle).toBe('solid');
+      // A bare icon has no border at all; a real ring measures above zero
+      // regardless of which of the three treatments drew it.
+      expect(Number.parseFloat(style.borderTopWidth)).toBeGreaterThan(0);
+      // Fully rounded: the corner radius clears half the box on its own,
+      // which is what turns a rounded square into a circle.
+      expect(Number.parseFloat(style.borderTopLeftRadius)).toBeGreaterThanOrEqual(
+        box.width / 2,
+      );
+    }
+  });
+
+  test('with nothing in this dataset naming which stage a run is on, every station honestly draws not-yet-reached', async ({
+    page,
+  }) => {
+    await page.goto('/agent');
+    const stations = page.getByTestId('pipeline-metro-station');
+    await expect(stations).toHaveCount(STAGE_ORDER.length);
+    const treatments = await stations.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-treatment')),
+    );
+    // The fixture's own running run carries no field naming which of the six
+    // stages it is on, so nothing here may claim "passed" or "running" for
+    // any of them -- a guess dressed as a live reading would be worse than
+    // this screen drawing honestly what it actually knows.
+    expect(treatments).toEqual(STAGE_ORDER.map(() => 'not-reached'));
+  });
+});
+
+// =============================================================================
 // AN-A3 — "N investigations in flight" chip, from the runs listing
 // =============================================================================
 
