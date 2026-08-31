@@ -526,6 +526,14 @@ export const EN = {
   'run.findings.none': 'No stage has finished with a finding yet.',
 
   // --- The overview --------------------------------------------------------------
+  // --- The Painel: "Em execução agora" ------------------------------------------
+  'dashboard.runBand.title': 'Running now',
+  'dashboard.runBand.flight': 'in flight',
+  'dashboard.runBand.followed': 'followed',
+  'dashboard.runBand.blocked': 'blocked on you',
+  'dashboard.runBand.more': 'all investigations →',
+  'dashboard.runBand.empty': 'Nothing is running right now.',
+
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
   'dashboard.attention.count.one': '{count} item needs you',

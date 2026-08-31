@@ -548,6 +548,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.findings.title': 'Descobertas até agora',
   'run.findings.none': 'Nenhum estágio terminou com uma descoberta ainda.',
 
+  // --- O Painel: "Em execução agora" ------------------------------------------
+  'dashboard.runBand.title': 'Em execução agora',
+  'dashboard.runBand.flight': 'em voo',
+  'dashboard.runBand.followed': 'acompanhados',
+  'dashboard.runBand.blocked': 'bloqueado em você',
+  'dashboard.runBand.more': 'todas as investigações →',
+  'dashboard.runBand.empty': 'Nada está rodando agora.',
+
   'dashboard.attention.title': 'Precisa de você',
   'dashboard.attention.count': '{count} itens precisam de você',
   'dashboard.attention.count.one': '{count} item precisa de você',
