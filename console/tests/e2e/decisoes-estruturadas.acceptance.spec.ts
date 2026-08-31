@@ -518,121 +518,123 @@ test.describe('Edge case — several pending decisions: the oldest expanded, the
 // =============================================================================
 
 test.describe('IncidentDecisionControls decides a pending approval directly, not through an interaction', () => {
-  test(
-    'rejecting the card posts to the approval store and the card leaves the pending queue',
-    async ({ page }) => {
-      // Arrange. Reach a hero card that is pending with no open
-      // interaction — the shape `decisionFor` (`approvals.tsx`) composes
-      // `IncidentDecisionControls` for, and the only decide-in-place shape
-      // a deployment with no live run (staging, today) ever offers. The
-      // combined queue always opens on an expired decision while any
-      // exists (both built-in ones do), so this reaches that shape itself
-      // — through the same courier `ExpiredFooterControls` already posts
-      // to for every repropose and discard, never a fabricated write path.
-      await page.goto('/decisions?tab=actions');
+  test('rejecting the card posts to the approval store and the card leaves the pending queue', async ({
+    page,
+  }) => {
+    // Arrange. Reach a hero card that is pending with no open
+    // interaction — the shape `decisionFor` (`approvals.tsx`) composes
+    // `IncidentDecisionControls` for, and the only decide-in-place shape
+    // a deployment with no live run (staging, today) ever offers. The
+    // combined queue always opens on an expired decision while any
+    // exists (both built-in ones do), so this reaches that shape itself
+    // — through the same courier `ExpiredFooterControls` already posts
+    // to for every repropose and discard, never a fabricated write path.
+    await page.goto('/decisions?tab=actions');
 
-      // Reused, not reproposed a second time, when an earlier test in this
-      // same file already put one here. The mock hands out one fixed id
-      // per repropose call regardless of how many times it is called
-      // (`REPROPOSED_APPROVAL_ID`), so calling it again in the same
-      // session would queue the same id twice — a real duplicate the
-      // combined queue has never had to render before, and not the shape
-      // this test exists to prove. Every other id this dataset serves is
-      // one of the three known ones (the native pending decision, and the
-      // two expired ones); anything else already sitting in the queue is
-      // an earlier repropose's leftover, safe to reuse as-is.
-      const KNOWN_APPROVAL_IDS = new Set(['apr-0001', 'apr-0002', 'apr-0005']);
-      const queuedIds = await page
-        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
-        .evaluateAll((elements) =>
-          elements
-            .map((element) => element.getAttribute('data-approval'))
-            .filter((id): id is string => id !== null),
-        );
-      const leftover = queuedIds.find((id) => !KNOWN_APPROVAL_IDS.has(id));
+    // Reused, not reproposed a second time, when an earlier test in this
+    // same file already put one here. The mock hands out one fixed id
+    // per repropose call regardless of how many times it is called
+    // (`REPROPOSED_APPROVAL_ID`), so calling it again in the same
+    // session would queue the same id twice — a real duplicate the
+    // combined queue has never had to render before, and not the shape
+    // this test exists to prove. Every other id this dataset serves is
+    // one of the three known ones (the native pending decision, and the
+    // two expired ones); anything else already sitting in the queue is
+    // an earlier repropose's leftover, safe to reuse as-is.
+    const KNOWN_APPROVAL_IDS = new Set(['apr-0001', 'apr-0002', 'apr-0005']);
+    const queuedIds = await page
+      .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
+      .evaluateAll((elements) =>
+        elements
+          .map((element) => element.getAttribute('data-approval'))
+          .filter((id): id is string => id !== null),
+      );
+    const leftover = queuedIds.find((id) => !KNOWN_APPROVAL_IDS.has(id));
 
-      let freshId: string;
-      if (leftover !== undefined) {
-        freshId = leftover;
-      } else {
-        const liveOriginExpired = page
-          .getByTestId('decision-card')
-          .and(page.locator('[data-state="expired"]'));
-        await expect(liveOriginExpired).toBeVisible();
-        const originId = await liveOriginExpired.getAttribute('data-approval');
+    let freshId: string;
+    if (leftover !== undefined) {
+      freshId = leftover;
+    } else {
+      const liveOriginExpired = page
+        .getByTestId('decision-card')
+        .and(page.locator('[data-state="expired"]'));
+      await expect(liveOriginExpired).toBeVisible();
+      const originId = await liveOriginExpired.getAttribute('data-approval');
 
-        const reproposed = await page.request.post('/api/approval', {
-          data: { operation: 'repropose', target: originId, payload: {} },
-        });
-        expect(reproposed.ok()).toBe(true);
-        freshId = stringField(await reproposed.json(), 'approval_id');
-        expect(freshId).not.toBe('');
-        expect(freshId).not.toBe(originId);
-      }
+      const reproposed = await page.request.post('/api/approval', {
+        data: { operation: 'repropose', target: originId, payload: {} },
+      });
+      expect(reproposed.ok()).toBe(true);
+      freshId = stringField(await reproposed.json(), 'approval_id');
+      expect(freshId).not.toBe('');
+      expect(freshId).not.toBe(originId);
+    }
 
-      // Both expired decisions have to go: the origin just reproposed
-      // (reproposing never removes it from `state=expired`) and the one
-      // whose origin cannot be rebuilt. Neither discard depends on the
-      // other's order.
-      for (let cleared = 0; cleared < 2; cleared += 1) {
-        await page.goto('/decisions?tab=actions');
-        const hero = page
-          .getByTestId('decision-card')
-          .and(page.locator('[data-state="expired"]'));
-        await expect(hero).toBeVisible();
-        const expiredId = await hero.getAttribute('data-approval');
-        const discarded = await page.request.post('/api/approval', {
-          data: { operation: 'discard', target: expiredId, payload: {} },
-        });
-        expect(discarded.ok()).toBe(true);
-      }
-
-      // The hero is now the freshly reproposed decision. Its run carries
-      // only a closed interaction, so `decisionFor` finds no open one and
-      // composes `IncidentDecisionControls` — unedited, exactly as
-      // `approvals.tsx` composes it for staging today.
+    // Both expired decisions have to go: the origin just reproposed
+    // (reproposing never removes it from `state=expired`) and the one
+    // whose origin cannot be rebuilt. Neither discard depends on the
+    // other's order.
+    for (let cleared = 0; cleared < 2; cleared += 1) {
       await page.goto('/decisions?tab=actions');
       const hero = page
         .getByTestId('decision-card')
-        .and(page.locator(`[data-approval="${freshId}"]`));
-      await expect(hero).toHaveAttribute('data-state', 'pending');
+        .and(page.locator('[data-state="expired"]'));
+      await expect(hero).toBeVisible();
+      const expiredId = await hero.getAttribute('data-approval');
+      const discarded = await page.request.post('/api/approval', {
+        data: { operation: 'discard', target: expiredId, payload: {} },
+      });
+      expect(discarded.ok()).toBe(true);
+    }
 
-      const controls = hero.getByTestId('decision-control');
-      await expect(controls).toHaveCount(2);
-      const approve = controls.first();
-      const reject = controls.last();
-      await expect(approve).toBeEnabled();
-      // Disabled until a reason is typed — the console's own gate ahead of
-      // the same rule the gateway enforces: rejecting with no reason is
-      // refused.
-      await expect(reject).toBeDisabled();
+    // The hero is now the freshly reproposed decision. Its run carries
+    // only a closed interaction, so `decisionFor` finds no open one and
+    // composes `IncidentDecisionControls` — unedited, exactly as
+    // `approvals.tsx` composes it for staging today.
+    await page.goto('/decisions?tab=actions');
+    const hero = page
+      .getByTestId('decision-card')
+      .and(page.locator(`[data-approval="${freshId}"]`));
+    await expect(hero).toHaveAttribute('data-state', 'pending');
 
-      // Act. A real click, not a simulated event — the first one this
-      // control has ever received in this suite.
-      await hero
-        .getByLabel('Why it is being rejected')
-        .fill('Wrong volume; the alert misidentified the guest.');
-      await expect(reject).toBeEnabled();
+    const controls = hero.getByTestId('decision-control');
+    await expect(controls).toHaveCount(2);
+    const approve = controls.first();
+    const reject = controls.last();
+    await expect(approve).toBeEnabled();
+    // Disabled until a reason is typed — the console's own gate ahead of
+    // the same rule the gateway enforces: rejecting with no reason is
+    // refused.
+    await expect(reject).toBeDisabled();
 
-      const [decisionResponse] = await Promise.all([
-        page.waitForResponse(
-          (res) => res.url().includes('/api/approval') && res.request().method() === 'POST',
-        ),
-        reject.click(),
-      ]);
-      expect(decisionResponse.ok()).toBe(true);
+    // Act. A real click, not a simulated event — the first one this
+    // control has ever received in this suite.
+    await hero
+      .getByLabel('Why it is being rejected')
+      .fill('Wrong volume; the alert misidentified the guest.');
+    await expect(reject).toBeEnabled();
 
-      // Assert. The write actually landed, observed the same way a person
-      // would — on the screen `router.refresh()` already re-rendered in
-      // place, no navigation of this test's own. `expect(...)` polls; it
-      // is what proves the screen updates itself, not a one-shot read
-      // taken before the refresh has had time to land.
-      await expect(page.locator(`[data-approval="${freshId}"]`)).toHaveCount(0);
-      const decided = page
-        .getByTestId('decided-item')
-        .and(page.locator('[data-verdict="rejected"]'))
-        .filter({ hasText: 'Grow the volume that is at the ceiling of its own allocation.' });
-      await expect(decided).toBeVisible();
-    },
-  );
+    const [decisionResponse] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().includes('/api/approval') && res.request().method() === 'POST',
+      ),
+      reject.click(),
+    ]);
+    expect(decisionResponse.ok()).toBe(true);
+
+    // Assert. The write actually landed, observed the same way a person
+    // would — on the screen `router.refresh()` already re-rendered in
+    // place, no navigation of this test's own. `expect(...)` polls; it
+    // is what proves the screen updates itself, not a one-shot read
+    // taken before the refresh has had time to land.
+    await expect(page.locator(`[data-approval="${freshId}"]`)).toHaveCount(0);
+    const decided = page
+      .getByTestId('decided-item')
+      .and(page.locator('[data-verdict="rejected"]'))
+      .filter({
+        hasText: 'Grow the volume that is at the ceiling of its own allocation.',
+      });
+    await expect(decided).toBeVisible();
+  });
 });

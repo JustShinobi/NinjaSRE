@@ -305,6 +305,13 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   approved: { role: 'success', shape: 'filled-circle' },
   rejected: { role: 'danger', shape: 'square' },
   expired: { role: 'neutral', shape: 'dash' },
+  // How an investigation ended, where that is not one of the words above.
+  // `resolved` is already declared with the incident state it shares, and
+  // means the same thing on both. Amber and hollow, as the board draws it: an
+  // investigation that reached no root cause is not a failure to be drawn in
+  // red, and it is emphatically not a success — it is the case the learning
+  // corpus exists to improve on, so it is drawn as something still open.
+  inconclusive: { role: 'warning', shape: 'hollow-circle' },
   // How reversible an action is. This is the one an operator reads before
   // pressing something, so it is never carried by colour alone either.
   read_only: { role: 'success', shape: 'filled-circle' },

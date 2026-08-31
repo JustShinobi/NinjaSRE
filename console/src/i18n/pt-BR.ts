@@ -2322,4 +2322,38 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.sso.result.failed': 'Este conjunto de claims reprovou no teste:',
   'settings.sso.fallback':
     'O login local continua disponível como alternativa, seja qual for o estado deste provedor — ninguém fica trancado para fora só porque um provedor de identidade quebrou.',
+  'decisions.card.steps': 'O que vai acontecer',
+  'decisions.card.rollback': 'Se der errado — reversão',
+  'decisions.card.noRollback':
+    'Nenhuma reversão registrada — esta ação não pode ser desfeita.',
+  'decisions.card.why': 'Por quê',
+  'decisions.card.evidence': 'Evidência que sustenta',
+  'decisions.card.evidenceLink': 'ver',
+  'decisions.card.blastRadius': 'Raio de alcance',
+  'decisions.card.blastRadius.text':
+    '{count} recurso(s) conhecido(s), profundidade {depth}',
+  'decisions.card.blastRadius.unknown':
+    'Desconhecido — o grafo de topologia não pôde ser lido',
+  'decisions.card.rawPayload': 'payload bruto da ação',
+  'decisions.card.notRecorded': 'Não registrado.',
+  'decisions.card.risk': 'Risco',
+  'decisions.card.outcome': 'Decidida',
+  'decisions.card.appliedAndVerified': 'aplicada e verificada',
+  'decisions.card.autonomy.reversible':
+    '{level} — fica na fila e só aplica depois do seu sim.',
+  'decisions.card.autonomy.irreversible':
+    '{level} — fica na fila e só aplica depois do seu sim.',
+  'decisions.expiredFooter.explanation':
+    'A janela desta proposta fechou — o ambiente foi lido antes de expirar. Proponha de novo para decidir sobre uma leitura atual.',
+  'decisions.expiredFooter.repropose': 'Propor de novo, agora',
+  'decisions.expiredFooter.discard': 'Descartar',
+  'decisions.expiredFooter.failed': 'O deployment não respondeu. Nada mudou.',
+  'decisions.decided.heading': 'Decididas recentemente',
+  'decisions.decided.empty': 'Nada foi decidido ainda.',
+  'decisions.decided.outcome.approved': 'aprovada por {who}',
+  'decisions.decided.outcome.approvedVerified':
+    'aprovada por {who}, aplicada e verificada',
+  'decisions.decided.outcome.rejected': 'rejeitada por {who}: {reason}',
+  'decisions.decided.outcome.rejectedNoReason': 'rejeitada por {who}',
+  'decisions.decided.outcome.discarded': 'descartada por {who}',
 };
