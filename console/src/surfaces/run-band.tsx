@@ -123,7 +123,11 @@ function StageSegment({ state }: { readonly state: StageState }): ReactNode {
       data-state={state}
       className={cx(
         'h-1 flex-1 rounded-1',
-        state === 'completed' ? 'bg-accent' : state === 'current' ? 'stage-shimmer' : 'bg-sunken',
+        state === 'completed'
+          ? 'bg-accent'
+          : state === 'current'
+            ? 'stage-shimmer'
+            : 'bg-sunken',
       )}
     />
   );
@@ -148,10 +152,15 @@ function RunCard({ locale, card }: RunCardProps): ReactNode {
       className="slide-in edge border-border rounded-2 bg-raised px-4 py-3 flex flex-col gap-2"
     >
       <div className="flex items-center gap-3">
-        <span data-testid="run-card-title" className="text-strong truncate flex-1 min-w-0">
+        <span
+          data-testid="run-card-title"
+          className="text-strong truncate flex-1 min-w-0"
+        >
           {card.title}
         </span>
-        <span className="text-meta text-muted shrink-0">{triggerLabel(locale, card.trigger)}</span>
+        <span className="text-meta text-muted shrink-0">
+          {triggerLabel(locale, card.trigger)}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <div className="flex gap-1 flex-1">
@@ -201,10 +210,14 @@ export function RunBand({
           {message(locale, 'dashboard.runBand.title')}
         </span>
         <span className="text-meta text-muted flex items-center gap-1">
-          <span data-testid="run-band-flight-count">{formatNumber(locale, runs.length)}</span>
+          <span data-testid="run-band-flight-count">
+            {formatNumber(locale, runs.length)}
+          </span>
           {message(locale, 'dashboard.runBand.flight')}
           {' · '}
-          <span data-testid="run-band-followed-count">{formatNumber(locale, followedCount)}</span>
+          <span data-testid="run-band-followed-count">
+            {formatNumber(locale, followedCount)}
+          </span>
           {message(locale, 'dashboard.runBand.followed')}
           {' · '}
           <span

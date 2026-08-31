@@ -79,7 +79,12 @@ interface DecisionCardProps {
 }
 
 /** One card: title, risk, age, plan and reversal, and — permission allowing — the controls. */
-function DecisionCard({ locale, decision, canDecide, expanded }: DecisionCardProps): ReactNode {
+function DecisionCard({
+  locale,
+  decision,
+  canDecide,
+  expanded,
+}: DecisionCardProps): ReactNode {
   const planHref = `/decisions?tab=actions&selected=${encodeURIComponent(decision.id)}`;
   return (
     <li
@@ -88,15 +93,24 @@ function DecisionCard({ locale, decision, canDecide, expanded }: DecisionCardPro
       className="edge border-warning rounded-2 bg-warning-bg px-4 py-3 flex flex-col gap-3"
     >
       <div className="flex items-start gap-3 flex-wrap">
-        <span data-testid="attention-decision-title" className="text-strong flex-1 min-w-0">
+        <span
+          data-testid="attention-decision-title"
+          className="text-strong flex-1 min-w-0"
+        >
           {decision.title}
         </span>
-        <span data-testid="attention-decision-age" className="text-meta text-muted shrink-0">
+        <span
+          data-testid="attention-decision-age"
+          className="text-meta text-muted shrink-0"
+        >
           {decision.since}
         </span>
       </div>
       <div data-testid="attention-decision-risk">
-        <RiskLadder riskClass={decision.riskClass} label={humaniseIdentifier(decision.riskClass)} />
+        <RiskLadder
+          riskClass={decision.riskClass}
+          label={humaniseIdentifier(decision.riskClass)}
+        />
       </div>
       {expanded ? (
         <div className="flex flex-wrap gap-4">
@@ -121,13 +135,19 @@ function DecisionCard({ locale, decision, canDecide, expanded }: DecisionCardPro
                 approve: message(locale, 'dashboard.decisionBand.approve'),
                 reject: message(locale, 'dashboard.decisionBand.reject'),
                 reason: message(locale, 'dashboard.decisionBand.reason'),
-                reasonRequired: message(locale, 'dashboard.decisionBand.reasonRequired'),
+                reasonRequired: message(
+                  locale,
+                  'dashboard.decisionBand.reasonRequired',
+                ),
                 failed: message(locale, 'dashboard.decisionBand.failed'),
               }}
             />
           ) : null
         ) : (
-          <span data-testid="attention-decision-no-permission" className="text-meta text-muted">
+          <span
+            data-testid="attention-decision-no-permission"
+            className="text-meta text-muted"
+          >
             {message(locale, 'dashboard.decisionBand.noPermission')}
           </span>
         )}
@@ -152,7 +172,11 @@ export interface AttentionBlockProps {
 }
 
 /** "Precisa de você": the oldest decision expanded, the rest compact with a count. */
-export function AttentionBlock({ locale, decisions, canDecide }: AttentionBlockProps): ReactNode {
+export function AttentionBlock({
+  locale,
+  decisions,
+  canDecide,
+}: AttentionBlockProps): ReactNode {
   if (decisions.length === 0) {
     return (
       <section
@@ -180,7 +204,12 @@ export function AttentionBlock({ locale, decisions, canDecide }: AttentionBlockP
     >
       <ul className="flex flex-col gap-2">
         {oldest === undefined ? null : (
-          <DecisionCard locale={locale} decision={oldest} canDecide={canDecide} expanded />
+          <DecisionCard
+            locale={locale}
+            decision={oldest}
+            canDecide={canDecide}
+            expanded
+          />
         )}
         {rest.map((decision) => (
           <DecisionCard
@@ -195,7 +224,9 @@ export function AttentionBlock({ locale, decisions, canDecide }: AttentionBlockP
       {rest.length === 0 ? null : (
         <p className="text-meta text-muted flex items-center gap-2">
           <AlertTriangleIcon />
-          {message(locale, 'dashboard.decisionBand.more', { count: String(rest.length) })}
+          {message(locale, 'dashboard.decisionBand.more', {
+            count: String(rest.length),
+          })}
           <ArrowRightIcon />
         </p>
       )}

@@ -3496,9 +3496,12 @@ def overview_record(*, populated: bool) -> CapturedRecord:
         {
             "captured_at": at(),
             "watched": {
-                "value": 99,
-                "breakdown": {"container": 68, "datastore": 21, "node": 2},
-                "series": series([84.0, 88.0, 91.0, 95.0, 99.0]),
+                # Matches `estate-summary`'s own `by_kind` for this scenario
+                # (86 = 82 + 2 + 2) rather than inventing a different total
+                # for the same populated deployment under a different route.
+                "value": 86,
+                "breakdown": {"container": 82.0, "node": 2.0, "virtual-machine": 2.0},
+                "series": series([79.0, 82.0, 84.0, 85.0, 86.0]),
                 "note": "",
             },
             "degraded": {

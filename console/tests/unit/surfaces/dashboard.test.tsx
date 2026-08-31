@@ -162,7 +162,9 @@ async function dashboardWithFinishedIncidents(): Promise<void> {
  * Render the dashboard over live incidents in all four live states, plus a
  * cause that fired three times.
  */
-async function dashboardWithLiveIncidents(options: { isolate?: boolean } = {}): Promise<void> {
+async function dashboardWithLiveIncidents(
+  options: { isolate?: boolean } = {},
+): Promise<void> {
   serveScenario('populated');
   const scenario = globalThis.fetch;
   const firing = (over: Record<string, unknown>): Record<string, unknown> => ({

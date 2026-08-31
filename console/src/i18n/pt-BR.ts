@@ -554,7 +554,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.runBand.followed': 'acompanhados',
   'dashboard.runBand.blocked': 'bloqueado em você',
   'dashboard.runBand.more': 'todas as investigações →',
-  'dashboard.runBand.empty': 'Nada está rodando agora — toda investigação terminou ou nenhuma foi iniciada.',
+  'dashboard.runBand.empty':
+    'Nada está rodando agora — toda investigação terminou ou nenhuma foi iniciada.',
   'dashboard.runBand.empty.action': 'Investigar algo →',
 
   // --- O Painel: "Precisa de você" (decidido em linha) -------------------------
@@ -572,6 +573,30 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.decisionBand.empty': 'Nada espera uma decisão agora.',
   'dashboard.decisionBand.empty.action': 'Ver o histórico de decisões →',
   'dashboard.decisionBand.more': '{count} a mais esperando →',
+
+  // --- Os cinco KPIs (de GET /v1/overview) -----------------------------------
+  'dashboard.kpi.watched': 'Recursos vigiados',
+  'dashboard.kpi.watched.breakdownJoiner': ' · ',
+  'dashboard.kpi.degraded': 'Degradados agora',
+  'dashboard.kpi.degraded.noDetector': 'Nenhum detector promove achado a incidente',
+  'dashboard.kpi.degraded.context': 'contado a partir da saúde atual do estate',
+  'dashboard.kpi.selfResolved': 'Fechados sozinhos',
+  'dashboard.kpi.selfResolved.context': '{closed} de {total} incidentes',
+  'dashboard.kpi.selfResolved.context.none': 'Nenhum incidente fechou ainda',
+  'dashboard.kpi.successRate': 'Taxa de sucesso',
+  'dashboard.kpi.successRate.context': '{succeeded} de {total} investigações',
+  'dashboard.kpi.successRate.context.none': 'Nenhuma investigação terminou ainda',
+  'dashboard.kpi.timeToCause': 'Tempo até a causa',
+  'dashboard.kpi.timeToCause.context': 'mediana {median} · pior {worst}',
+  'dashboard.kpi.timeToCause.context.none': 'Nenhuma investigação terminou ainda',
+  'dashboard.kpi.readFailed': 'Não pôde ser lido',
+  'dashboard.kpi.sparkline.label': 'Tendência de {count} dias',
+  'dashboard.kpi.drill': 'Ver a lista por trás desta figura',
+  'dashboard.kpi.configureDetectors': 'Configurar detectores →',
+
+  // --- "O que insiste em acontecer" (janela de 48h) --------------------------
+  'dashboard.subjects.empty': 'Nada se repetiu nas últimas 48 horas.',
+  'dashboard.subjects.empty.action': 'Ver Incidentes →',
 
   'dashboard.attention.title': 'Precisa de você',
   'dashboard.attention.count': '{count} itens precisam de você',

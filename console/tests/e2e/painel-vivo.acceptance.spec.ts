@@ -111,16 +111,17 @@ test('AN-02: the new card is titled by the typed objective, never "interactive i
 // AN-03 — the stage bar distinguishes completed/current/future (needs 020)
 // =============================================================================
 
-test.skip(
-  'AN-03: the card draws six segments with the current stage distinct from completed and future — needs stage_index from 020-titulo-vivo, not present in this worktree',
-  async ({ page }) => {
-    await page.goto('/');
-    const card = runCards(page).first();
-    const segments = card.getByTestId('run-card-stage');
-    await expect(segments).toHaveCount(6);
-    await expect(segments.filter({ has: page.locator('[data-state="current"]') })).toHaveCount(1);
-  },
-);
+test.skip('AN-03: the card draws six segments with the current stage distinct from completed and future — needs stage_index from 020-titulo-vivo, not present in this worktree', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const card = runCards(page).first();
+  const segments = card.getByTestId('run-card-stage');
+  await expect(segments).toHaveCount(6);
+  await expect(
+    segments.filter({ has: page.locator('[data-state="current"]') }),
+  ).toHaveCount(1);
+});
 
 // =============================================================================
 // AN-04 — the arrival animation, suppressed under prefers-reduced-motion
@@ -138,7 +139,9 @@ test('AN-04: a new card carries the arrival animation class, absent under prefer
   await expect(card).toHaveClass(/slide-in/);
 });
 
-test('AN-04: under prefers-reduced-motion, the animation does not run', async ({ page }) => {
+test('AN-04: under prefers-reduced-motion, the animation does not run', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   const objective = `painel vivo reduced-motion probe ${String(Date.now())}`;
@@ -191,7 +194,10 @@ test('AN-06: the "needs you" band shows the plan summary and rollback before any
   if ((await card.count()) === 0) {
     // Documented, not silently skipped: local mock backing seeds no pending
     // approval by default, and this claim needs a real one.
-    test.skip(true, 'the mock scenario carries no pending approval to assert this against');
+    test.skip(
+      true,
+      'the mock scenario carries no pending approval to assert this against',
+    );
   }
   await expect(card.getByTestId('attention-decision-plan')).toBeVisible();
   await expect(card.getByTestId('attention-decision-rollback')).toBeVisible();
@@ -212,7 +218,9 @@ test('AN-07: approving from the band closes the approval and the band reflects i
   if ((await card.count()) === 0) {
     test.skip(true, 'the mock scenario carries no pending approval to decide');
   }
-  const before = await decisionBand(page).getByTestId('attention-decision-card').count();
+  const before = await decisionBand(page)
+    .getByTestId('attention-decision-card')
+    .count();
   await card.getByTestId('attention-approve').click();
   await expect
     .poll(
@@ -251,7 +259,13 @@ test('AN-09: each of the five KPIs shows a number, a sparkline and a decompositi
   page,
 }) => {
   await page.goto('/');
-  for (const kpi of ['watched', 'degraded', 'selfResolved', 'successRate', 'timeToCause']) {
+  for (const kpi of [
+    'watched',
+    'degraded',
+    'selfResolved',
+    'successRate',
+    'timeToCause',
+  ]) {
     const tile = kpiTile(page, kpi);
     await expect(tile).toBeVisible();
     await expect(tile.getByTestId('kpi-value')).toBeVisible();
@@ -288,7 +302,10 @@ test('AN-11: "o que insiste em acontecer" shows a per-subject timeline, an N× c
   await page.goto('/');
   const row = subjectRows(page).first();
   if ((await row.count()) === 0) {
-    test.skip(true, 'the mock scenario carries no recurring subject to assert this against');
+    test.skip(
+      true,
+      'the mock scenario carries no recurring subject to assert this against',
+    );
   }
   await expect(row.getByTestId('subject-timeline')).toBeVisible();
   await expect(row.getByTestId('subject-count')).toHaveText(/\d+×/);
@@ -299,14 +316,20 @@ test('AN-11: "o que insiste em acontecer" shows a per-subject timeline, an N× c
 // AN-12 — no subject shows a raw identifier as its subtitle
 // =============================================================================
 
-test('AN-12: no subject subtitle shows a raw resource or hex identifier', async ({ page }) => {
+test('AN-12: no subject subtitle shows a raw resource or hex identifier', async ({
+  page,
+}) => {
   await page.goto('/');
   const count = await subjectRows(page).count();
   if (count === 0) {
     test.skip(true, 'the mock scenario carries no subject rows to assert this against');
   }
   for (let index = 0; index < count; index += 1) {
-    const subtitle = (await subjectRows(page).nth(index).getByTestId('subject-subtitle').textContent()) ?? '';
+    const subtitle =
+      (await subjectRows(page)
+        .nth(index)
+        .getByTestId('subject-subtitle')
+        .textContent()) ?? '';
     expect(subtitle).not.toMatch(/^res-[0-9a-f]{8}/);
     expect(subtitle).not.toMatch(/[0-9a-f]{16,}/);
   }
@@ -377,7 +400,10 @@ test('AN-16: an empty "needs you" band says nothing waits and links to Decisions
   await page.goto('/');
   const empty = decisionBand(page).getByTestId('attention-decision-empty');
   if ((await empty.count()) === 0) {
-    test.skip(true, 'the mock scenario carries a pending approval, so the empty state does not render');
+    test.skip(
+      true,
+      'the mock scenario carries a pending approval, so the empty state does not render',
+    );
   }
   await expect(empty).toBeVisible();
   await expect(empty.locator('a[href*="/decisions"]')).toBeVisible();
@@ -387,7 +413,9 @@ test('AN-16: an empty "needs you" band says nothing waits and links to Decisions
 // AN-17 — the Painel renders without error in both themes, tokens only
 // =============================================================================
 
-test('AN-17: the Painel renders without a console error in both themes', async ({ page }) => {
+test('AN-17: the Painel renders without a console error in both themes', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
 

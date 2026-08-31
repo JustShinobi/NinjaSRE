@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { RUN_BAND_STAGE_COUNT, inFlightRuns, runCardOf, stageStates } from '@/surfaces/run-band';
+import {
+  RUN_BAND_STAGE_COUNT,
+  inFlightRuns,
+  runCardOf,
+  stageStates,
+} from '@/surfaces/run-band';
 import { text } from '@/surfaces/read';
 
 function run(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -20,7 +25,14 @@ describe('stageStates', () => {
   });
 
   it('draws the first segment current and nothing completed at stage 0', () => {
-    expect(stageStates(0)).toEqual(['current', 'future', 'future', 'future', 'future', 'future']);
+    expect(stageStates(0)).toEqual([
+      'current',
+      'future',
+      'future',
+      'future',
+      'future',
+      'future',
+    ]);
   });
 
   it('draws completed up to the index, current at index+1, future after', () => {
@@ -64,7 +76,10 @@ describe('runCardOf', () => {
   const now = new Date('2026-08-27T12:00:00.000Z');
 
   it('reads the title from the served headline, never deriving one', () => {
-    const card = runCardOf(run({ headline: 'Look for anomalies on the Proxmox cluster' }), now);
+    const card = runCardOf(
+      run({ headline: 'Look for anomalies on the Proxmox cluster' }),
+      now,
+    );
 
     expect(card.title).toBe('Look for anomalies on the Proxmox cluster');
   });

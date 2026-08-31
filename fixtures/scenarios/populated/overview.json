@@ -123,34 +123,34 @@
         },
         "watched": {
           "breakdown": {
-            "container": 68,
-            "datastore": 21,
-            "node": 2
+            "container": 82.0,
+            "node": 2.0,
+            "virtual-machine": 2.0
           },
           "note": "",
           "series": [
             {
               "date": "2026-08-11",
-              "value": 84.0
+              "value": 79.0
             },
             {
               "date": "2026-08-10",
-              "value": 88.0
+              "value": 82.0
             },
             {
               "date": "2026-08-09",
-              "value": 91.0
+              "value": 84.0
             },
             {
               "date": "2026-08-08",
-              "value": 95.0
+              "value": 85.0
             },
             {
               "date": "2026-08-07",
-              "value": 99.0
+              "value": 86.0
             }
           ],
-          "value": 99
+          "value": 86
         }
       },
       "contract_version": "1.0.0",

@@ -35,7 +35,9 @@ describe('AttentionBlock', () => {
 
     const card = screen.getByTestId('attention-decision-card');
     expect(card).toHaveAttribute('data-expanded', 'true');
-    expect(screen.getByTestId('attention-decision-plan')).toHaveTextContent('Reboot the guest');
+    expect(screen.getByTestId('attention-decision-plan')).toHaveTextContent(
+      'Reboot the guest',
+    );
     expect(screen.getByTestId('attention-decision-rollback')).toHaveTextContent(
       'No rollback needed',
     );

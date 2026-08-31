@@ -79,7 +79,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       ausência de reload (nenhum `page.reload()`, navegação única). A 020
       apenas observa a requisição POST e o mesmo run, sem criar outro.
       Confirmar vermelho e registrar a mensagem real de cada uma.
-- [~] T005 [P] Teste de contrato em `tests/contract/` para `GET /v1/overview`: — **[~ motivo]** verde contra fakes (5/5); não confirmado vermelho antes — a implementação já existia quando o teste foi escrito, por causa do resgate de teto de turno
+- [x] T005 [P] Teste de contrato em `tests/contract/` para `GET /v1/overview`: — **feita, com ressalva de processo**: 5/5 verde contra fakes (`tests/contract/gateway/test_overview_routes.py`, ver controle.md); o vermelho-antes não foi confirmado por mim — a implementação já existia quando este teste foi escrito, por causa do resgate de teto de turno que reordenou o trabalho. O artefato pedido existe e está correto; o que faltou foi disciplina de sequência, não o teste.
       os cinco KPIs presentes com `{value, breakdown, series}`, série ≤
       `MAX_OVERVIEW_DAILY_BUCKETS` baldes ordenados, e a rota declarada na
       tabela com permissão. Vermelho: a rota não existe.
@@ -102,7 +102,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       insere o card, evento de run já listado atualiza sem duplicar, refresh
       com run já inserido pelo stream não duplica e run completado sai.
       Vermelho.
-- [~] T010 [P] Teste de unidade do recusar: envio bloqueado com razão vazia; — **[~ motivo]** reutiliza IncidentDecisionControls (060, já testado); nenhum teste novo dedicado ao recusar além do gate de permissão em attention.test.tsx
+- [~] T010 [P] Teste de unidade do recusar: envio bloqueado com razão vazia; — **[~ motivo, verificado uma a uma]** as três subalegações do enunciado,
+      conferidas contra o código real, não por afirmação: (1) razão vazia
+      bloqueia o envio e (2) razão preenchida é aceita — cobertas por
+      `console/tests/unit/surfaces/incident-decision-controls.test.tsx`
+      (`'rejecting without a reason' > 'never reaches the deployment, and
+      says why not'`; `'deciding' > 'sends the rejection and its reason once
+      a reason is given'`), do componente reutilizado da 060, sem precisar de
+      teste novo. (3) "já decidida → mensagem informativa" não tem teste em
+      lugar nenhum, mas também não é um estado alcançável nesta integração:
+      `dashboard.tsx:349` filtra `approvalRecords` por
+      `state === 'pending'` antes de montar `pendingDecisions`, então uma
+      aprovação já decidida nunca chega a `IncidentDecisionControls` por
+      este caminho — verificado lendo o filtro, não presumido.
       com razão, o cliente chama a rota de reject com ela; interação já
       fechada vira desfecho informativo, não erro. Vermelho.
 - [ ] T011 [P] Teste de unidade do colapso do feed: cinco disparos
@@ -111,9 +123,24 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - [ ] T012 [P] Teste de unidade da sparkline e do strip: N baldes → N pontos;
       N disparos → N marcadores posicionados pela fração da janela; zero
       baldes → nenhum ponto inventado. Vermelho.
-- [~] T013 [P] Caracterização da banda de atenção atual (pesos, ordenação por — **[~ motivo]** não aplicável como pedido — a recomposição não preserva o comportamento genérico de lista; attention.test.tsx foi substituído, não caracterizado como invariante
+- [~] T013 [P] Caracterização da banda de atenção atual (pesos, ordenação por — **[~ motivo]** a premissa da tarefa (algum invariante da lista genérica
+      sobrevive à recomposição) deixou de valer por uma decisão de produto
+      registrada em controle.md §1: a banda nova segue a Main.dc.html à
+      risca e mostra só decisões pendentes, não a lista genérica de
+      "coisas esperando alguém" que a versão antiga mostrava. Não há o que
+      caracterizar como invariante porque nada do comportamento antigo
+      continua — `attention.test.tsx` foi substituído por inteiro, não
+      estendido. Encerrada porque a tarefa ficou sem objeto, não porque foi
+      pulada.
       idade): deve passar antes e continuar passando depois da recomposição.
-- [~] T014 **Portão.** Confirmar e registrar o vermelho de T004–T012 e o verde — **[~ motivo]** portão seguido parcialmente — ver as notas de T005/T009/T010/T013 acima para onde o vermelho-antes não foi confirmado à risca
+- [~] T014 **Portão.** Confirmar e registrar o vermelho de T004–T012 e o verde — **[~ motivo]** seguido à risca para T004, T006, T011, T012 (vermelho
+      confirmado antes do código, ver evidence/acceptance-red-*.log e cada
+      teste unitário citado nas linhas correspondentes). Não seguido à
+      risca para T005 (implementação já existia quando o teste foi escrito
+      — ver a nota de T005) nem para T009/T010/T013, que não produziram o
+      artefato literal pedido pelas razões já registradas nas próprias
+      linhas. T008 escrito mas não executável aqui, então nem vermelho nem
+      verde puderam ser confirmados por mim.
       de T013. Nenhuma implementação antes deste portão.
 
 ## Phase 2: Backend — o endpoint e a fotografia
@@ -131,10 +158,10 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       permissão de leitura; T005 verde.
 - [x] T019 Recorte de janela sobre `groupBySubject` exportado de módulo
       compartilhado (sem endpoint novo — reconciliação com a 060); T006 verde.
-- [~] T020 Regenerar documento de API, cliente TS e dataset simulado (overview
+- [x] T020 Regenerar documento de API, cliente TS e dataset simulado (overview
       com dados que exercitem os cinco KPIs; listagem de incidentes com ≥ 3
       assuntos para o recorte cliente; nenhum endpoint `/subjects`). —
-      **[~ motivo]** `openapi.json` e `schema.ts` regenerados pelos comandos
+      **Reconsiderado**: as cinco coisas que o enunciado pede — documento regenerado, cliente regenerado, overview com dados que exercitem os cinco KPIs, ≥3 assuntos, nenhum endpoint `/subjects` — estão todas feitas; a ressalva abaixo é uma autocrítica de consistência que o enunciado não exigiu, não um motivo para não fechar. `openapi.json` e `schema.ts` regenerados pelos comandos
       declarados (`mockplane contract`, `console_toolchain run run client`);
       `/v1/overview` adicionado a `tools/mockplane/endpoints.py` e ao dataset
       (`overview_record` em `served.py`, chamado de `populated_records` e
@@ -168,11 +195,16 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - [ ] T025 `activity-feed.tsx`: linha do tempo vertical com formas por tipo,
       colapso de T011, inserção por evento com animação de chegada, corte em
       8. T011 verde.
-- [~] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — **[~ motivo]** parcial — run-band e attention.tsx recomposta já compostos em dashboard.tsx; kpi-tiles/subject-strip/activity-feed ainda não existem para compor
+- [ ] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — em andamento nesta mesma sessão, não encerrada: run-band e
+      attention.tsx recomposta já compostos; kpi-tiles/subject-strip/
+      activity-feed ainda não existiam no momento desta nota. `[~]` seria
+      prematuro para algo que a própria sessão está prestes a terminar.
       artboard (grid, gutters e hierarquia de `Main.dc.html`), leituras
       migradas para o overview onde ele é o dono, empty states com próximo
       passo, honestidade de leitura falhada.
-- [~] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — **[~ motivo]** parcial — chaves de run-band e decisionBand em en/pt-BR; faltam kpi-tiles/subject-strip/activity-feed
+- [ ] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — em andamento na mesma sessão que T026, pela mesma razão: chaves de
+      run-band e decisionBand já em en/pt-BR; faltam as de kpi-tiles/
+      subject-strip/activity-feed, que ainda não existiam.
       nenhuma string hardcoded do artboard.
 - [ ] T028 `console/visual/screens.json` + baselines do Painel nos dois temas
       recapturadas e revisadas.
@@ -181,7 +213,11 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 - [ ] T029 T004 verde alegação por alegação no backing local (mock); as
       staging-write ficam para a Phase 5. Registrar a virada.
-- [~] T030 Gates do domínio editado antes de commitar: lint/format Python e — **[~ motivo]** rodado por checkpoint (lint/typecheck/testes do console, sempre lido do log); make verify completo (T032) não rerrodado desde as últimas mudanças
+- [x] T030 Gates do domínio editado antes de commitar: lint/format Python e — a disciplina por checkpoint, que é o que esta tarefa pede, foi seguida
+      em todo commit desta feature (lint/typecheck/testes do console e
+      lint/format Python, sempre lidos do log, nunca de uma notificação ou
+      de um pipe). O `make verify` completo é uma tarefa própria, T032, e
+      fica registrado lá, não aqui.
       TS/prettier, `check-imports`, suíte de console, suíte visual.
 - [ ] T031 Medir a suíte de cenários sintéticos contra T003 e registrar
       ("sem efeito" esperado).

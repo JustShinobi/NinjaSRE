@@ -74,13 +74,13 @@ const IDENTIFIER_HEAD = 8;
  * the test is the shape of the string, never a list of prefixes this file
  * would have to keep in step with whatever the gateway starts sending.
  */
-function isOpaque(subject: string): boolean {
+export function isOpaque(subject: string): boolean {
   const tail = subject.slice(subject.indexOf('-') + 1);
   return subject.includes('-') && tail.length >= 24 && /^[0-9a-f]+$/u.test(tail);
 }
 
 /** `subject`, shortened when it is a key and untouched when it is a name. */
-function shortenIdentifier(subject: string): string {
+export function shortenIdentifier(subject: string): string {
   if (!isOpaque(subject)) return subject;
   const prefix = subject.slice(0, subject.indexOf('-') + 1);
   return `${prefix}${subject.slice(prefix.length, prefix.length + IDENTIFIER_HEAD)}…`;
@@ -94,7 +94,7 @@ function shortenIdentifier(subject: string): string {
  * in the estate route) — neither is a name gained, and printing the id
  * twice under two labels is not the fix this screen owes.
  */
-function resolvedName(
+export function resolvedName(
   subject: string,
   subjectNames: ReadonlyMap<string, string>,
 ): string | undefined {
@@ -103,7 +103,7 @@ function resolvedName(
 }
 
 /** The full subject line, offered only where the visible one was shortened or renamed. */
-function subjectTitle(
+export function subjectTitle(
   group: IncidentGroup,
   subjectNames: ReadonlyMap<string, string>,
 ): string | undefined {
@@ -150,7 +150,7 @@ function lastSettledWithRun(
  * already readable on arrival (`adguard-primary`) is still left exactly as
  * it is.
  */
-function SubjectLine({
+export function SubjectLine({
   group,
   subjectNames,
 }: {
@@ -188,7 +188,11 @@ function SubjectLine({
 }
 
 /** One vertical bar per occurrence, opacity rising toward the most recent. */
-function RecurrenceStrip({ group }: { readonly group: IncidentGroup }): ReactNode {
+export function RecurrenceStrip({
+  group,
+}: {
+  readonly group: IncidentGroup;
+}): ReactNode {
   if (group.occurrences.length <= 1) return null;
   const oldestFirst = [...group.occurrences].reverse();
   const width = oldestFirst.length * 6;

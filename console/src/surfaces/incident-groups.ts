@@ -211,7 +211,9 @@ export function subjectsInWindow(
   const cutoff = now.getTime() - windowHours * 3_600_000;
   const windowed: IncidentGroup[] = [];
   for (const group of groups) {
-    const occurrences = group.occurrences.filter((occurrence) => instant(occurrence.at) >= cutoff);
+    const occurrences = group.occurrences.filter(
+      (occurrence) => instant(occurrence.at) >= cutoff,
+    );
     if (occurrences.length === 0) continue;
     windowed.push({
       ...group,

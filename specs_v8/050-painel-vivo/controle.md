@@ -44,6 +44,22 @@ SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
 Não há mais nada a decidir aqui. Se esta seção ainda gerar dúvida, a
 pergunta certa é sobre o código citado acima, não sobre a decisão em si.
 
+## 0.5. Um defeito do plan.md, corrigido
+
+`plan.md`, decisão 4, dizia para decidir a remediação proposta via
+`POST /v1/interactions/{id}/approve`. Está errado, e o código já sabia
+disso antes de eu chegar: uma remediação proposta é um `ApprovalRequest`,
+decidido em `POST /v1/approvals/{approval_id}/decision`, não uma
+`interaction` que uma investigação ao vivo está esperando — são dois
+mecanismos e duas rotas diferentes, endereçando dois stores diferentes. A
+fonte não fui eu quem inventei: o próprio componente que já existia,
+`console/src/surfaces/screens/incident-decision-controls.tsx:14-20`, tem a
+distinção escrita no docstring, deliberadamente, para explicar por que ele
+não é `DecisionControls` (`surfaces/decision.tsx`, o componente que decide
+uma interação). `attention.tsx` recomposta usa a rota certa
+(`/v1/approvals/{id}/decision`, via `IncidentDecisionControls`); o plano é
+que estava desatualizado.
+
 ## 1. Peça por peça
 
 | Peça | Estado | Detalhe |

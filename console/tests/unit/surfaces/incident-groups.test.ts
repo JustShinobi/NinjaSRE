@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { SUBJECT_WINDOW_HOURS, groupBySubject, subjectsInWindow } from '@/surfaces/incident-groups';
+import {
+  SUBJECT_WINDOW_HOURS,
+  groupBySubject,
+  subjectsInWindow,
+} from '@/surfaces/incident-groups';
 
 /**
  * Folding a repeating estate back into the problems it actually has.
@@ -189,7 +193,11 @@ describe('subjectsInWindow', () => {
 
   it('drops a subject entirely when the window reaches none of its firings', () => {
     const groups = groupBySubject([
-      incident({ incident_id: 'a', correlation_key: 'k-stale', opened_at: '2026-08-01T00:00:00.000Z' }),
+      incident({
+        incident_id: 'a',
+        correlation_key: 'k-stale',
+        opened_at: '2026-08-01T00:00:00.000Z',
+      }),
     ]);
 
     expect(subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS)).toEqual([]);
@@ -202,16 +210,22 @@ describe('subjectsInWindow', () => {
       incident({ incident_id: 'c', opened_at: '2026-08-20T00:00:00.000Z' }), // outside
     ];
     const inWindow = records.filter(
-      (record) => now.getTime() - Date.parse(String(record.opened_at)) <= SUBJECT_WINDOW_HOURS * 3_600_000,
+      (record) =>
+        now.getTime() - Date.parse(String(record.opened_at)) <=
+        SUBJECT_WINDOW_HOURS * 3_600_000,
     );
 
-    const windowed = subjectsInWindow(groupBySubject(records), now, SUBJECT_WINDOW_HOURS);
+    const windowed = subjectsInWindow(
+      groupBySubject(records),
+      now,
+      SUBJECT_WINDOW_HOURS,
+    );
     const total = windowed.reduce((sum, group) => sum + group.count, 0);
 
     expect(total).toBe(inWindow.length);
   });
 
-  it('preserves the group\'s own live state and severity rather than rederiving them', () => {
+  it("preserves the group's own live state and severity rather than rederiving them", () => {
     // A subject investigated right now, whose only 48h-old firing already
     // resolved: the row must still read as live, because the investigation
     // is a fact about right now that a window over the firings cannot see.
@@ -248,10 +262,9 @@ describe('subjectsInWindow', () => {
       }),
     ]);
 
-    expect(subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS).map((group) => group.key)).toEqual([
-      'k-live',
-      'k-done',
-    ]);
+    expect(
+      subjectsInWindow(groups, now, SUBJECT_WINDOW_HOURS).map((group) => group.key),
+    ).toEqual(['k-live', 'k-done']);
   });
 
   it('recomputes lastAt/firstAt from the surviving occurrences alone', () => {

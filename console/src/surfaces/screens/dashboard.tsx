@@ -350,7 +350,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     .filter((record) => text(record, 'state') === 'pending')
     .sort(
       (left, right) =>
-        Date.parse(text(left, 'requested_at')) - Date.parse(text(right, 'requested_at')),
+        Date.parse(text(left, 'requested_at')) -
+        Date.parse(text(right, 'requested_at')),
     )
     .map((record) => decisionCardOf(record, locale, now, zone));
 

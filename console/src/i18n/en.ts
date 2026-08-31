@@ -532,7 +532,8 @@ export const EN = {
   'dashboard.runBand.followed': 'followed',
   'dashboard.runBand.blocked': 'blocked on you',
   'dashboard.runBand.more': 'all investigations →',
-  'dashboard.runBand.empty': 'Nothing is running right now — every investigation has finished or none has started.',
+  'dashboard.runBand.empty':
+    'Nothing is running right now — every investigation has finished or none has started.',
   'dashboard.runBand.empty.action': 'Start one →',
 
   // --- The Painel: "Precisa de você" (decided inline) --------------------------
@@ -550,6 +551,30 @@ export const EN = {
   'dashboard.decisionBand.empty': 'Nothing is waiting on a decision right now.',
   'dashboard.decisionBand.empty.action': 'See the decision history →',
   'dashboard.decisionBand.more': '{count} more waiting →',
+
+  // --- The five KPI tiles (from GET /v1/overview) ---------------------------
+  'dashboard.kpi.watched': 'Resources watched',
+  'dashboard.kpi.watched.breakdownJoiner': ' · ',
+  'dashboard.kpi.degraded': 'Degraded now',
+  'dashboard.kpi.degraded.noDetector': 'No detector promotes a finding to an incident',
+  'dashboard.kpi.degraded.context': "counted from the estate's current health",
+  'dashboard.kpi.selfResolved': 'Closed on their own',
+  'dashboard.kpi.selfResolved.context': '{closed} of {total} incidents',
+  'dashboard.kpi.selfResolved.context.none': 'No incident has closed yet',
+  'dashboard.kpi.successRate': 'Success rate',
+  'dashboard.kpi.successRate.context': '{succeeded} of {total} investigations',
+  'dashboard.kpi.successRate.context.none': 'No investigation has finished yet',
+  'dashboard.kpi.timeToCause': 'Time to a cause',
+  'dashboard.kpi.timeToCause.context': 'median {median} · worst {worst}',
+  'dashboard.kpi.timeToCause.context.none': 'No investigation has finished yet',
+  'dashboard.kpi.readFailed': 'Could not be read',
+  'dashboard.kpi.sparkline.label': '{count}-day trend',
+  'dashboard.kpi.drill': 'See the list behind this figure',
+  'dashboard.kpi.configureDetectors': 'Configure detectors →',
+
+  // --- "What keeps happening" (subject strip, 48h window) --------------------
+  'dashboard.subjects.empty': 'Nothing has repeated in the last 48 hours.',
+  'dashboard.subjects.empty.action': 'See Incidents →',
 
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
