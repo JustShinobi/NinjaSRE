@@ -147,6 +147,7 @@ de uma tarefa planejada antes da execução.
 |---|---|---|
 | 1. Incidentes — subtítulo é identificador, não nome (T035) | FEITO | `console/src/surfaces/incident-group-list.tsx`: `SubjectLine` e `subjectTitle` agora resolvem o nome da estante por `resolvedName` (novo), que só aceita um nome quando ele difere do próprio id — a queda do gateway para `display_name or resource_id` (`gateway/http/routes/estate.py`, `_row`) não conta como nome ganho. `console/src/surfaces/screens/incidents.tsx`: mapa `subjectNames` (`resource_id -> display_name`) construído uma vez por página a partir da MESMA leitura de `/v1/estate/resources` que o cartão de cobertura de detector já fazia (linha ~183) — nenhuma segunda requisição, nenhuma mudança de gateway. Um assunto que a estante genuinamente não tem (`cluster`, um datastore, um job de backup, no dado local) não ganha entrada no mapa e continua a mostrar o id encurtado, nunca em branco — comportamento herdado, não reescrito. |
 | 2. Recursos — a grade nunca termina (T036) | FEITO | `console/src/surfaces/screens/resources-grouping.ts`: `capNodeSection`, nova, testada (13 casos) — uma linha (4 cartões) quando a seção não tem nada não saudável, duas (8) quando tem; reproduz os dois exemplos do próprio board exatamente (pve01: 58/0 → 4 + "ver todos"; pve02: 41/14 → 8 + "ver os não saudáveis"). `resources.tsx`: grade renderiza `capped.shown`; filtro `node` novo em `RESOURCE_FILTERS` (mesmo padrão de `zone`/`kind`/etc., `FilterName` já é `string`) para que os dois links levem a algo real — `?node=<id>` (mais `health=problem` para "ver os não saudáveis") — em vez de um `href="#"` decorativo; uma seção alcançada assim (`drilledIntoNode`) nunca é recortada de novo e ganha um link "voltar" (`action` do `Panel`). Sentinela `NO_NODE_FILTER_VALUE='none'` para a seção "sem nó declarado", cujo `nodeId` é `''` — que `withFilter` trata como "filtro ausente" e apagaria da URL. Prova: cinco testes novos em `resources-by-node.acceptance.spec.ts`; vermelho confirmado contra o build sem o corte (52 cartões numa seção só, altura 2423px no dataset local), verde depois — **altura capturada: 1103px** (o board cita 3230px em staging antes desta correção). `console/visual/screens.json`: os dois registros de `/resources` já estavam `pending`; motivo corrigido para não afirmar mais que a grade em cartões "não tem esse problema" — ela tinha, por um motivo diferente do da tabela antiga. |
+| 3. Conhecimento — desfecho do episódio sem chip e fora do vocabulário de status (T037) | FEITO | `console/src/surfaces/screens/memory.tsx`: `EpisodeCard` trocou o `<span>` calculado à mão (`outcomeShape`, binário resolvido/o-resto, sem `data-role`) por `StatusDot` (ponto à esquerda) mais `OutcomeChip` novo (`ResolvedChip` + `statusPresentation`, chip à direita) — confirmado no ambiente real que nenhum elemento de `/knowledge` carregava `data-role`; agora carrega. `EPISODE_OUTCOME_LABEL` traduz as quatro palavras que `EpisodeOutcome` declara; uma quinta palavra ainda ganha papel e forma do vocabulário compartilhado e imprime a si mesma, como `Badge` já faz. **Achado ao investigar, não a correção como recebida**: o fixture de `4ebdbee5` tinha nivelado os dois episódios que eram `"acknowledged"` e o que era `"unresolved"` para um único `"inconclusive"`; a tabela de tradução do seeder de demonstração (`platform/startup/demo/seeder.py`, `_EPISODE_OUTCOME`) já mapeia esse vocabulário legado para o enum real, e mapeia os dois de forma diferente — `"acknowledged"` para `MITIGATED`, `"unresolved"` para `INCONCLUSIVE`. `tools/mockplane/dataset/served.py` corrigido para essa mesma tradução (dois episódios agora `"mitigated"`, um `"inconclusive"`) e `fixtures/scenarios/populated/episodes.json` regenerado por `python -m tools.mockplane build --scenario populated` — sem edição manual, `git diff` conferido contra o gerador. `mitigated`/`false_positive` não entraram em `console/src/design/status.ts` (congelado); um episódio `mitigated` real existe agora no dataset local e passa pelo caminho de "palavra não ensinada" (papel neutro, rótulo próprio, `known: false`), exercitado por teste, não escondido — ver recomendação abaixo. Prova: três testes novos em `learned-knowledge.acceptance.spec.ts`; vermelho confirmado contra o build sem o wiring (`element(s) not found` no locator `episode-outcome`), verde depois. Corte de fio: `statusPresentation(outcome)` → `statusPresentation('')` em `memory.tsx` — vermelho só no teste que fixa papel por palavra (`Expected: "success", Received: "neutral"`), os outros dois continuaram verdes (medem "tem um papel"/"renderiza", não qual), provando que só aquele teste mede a derivação real; linha restaurada, `git diff` limpo, verde de novo. |
 
 ## Achados do slot, registrados para não se perderem (continuação)
 
@@ -167,3 +168,56 @@ de uma tarefa planejada antes da execução.
    antes mesmo de chegar em node02. Corrigido para localizar
    `[data-testid="node-section-more"][data-only-unhealthy="true"]`
    diretamente — o mesmo padrão que o teste vizinho já usava.
+9. **A correção de `4ebdbee5` tinha resolvido a palavra fora de vocabulário,
+   mas não a tinha traduzido certo.** `"acknowledged"` e `"unresolved"` foram
+   ambos nivelados para `"inconclusive"` — o que já fecha "o backend nunca
+   emitiu essas palavras", mas não é a mesma coisa que fechar "o backend, se
+   tivesse que traduzir essas palavras, traduziria as duas para o mesmo
+   valor". `platform/startup/demo/seeder.py` já declara essa tradução
+   (`_EPISODE_OUTCOME`) para o mesmo propósito — semear uma implantação real
+   a partir do mesmo `fixtures/`, que `platform/startup/demo/dataset.py` lê
+   diretamente — e ela mapeia `"acknowledged"` para `MITIGATED`,
+   `"unresolved"` para `INCONCLUSIVE`: duas palavras, dois destinos. Seguida
+   essa tradução em vez da nivelada: dois episódios que eram "acknowledged"
+   (`ep-0002`, `ep-0005`) agora servem `"mitigated"`; o que era "unresolved"
+   (`ep-0003`) continua `"inconclusive"`, que já estava certo.
+
+## Recomendação — `mitigated` e `false_positive` em `console/src/design/status.ts`
+
+Não aplicada (o diretório é congelado e a decisão é do lead); registrada
+aqui com o raciocínio para quem decidir.
+
+**`mitigated` — declarar.** Não é um valor hipotético: é a tradução que o
+próprio backend já declara para uma palavra de captura real
+(`_EPISODE_OUTCOME` acima), e com essa tradução aplicada o dataset local
+`populated` — o mesmo que os quatro acceptance specs desta feature rodam
+contra — carrega dois episódios `mitigated` em cinco, não um caso de borda.
+Deixado sem declarar, os dois recebem o papel neutro de "palavra não
+ensinada" ao lado de um `resolved` verde e de um `inconclusive` âmbar — o
+que é honesto, mas achata numa cor cinza um terceiro ponto real do espectro
+de desfecho. Proposta: `role: 'info'`, `shape: 'dimmed-circle'` — a mesma
+combinação que `stored` já usa para "sabemos algo aconteceu, mas não temos a
+mesma confiança que um `resolved`/`verified` tem" (`console/src/design/status.ts`,
+comentário de `stored`: "ahead of anything a live check could say about it"
+— o mesmo formato epistêmico de "alguém agiu e o sintoma parou, mas a causa
+raiz não foi estabelecida com a evidência que `resolved` exige", que é a
+única leitura de "mitigado" que o docstring de `MemoryEpisode.resolved`
+sustenta ("A root cause was established with evidence behind it. **Not** a
+claim that production was fixed"). Nenhuma combinação `{success, hollow-circle}`
+existe hoje no mapa — cogitada e descartada: "sucesso" é uma reivindicação
+mais forte do que "mitigado" garante, e `info`+`dimmed-circle` reaproveita
+um par já declarado em vez de inventar mais um.
+
+**`false_positive` — não declarar agora.** Zero episódios no corpus local ou
+em qualquer teste/seeder emitem esse valor hoje — `rg` no repositório inteiro
+só o encontra na própria declaração do enum e na entrada `"false_positive":
+EpisodeOutcome.FALSE_POSITIVE` de `_EPISODE_OUTCOME`, nunca produzido. O
+board também não desenha essa palavra em canto nenhum de `Knowledge.dc.html`.
+Sem um episódio real para exercitar, declarar um papel seria adivinhar — e
+o fallback (`neutral`, `hollow-circle`, rótulo próprio, `known: false`) já é
+honesto e testável quando esse dia chegar. Se o lead quiser aplicar mesmo
+assim, por analogia: `role: 'neutral'`, `shape: 'dash'` — o mesmo par que
+`closed_without_action` usa por um raciocínio que se transporta quase
+inteiro ("Terminal com nada feito... não é um incidente que foi resolvido, e
+desenhá-lo em verde é como um índice de sucesso mente"), mas essa segunda
+proposta é mais fraca que a primeira porque nasce de analogia, não de dado.

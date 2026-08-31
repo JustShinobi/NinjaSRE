@@ -373,5 +373,41 @@ contra o build real antes da correção.
       de `/resources` (1440/320) já estavam `pending`; motivo atualizado
       para não afirmar mais que a grade "não tem esse problema".
 
+- [x] T037 [US3] Conhecimento: o desfecho do episódio usa o vocabulário
+      compartilhado de status, com o chip que o board desenha
+      (`console/src/surfaces/screens/memory.tsx`: `EpisodeCard` trocou o
+      `<span>` calculado à mão (`outcomeShape`, binário resolvido/o-resto)
+      por `StatusDot` no ponto à esquerda e o novo `OutcomeChip`
+      (`ResolvedChip` + `statusPresentation`) no chip à direita — ambos
+      lidos de `outcome`, nenhum mais desenhando por conta própria).
+      `EPISODE_OUTCOME_LABEL` traduz as quatro palavras que
+      `EpisodeOutcome` declara (`platform/persistence/ports/episode_store.py`);
+      uma palavra fora desse conjunto ainda ganha papel e forma do
+      vocabulário compartilhado e imprime a si mesma — o mesmo
+      comportamento gracioso que `Badge` já tem para um status que o
+      catálogo não conhece. Achado ao investigar, não assumido: o fixture
+      que a sessão anterior corrigiu (`4ebdbee5`) tinha nivelado dois
+      episódios que eram `"acknowledged"` e um que era `"unresolved"` para
+      um único `"inconclusive"`; a própria tabela de tradução do seeder de
+      demonstração (`platform/startup/demo/seeder.py`, `_EPISODE_OUTCOME`)
+      já mapeia esse vocabulário legado para o enum real e mapeia os dois
+      de forma diferente — `"acknowledged"` para `MITIGATED`,
+      `"unresolved"` para `INCONCLUSIVE` — então `tools/mockplane/dataset/served.py`
+      foi corrigido para seguir essa mesma tradução (dois episódios agora
+      `"mitigated"`, um `"inconclusive"`) e `fixtures/scenarios/populated/episodes.json`
+      regenerado por `python -m tools.mockplane build --scenario populated`,
+      nunca editado à mão. `mitigated`/`false_positive` não estão em
+      `console/src/design/status.ts` (congelado, decisão do lead) — um
+      episódio `mitigated` real agora existe no dataset local e passa pelo
+      caminho de "palavra não ensinada" (papel neutro, rótulo próprio,
+      `known: false`), honesto e testado, não escondido. Prova: três
+      testes novos em `learned-knowledge.acceptance.spec.ts`; confirmado
+      vermelho contra o build sem o wiring (`element(s) not found` no
+      locator `episode-outcome`), verde depois; corte de fio em
+      `statusPresentation(outcome)` → `statusPresentation('')` reproduziu
+      vermelho só no teste que fixa papel por palavra (`Received: "neutral"`
+      onde esperava `"success"`), confirmando que o teste mede a tela e não
+      o fixture — restaurado e reconfirmado verde.
+
 Registrados aqui à medida que cada um fecha; ver a seção "O que fica
 pendente" no `controle.md` para o estado agregado no meio da execução.
