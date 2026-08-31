@@ -307,7 +307,20 @@ então a onda continua devendo.
 
 - **O staging agora tem uma proposta pendente de verdade**, criada pela UI, com
   vínculo de origem — a primeira coisa que o S1 registrou como faltando.
-  Continua sem run vivo e sem run falho.
+  ~~Continua sem run vivo e sem run falho.~~ **Corrigido no S3, medindo em vez
+  de repetir.** O staging tem run vivo o tempo todo: a primeira leitura pegou
+  `33c9143f` com status `running` e headline vazio, a segunda — noventa
+  segundos depois — já o tinha como `completed`, e o run completado mais novo
+  tinha 1m44s de idade. São 699 runs de alerta em 704, e chega um a cada poucos
+  minutos. O que o staging **não** tem é run **falho**: zero `failed` e zero
+  `cancelled`; os onze não terminados são todos `interrupted`, de quatro a oito
+  dias, sem título.
+
+  A frase errada custou uma conclusão: o analyze da 020 leu "sem run vivo" e
+  decidiu que a cláusula da SC2 sobre observar um alerta real nunca poderia ser
+  forçada e só passaria por acaso. Era premissa, não medida. Deixar isto
+  corrigido aqui vale mais do que o registro do S2 parecer consistente — um
+  slot posterior raciocina em cima desta seção.
 - **Um rollout "concluído" mente igual a `Synced + Healthy`.** A primeira
   leitura depois de um redeploy não achou o elemento novo porque uma réplica
   antiga ainda estava pronta e servindo, com o `kubectl rollout status` já
