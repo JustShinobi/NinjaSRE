@@ -360,3 +360,48 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       (`tools/mockplane/dataset/profile.py:44`), so the recurrence survives
       calendar drift the way `dashboardWithLiveIncidents`'s `hoursAgo(n)` fix
       already does for the unit suite. per US3/AC1, AN-11, AN-12 (missing)
+
+## Phase 7: Convergence
+
+- [x] T042 Position `RecurrenceStrip`'s bars (`console/src/surfaces/incident-group-list.tsx`,
+      the component `subject-strip.tsx` renders into `subject-timeline`) by
+      each occurrence's own instant inside the 48h window — done:
+      `RecurrenceStrip` (`incident-group-list.tsx:205-259`) now takes an
+      optional `now`/`windowHours`; when set, each bar's `x` comes from
+      `positionOnTimeline`'s own `percent`, linearly mapped onto
+      `[0, width - barWidth]` (never clamped, so two occurrences both near
+      `now` don't collapse onto the same pixel), instead of `index * 6`.
+      `subject-strip.tsx` is the only caller that sets it, with
+      `SUBJECT_WINDOW_HOURS`; the Incidents screen's own call
+      (`incident-group-list.tsx:459`) still omits both and keeps the
+      ordinal layout, unchanged. A new unit test in `subject-strip.test.tsx`
+      ("positions bars by each occurrence's own instant in the window, not
+      by ordinal rank") asserts two firings an hour apart draw closer
+      together than two firings twelve hours apart; confirmed red against
+      the reverted ordinal code first (`expected 6 to be less than 6` --
+      with exactly two occurrences, ordinal spaces every pair by the same
+      fixed offset regardless of the real gap). The branch this task left
+      open is resolved as real positioning, not a recorded divergence: no
+      edit to `DIVERGENCIAS.md`, US3/AC2 or FR-023 was needed. Below,
+      unchanged, is the original task text: today it spaces
+      bars by ordinal index with height/opacity rising toward the most
+      recent, which satisfies the marker-*count* clauses (FR-023's "um
+      marcador por disparo devolvido", SC-006's count parity with
+      `groupBySubject`) but not US3's own Acceptance Scenario 2: "ela desenha
+      um marcador por disparo, posicionado pelo instante dele na janela."
+      `TwentyFourHourStrip` (same file, `positionOnTimeline`) already does
+      real proportional-to-window positioning and ships elsewhere in this
+      codebase (the Incidents screen's own `<details>` disclosure) — the gap
+      is that `SubjectStrip` was wired to the ordinal `RecurrenceStrip`
+      instead. `controle.md` §6 has disclosed this exact gap, unchanged,
+      across at least two rounds, reasoning that `RecurrenceStrip` is the
+      visually faithful reading of `Main.dc.html:255-289` (which itself
+      draws bars of rising height/opacity with no real proportional
+      positioning) — a real tension between the spec's own prose and the
+      approved board, never formally resolved: no divergence for it exists
+      in `design/padrao-2026-08/DIVERGENCIAS.md`, and spec.md's US3/AC2 and
+      FR-023 still read as written. Either implement real instant-based
+      positioning, or have the orchestrator record the board-over-spec
+      divergence in `DIVERGENCIAS.md` and amend US3/AC2 and FR-023 to match
+      what is actually built — a product call this task cannot make
+      unilaterally. per US3/AC2, FR-023, T012 (partial)

@@ -185,4 +185,80 @@ describe('SubjectStrip', () => {
     const chip = within(row).getByTestId('subject-chip');
     expect(chip.getAttribute('data-role')).toMatch(/.+/);
   });
+
+  it("positions bars by each occurrence's own instant in the window, not by ordinal rank", () => {
+    // Two firings an hour apart, and two firings twelve hours apart, both
+    // pairs ending at `now` -- real instant-based positioning must draw the
+    // first pair's bars closer together than the second pair's. Ordinal
+    // placement cannot tell these two groups apart: with exactly two
+    // occurrences each, it always spaces the bars by the same fixed offset
+    // regardless of how far apart the firings actually were.
+    const anHourApart = group({
+      key: 'an-hour-apart',
+      occurrences: [
+        {
+          id: 'hour-new',
+          publicId: 'inc_hour_new',
+          summary: '',
+          state: 'investigating',
+          severity: 'critical',
+          at: NOW.toISOString(),
+          runId: 'run-hour',
+        },
+        {
+          id: 'hour-old',
+          publicId: 'inc_hour_old',
+          summary: '',
+          state: 'resolved',
+          severity: 'critical',
+          at: new Date(NOW.getTime() - 60 * 60 * 1000).toISOString(),
+          runId: '',
+        },
+      ],
+    });
+    const twelveHoursApart = group({
+      key: 'twelve-hours-apart',
+      occurrences: [
+        {
+          id: 'twelve-new',
+          publicId: 'inc_twelve_new',
+          summary: '',
+          state: 'investigating',
+          severity: 'critical',
+          at: NOW.toISOString(),
+          runId: 'run-twelve',
+        },
+        {
+          id: 'twelve-old',
+          publicId: 'inc_twelve_old',
+          summary: '',
+          state: 'resolved',
+          severity: 'critical',
+          at: new Date(NOW.getTime() - 12 * 60 * 60 * 1000).toISOString(),
+          runId: '',
+        },
+      ],
+    });
+    render(
+      <SubjectStrip locale="en" now={NOW} groups={[anHourApart, twelveHoursApart]} />,
+    );
+    const rows = screen.getAllByTestId('subject-row');
+    expect(rows).toHaveLength(2);
+    // A test that indexes into `rows` and asserts on `undefined` would fail
+    // by saying "cannot read property of undefined", which says nothing
+    // about what the strip drew -- this names the row instead.
+    const barDistance = (row: HTMLElement | undefined): number => {
+      if (row === undefined) {
+        throw new Error('the subject row this test is about is not there');
+      }
+      const xs = Array.from(row.querySelectorAll('rect')).map((rect) =>
+        Number(rect.getAttribute('x')),
+      );
+      expect(xs).toHaveLength(2);
+      return Math.abs((xs[0] ?? 0) - (xs[1] ?? 0));
+    };
+    const hourDistance = barDistance(rows[0]);
+    const twelveHourDistance = barDistance(rows[1]);
+    expect(hourDistance).toBeLessThan(twelveHourDistance);
+  });
 });

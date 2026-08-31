@@ -5,7 +5,7 @@ import { cx } from '@/design/cx';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import type { IncidentGroup } from './incident-groups';
-import { positionOnTimeline } from './incident-timeline';
+import { DEFAULT_TIMELINE_WINDOW_HOURS, positionOnTimeline } from './incident-timeline';
 
 /**
  * One row per cause, and every firing of it one disclosure away.
@@ -187,15 +187,47 @@ export function SubjectLine({
   );
 }
 
-/** One vertical bar per occurrence, opacity rising toward the most recent. */
+/**
+ * One vertical bar per occurrence, height/opacity rising toward the most
+ * recent.
+ *
+ * `now` switches the bars from evenly-spaced ordinal rank to real position
+ * inside `windowHours`, via `positionOnTimeline` -- the same function
+ * `TwentyFourHourStrip` below uses for its own axis. Omitted, the strip
+ * keeps the ordinal, evenly-spaced layout unchanged: the Incidents screen's
+ * own compact row (below, in `IncidentGroupList`) leaves `now` unset, since
+ * its own expansion already draws an accurate proportional axis and does
+ * not need a second one in the collapsed row. The Painel's "what insists"
+ * strip passes both, because two firings an hour apart must read as closer
+ * together than two firings twelve hours apart, and ordinal rank cannot
+ * tell those two cases apart.
+ */
 export function RecurrenceStrip({
   group,
+  now,
+  windowHours = DEFAULT_TIMELINE_WINDOW_HOURS,
 }: {
   readonly group: IncidentGroup;
+  readonly now?: Date;
+  readonly windowHours?: number;
 }): ReactNode {
   if (group.occurrences.length <= 1) return null;
   const oldestFirst = [...group.occurrences].reverse();
+  const barWidth = 3;
   const width = oldestFirst.length * 6;
+  // The left edge travels the whole `[0, width - barWidth]` range as a
+  // direct linear function of `percent`, so the newest bar's right edge
+  // lands exactly on `width` and the oldest bar's left edge exactly on `0`
+  // -- never clamped, which would collapse two occurrences both near `now`
+  // onto the same pixel and erase the exact distinction this exists to draw.
+  const byInstant =
+    now === undefined
+      ? undefined
+      : new Map(
+          positionOnTimeline(group.occurrences, now, windowHours).points.map(
+            (point) => [point.id, point.percent] as const,
+          ),
+        );
   return (
     <svg
       data-testid="incident-recurrence-strip"
@@ -205,18 +237,23 @@ export function RecurrenceStrip({
       aria-hidden="true"
       className={cx('shrink-0', group.live ? 'text-danger' : 'text-muted')}
     >
-      {oldestFirst.map((occurrence, index) => (
-        <rect
-          key={occurrence.id}
-          x={index * 6}
-          y={16 - (6 + index * (10 / Math.max(oldestFirst.length - 1, 1)))}
-          width={3}
-          height={6 + index * (10 / Math.max(oldestFirst.length - 1, 1))}
-          rx={1.5}
-          fill="currentColor"
-          opacity={0.35 + (0.65 * index) / Math.max(oldestFirst.length - 1, 1)}
-        />
-      ))}
+      {oldestFirst.map((occurrence, index) => {
+        const percent = byInstant?.get(occurrence.id);
+        const x =
+          percent === undefined ? index * 6 : (percent / 100) * (width - barWidth);
+        return (
+          <rect
+            key={occurrence.id}
+            x={x}
+            y={16 - (6 + index * (10 / Math.max(oldestFirst.length - 1, 1)))}
+            width={barWidth}
+            height={6 + index * (10 / Math.max(oldestFirst.length - 1, 1))}
+            rx={1.5}
+            fill="currentColor"
+            opacity={0.35 + (0.65 * index) / Math.max(oldestFirst.length - 1, 1)}
+          />
+        );
+      })}
     </svg>
   );
 }

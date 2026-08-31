@@ -130,12 +130,6 @@ def test_a_node_still_has_a_set_of_failed_units() -> None:
 # --- Determinism of what is committed ---------------------------------------------
 
 
-#: The one correlation key `_recurring_incidents`
-#: (`tools.mockplane.capture.projection`) times from the real clock rather
-#: than from `profile.CAPTURED_AT`, so its three occurrences keep landing
-#: inside the Painel's 48h subject window instead of ageing out of it —
-#: deliberately, the one exception to every other byte in this dataset
-#: being reproducible forever.
 #: `_recurring_incidents` (`tools.mockplane.capture.projection`) marks its
 #: three occurrences with this string in their `correlation_key`, timed
 #: from the real clock on purpose so they keep landing inside the Painel's

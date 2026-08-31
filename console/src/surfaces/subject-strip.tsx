@@ -6,7 +6,7 @@ import { Badge } from '@/components/status';
 import { statusPresentation } from '@/design/status';
 import { formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
-import type { IncidentGroup } from './incident-groups';
+import { SUBJECT_WINDOW_HOURS, type IncidentGroup } from './incident-groups';
 import { RecurrenceStrip, SubjectLine, subjectTitle } from './incident-group-list';
 
 /**
@@ -62,7 +62,6 @@ function SubjectRow({
   readonly now: Date;
   readonly subjectNames: ReadonlyMap<string, string>;
 }): ReactNode {
-  void now; // reserved for a "recorrente desde" relative label a follow-up can add
   return (
     <NextLink
       href={rowHref(group)}
@@ -79,7 +78,7 @@ function SubjectRow({
         </span>
       </div>
       <span className="ml-auto shrink-0" data-testid="subject-timeline">
-        <RecurrenceStrip group={group} />
+        <RecurrenceStrip group={group} now={now} windowHours={SUBJECT_WINDOW_HOURS} />
       </span>
       <span
         data-testid="subject-chip"
