@@ -4308,6 +4308,43 @@
         "title": "KnownGapView",
         "type": "object"
       },
+      "KpiView": {
+        "description": "One KPI: its current value, a decomposition, and a daily trend.\n\n`value` is `None` — never a fabricated zero — when nothing in the window\ncan answer the question, which for a rate is \"no terminal item yet\".",
+        "properties": {
+          "breakdown": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Breakdown",
+            "type": "object"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPointView"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "KpiView",
+        "type": "object"
+      },
       "LinkedDocumentView": {
         "description": "One document somebody has written about this resource.\n\n``matched`` and ``matched_on`` are served rather than kept internal because\nthey are what lets an operator dismiss a link that is wrong: a list with no\nreason beside each entry is a list that has to be trusted whole.",
         "properties": {
@@ -5028,6 +5065,41 @@
           "expires_at"
         ],
         "title": "OverrideView",
+        "type": "object"
+      },
+      "OverviewView": {
+        "description": "The five KPI tiles the Painel renders, from one read.",
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "degraded": {
+            "$ref": "#/components/schemas/KpiView"
+          },
+          "self_resolved": {
+            "$ref": "#/components/schemas/KpiView"
+          },
+          "success_rate": {
+            "$ref": "#/components/schemas/KpiView"
+          },
+          "time_to_cause": {
+            "$ref": "#/components/schemas/KpiView"
+          },
+          "watched": {
+            "$ref": "#/components/schemas/KpiView"
+          }
+        },
+        "required": [
+          "captured_at",
+          "watched",
+          "degraded",
+          "self_resolved",
+          "success_rate",
+          "time_to_cause"
+        ],
+        "title": "OverviewView",
         "type": "object"
       },
       "PipelineView": {
@@ -7068,6 +7140,25 @@
           "duration_seconds"
         ],
         "title": "SelfCheckView",
+        "type": "object"
+      },
+      "SeriesPointView": {
+        "description": "One daily bucket of a KPI's sparkline.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "value"
+        ],
+        "title": "SeriesPointView",
         "type": "object"
       },
       "ShippedDetectorView": {
@@ -14687,6 +14778,56 @@
         "summary": "List Observations",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/v1/overview": {
+      "get": {
+        "description": "Return the five KPI tiles the Painel renders, from one read.",
+        "operationId": "overview_v1_overview_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "overview"
         ]
       }
     },

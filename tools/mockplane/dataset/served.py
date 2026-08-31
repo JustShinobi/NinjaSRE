@@ -3460,6 +3460,75 @@ def empty_transit_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+def overview_record(*, populated: bool) -> CapturedRecord:
+    """Return the Painel's five KPI tiles: bare on an empty deployment, real numbers otherwise.
+
+    Not derived from the other populated records' own counts -- a follow-up
+    that ties this to the same simulated cluster `estate()` projects from
+    would remove that gap; until then this is a self-consistent but
+    independently-declared set of numbers, valid against the response
+    schema and enough for kpi-tiles.tsx to render against.
+    """
+    if not populated:
+        empty_kpi = {"value": None, "breakdown": {}, "series": [], "note": ""}
+        return _record(
+            "overview",
+            {},
+            {
+                "captured_at": at(),
+                "watched": {**empty_kpi, "value": 0},
+                "degraded": {**empty_kpi, "value": 0, "note": "no_detector_enabled"},
+                "self_resolved": dict(empty_kpi),
+                "success_rate": dict(empty_kpi),
+                "time_to_cause": dict(empty_kpi),
+            },
+        )
+
+    def series(values: list[float]) -> list[dict[str, object]]:
+        return [
+            {"date": at(days=-(len(values) - 1 - index)).split("T")[0], "value": value}
+            for index, value in enumerate(values)
+        ]
+
+    return _record(
+        "overview",
+        {},
+        {
+            "captured_at": at(),
+            "watched": {
+                "value": 99,
+                "breakdown": {"container": 68, "datastore": 21, "node": 2},
+                "series": series([84.0, 88.0, 91.0, 95.0, 99.0]),
+                "note": "",
+            },
+            "degraded": {
+                "value": 14,
+                "breakdown": {},
+                "series": series([10.0, 11.0, 9.0, 13.0, 14.0]),
+                "note": "",
+            },
+            "self_resolved": {
+                "value": 100.0,
+                "breakdown": {"self_resolved": 45.0, "total": 45.0},
+                "series": series([100.0, 100.0, 96.0, 100.0, 100.0]),
+                "note": "",
+            },
+            "success_rate": {
+                "value": 100.0,
+                "breakdown": {"succeeded": 48.0, "total": 48.0},
+                "series": series([97.0, 98.0, 100.0, 100.0, 100.0]),
+                "note": "",
+            },
+            "time_to_cause": {
+                "value": 75.0,
+                "breakdown": {"median_seconds": 75.0, "worst_seconds": 190.0},
+                "series": series([80.0, 78.0, 70.0, 72.0, 75.0]),
+                "note": "",
+            },
+        },
+    )
+
+
 def local_administrator_record(*, unclaimed: bool = False) -> CapturedRecord:
     """Return the ternary fact the sign-in and first-run screens read.
 

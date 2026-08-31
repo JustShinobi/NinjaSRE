@@ -1,0 +1,169 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "captured_at": "2026-08-07T12:00:00+00:00",
+        "degraded": {
+          "breakdown": {},
+          "note": "",
+          "series": [
+            {
+              "date": "2026-08-11",
+              "value": 10.0
+            },
+            {
+              "date": "2026-08-10",
+              "value": 11.0
+            },
+            {
+              "date": "2026-08-09",
+              "value": 9.0
+            },
+            {
+              "date": "2026-08-08",
+              "value": 13.0
+            },
+            {
+              "date": "2026-08-07",
+              "value": 14.0
+            }
+          ],
+          "value": 14
+        },
+        "self_resolved": {
+          "breakdown": {
+            "self_resolved": 45.0,
+            "total": 45.0
+          },
+          "note": "",
+          "series": [
+            {
+              "date": "2026-08-11",
+              "value": 100.0
+            },
+            {
+              "date": "2026-08-10",
+              "value": 100.0
+            },
+            {
+              "date": "2026-08-09",
+              "value": 96.0
+            },
+            {
+              "date": "2026-08-08",
+              "value": 100.0
+            },
+            {
+              "date": "2026-08-07",
+              "value": 100.0
+            }
+          ],
+          "value": 100.0
+        },
+        "success_rate": {
+          "breakdown": {
+            "succeeded": 48.0,
+            "total": 48.0
+          },
+          "note": "",
+          "series": [
+            {
+              "date": "2026-08-11",
+              "value": 97.0
+            },
+            {
+              "date": "2026-08-10",
+              "value": 98.0
+            },
+            {
+              "date": "2026-08-09",
+              "value": 100.0
+            },
+            {
+              "date": "2026-08-08",
+              "value": 100.0
+            },
+            {
+              "date": "2026-08-07",
+              "value": 100.0
+            }
+          ],
+          "value": 100.0
+        },
+        "time_to_cause": {
+          "breakdown": {
+            "median_seconds": 75.0,
+            "worst_seconds": 190.0
+          },
+          "note": "",
+          "series": [
+            {
+              "date": "2026-08-11",
+              "value": 80.0
+            },
+            {
+              "date": "2026-08-10",
+              "value": 78.0
+            },
+            {
+              "date": "2026-08-09",
+              "value": 70.0
+            },
+            {
+              "date": "2026-08-08",
+              "value": 72.0
+            },
+            {
+              "date": "2026-08-07",
+              "value": 75.0
+            }
+          ],
+          "value": 75.0
+        },
+        "watched": {
+          "breakdown": {
+            "container": 68,
+            "datastore": 21,
+            "node": 2
+          },
+          "note": "",
+          "series": [
+            {
+              "date": "2026-08-11",
+              "value": 84.0
+            },
+            {
+              "date": "2026-08-10",
+              "value": 88.0
+            },
+            {
+              "date": "2026-08-09",
+              "value": 91.0
+            },
+            {
+              "date": "2026-08-08",
+              "value": 95.0
+            },
+            {
+              "date": "2026-08-07",
+              "value": 99.0
+            }
+          ],
+          "value": 99
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "overview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "overview"
+}

@@ -241,6 +241,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
         *_write_responses(),
         _gemini_models_record(),
         _gemini_verify_record(),
+        served.overview_record(populated=True),
     )
 
 
@@ -308,6 +309,19 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "problems": 0,
             "maintenance": 0,
             "absent": 0,
+        },
+        "overview": {
+            "captured_at": now,
+            "watched": {"value": 0, "breakdown": {}, "series": [], "note": ""},
+            "degraded": {
+                "value": 0,
+                "breakdown": {},
+                "series": [],
+                "note": "no_detector_enabled",
+            },
+            "self_resolved": {"value": None, "breakdown": {}, "series": [], "note": ""},
+            "success_rate": {"value": None, "breakdown": {}, "series": [], "note": ""},
+            "time_to_cause": {"value": None, "breakdown": {}, "series": [], "note": ""},
         },
         "estate-resources": {"resources": []},
         "estate-unresolved-targets": {"targets": []},

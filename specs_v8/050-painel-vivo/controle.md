@@ -245,3 +245,64 @@ SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
   Não removidas nesta rodada — remover uma chave de catálogo é mais
   arriscado que deixar uma órfã, e confirmar que nada mais as lê merece sua
   própria varredura, não uma remoção apressada no meio de outra mudança.
+
+## 7. T020 — documento de API, cliente TS e dataset regenerados
+
+- `uv run python -m tools.mockplane contract` → `fixtures/contract/openapi.json`
+  regenerado, puramente aditivo (a rota `/v1/overview` aparece, nada mais
+  mudou).
+- `uv run python -m tools.console_toolchain run run client` →
+  `console/src/api/schema.ts` regenerado, puramente aditivo.
+- `/v1/overview` adicionado a `tools/mockplane/endpoints.py` (o catálogo que
+  decide o que o mock plane serve).
+- `overview_record()` novo em `tools/mockplane/dataset/served.py`, chamado de
+  `populated_records()` (números não-triviais, válidos contra o schema) e
+  embutido em `empty_records()` (zeros/None, coerente com FR-020's "nenhum
+  zero inventado" — os valores de taxa ficam `None`, só as contagens ficam
+  0). **Ressalva nomeada**: os números do cenário `populated` são declarados
+  diretamente, não derivados do mesmo `profile.cluster_reading()` que
+  `estate()` usa para os outros números deste mesmo cenário — são válidos
+  contra o schema (`mockplane verify` limpo) mas não cruzados com as outras
+  contagens do mesmo cenário. Uma rodada futura que quisesse consistência
+  total precisaria derivar os cinco KPIs da mesma leitura simulada.
+- `populated/incidents.json` já tinha **10 assuntos distintos**
+  (`correlation_key`), acima do mínimo de 3 que FR-033 pede — nenhuma
+  mudança necessária aí. Nenhuma rota `/subjects` foi criada.
+- Evidência real, lida do log (nunca de notificação):
+  - `mockplane build` → `wrote 238 files across 6 scenarios`, `EXIT=0`.
+  - `mockplane report` → `86 of 86 console endpoints are covered`, `EXIT=0`.
+  - `mockplane verify` → `the dataset is clean`, `EXIT=0`.
+  - `console_gate client-check` → regenerado e comparado, `EXIT=0` (sem
+    drift).
+  - `pytest tests/unit/tools/mockplane/ tests/contract/fixtures/` →
+    `315 passed in 19.48s`, `REAL_EXIT=0`.
+
+## 8. Achado do processo: notificação de tarefa em segundo plano mentiu de novo
+
+Rodei `pytest tests/contract/console/` com `timeout 120s` (meu próprio
+wrapper de shell) embutido num comando mais longo. O wrapper `timeout`
+matou o processo aos 120s (`EXIT=124`, lido do próprio log, que é o valor
+real) enquanto ainda rodava `test_console_gate.py`. A notificação de tarefa
+em segundo plano do harness relatou **"completed (exit code 0)"** para essa
+mesma execução — mentira, na mesma classe já registrada duas vezes nesta
+onda (S1 e S2). Descoberto por ler o log diretamente, nunca a notificação.
+
+**Consequência real, encontrada e corrigida**: a morte abrupta por `timeout`
+deixou um artefato órfão de um teste de "falha semeada" —
+`console/tests/e2e/seeded.spec.ts` (um spec que falha de propósito, para
+provar que `make verify` fica vermelho quando deveria) — sem a limpeza que
+o próprio teste faria em circunstâncias normais. Encontrado via `git status`
+mostrando um arquivo não rastreado que eu não criei, removido.
+
+**Pendente, nomeado, não escondido**: depois de remover o artefato órfão,
+tentei rodar `pytest tests/contract/console/` de novo (sem `timeout`
+embutido desta vez, entre 04:54 e o fim desta sessão) e ele permaneceu
+rodando por muito tempo em `test_console_gate.py` (que builda o console de
+verdade, mais de uma vez, dentro dos próprios testes) sem terminar dentro
+do orçamento restante desta sessão — o log mostrado (`console-contract-pytest-2.log`)
+registra uma falha (`F`) na posição 8 de `test_console_gate.py`, cuja causa
+não pude diagnosticar a tempo. Comando exato para o orquestrador reproduzir:
+`cd /srv/workspaces/v8-s3-050 && uv run pytest tests/contract/console/test_console_gate.py -v`
+— rodar isolado, sem `timeout` curto, numa árvore limpa (`git status`
+limpo primeiro). Pode ser um efeito residual da contaminação que já
+encontrei e limpei, ou pode ser algo real; não confirmei qual.

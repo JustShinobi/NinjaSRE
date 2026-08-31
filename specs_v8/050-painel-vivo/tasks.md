@@ -131,9 +131,21 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       permissão de leitura; T005 verde.
 - [x] T019 Recorte de janela sobre `groupBySubject` exportado de módulo
       compartilhado (sem endpoint novo — reconciliação com a 060); T006 verde.
-- [ ] T020 Regenerar documento de API, cliente TS e dataset simulado (overview
+- [~] T020 Regenerar documento de API, cliente TS e dataset simulado (overview
       com dados que exercitem os cinco KPIs; listagem de incidentes com ≥ 3
-      assuntos para o recorte cliente; nenhum endpoint `/subjects`).
+      assuntos para o recorte cliente; nenhum endpoint `/subjects`). —
+      **[~ motivo]** `openapi.json` e `schema.ts` regenerados pelos comandos
+      declarados (`mockplane contract`, `console_toolchain run run client`);
+      `/v1/overview` adicionado a `tools/mockplane/endpoints.py` e ao dataset
+      (`overview_record` em `served.py`, chamado de `populated_records` e
+      inline em `empty_records`); populated já tinha 10 assuntos distintos
+      (`incidents.json`), acima do mínimo de 3; nenhuma rota `/subjects`
+      criada. `mockplane verify`/`report` limpos (86 de 86 cobertos, dataset
+      limpo). Ressalva: os números do overview populado são declarados
+      diretamente, não derivados do mesmo cluster simulado que
+      `estate()`/`profile.cluster_reading()` usa para os outros números —
+      são válidos contra o schema, mas não cruzados com as outras contagens
+      do mesmo cenário.
 
 ## Phase 3: Console — um componente por região do artboard
 
