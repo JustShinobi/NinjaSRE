@@ -18,7 +18,7 @@ orchestrator re-points it to `0020_run_objective` at merge, once both exist
 in the same tree.
 
 Revision: 0021_estate_daily_snapshot
-Parent: 0019_users_email_optional (re-pointed to 0020_run_objective at merge)
+Parent: 0020_run_objective
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0021_estate_daily_snapshot"
-down_revision = "0019_users_email_optional"
+down_revision = "0020_run_objective"
 branch_labels = None
 depends_on = None
 
