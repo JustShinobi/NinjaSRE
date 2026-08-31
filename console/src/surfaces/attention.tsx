@@ -32,7 +32,7 @@ import { RiskLadder } from './risk-ladder';
  * ask a question, which is the *other* mechanism (`surfaces/decision.tsx`'s
  * `DecisionControls`, addressing `/v1/interactions/{id}/approve`) exists
  * for. This band's own component, rather than reusing the incident page's,
- * because the two disagree about how the reject reason is revealed —
+ * because the two disagree about how the reject reason field appears —
  * `Main.dc.html` draws Recusar as a flat control with no field open beside
  * it, where the incident page's card shows the field from the start — and
  * both go through the one courier, so neither is a second opinion about

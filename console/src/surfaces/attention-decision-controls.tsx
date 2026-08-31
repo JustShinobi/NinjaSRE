@@ -11,9 +11,9 @@ import { Textarea } from '@/components/form';
  * The "precisa de você" band's own approve and reject controls.
  *
  * `Main.dc.html` draws the band as three flat controls -- Aprovar, Recusar,
- * Ver plano -- with no reason field sitting open beside them. Reject reveals
+ * Ver plano -- with no reason field sitting open beside them. Reject opens
  * its own reason field and submit only once clicked, and the submit stays
- * disabled until a reason is typed. That is a different reveal than
+ * disabled until a reason is typed. That is a different sequence than
  * `IncidentDecisionControls` (the incident page's own card, which shows the
  * reason field from the start) uses for the same kind of decision, so this is
  * its own small component rather than a third mode bolted onto that one --
@@ -38,7 +38,7 @@ export interface AttentionDecisionControlsProps {
   readonly labels: AttentionDecisionLabels;
 }
 
-/** Approve, or reveal a reason and reject -- without leaving the Painel. */
+/** Approve, or open a reason field and reject -- without leaving the Painel. */
 export function AttentionDecisionControls({
   approvalId,
   labels,

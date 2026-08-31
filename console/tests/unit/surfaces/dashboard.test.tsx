@@ -626,15 +626,18 @@ describe('the header\'s "blocked on you" count', () => {
   it('tells the narrative that a self-resolved incident ended well', async () => {
     // The same comparison, a second time: because `closed` never matched, the
     // success branch of the activity feed was unreachable and an incident that
-    // resolved itself was drawn in the same red as a live outage.
+    // resolved itself was drawn in the same red as a live outage. 050-painel-vivo
+    // gives this its own 'resolution' kind (a filled circle) rather than the
+    // danger-coloured 'incident' square its opening earns.
     await dashboardWithFinishedIncidents();
 
-    const entries = screen.queryAllByTestId('activity-entry');
+    const entries = screen.queryAllByTestId('activity-feed-entry');
     const resolved = entries.find((entry) =>
       entry.textContent.includes('cleared upstream'),
     );
     expect(resolved).toBeDefined();
-    expect(resolved?.querySelector('[class*="danger"]')).toBeNull();
+    expect(resolved?.getAttribute('data-kind')).toBe('resolution');
+    expect(resolved?.querySelector('[class*="bg-danger"]')).toBeNull();
   });
 
   it('asks for live incidents by name rather than hoping they are recent', async () => {

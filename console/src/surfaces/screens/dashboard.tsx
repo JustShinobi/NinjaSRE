@@ -12,7 +12,11 @@ import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import { ActivityFeed, type ActivityEntry } from '../activity';
+import {
+  ActivityFeed,
+  collapseFeed,
+  type ActivityFeedEntry,
+} from '../activity-feed';
 import { AttentionBlock, type DecisionCardData, type DecisionStep } from '../attention';
 import { readFailure } from '../failures';
 import { Figure } from '../figure';
@@ -355,61 +359,118 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     )
     .map((record) => decisionCardOf(record, locale, now, zone));
 
-  // --- The narrative ---------------------------------------------------------
-  const feed: ActivityEntry[] = [];
-  for (const record of incidentRecords) {
-    const id = text(record, 'public_id');
-    feed.push({
-      id: `incident-${id}`,
-      kind: 'incident',
-      kindLabel: message(locale, 'incidents.list.title'),
-      // The same comparison a second time, and the same defect: because
-      // nothing ever equalled `closed`, this branch was unreachable and an
-      // incident that resolved itself was drawn in the red of a live outage.
-      // Only `resolved` earns the success well — an incident a person shut
-      // with nothing done did not go well, it stopped.
-      outcome:
-        text(record, 'state') === 'resolved'
-          ? 'success'
-          : isTerminalIncident(text(record, 'state'))
-            ? 'neutral'
-            : 'danger',
-      title: text(record, 'title'),
-      detail: text(record, 'detector'),
-      href: `/incidents/${id}`,
-      ...timestamp(locale, text(record, 'opened_at'), now, zone),
-    });
-  }
+  // --- The narrative -----------------------------------------------------
+  // Four kinds, the shapes `Main.dc.html` draws for each: an investigation
+  // starting or ending, an incident opening or closing on its own, a
+  // remediation proposed or decided. Built from the three listings this
+  // screen already reads -- never a fourth endpoint for the narrative alone
+  // -- then folded by `collapseFeed` before the cap, so a repeating cause
+  // costs one row rather than one per firing (the audit's own example:
+  // DNSResolverProbeFailed, five times over, with no shape or hierarchy).
+  const feed: ActivityFeedEntry[] = [];
   for (const record of runRecords) {
     const id = text(record, 'run_id');
     const status = text(record, 'status');
-    // Same translation as the band above, for the same reason: this was the
-    // fourth surface repeating the identical stack trace, and a narrative of
-    // what happened here reads worst of all as an exception message. The
-    // title itself comes from the one place that names a run — never the
-    // raw summary a plain sentence used to fall through to here, which for
-    // an ordinary investigation is its whole markdown report.
-    const said = readFailure(text(record, 'summary'), locale);
     feed.push({
-      id: `run-${id}`,
-      kind: 'run',
-      kindLabel: message(locale, 'runs.list.title'),
-      outcome: FAILED.has(status)
-        ? 'danger'
-        : roleFor(status) === 'success'
-          ? 'success'
-          : 'info',
-      title: subjectOf(record, locale).text,
-      detail: said.technical === '' ? status : said.action,
-      // Into the list rather than onto the run's own page: the run opens
-      // where it sits and the ones around it stay on screen, which is the
-      // comparison somebody following a recurring subject actually wants.
+      id: `run-started-${id}`,
+      kind: 'investigation',
+      outcome: 'info',
+      title: message(locale, 'dashboard.liveActivity.investigationStarted'),
+      detail: subjectOf(record, locale).text,
       href: `/runs?selected=${id}`,
+      subjectKey: '',
+      count: 1,
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });
+    // A run still working has not resolved into anything yet -- only a
+    // settled one earns its own second entry in the narrative.
+    if (!isSettled(status)) continue;
+    const said = readFailure(text(record, 'summary'), locale);
+    const succeeded = roleFor(status) === 'success';
+    feed.push({
+      id: `run-ended-${id}`,
+      kind: 'resolution',
+      outcome: FAILED.has(status) ? 'danger' : succeeded ? 'success' : 'info',
+      title: message(
+        locale,
+        succeeded
+          ? 'dashboard.liveActivity.causeFound'
+          : 'dashboard.liveActivity.investigationEnded',
+      ),
+      detail: said.technical === '' ? subjectOf(record, locale).text : said.action,
+      href: `/runs?selected=${id}`,
+      subjectKey: '',
+      count: 1,
+      ...timestamp(locale, text(record, 'finished_at'), now, zone),
+    });
+  }
+  for (const record of incidentRecords) {
+    const id = text(record, 'public_id');
+    feed.push({
+      id: `incident-opened-${id}`,
+      kind: 'incident',
+      outcome: 'danger',
+      title: message(locale, 'dashboard.liveActivity.incidentOpened'),
+      detail: text(record, 'title'),
+      href: `/incidents/${id}`,
+      // The key firings of the same cause collapse by -- FR-026 names only
+      // "aberto, fechado sozinho" for an incident's own entries, so the
+      // self-resolved closure below carries none: it never repeats the way
+      // a fresh firing does, and folding it would fold two different facts.
+      subjectKey: text(record, 'correlation_key'),
+      count: 1,
+      ...timestamp(locale, text(record, 'opened_at'), now, zone),
+    });
+    const closedAt = text(record, 'closed_at');
+    if (flag(record, 'self_resolved') && closedAt !== '') {
+      feed.push({
+        id: `incident-closed-${id}`,
+        kind: 'resolution',
+        outcome: 'success',
+        title: message(locale, 'dashboard.liveActivity.incidentSelfResolved'),
+        detail: text(record, 'title'),
+        href: `/incidents/${id}`,
+        subjectKey: '',
+        count: 1,
+        ...timestamp(locale, closedAt, now, zone),
+      });
+    }
+  }
+  // Decisions: an approval this screen already reads for the band above,
+  // read a second time here for the narrative rather than a parallel store --
+  // proposals stay out of the feed the same way they stayed out of the
+  // decision band once it narrowed to what a person actually decides.
+  for (const record of approvalRecords) {
+    const id = text(record, 'approval_id');
+    if (id === '') continue;
+    feed.push({
+      id: `approval-proposed-${id}`,
+      kind: 'approval',
+      outcome: 'warning',
+      title: message(locale, 'dashboard.liveActivity.decisionProposed'),
+      detail: text(record, 'summary'),
+      href: `/decisions?tab=actions&selected=${id}`,
+      subjectKey: '',
+      count: 1,
+      ...timestamp(locale, text(record, 'requested_at'), now, zone),
+    });
+    const decidedAt = text(record, 'decided_at');
+    if (decidedAt !== '') {
+      feed.push({
+        id: `approval-decided-${id}`,
+        kind: 'approval',
+        outcome: text(record, 'state') === 'approved' ? 'success' : 'neutral',
+        title: message(locale, 'dashboard.liveActivity.decisionDecided'),
+        detail: text(record, 'summary'),
+        href: `/decisions?tab=actions&selected=${id}`,
+        subjectKey: '',
+        count: 1,
+        ...timestamp(locale, decidedAt, now, zone),
+      });
+    }
   }
   feed.sort((left, right) => right.iso.localeCompare(left.iso));
-  const recent = feed.slice(0, FEED_LENGTH);
+  const recent = collapseFeed(feed).slice(0, FEED_LENGTH);
 
   // --- The estate ------------------------------------------------------------
   const watched = number(summary, 'total');
@@ -682,7 +743,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               href: '/integrations',
             }}
           >
-            <ActivityFeed entries={recent} />
+            <ActivityFeed locale={locale} entries={recent} />
           </Panel>
         </div>
         <div className="flex flex-col gap-5 min-w-0">
