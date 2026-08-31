@@ -305,8 +305,22 @@ então a onda continua devendo.
 
 ## 7. O que o S2 deixa para quem vier
 
-- **O staging agora tem uma proposta pendente de verdade**, criada pela UI, com
-  vínculo de origem — a primeira coisa que o S1 registrou como faltando.
+- ~~**O staging agora tem uma proposta pendente de verdade**, criada pela UI, com
+  vínculo de origem — a primeira coisa que o S1 registrou como faltando.~~
+  **Não tem mais, e quem a tirou foi o reparo da própria 040.** Medido no
+  fechamento do S3: `approvals` traz `expired 2, approved 3, pending 0`. A
+  proposta que o S2 reservou para a demo do S5 — pedida em 27/08 às 03:37, com
+  prazo às 03:52 — tem `decided_at` em 31/08 às 01:39, quatro dias depois do
+  próprio prazo, que é o instante em que a listagem corrigida a leu pela
+  primeira vez. É o `expire_due(now)` dentro da transação de listagem fazendo
+  exatamente o que foi escrito para fazer, e a prova está no par de tempos: uma
+  segunda aprovação, pedida hoje às 04:24 com prazo às 04:39, expirou às 04:46
+  — sete minutos depois em vez de quatro dias.
+
+  O reparo está certo e a consequência é real: **o S5 precisa gerar uma
+  proposta nova**, porque a reservada expirou em vez de ser decidida, e a
+  AN-07/AN-08 da 050 não têm o que decidir no staging. Registrado aqui, e não
+  só no `progress.json`, pela razão que o parágrafo seguinte já dá.
   ~~Continua sem run vivo e sem run falho.~~ **Corrigido no S3, medindo em vez
   de repetir.** O staging tem run vivo o tempo todo: a primeira leitura pegou
   `33c9143f` com status `running` e headline vazio, a segunda — noventa

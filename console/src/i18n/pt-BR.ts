@@ -797,7 +797,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     '{closed} de {total} incidentes se fecharam sozinhos',
   'dashboard.stat.unattended.context.none': 'nada foi fechado ainda',
   'dashboard.attention.more': 'e mais {count} esperando',
-  'dashboard.recurring.title': 'O que continua acontecendo',
+  'dashboard.recurring.title': 'O que insiste em acontecer',
   'dashboard.recurring.note': 'Agrupado por assunto, não por disparo',
   'dashboard.recurring.empty.heading': 'Nada se repetiu',
   'dashboard.recurring.empty.body':

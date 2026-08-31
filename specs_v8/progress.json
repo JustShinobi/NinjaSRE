@@ -1,7 +1,7 @@
 {
  "schema_version": 1,
  "wave": "specs_v8",
- "status": "slot_S3_open",
+ "status": "slot_S3_merged",
  "runtime": "claude",
  "active_run": {
   "run_id": "v8-run-001",
@@ -9,7 +9,7 @@
   "claimed_at": "2026-08-28T00:18:52+00:00",
   "baseline_commit": "2542361d2ae13e13d8ee7a1855baa99b2d5ee936",
   "baseline_status_empty": true,
-  "checkpoint_seq": 50
+  "checkpoint_seq": 54
  },
  "feature_order": [
   "specs_v8/000-fundacao-visual",
@@ -237,11 +237,25 @@
    "the_trade_off_stated_plainly": "overview.json regenerates byte-identical forever, same hash as before. incidents.json, incident-detail.json and the now-violations file are clean per mockplane verify but no longer byte-identical across time, for exactly three timestamps. The implementer stated this precisely rather than claiming \"still reproducible\" unqualified, which is the right call.",
    "the_alternative_not_taken": "pinning the recurring incidents to fixed instants would make them age out of the window so AN-11 and AN-12 fail forever — the same trap 040 hit earlier in this wave and fixed by anchoring to the real clock. A third option exists in principle: let the window computation read a clock a test can freeze, keeping every fixture frozen. That is better design and a larger change; converge round 2 was asked to price it, not to append it.",
    "owner": "the wave confrontation, and the lead at merge"
+  },
+  {
+   "id": "an03-runs-now-and-fails-because-the-mock-serves-no-stage-field",
+   "raised_at": "2026-08-31T12:59:20+00:00",
+   "finding": "AN-03 was un-skipped at the merge, since 020's stage_index now exists in the tree. It runs and fails: the card draws its six segments and none is marked current. The console is behaving exactly as specified — an absent index means no stage completed, which draws six futures.",
+   "the_real_cause": "the data, not the code. fixtures/scenarios/populated/runs.json carries no stage field at all, and rebuilding the dataset does not add one: the projection that produces the served runs was written before the field existed. Confirmed by reading the fixture keys and by running mockplane build, which rewrote 239 files and added nothing.",
+   "why_it_was_not_left_as_a_declared_gap": "the product genuinely supports the claim — 020 serves the field from two routes, the contract tests pass, and the console reads it. Only the deterministic harness cannot exercise it. Leaving a supported claim red because the mock is behind would be the harness dictating what counts as delivered.",
+   "action": "a bounded repair was dispatched to teach the mockplane projection to serve last_completed_stage and stage_index, in the generator and never by hand-editing a fixture. Success is 7 failed becoming 6 with AN-03 green, and the other six staying red.",
+   "guard": "if any of the six investigate.tsx-blocked claims turns green in that run, something was loosened and the repair is rejected.",
+   "status": "CLOSED — and the cause was two defects stacked, not one",
+   "resolution": "the mock served no stage field, AND the assertion could not have seen it if it had. It filtered segments by `has` a descendant carrying the state, while the state is an attribute on the segment itself — a bare span with no children — so no data would ever have satisfied it. Either defect alone would have kept AN-03 red. The projection now emits last_completed_stage and stage_index in the generator with fixtures regenerated from it, and the assertion uses `and`, the combinator for the same element also matching.",
+   "how_it_was_proved": "a negative control, demanded by the lead before accepting the fix, because editing a test so it passes is the most suspicious change in this repository. With the data removed again the claim fails — one current segment expected, none received. Restored, it passes. A test that passes in both worlds measures nothing; this one does not.",
+   "guard_held": "the six investigate.tsx-blocked claims stayed red by name, so nothing was loosened to move the count. Acceptance went from 7 failed / 11 passed to 6 failed / 12 passed.",
+   "commit": "20c4f6bc"
   }
  ],
- "last_checkpoint": "2026-08-31T12:15:49+00:00",
- "next_action": "020 CONVERGED at b3d08bec and waiting for the merge. 050 still implementing. When 050 lands: converge it, merge both worktrees, re-point 0021 onto 0020_run_objective, run the formatter over the transversal suite, boundary gates, deploy every component, warm the routes, staging acceptance with the single run fixture, the alert observation for 020 SC2, the Orca visual gate on / in both themes, the AN-03 stage assertion against the merged tree, then an independent verifier per feature. Finally correct CONFRONTO's S2 claim about staging having no live run.",
- "fingerprint": "15e6dd90f476f3f0",
+ "last_checkpoint": "2026-08-31T16:55:53.961179+00:00",
+ "next_action": "S3 staging measurement is complete and positive: SC1 proven end to end on the slot's single UI-created run, SC2 proven by the real measure and by an API sweep, estate_daily single-photograph confirmed, and 040's expire_due repair confirmed live. Outstanding: (1) the painel-vivo staging-safe tagging repair, in flight, without which a staging acceptance selects zero tests and exits 0; (2) an assertion on the recurring panel's title so that divergence cannot recur silently; (3) re-run make verify after the i18n fix; (4) an independent spec-verifier per feature against the merged tree; (5) an operator decision on the board-copy differences that no acceptance criterion covers, and on the now-absent pending approval the S5 demo was relying on.",
+ "fingerprint": "ee50642429f9f4b9",
  "features": [
   {
    "path": "specs_v8/000-fundacao-visual",
@@ -1944,6 +1958,13 @@
    "id": "ptbr-european-sweep",
    "question": "pt-BR.ts carries pre-existing European Portuguese, outside the feature scope, in the file 030 owns this slot.",
    "ruling": "Sweep it now, in 030, in its own commit — after the merge the ownership moves."
+  },
+  {
+   "id": "orca-sign-in-credential-in-argv",
+   "at": "2026-08-31T16:55:53.961179+00:00",
+   "issue": "the Orca Browser visual gate needs a signed-in staging session. The session is an httpOnly cookie, so it cannot be injected the way the Playwright harness injects it; only a real form sign-in works, and `orca fill --value` puts the value in a command argument. EXECUCAO.md's staging rule names command arguments as somewhere a credential must not go.",
+   "decision": "the operator was asked and authorised using the credential from .env for this sign-in. Recorded because it is a deliberate exception to a stated rule, not an oversight. The credential is in no file, no commit, no evidence and not in this record.",
+   "asked": true
   }
  ],
  "commits": [
@@ -2671,6 +2692,135 @@
    "8. staging acceptance with the single run fixture; the alert-trigger observation that settles 020 SC2",
    "9. Orca Browser visual gate on / in both themes, verdict written per screen-theme",
    "10. an independent spec-verifier per feature, against the merged tree"
+  ]
+ },
+ "merge_result_S3": {
+  "at": "2026-08-31T12:59:20+00:00",
+  "merged_into": "feat/000-fundacao-visual",
+  "commits": [
+   "merge of wt/v8-020-titulo-vivo (b3d08bec)",
+   "merge of wt/v8-050-painel-vivo (ac6dd513)"
+  ],
+  "conflicts": "none — both merged clean",
+  "hand_steps_a_clean_automerge_does_not_cover": {
+   "migration_chain": "0021_estate_daily_snapshot re-pointed from 0019_users_email_optional to 0020_run_objective. Verified programmatically across all 21 revisions: no parent has two children, exactly one head.",
+   "models_py": "read by eye — a true union. 020's objective column and 050's EstateDailySnapshotRow, each with its __all__ entry.",
+   "generated_files": "openapi.json and schema.ts REGENERATED from the merged tree rather than kept as merged. They came back byte-identical, so the automerge happened to be right — which is now known rather than assumed.",
+   "transversal_suite": "prettier --check passes on the transversal spec, bans.ts and the new acceptance spec. The wave warns it usually automerges misformatted; this time it did not."
+  },
+  "gate": "make verify on the merged tree: MERGED_VERIFY_EXIT=0 read from the log, 13157 passed, 32 skipped, zero FAILED or ERROR lines; console 3232 passed / 9 skipped; benchmarks 38 passed.",
+  "gate_after_the_mock_repair": "make verify EXIT:0 read from the log, 13157 passed, 32 skipped, zero FAILED or ERROR lines; console 3232 passed / 9 skipped; benchmarks 38 passed."
+ },
+ "staging_S3": {
+  "deploy_started_at": "2026-08-31T13:57:28+00:00",
+  "components": "all three — app, web, proxy — taken from the descriptor by running deploy-stg with no COMPONENTS, because a wave once spent an hour concluding a feature did not work when the component it had not thought to deploy was the one holding the behaviour being measured.",
+  "pods_before": "app-85f6454cb6-8rb6w, proxy-6c55dc74f8-z9lrr, web-88b86f8cb-7mgjq, all started 2026-08-31T05:15:35Z — the ages to compare the rollout against.",
+  "next": "confirm the rollout by listing pods rather than trusting Synced+Healthy or a rollout status, warm the routes before measuring anything, then the staging acceptance, the alert-trigger observation for 020 SC2, and the Orca visual gate.",
+  "deploy_exit": "DEPLOY_EXIT=0, read from the log. All three components built, pushed, digests written to the gitops repository, Argo reconciled.",
+  "the_rollout_lie_caught_again": "Argo reported Synced/Healthy while all three NEW pods were not ready and all three OLD pods, eight hours old, were still serving. Measuring at that moment would have measured the previous slot's code and called it this one's. Waited and confirmed by listing pods: three pods, all ready, all started 13:57:51, the old ones gone.",
+  "routes_warmed": "all seven console routes plus /sign-in, twice. 307 to /sign-in in ~26ms and /sign-in itself 200 in 76ms — the pair that proves the console is up, and no cold first render to mistake for a defect later.",
+  "schema": "objective_column_exists = 1 — 020 migration applied in staging.",
+  "a_finding_the_lead_nearly_recorded_and_did_not": "the first read showed 718 runs, zero with a non-empty objective, and a completed alert-triggered run only fifteen minutes old with objective empty. That reads as \"the new code never populates the objective in the real deployment\", which would have been a serious Article XIV finding. Measured against the new pod's start instant instead of assumed: runs created since the deploy = ZERO. That fifteen-minute-old run was written by the OLD pod before the rollout finished. Nothing has exercised the new code yet, so nothing can be concluded about it — the honest state is \"not yet measured\", not \"measured and absent\".",
+  "still_owed": [
+   "the slot's single UI-created run, which is what will actually exercise 020's objective and headline and give 050 a live card",
+   "the alert-triggered observation that settles 020 SC2, now that alert runs are arriving under the new code",
+   "the Orca Browser visual gate on / in both themes",
+   "an independent spec-verifier per feature against the merged tree"
+  ],
+  "measured_after_the_rollout": {
+   "read_at": "2026-08-31T16:55:53.961179+00:00",
+   "read_by": "lead, from inside the cluster (ns k3s-stg-ninjasre, pod app-*, DSN read from the pod environment; the credential never left the cluster and is in no file, commit, or this record)",
+   "pod_age_at_read": "160 minutes, all three of app/proxy/web started 13:57:51Z — the code serving is the S3 merge",
+   "the_earlier_not_yet_measured_is_now_measured": {
+    "was": "runs created since the deploy = 0, so nothing had exercised the new code and no claim about it could be made either way",
+    "is": "5 alert-triggered runs created since 13:57:51Z, and every one of them carries a populated objective. The 718 rows that predate the deploy carry objective='' and are untouched, exactly as A7 says they should be.",
+    "verdict": "the new code populates the objective in the real deployment. The Article XIV concern the previous session declined to write down was correctly declined — and is now settled positively rather than left open."
+   },
+   "SC1": {
+    "status": "PASS — measured end to end on the slot's single UI-created run",
+    "run_id": "0a8e5cb259614ac7baeaaea1bc0566e8",
+    "created": "through the console's own Investigar modal in the Orca Browser, 16:48:14Z. The slot's one and only run creation, per EXECUCAO.md section 4.",
+    "objective_typed": "Verificar por que o node-exporter do pve01 para de responder ao Prometheus de forma recorrente",
+    "objective_stored": "byte-identical to what was typed; trigger='interactive'",
+    "headline_while_running": "equal to the objective — read off the run view's H1 and off the Painel card, both verbatim, neither a hex id nor 'interactive investigation'",
+    "headline_after_completion": "'The node-exporter daemon on host pve01 intermittently stops answering Prometheus scrapes while the host and Proxmox cluster remain healthy' — the delivery's own sentence, and different from the objective, which is what the T014 query note predicted",
+    "stage_advance": "exactly six stage_completed trace events, in order: resolve_integrations, intake, plan_evidence, gather_evidence, diagnose, deliver. The six segments AN-03 draws, advancing for real.",
+    "duration": "56s (16:48:14 to 16:49:10)"
+   },
+   "SC2": {
+    "status": "PASS — by the real measure, not the dead string",
+    "new_alert_runs_since_deploy": 5,
+    "of_those_with_empty_headline": 0,
+    "headline_like_investigation_triggered_by": "0, before and after, because that sentence was never persisted — it was a read-time construction of the old code. Measuring it proves nothing either way, which is why the real measure is the one above.",
+    "api_sweep_A6_A7": "50 live investigations read from the gateway inside the cluster: 0 banned shapes, 0 empty headlines, 0 hex-like headlines.",
+    "old_rows_do_not_regress": "five pre-deploy alert runs with an empty stored headline were fetched by id from the live API. All five read 'Investigation with no declared subject' — not a hex, not the banned sentence, not empty. A7 holds on real rows, with no backfill."
+   },
+   "estate_daily_T035": "exactly one row for 2026-08-31, total 93, captured 14:01:36Z. No duplicate snapshot_date anywhere in the table. The single photograph 050 claims, and 93 is the same number the 'Recursos vigiados' tile prints — cards and database agree.",
+   "run_trace_T023": "39 trace events for the run: 14 evidence_observed, 11 capability_called, 6 stage_completed, 6 turn_completed, 1 run_started, 1 run_finished. tool_calls=11, evidence=14.",
+   "approvals_040_measurable": {
+    "finding": "CONFIRMED, and it cost something worth recording",
+    "state_counts": "expired 2, approved 3, pending 0",
+    "the_proof": "the S2-era approval (requested 2026-08-27T03:37, expires_at 03:52) has decided_at 2026-08-31T01:39 — four days after its own deadline, which is the instant the corrected listing first read it. A second one, requested 2026-08-31T04:24 with a 04:39 deadline, expired at 04:46 — seven minutes late instead of four days. The repair works, and the two timings tell the story on their own.",
+    "the_cost": "there is now NO pending approval in staging. The proposal S2 reserved for the S5 demo expired rather than being decided, and 050's AN-07/AN-08 have nothing live to act on. This is a correct outcome of a correct fix, but S5 must now generate a fresh proposal instead of relying on the reserved one."
+   }
+  }
+ },
+ "visual_gate_S3": {
+  "at": "2026-08-31T16:55:53.961179+00:00",
+  "reviewer": "orca-browser",
+  "runtime": "claude",
+  "routes": [
+   "/"
+  ],
+  "viewports": [
+   "1265x1610 full page"
+  ],
+  "themes": [
+   "dark",
+   "light"
+  ],
+  "locale": "pt-BR, selected the way a reader's own toggle does it (the ninjasre_locale cookie, which requestLocale prefers over accept-language). The console's DEFAULT_LOCALE is 'en', so the English first render was correct behaviour and not a defect — worth stating because it looks like one.",
+  "evidence": [
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-dark.png",
+   "specs_v8/050-painel-vivo/evidence/visual/dashboard-light.png",
+   "specs_v8/020-titulo-vivo/evidence/visual/run-view-objective-as-title-light.png"
+  ],
+  "status": "failed",
+  "what_is_conforme": [
+   "every section the 050 spec names is present and populated with real data in both themes: the run band with a live card, the 'needs you' band, the five KPI tiles each with value, sparkline and decomposition legend, the per-subject grouping, and the live activity timeline",
+   "AN-03's six stage segments are drawn on the live card with the current one distinct from completed and future — visible in both captures",
+   "the run card is titled by the typed objective verbatim, which is 020's claim seen on the Painel rather than in a database",
+   "the freshness chip was caught in both of its states across the two captures ('Ao vivo' and 'Atualizando')"
+  ],
+  "findings": [
+   {
+    "id": "recurring-title-diverges-from-the-board-and-from-its-own-spec",
+    "severity": "SLOT-BLOCKING until repaired",
+    "evidence": "design/padrao-2026-08/Main.dc.html and DashboardLight.dc.html both say 'O que insiste em acontecer'. 050's own spec.md says it seven times, including AN-11 and SC-006. The console rendered 'O que continua acontecendo' (pt-BR.ts:800). Nothing in DIVERGENCIAS.md registers the change, and EXECUCAO.md section 3 makes an unregistered deviation a slot FAIL.",
+    "how_it_survived_the_suite": "no test asserts the section's name — AN-11 and its neighbours locate the panel by data-testid. The suite was green while the screen said the wrong thing, which is the 'measures nothing' family this wave keeps finding.",
+    "corroboration": "the pt-BR catalogue's own section comment at line 599 still reads 'O que insiste em acontecer', so the string beneath it disagrees with its own heading.",
+    "origin": "introduced by d019dd77, which names the panel by its English phrase in the commit message. It reads as a fresh translation of the English rather than a deliberate departure from the board — an honest slip, not a decision.",
+    "repair": "pt-BR.ts:800 set back to the board's wording by the lead, as the single-write i18n owner at merge. An assertion on the title is still owed so the gate cannot go green with the wrong name again.",
+    "en_pair_left_alone": "DIVERGENCIAS.md item 6 makes the English string a free pair of the pt-BR one, so 'What keeps happening' stays."
+   }
+  ],
+  "observations_not_defects": [
+   {
+    "id": "badge-carries-the-deployments-own-word",
+    "note": "the subject chips read 'Resolved' in a pt-BR console. This is deliberate and documented: console/src/components/status.tsx:192 says Badge is 'the one chip carrying a word the deployment wrote rather than one this console chose'. My first reading of it as an i18n defect was wrong. Worth an operator decision only because the same incident state reads 'Resolvido' on /incidents, so the two screens name one thing two ways."
+   },
+   {
+    "id": "sparkline-label-plural",
+    "note": "dashboard.kpi.sparkline.label is 'Tendência de {count} dias', so at count=1 it announces 'Tendência de 1 dias'. It is the sparkline's accessible name rather than drawn text, so it does not affect the artboard comparison — but it is a real pt-BR agreement bug in 050's own key."
+   },
+   {
+    "id": "destructive-sr-only-untranslated",
+    "note": "console/src/components/action.tsx:113 emits a hardcoded English sr-only ' (destructive)'. Invisible to the visual comparison, announced in English by a screen reader in a pt-BR console. Shell territory rather than 020/050, so it belongs to the wave confrontation."
+   },
+   {
+    "id": "board-copy-differences-outside-050s-acceptance-criteria",
+    "note": "the board says 'Parar automação', 'só propõe', 'O agente', 'atualizado por eventos · sem recarregar', 'nenhum detector promove a incidente' and 'manual · você'; the console says 'Parar a automação', 'apenas propõe', 'Agente', a different Painel subtitle, 'Nenhum detector promove achado a incidente' and 'Manual'. Unlike the recurring title, no acceptance criterion demands the board's wording for these, and most are shell chrome owned by earlier features. They need either a DIVERGENCIAS.md entry or a fix, and that call is the operator's rather than mine."
+   }
   ]
  }
 }
