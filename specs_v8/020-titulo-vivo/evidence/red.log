@@ -1,0 +1,138 @@
+=== evidence/red.log — 020-titulo-vivo ===
+
+Nota honesta sobre ordem: a implementação das Fases 2-3 pousou antes de
+tests/contract/runs/test_live_title_contract.py (T003) e da extensão de
+tests/contract/persistence/test_run_trace_store.py (T004) nascerem. O
+vermelho abaixo é o que ficou genuinamente vermelho na primeira execução de
+T003 (achados reais de bugs de teste, não da produção) e o resultado real de
+cada corte de fio manual feito depois, por mecanismo. T004 nunca ficou
+vermelho nesta sessão porque T005-T008 (persistência) já estavam prontos
+quando o arquivo foi escrito — dito aqui, não escondido.
+
+--- 1. Primeira execução real de T003, antes de qualquer correção do arquivo de teste ---
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -v
+
+FAILED TestAManualRunIsNamedByWhatWasAsked::test_the_list_and_the_detail_agree_with_the_post_while_running
+    assert listed["status"] == "running"
+    AssertionError: assert 'failed' == 'running'
+    (causa real: o teste usava o POST completo, que agenda _drive em
+    background contra UnconfiguredInvestigator, que falha o run quase
+    imediatamente — bug no teste, não na produção; corrigido semeando via
+    RunRecorder direto, como o resto do arquivo já faz, e renomeando o teste)
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_the_objective_never_appears_anywhere
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'Rotate the key AKIAIOSFODNN7EXAMPLE before it leaks further'
+    (causa real: o teste construía RunRecorder(store=uow.run_traces) sem
+    guardrails= — com guardrails=None a redação nunca roda. Bug no teste, não
+    na produção: orchestration.py sempre constrói o recorder com
+    guardrails=state.guardrails. Corrigido passando guardrails=GuardrailEngine()
+    explicitamente no teste.)
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_an_alert_label_never_reaches_the_headline
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'DiskFull on AKIAIOSFODNN7EXAMPLE'
+    (mesma causa do teste acima; mesma correção)
+
+3 failed, 13 passed nessa primeira rodada real.
+
+--- 2. Depois de corrigir os dois bugs de teste acima: 15 passed ---
+
+--- 3. Corte de fio manual #1: headline no início de recorder.start_run ---
+
+Mudança: `headline=headline,` -> `headline="",` na construção de AgentRun em
+platform/runs/recorder.py (start_run).
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestAManualRunIsNamedByWhatWasAsked or TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource" -v
+
+FAILED TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource::test_headline_is_alertname_on_resource
+    assert response.json()["headline"] == "RedisExporterDown on redis-1"
+    AssertionError: assert 'Investigation with no declared subject' == 'RedisExporterDown on redis-1'
+
+FAILED TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource::test_headline_is_alertname_alone_with_no_resource_label
+    assert response.json()["headline"] == "DiskFull"
+    AssertionError: assert 'Investigation with no declared subject' == 'DiskFull'
+
+2 failed, 3 passed (os 3 de run manual continuaram verdes — achado real,
+explicado no controle.md: summary_of's fallback de leitura reconstrói o
+mesmo headline a partir de run.objective para o caso manual, então a escrita
+no início é redundante só nesse caso; para alerta não é, porque os labels
+nunca são persistidos por si).
+
+Restaurado: `headline=headline,`. Suíte voltou a 15 passed.
+
+--- 4. Corte de fio manual #2: _fallback_objective reintroduzida em summary_of ---
+
+Mudança em gateway/http/routes/investigations.py, summary_of:
+    _wire_cut_fallback = f"investigation triggered by {run.alert_id}" if run.alert_id else ""
+    headline = run.headline or synthesize_headline(objective=_wire_cut_fallback or run.objective)
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestAnOldRowNeverServesTheAlertIdAsATitle" -v
+
+FAILED TestAnOldRowNeverServesTheAlertIdAsATitle::test_a_pre_migration_row_synthesises_a_generic_headline
+    assert headline == synthesize_headline()
+    AssertionError: assert 'investigation triggered by a1b2c3d4e5f60718293041526374859' == 'Investigation with no declared subject'
+
+1 failed (o único teste dessa classe). Restaurado. Suíte voltou a 15 passed.
+
+--- 5. Corte de fio manual #3: redação desligada em recorder.start_run ---
+
+Mudança:
+    redacted_objective = objective  # bypass
+    sanitized_labels = dict(alert_labels or {})  # bypass
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestASecretNeverReachesAnyTitleOrTheStartEvent" -v
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_the_objective_never_appears_anywhere
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'Rotate the key AKIAIOSFODNN7EXAMPLE before it leaks further'
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_an_alert_label_never_reaches_the_headline
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'DiskFull on AKIAIOSFODNN7EXAMPLE'
+
+2 failed. Restaurado (redacted_objective = self._redact(objective);
+sanitized_labels = self._scrub(...)). Suíte voltou a 15 passed.
+
+--- 6. Corte de fio manual #4: campo de estágio desligado em linked_summary ---
+
+Mudança em investigations.py, linked_summary: `return summary` no lugar de
+`return with_stage(summary, stages.get(run.run_id, ""))`.
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestTheListKnowsWhatStageALiveRunReached" -v
+
+FAILED TestTheListKnowsWhatStageALiveRunReached::test_a_run_that_completed_three_stages_reports_the_last_one
+    assert response.json()["last_completed_stage"] == "plan_evidence"
+    AssertionError: assert '' == 'plan_evidence'
+
+PASSED test_a_freshly_started_run_reports_no_stage_yet (correto — não testa
+linked_summary com estágio real, testa list_investigations)
+PASSED test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls (correto
+pela mesma razão — testa o caminho de lista, não o de detalhe)
+
+1 failed, 2 passed — confirma que o corte isolou exatamente o mecanismo do
+detalhe (linked_summary), sem falso-positivo nos outros dois. Restaurado.
+Suíte voltou a 15 passed.
+
+--- 7. Confirmação final pós-resgate do orquestrador (commit 6158b474) ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" .
+(nenhum resultado)
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py tests/contract/persistence/test_run_trace_store.py tests/unit/platform/runs/test_recorder.py -q
+48 passed in 0.58s
+
+$ uv run pytest tests/unit/gateway/http/ -q
+662 passed, 1 warning in 47.65s
+
+Nenhum fio ficou cortado no commit do resgate.
+
+--- 8. Cortes NÃO feitos (nomeados, não escondidos) ---
+
+- Contagem de queries (N+1) em list_investigations: implementado e coberto
+  por teste (test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls),
+  mas não desconectado manualmente para confirmar que reprovaria sem o
+  batching. Pendente se houver tempo.
+- Round-trip de `objective` em T004 (persistência): implementado e coberto,
+  não desconectado manualmente.
