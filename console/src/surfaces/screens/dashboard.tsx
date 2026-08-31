@@ -12,11 +12,7 @@ import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import {
-  ActivityFeed,
-  collapseFeed,
-  type ActivityFeedEntry,
-} from '../activity-feed';
+import { ActivityFeed, collapseFeed, type ActivityFeedEntry } from '../activity-feed';
 import { AttentionBlock, type DecisionCardData, type DecisionStep } from '../attention';
 import { readFailure } from '../failures';
 import { Figure } from '../figure';

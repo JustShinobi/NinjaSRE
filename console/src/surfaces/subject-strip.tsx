@@ -74,10 +74,7 @@ function SubjectRow({
     >
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-small font-medium truncate">{group.title}</span>
-        <span
-          data-testid="subject-subtitle"
-          className="text-meta text-muted truncate"
-        >
+        <span data-testid="subject-subtitle" className="text-meta text-muted truncate">
           <SubjectLine group={group} subjectNames={subjectNames} />
         </span>
       </div>

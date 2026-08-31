@@ -169,7 +169,7 @@ describe('SubjectStrip', () => {
     expect(within(row).getByTestId('subject-subtitle')).toBeInTheDocument();
   });
 
-  it("draws a timeline strip for a subject that fired more than once", () => {
+  it('draws a timeline strip for a subject that fired more than once', () => {
     render(<SubjectStrip locale="en" now={NOW} groups={[group()]} />);
     const row = screen.getByTestId('subject-row');
     const timeline = within(row).getByTestId('subject-timeline');
@@ -178,7 +178,9 @@ describe('SubjectStrip', () => {
   });
 
   it('names the shaped chip with the same role its status colour uses', () => {
-    render(<SubjectStrip locale="en" now={NOW} groups={[group({ state: 'resolved' })]} />);
+    render(
+      <SubjectStrip locale="en" now={NOW} groups={[group({ state: 'resolved' })]} />,
+    );
     const row = screen.getByTestId('subject-row');
     const chip = within(row).getByTestId('subject-chip');
     expect(chip.getAttribute('data-role')).toMatch(/.+/);

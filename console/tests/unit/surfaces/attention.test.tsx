@@ -113,7 +113,9 @@ describe('AttentionBlock, deciding inline', () => {
   }
 
   it('shows the approve control enabled before any click, beside the plan already visible', () => {
-    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
 
     expect(screen.getByTestId('attention-decision-plan')).toBeVisible();
     expect(screen.getByTestId('attention-decision-rollback')).toBeVisible();
@@ -121,7 +123,9 @@ describe('AttentionBlock, deciding inline', () => {
   });
 
   it('approves with no reason, and refreshes once the deployment records it', async () => {
-    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
 
     fireEvent.click(screen.getByTestId('attention-approve'));
     await vi.waitFor(() => {
@@ -131,7 +135,9 @@ describe('AttentionBlock, deciding inline', () => {
   });
 
   it('reveals the reason field only once Recusar is clicked, disables submit until it is filled', () => {
-    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
 
     expect(screen.queryByTestId('attention-reject-reason')).toBeNull();
 
@@ -146,7 +152,9 @@ describe('AttentionBlock, deciding inline', () => {
   });
 
   it('sends the rejection and its reason once submitted, and refreshes', async () => {
-    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
 
     fireEvent.click(screen.getByTestId('attention-reject'));
     fireEvent.change(screen.getByTestId('attention-reject-reason'), {
@@ -171,7 +179,9 @@ describe('AttentionBlock, deciding inline', () => {
       'fetch',
       vi.fn(() => Promise.resolve({ ok: false })),
     );
-    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
 
     fireEvent.click(screen.getByTestId('attention-approve'));
     await vi.waitFor(() => {

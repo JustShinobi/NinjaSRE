@@ -77,8 +77,18 @@ describe('collapseFeed', () => {
 
   it('never folds entries with no subject key, whatever their kind', () => {
     const collapsed = collapseFeed([
-      entry({ id: 'a', kind: 'approval', subjectKey: '', title: 'Remediation proposed' }),
-      entry({ id: 'b', kind: 'approval', subjectKey: '', title: 'Remediation proposed' }),
+      entry({
+        id: 'a',
+        kind: 'approval',
+        subjectKey: '',
+        title: 'Remediation proposed',
+      }),
+      entry({
+        id: 'b',
+        kind: 'approval',
+        subjectKey: '',
+        title: 'Remediation proposed',
+      }),
     ]);
     expect(collapsed).toHaveLength(2);
   });
@@ -87,10 +97,7 @@ describe('collapseFeed', () => {
 describe('ActivityFeed', () => {
   it('renders one entry per item, newest first, exactly as given', () => {
     render(
-      <ActivityFeed
-        locale="en"
-        entries={[entry({ id: 'a' }), entry({ id: 'b' })]}
-      />,
+      <ActivityFeed locale="en" entries={[entry({ id: 'a' }), entry({ id: 'b' })]} />,
     );
     expect(screen.getAllByTestId('activity-feed-entry')).toHaveLength(2);
   });
