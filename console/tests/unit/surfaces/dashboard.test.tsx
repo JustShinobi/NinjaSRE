@@ -642,12 +642,22 @@ describe('the header\'s "blocked on you" count', () => {
 
     const panel = screen.getByTestId('recurring-problems');
     const row = within(panel).getByTestId('subject-row');
-    // A name resolved: the shortened id survives only as the trailing,
-    // muted detail `SubjectLine` renders beside it -- never standing alone
-    // as the whole subtitle the way the raw id did on staging.
+    // A name resolved -- and it reads alone. The redeployed screen still
+    // showed "pve01 · res-76ab1466…": SubjectLine printed the shortened id
+    // as a trailing, visible detail even once a name was found, which is
+    // still FR-024/SC-007's banned shape (an internal identifier as text of
+    // the line), just moved one word to the right of where the first fix
+    // left it.
     expect(within(row).getByTestId('incident-subject-name')).toHaveTextContent(
       displayName,
     );
+    const subtitle = within(row).getByTestId('subject-subtitle');
+    expect(subtitle).toHaveTextContent(displayName);
+    expect(subtitle).not.toHaveTextContent(/res-[0-9a-f]{8}/);
+    expect(subtitle).not.toHaveTextContent(resourceId);
+    // The id is not lost -- it is exactly what a reader who hovers the row
+    // finds, and nowhere else.
+    expect(row).toHaveAttribute('title', resourceId);
   });
 
   it('counts only what the agent is holding, whatever the deployment answers with', async () => {

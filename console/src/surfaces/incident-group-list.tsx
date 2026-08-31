@@ -55,9 +55,10 @@ export interface IncidentGroupListProps {
    * for the whole page, never per row" shape as `runHeadlines`.
    *
    * Optional, and empty when absent: a caller that never fetched the estate
-   * still gets a correct render, with every subject shown exactly as it was
-   * before this map existed — the shortened id, honestly, rather than a name
-   * invented for it.
+   * still gets a correct render — an opaque subject with no name in the map
+   * renders nothing rather than its own id (FR-024/SC-007 ban that
+   * unconditionally, not only while unresolved), and a subject that was
+   * already a name keeps reading exactly as it did before this map existed.
    */
   readonly subjectNames?: ReadonlyMap<string, string>;
 }
@@ -102,7 +103,11 @@ export function resolvedName(
   return found !== undefined && found !== subject ? found : undefined;
 }
 
-/** The full subject line, offered only where the visible one was shortened or renamed. */
+/**
+ * The full subject line, offered only where the visible one differs from
+ * it -- a subject renamed, or an opaque one left out of the visible line
+ * altogether.
+ */
 export function subjectTitle(
   group: IncidentGroup,
   subjectNames: ReadonlyMap<string, string>,
@@ -143,12 +148,24 @@ function lastSettledWithRun(
 }
 
 /**
- * One severity/subject line: the estate's name first when this page has one,
- * the id last as a trailing, shortened detail — never the id standing alone
- * as the row's whole identity when a name was there to give it. An opaque
- * token with no resolved name still renders in monospace, as before; a name
- * already readable on arrival (`adguard-primary`) is still left exactly as
- * it is.
+ * One severity/subject line, reading left to right: the estate's name for a
+ * subject when this page has one, an already-human subject exactly as it
+ * arrived, and an *opaque* identifier with no resolved name left out of the
+ * line altogether — never printed, not even shortened. FR-024/SC-007 permit
+ * an internal identifier at most as this row's own tooltip, never as its
+ * text, and that holds whether or not a name was ever found for one: the
+ * fix that first built this map still let a resolved name's own id trail it
+ * as visible text ("pve01 · res-76ab1466…"), which is the identical shape
+ * one word later. The full, un-shortened subject list still reaches a
+ * reader through this row's own `title` (`subjectTitle`), which is where an
+ * identifier belongs at most.
+ *
+ * A short id that was never opaque to begin with (`ct-102`) is a different
+ * case: naming it beside the resolved name it gained (`anchor`) does not
+ * print anything SC-007 bans, so it keeps trailing the name as a detail,
+ * exactly as before — `isOpaque` is the one test this file uses to decide
+ * what counts as "internal" everywhere else, and this keeps agreeing with
+ * it rather than drawing a second line.
  */
 export function SubjectLine({
   group,
@@ -157,32 +174,31 @@ export function SubjectLine({
   readonly group: IncidentGroup;
   readonly subjectNames: ReadonlyMap<string, string>;
 }): ReactNode {
-  if (group.subjects.length === 0) {
+  const readable = group.subjects
+    .map((subject) => ({ subject, name: resolvedName(subject, subjectNames) }))
+    // An opaque subject nobody has named is left out of the visible line
+    // entirely rather than shown shortened.
+    .filter(({ subject, name }) => name !== undefined || !isOpaque(subject));
+  if (readable.length === 0) {
     return <>{group.detector}</>;
   }
   return (
     <>
-      {group.subjects.map((subject, index) => {
-        const name = resolvedName(subject, subjectNames);
-        return (
-          <span key={subject}>
-            {index > 0 ? ' · ' : ''}
-            {name === undefined ? (
-              <span className={isOpaque(subject) ? 'font-mono' : undefined}>
-                {shortenIdentifier(subject)}
-              </span>
-            ) : (
-              <span data-testid="incident-subject-name" data-resource-id={subject}>
-                {name}
-                <span className="font-mono text-muted">
-                  {' '}
-                  · {shortenIdentifier(subject)}
-                </span>
-              </span>
-            )}
-          </span>
-        );
-      })}
+      {readable.map(({ subject, name }, index) => (
+        <span key={subject}>
+          {index > 0 ? ' · ' : ''}
+          {name === undefined ? (
+            subject
+          ) : (
+            <span data-testid="incident-subject-name" data-resource-id={subject}>
+              {name}
+              {isOpaque(subject) ? null : (
+                <span className="font-mono text-muted">{` · ${subject}`}</span>
+              )}
+            </span>
+          )}
+        </span>
+      ))}
     </>
   );
 }

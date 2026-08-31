@@ -426,7 +426,7 @@ test(
 // =============================================================================
 
 test(
-  'AN-12: no subject subtitle shows a raw resource or hex identifier',
+  'AN-12: no visible text on the Painel carries a raw resource or hex identifier',
   { tag: STAGING_SAFE_TAG },
   async ({ page }) => {
     await page.goto('/');
@@ -437,15 +437,18 @@ test(
         'the mock scenario carries no subject rows to assert this against',
       );
     }
-    for (let index = 0; index < count; index += 1) {
-      const subtitle =
-        (await subjectRows(page)
-          .nth(index)
-          .getByTestId('subject-subtitle')
-          .textContent()) ?? '';
-      expect(subtitle).not.toMatch(/^res-[0-9a-f]{8}/);
-      expect(subtitle).not.toMatch(/[0-9a-f]{16,}/);
-    }
+    // Unanchored, and read from the whole Painel rather than one row's own
+    // subtitle. A redeployed screen showed "pve01 · res-76ab1466…" once a
+    // name had been resolved for a recurring subject: the anchored
+    // `^res-[0-9a-f]{8}` this test used to run never matched because the
+    // name led the string, and the 16-char run never matched because the
+    // rendered id is truncated to 8 hex characters. SC-007 bans the shape
+    // anywhere on the page, not only at a subtitle's own start, so this
+    // reads every visible character `main` renders -- the same scope the
+    // criterion names -- rather than one row's own element.
+    const visible = await page.getByTestId('main').innerText();
+    expect(visible).not.toMatch(/res-[0-9a-f]{8}/);
+    expect(visible).not.toMatch(/[0-9a-f]{16,}/);
   },
 );
 

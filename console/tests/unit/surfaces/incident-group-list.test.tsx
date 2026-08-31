@@ -72,14 +72,16 @@ describe('severity yields to state once a cause is over', () => {
 });
 
 describe('the subject line carries something a person can read', () => {
-  it('shortens an opaque identifier and keeps the whole of it reachable', () => {
+  it('leaves an unresolved opaque identifier out of the line, reachable only as a tooltip', () => {
+    // FR-024/SC-007: an internal identifier is never text of the line, not
+    // even shortened. The full key is still what a reader finds by hovering
+    // the row, through its own `title`.
     list([group()]);
 
     const subjects = screen.getByTestId('incident-group-subjects');
-    expect(subjects).toHaveTextContent('res-7a73b8aa…');
+    expect(subjects).not.toHaveTextContent('res-7a73b8aa');
     expect(subjects).not.toHaveTextContent('1194c1ed14dd87f7e0e80b81');
-    // Shortened for reading, never lost: the full key is what somebody pastes
-    // into a query.
+    expect(subjects).toHaveTextContent('alertmanager');
     expect(subjects).toHaveAttribute('title', 'res-7a73b8aa1194c1ed14dd87f7e0e80b81');
   });
 
@@ -101,7 +103,12 @@ describe('the subject line carries something a person can read', () => {
 });
 
 describe("the subject line prefers the estate's own name over the key that reaches it", () => {
-  it('shows the resolved name first, with the id kept as a trailing detail', () => {
+  it('shows the resolved name alone, with an opaque id kept out of the line entirely', () => {
+    // Staging showed this exact shape wrong: the name resolved ("pve01"),
+    // and the opaque id still trailed it as visible text
+    // ("pve01 · res-76ab1466…") -- FR-024 permits the id at most as a
+    // tooltip, never as text of the line, whether or not a name was found
+    // for it.
     render(
       <IncidentGroupList
         groups={[group({ subjects: ['res-dde476d5aa11bb22cc33dd44ee55ff66'] })]}
@@ -116,23 +123,47 @@ describe("the subject line prefers the estate's own name over the key that reach
 
     const subjects = screen.getByTestId('incident-group-subjects');
     expect(subjects).toHaveTextContent('runner-orchestrator');
-    // The id is not lost -- it moves to a trailing, shortened detail rather
-    // than standing alone as the row's whole identity.
-    expect(subjects).toHaveTextContent('res-dde476d5…');
+    // The id is not lost -- it is exactly what a reader who hovers the row
+    // finds, and it is not repeated anywhere in the visible line.
+    expect(subjects).not.toHaveTextContent('res-dde476d5');
+    expect(subjects).toHaveAttribute('title', 'res-dde476d5aa11bb22cc33dd44ee55ff66');
     const named = screen.getByTestId('incident-subject-name');
+    expect(named).toHaveTextContent('runner-orchestrator');
+    expect(named).not.toHaveTextContent('res-dde476d5');
     expect(named).toHaveAttribute(
       'data-resource-id',
       'res-dde476d5aa11bb22cc33dd44ee55ff66',
     );
   });
 
-  it('renders the plain shortened id, honestly, when the estate does not hold the subject', () => {
+  it('keeps a resolved name trailed by its id when the id was never opaque to begin with', () => {
+    // `ct-102` -> `anchor`: short, already legible, and matching neither of
+    // SC-007's banned shapes -- the Incidents-by-subject screen relies on
+    // exactly this trailing detail surviving, and this pins that it does.
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['ct-102'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={new Map([['ct-102', 'anchor']])}
+      />,
+    );
+
+    const named = screen.getByTestId('incident-subject-name');
+    expect(named).toHaveTextContent('anchor');
+    expect(named).toHaveTextContent('ct-102');
+  });
+
+  it('names nothing rather than the plain id, honestly, when the estate does not hold the subject', () => {
     // No `subjectNames` at all -- the same page that never fetched the
-    // estate must still render exactly as it did before this map existed.
+    // estate must still render nothing SC-007 bans; it falls back to the
+    // detector, the same as a group naming no subject at all.
     list([group()]);
 
     const subjects = screen.getByTestId('incident-group-subjects');
-    expect(subjects).toHaveTextContent('res-7a73b8aa…');
+    expect(subjects).not.toHaveTextContent('res-7a73b8aa');
+    expect(subjects).toHaveTextContent('alertmanager');
     expect(screen.queryByTestId('incident-subject-name')).toBeNull();
   });
 
