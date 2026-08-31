@@ -9,7 +9,7 @@
   "claimed_at": "2026-08-28T00:18:52+00:00",
   "baseline_commit": "2542361d2ae13e13d8ee7a1855baa99b2d5ee936",
   "baseline_status_empty": true,
-  "checkpoint_seq": 61
+  "checkpoint_seq": 64
  },
  "feature_order": [
   "specs_v8/000-fundacao-visual",
@@ -253,8 +253,8 @@
    "commit": "20c4f6bc"
   }
  ],
- "last_checkpoint": "2026-08-31T18:45:06.764569+00:00",
- "next_action": "Re-run the 050 verifier against the repaired tree. 020 is PASS. Then write the S3 section of CONFRONTO.md.",
+ "last_checkpoint": "2026-08-31T20:07:54.898427+00:00",
+ "next_action": "Redeploying with a wait condition that excludes the previous pod generation. Then warm, recapture / in both themes against the conformed layout, rewrite VEREDITO, and re-run the 050 verifier. 020 is PASS.",
  "fingerprint": "ee50642429f9f4b9",
  "features": [
   {
@@ -2963,6 +2963,38 @@
    ],
    "proved_rather_than_accepted": "the pre-fix tagging bug was demonstrated, not taken on faith: the verifier checked out 62f81665~1, found zero tags despite the docstring, then ran playwright --grep=@nonexistent --list and confirmed 'No tests found' with exit 0.",
    "taken_on_trust": "the estate_daily 'exactly one row, no duplicate snapshot_date' SQL claim — the verifier has no cluster or database access from its machine — while independently corroborating the resulting value of 93 from the live tile."
+  },
+  "050-painel-vivo-recheck": {
+   "at": "2026-08-31T19:09:10.882245+00:00",
+   "verdict": "FAIL",
+   "what_the_repairs_did_close": {
+    "SC-007_FR-024": "CLOSED, reproduced independently on live staging rather than inferred. The verifier ran the acceptance test's own computation against the live DOM in both themes after a real reload each: /res-[0-9a-f]{8}/ false, /[0-9a-f]{16,}/ false. One tooltip carries the id and nothing else does. No hydration or error lines in the console on either reload.",
+    "AN-12_is_a_real_guard": "the tightened assertion scans page.getByTestId('main').innerText() unanchored, so it WOULD match 'pve01 · res-76ab1466…' — the cycle-1 rendering the old anchored regex could never catch. Not theatre.",
+    "AN-17": "confirmed on the live no-detector tile: label, value and sparkline are bare text with a single separate link, not nested. The new unit assertion is structural (every anchor's parentElement.closest('a') must be null).",
+    "nothing_loosened": "the verifier reran the mock suite itself: 6 failed / 13 passed, the same six 070-dependency names. It ran its own make verify and read VERIFIER_MAKE_VERIFY_EXIT=0 from its own log."
+   },
+   "why_it_still_fails": [
+    {
+     "severity": "HIGH",
+     "id": "stale-evidence-contradicts-its-own-verdict",
+     "finding": "two of the four SC-008 evidence files, dashboard-{dark,light}-live-run.png, predate the fixes and show BOTH defects — the old heading and the raw id as line text — while VEREDITO.md cited all four under a sentence claiming zero occurrences of the raw id.",
+     "whose_error": "the lead's. The captures were preserved for their live-card content and then listed as evidence for a claim they contradict.",
+     "status": "CORRECTED — the evidence table now says per file what it is evidence OF, marks the two live-run captures as pre-fix, and states plainly why they were not recaptured (one run per slot, already spent)."
+    },
+    {
+     "severity": "MEDIUM",
+     "id": "unregistered-artboard-divergences",
+     "finding": "comparing the committed dashboard-light.png against DashboardLight.dc.html: the board places 'O que insiste em acontecer' and 'Atividade ao vivo' SIDE BY SIDE in a two-column row; the console stacks them. And the board's section header carries a tally, '7 assuntos · 40 disparos · agrupado por assunto'; the console prints only 'Agrupado por assunto, não por disparo'. Neither is in DIVERGENCIAS.md.",
+     "whose_miss": "the lead's visual gate compared vocabulary and section presence but not layout composition, and recorded CONFORME without it.",
+     "status": "OPEN — needs an operator decision: register both in DIVERGENCIAS.md, or change the layout and the header."
+    },
+    {
+     "severity": "LOW",
+     "id": "isOpaque-threshold-gap",
+     "finding": "isOpaque requires a hex tail of 24 or more; SC-007 bans any visible text matching [0-9a-f]{16,}. A subject with a 16-to-23-character hex tail would not be treated as opaque, so it would print raw and trip the criterion. No such shape was found in the real estate, where every id is a 32-hex UUID.",
+     "status": "OPEN — close the gap by lowering the constant to 16, or justify it in writing."
+    }
+   ]
   }
  },
  "repair_cycle_S3": {
@@ -3025,8 +3057,15 @@
   "why": "repair cycle 2 touched console/src/surfaces/incident-group-list.tsx, a component 060 shares. The implementer read 060's suite and pinned against it at unit level but did not execute it, and said so.",
   "result": "060's incidents-by-subject acceptance: 1 failed, 15 passed (B060_EXIT=1). The failure is SC-001, 'the grouped view holds at most a third of the rows the flat view holds' — 11 received where <= 5 expected.",
   "attributed_by_measurement_not_reasoning": "the same file was reverted to f84b3aa3~1 and the suite re-run: 1 failed / 15 passed, the SAME test, identically. The repair did not cause it. Pre-existing and 060's.",
-  "hypothesis_labelled_as_one": "060 passed as PASS in slot S2 and this is red now, so something changed underneath it. A plausible cause is the fixture regeneration in 20c4f6bc, which rewrote 239 files and could have moved the flat/grouped ratio this test measures. That is a hypothesis, not a finding — whoever reconverges 060 should settle it.",
-  "owner": "060, and the wave confrontation"
+  "hypothesis_labelled_as_one": "WITHDRAWN — it was wrong, and the lead did not check it before writing it down.",
+  "owner": "060, and the wave confrontation",
+  "corrected_cause": {
+   "corrected_by": "the 050 re-verifier, independently",
+   "what_the_lead_got_wrong": "blamed 20c4f6bc, 'which rewrote 239 files'. git show --stat 20c4f6bc is THIRTEEN files. The 239 was the mockplane BUILD rewriting its output, recorded elsewhere in this file — two different things, conflated without checking.",
+   "the_real_cause": "f25e615c, task T041 in 050's OWN tasks.md, whose commit message states it directly: populated/incidents.json held 10 incidents with 10 distinct correlation_keys, so the grouping filter produced nothing. Before it: 0 recurring groups, so SC-001's own noRecurrence skip guard fired and the criterion was NEVER MEASURED — consistent with 060's S2 result of 61 passed and 8 skipped. After it: 13 incidents, 11 keys, one group of 3, reproducing the observed 11-vs-5 failure exactly.",
+   "what_this_reframes": "not an unrelated pre-existing 060 bug. It is another 'measuring nothing' case — a criterion that had only ever been skipped — which 050's own necessary and disclosed fixture work exposed for the first time. The lead's conclusion that repair cycle 2 did not cause it still stands and was reproduced; only the causal record was wrong.",
+   "owner": "060 and the wave confrontation, with this corrected record"
+  }
  },
  "redeploy_2_S3": {
   "at": "2026-08-31T18:45:06.764569+00:00",
@@ -3039,5 +3078,59 @@
   "result": "5 failed, 1 skipped, 29 passed (3.2m). REAL_EXIT=1 read from the log.",
   "verdict": "every 050 claim is green against the real deployment, including the tightened AN-12. The five reds are exactly the inherited /runs/{id} transversal rules, by name, unchanged across all three staging runs today (8 failed, then 5, then 5).",
   "the_progression": "8 failed / 26 passed before the repairs; 5 failed / 29 passed after cycle 1; 5 failed / 29 passed after cycle 2 with the assertion tightened — the same count, but now earned rather than granted by an anchored regex."
+ },
+ "isOpaque_reality_analysis": {
+  "at": "2026-08-31T19:55:28.281184+00:00",
+  "why_it_was_redone": "the operator objected that the lead was reasoning from SC-007's text rather than from the deployment. He was right — the first recommendation was rule-derived. This one is measured.",
+  "measured_in_staging": {
+   "resources_with_a_real_display_name": "113 of 113. ZERO nameless.",
+   "consequence": "repair cycle 2's 'opaque and nameless -> omit the segment' branch is DEAD CODE in this deployment. It has never fired and cannot fire on today's data.",
+   "tilde_ids_reaching_incidents": "0 of 62 subject resource_ids are tilde-suffixed, so the eight ids isOpaque misses cannot appear in the Painel today. The gap the verifier raised is UNREACHABLE.",
+   "the_thing_the_rule_does_not_look_at": "14 display names in the estate do not uniquely identify a resource. 'pve-lxc-warm-5001' maps to 4 distinct resource_ids; 'pve-lxc-warm-5000' to 4; and leslie, GigaChad, TeraChad, remote-backup, local, local-lvm, data-pool and fileserver-backup-smb to 2 each. These are ids isOpaque CATCHES and hides — so where the rule works as written, it can leave two or four visually identical rows with nothing to tell them apart.",
+   "how_much_that_bites_today": "one. Of the 62 subject ids reaching incidents, exactly one ('unbound') has an ambiguous name. The ambiguity is real but latent."
+  },
+  "recommendation": {
+   "isOpaque": "LEAVE IT. Not out of deference to the rule — by measurement: the gap is unreachable, and changing a guard shared with 060 at slot close to fix something nobody can observe is risk without return.",
+   "the_finding_worth_more_than_the_gap": "SC-007 is over-broad against reality. It assumes the display name always identifies, and in this estate 14 names do not. The right answer is neither 'show the hash' nor 'hide the hash' but disambiguate on demand — show a discriminator only when the name repeats within the rendered set. That is a design change, not a slot fix.",
+   "status": "OPEN for the operator: whether to open it as its own item, and whether to note in DIVERGENCIAS.md that SC-007 was written before anyone looked at the data, which is what the numbers show."
+  },
+  "what_the_lead_got_wrong_along_the_way": "first measured shapes on incidents.correlation_key, then on a stringified nested subjects object — both wrong keys, both producing confident nonsense. The real key is subjects[].resource_id. Corrected twice before any recommendation was made."
+ },
+ "layout_conformance_task": {
+  "at": "2026-08-31T19:55:28.281184+00:00",
+  "why": "the operator inspected the artboard against the staging render himself, confirmed the divergence, and asked for it to be resolved rather than registered.",
+  "rescue": "the agent hit its 120-turn ceiling mid-sentence, on 'now removing the quick-actions component', holding eleven modified files and one deletion with NOTHING committed — the exact failure this wave documents, despite the brief asking for a commit at any coherent point. Rescued as 11b750f1, marked unfinished in its own message. The tree was coherent when rescued: tsc exits 0, no dangling import, and the surviving references are tests asserting the removal.",
+  "open_concern": "removing 'Ações rápidas' deletes delivered behaviour. The artboard not drawing it argues for removal but is not by itself a decision; the agent was asked to justify it or say it should have been registered instead.",
+  "gates_still_owed": "the acceptance run with the six named reds intact, 060's suite (already red 1/15 for an unrelated documented reason — the question is whether the count moved), and the agent's per-divergence reasoning.",
+  "status": "DELIVERED",
+  "commits": [
+   "11b750f1 (the lead's rescue of the implementation)",
+   "e4239e6a (prettier)",
+   "38722fdc (four new DIVERGENCIAS entries)"
+  ],
+  "gates": "acceptance on mock 6 failed / 18 passed — baseline was 6/13, the same six reds by name and +5 from the new tests, nothing loosened. 060 unchanged at 1 failed / 15 passed, same test. console gate test/typecheck/lint all 0, prettier and eslint clean. make verify afterwards: MAKE_VERIFY_EXIT=0, 13157 passed, console 3242 (up from 3235 — the seven new unit tests), zero FAILED or ERROR lines.",
+  "conformed": [
+   "the two-column row: recurring-problems at lg:col-span-2 beside live-activity, one lg:grid-cols-3 row",
+   "the header tally, whose firing count sums the same group.count the rows print, so header and rows cannot disagree; absent when there are no rows, because a failed read has no standing to say '0 assuntos'",
+   "the two footer links",
+   "todas as investigações →, which was gated on overflow > 0. The board draws it with nothing overflowing, so it is a permanent way out rather than an overflow disclosure",
+   "the per-subject sparkline. It was NOT a static icon: the width was occurrences.length * 6, so two firings got a 12-pixel axis on which 'an hour apart' and 'two days apart' draw identically, and two rows sat on different scales. Now a fixed 120-unit axis, the board's own."
+  ],
+  "found_beyond_the_brief": [
+   "THE FIVE-SUBJECT CAP DID NOT EXIST. spec.md:486 requires '6 cards, 8 entradas, 5 assuntos + link' as named constants; RUN_BAND_VISIBLE_MAX and FEED_LENGTH existed, the subject cap did not, so the panel drew every recurring subject. A real requirement never implemented, found without being asked.",
+   "the row's leading status mark, which the board draws and the console did not: severity while still firing, outcome once over — the same reading IncidentGroupList already makes."
+  ],
+  "registered_not_fixed": "DIVERGENCIAS.md entries 9-12: the activity feed's missing vertical rail (reason already in the source, never registered); the board's stream chip and header caption both refused under the one-freshness-indicator-per-page rule of entry 3; the Recursos vigiados breakdown printing the estate's own kind words, because the kind set is open per integration and a translated noun would print a raw key the day a new integration ships; and the Resolved chip. The last was deliberately NOT fixed — the status vocabulary is the foundation's and the same chip is on /incidents, /runs and /decisions, so it is a foundation change and not one the Painel may make alone.",
+  "quick_actions_removal_ACCEPTED": {
+   "the_agent_justified_it_when_challenged": "the panel held two links. /knowledge duplicates a permanent sidebar entry. /autonomy is a RETIRED route and GuardianFooter links to it from the bottom of every page.",
+   "the_lead_verified_the_load_bearing_claims_rather_than_accepting_them": "routes.ts:318 carries visible: () => false under a comment reading 'Retired'; sidebar.tsx GuardianFooter links AUTONOMY_PATH; /knowledge is a permanent sidebar entry. No destination and no capability is lost.",
+   "and_it_offered_to_revert": "the agent stated the revert cost and asked for the word if the lead disagreed. It was not asked to assume."
+  },
+  "corrections_the_agent_made_to_the_lead": [
+   "the brief said the console shows no sidebar counts. It shows none IN THAT CAPTURE: nav-count is implemented and wired (sidebar.tsx:210-222, load.ts:307-319) and was simply zero, which the same page says twice ('0 bloqueado em você', 'Nada espera uma decisão agora'). Nothing there is broken.",
+   "it flagged one of its own tests as a negative control rather than a confirmed red, unprompted."
+  ],
+  "one_judgement_left_open_for_the_operator": "'linha do tempo completa →' points at /runs, because no route serves the feed's mixed narrative and /runs carries the majority of its entries. One line to change if a different destination is wanted.",
+  "the_notification_lied_a_third_time": "the agent's acceptance run notified exit 0 while its log said EXIT=1 — the notification reports the wrapper shell, whose trailing echo succeeded. Every number in its report came from a log."
  }
 }
