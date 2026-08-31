@@ -28,16 +28,45 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ---
 
+## O que o lead resolveu antes do despacho (achados do analyze)
+
+1. **O payload interno do evento de início não muda.** `RUN_STARTED` grava
+   `{trigger, team_node_id}` no traço, e é o tradutor do stream público que
+   constrói `{run_id}` — são dois mecanismos, não um. A exigência é que
+   objetivo e rótulos **nunca vazem** para nenhum dos dois; ler R2/A4 como
+   ordem para reescrever a chamada de `record_event` seria uma mudança que
+   ninguém pediu e que contradiz o fato já verificado nesta própria spec.
+2. **A evidência do ambiente real é do orquestrador** (T002 e T014, agora
+   ambos rotulados). Entregue a consulta, não a medição.
+3. **A cláusula da SC2 sobre "o próximo alerta real" é oportunista.** Nenhuma
+   tarefa a possui e o orçamento do slot é de **um** run, criado pela 050 —
+   forçar um alerta real não está ao alcance de ninguém aqui. O mecanismo se
+   prova no teste de contrato (T003b): rótulos de alerta produzem
+   "alertname on recurso". No staging, o orquestrador mede o que existe —
+   `SELECT count(*), headline FROM agent_runs WHERE trigger='alert'` — e
+   registra "observado" ou "nenhum alerta real na janela". A segunda resposta
+   é aceitável; um verde inferido não é.
+4. **Três casos de borda não têm teste novo** — objetivo só com espaços,
+   objetivo longo demais, e headline provisório que permanece em
+   `PARTIAL/FAILED/INTERRUPTED`. O analyze conferiu que os três já se
+   comportam certo por construção (`headline.py` faz `strip` e trunca por
+   fronteira de palavra; `complete_run` preserva o headline quando recebe
+   `None`). Corretos por reúso não é o mesmo que protegidos por regressão:
+   acrescente os três casos ao teste de contrato, ou nomeie a lacuna no
+   relatório. "Não medido" não é resposta.
+
 ## Phase 0: Linha de base
 
 - [ ] T001 Rodar `make verify` na árvore intacta; guardar log fora do
       repositório; registrar exit code e contagem. Linha de base não-verde:
       parar e reportar.
-- [ ] T002 Registrar o "antes" no staging, em `evidence/antes.md`:
+- [ ] T002 **(orquestrador — a worktree não alcança o cluster nem o banco)**
+      Registrar o "antes" no staging, em `evidence/antes.md`:
       `SELECT count(*) FROM agent_runs WHERE headline LIKE 'investigation
       triggered by%';` e `SELECT run_id, trigger, headline FROM agent_runs
       ORDER BY started_at DESC LIMIT 5;` — os números contra os quais SC2 é
-      medido.
+      medido. O implementer não executa esta tarefa: entrega no relatório a
+      consulta exata que quer ver rodada, e nada mais.
 
 ## Phase 1: Vermelho
 
@@ -67,7 +96,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - [ ] T006 Migração `platform/persistence/migrations/versions/
       0020_run_objective.py`: coluna `objective TEXT NOT NULL DEFAULT ''` em
       `agent_runs`; índice parcial em `trace_events (run_id, sequence DESC)
-      WHERE kind='stage_completed'` **somente se** T003(e) reprovar sem ele;
+      WHERE kind='stage_completed'` **somente se** T003(f) reprovar sem ele;
       downgrade completo.
 - [ ] T007 Postgres store: gravar/ler `objective`; implementar
       `last_completed_stages` com `SELECT DISTINCT ON (run_id)` filtrado por
@@ -108,12 +137,17 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 5: Ban transversal
 
-- [ ] T012 Localizar a suíte transversal (`rg -l "transversal"
-      console/tests/e2e` ou o nome que a v7 usou) e estender: nenhum título
-      renderizado (h1, célula-título, aba, breadcrumb) casa
-      `/^[0-9a-f]{16,}$/`, contém "investigation triggered by", ou casa
-      `/^(interactive|alert|schedule|subagent) investigation$/`. Rodar
-      contra o produto atual para calibrar o seletor de "título".
+- [ ] T012 Estender a suíte transversal (`console/tests/e2e/bans.ts` e
+      `transversal-rules.spec.ts`): nenhum título renderizado (h1,
+      célula-título, aba, breadcrumb) contém "investigation triggered by" nem
+      casa `/^(interactive|alert|schedule|subagent) investigation$/`. **O ban
+      de hash cru já existe** — `RAW_HEX = /^[0-9a-f]{8,}$/i` em `bans.ts`,
+      ligado à regra "identificador como nome" e já rodando contra estas
+      mesmas superfícies em `/runs` e `/runs/{id}`. Oito ou mais dígitos é
+      superconjunto de dezesseis: reutilize o detector existente em vez de
+      somar um segundo mais estreito, e diga no relatório o que ele já pegava
+      antes desta feature. Rodar contra o produto atual para calibrar o
+      seletor de "título".
 
 ## Phase 6: Verde e evidência
 
