@@ -327,13 +327,27 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       efeito, medido, não presumido.
 - [ ] T035 `make verify` verde; gates de formato do domínio tocado rodados
       antes de cada commit (o pre-commit não cobre TypeScript).
-- [ ] T036 Relatório final para o orquestrador: chaves i18n (T029), linha do
+      Não fechada — não é uma alegação de "verde", e o `[ ]` é deliberado
+      (isto não é um `[~]`: houve execução extensa, não ausência dela). `make verify` real: contratos de import, todos os
+      `check-*`, `verify_integrations`, docs — todos passam; `console-static`
+      para no vermelho conhecido e esperado de
+      `console/tests/unit/i18n/catalogue.test.ts` (27 chaves `pt-BR`
+      ausentes — regra 3, aplicadas só no merge), então a cadeia de
+      dependências do `make verify` nunca chega a `test`. Rodei `test`
+      (a suíte Python inteira) direto, contornando essa parada: achei e
+      corrigi uma regressão real de T015 (não instabilidade — determinística,
+      provada em duas camadas, ver `controle.md`); depois do reparo,
+      **13100 passed, 31 skipped, 0 failed** mais **38 passed** de benchmark,
+      `make test` EXIT=0. O único vermelho que resta em `make verify` hoje é
+      o `pt-BR` já nomeado, esperado até o merge.
+- [x] T036 Relatório final para o orquestrador: chaves i18n (T029), linha do
       registro visual, `file:line` de T004, decisão de migração de T020,
       tokens/ícones que faltaram (se algum), e o roteiro de staging para o
       fim do slot — deploy-stg `COMPONENTS="app web"`, acceptance @staging
       (AN-08 propose-only contra a expirada real), consultas da spec
       ("Consultas de evidência em staging" 1–4), captura Orca dos dois temas
       e `evidence/visual/VEREDITO.md` conforme EXECUCAO.md §3.
+      Feito — entregue na resposta final desta sessão ao orquestrador.
 
 ## Dependencies & Execution Order
 

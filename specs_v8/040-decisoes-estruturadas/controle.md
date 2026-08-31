@@ -504,3 +504,59 @@ lista completa com o texto `pt-BR` proposto), não um defeito desta feature.
 | T034 | FEITO | sintética: 267 passed, idêntico a T003 |
 | T035 | ver relatório final | `make verify` |
 | T036 | este documento + relatório final | |
+
+## Correção a uma alegação anterior — T015 "verde" era verde parcial
+
+A seção "T015-T021 — servidor: fase 2 completa e verde" (acima) registra os
+31 testes das cinco suítes novas mais `test_approval_execution.py` passando
+— verdade, mas não era o quadro completo, e é preciso dizer isso em vez de
+deixar a alegação como estava. `make verify` nunca chegou a rodar `pytest`
+inteiro nesta feature até agora: sua cadeia de dependências para em
+`console-static` no primeiro checkpoint vermelho (que sempre existiu, por
+motivos diferentes, em cada tentativa desta sessão), e `test` — o alvo que
+roda a suíte Python inteira — nunca é alcançado quando isso acontece. Rodei
+`make test` direto, ignorando essa cadeia, e achei um regressão real de
+T015: `tests/unit/gateway/http/test_console_support_routes.py::test_the_pending_queue_lists_the_longest_waiting_first`
+falhava porque seu fixture (`_seed_approval`) grava `expires_at` a partir de
+um `EPOCH` fixo (1 de maio de 2026) mais uma hora — no passado frente ao
+relógio real de hoje. Antes de T015, `list_approvals` nunca olhava o
+relógio; depois, `expire_due(datetime.now(UTC))` roda dentro da própria
+transação antes de listar, e essa aprovação era varrida para `expired` no
+instante em que o teste pedia `state=pending` — quebrando um teste que não
+tem nada a ver com expiração, pelo mesmo motivo que fez o badge da sidebar
+mentir em produção. Corrigido âncorando `expires_at` ao relógio real do
+teste em vez do `EPOCH` fixo; `requested_at` continua `EPOCH` (nenhum outro
+teste do arquivo depende do valor de `expires_at`, confirmado por leitura
+de cada uso). Suíte completa depois do reparo:
+`uv run pytest -n 4 --dist loadgroup -m "not benchmark" ...` → **13100
+passed, 31 skipped, 0 failed** (era 13099 passed, 1 failed antes do reparo
+— a diferença é exatamente essa uma linha, nada mais mudou); em seguida
+`pytest -m benchmark` → **38 passed**. `make test` completo, EXIT=0.
+
+**Não era instabilidade — era determinístico, e digo isto com prova, não
+por impressão.** A falha original: `assert [entry["approval_id"] for entry
+in response.json()["approvals"]] == ["ap-1"]` recebia `[]` — a aprovação
+sumia da listagem `state=pending` porque seu `expires_at`
+(`EPOCH + timedelta(hours=1)`, `EPOCH` fixo em 1 de maio de 2026) já tinha
+passado frente ao relógio real de hoje (fim de agosto de 2026), e T015
+agora varre para `expired` toda aprovação vencida antes de listar
+`pending` — a mesma correção que fecha a mentira do badge da sidebar. Não
+podia ser instabilidade: uma data fixa no passado só fica mais velha a
+cada dia, nunca por acaso "acerta" de novo — falharia em toda execução, sem
+exceção, a partir do dia em que `EPOCH` ficou para trás do relógio real, e
+continuaria falhando para sempre sem este reparo. Corrigido no commit
+`503ce94b`. Confirmado em duas camadas, não uma: rodei o arquivo isolado
+(`pytest tests/unit/gateway/http/test_console_support_routes.py -q`) antes
+de sequer tentar a suíte inteira de novo — 19 passed, EXIT=0 — e só depois
+rodei `make test` completo, que fechou em 13100 passed/0 failed, uma linha
+a mais que o total anterior (13099 passed + 1 failed), confirmando que
+nada além dessa linha mudou de lado.
+
+**Achado de processo, nomeado**: esta era a primeira vez, nesta feature
+inteira, que `pytest` completo rodou depois de T015 ter composto
+`expire_due()` dentro de `list_approvals`. `make verify` nunca chegou lá
+antes — sua cadeia de dependências para no primeiro checkpoint vermelho de
+`console-static`, que sempre havia um em cada tentativa desta sessão — e a
+alegação "T015...verde" registrada mais acima no controle era verdadeira
+só para as suítes tocadas diretamente, não para o repositório inteiro. Não
+reescrevo essa seção: fica como estava, com esta correção ao lado dela.
