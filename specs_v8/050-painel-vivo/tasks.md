@@ -34,15 +34,39 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ---
 
+## O que o lead resolveu antes do despacho (achados do analyze)
+
+1. **`stage_index` só existe depois do merge do slot.** A 020 é quem adiciona
+   o campo à listagem de runs, e ela roda numa worktree irmã: dentro desta
+   worktree o cliente gerado não o tem, e o arquivo gerado não se edita à mão.
+   A banda **lê o campo defensivamente** — ausente significa nenhum estágio
+   completado, que é exatamente o desenho já especificado para "não
+   alcançado", e é a degradação que o console já exibe hoje. O gate local
+   fecha verde com o campo ausente. A asserção da AN-03 que distingue o
+   segmento corrente depende do campo: escreva-a, deixe-a nomeadamente pulada
+   com a razão na própria linha, e **liste-a no relatório final** — o
+   orquestrador a roda contra a árvore mergeada, onde o campo existe. Um `[~]`
+   com razão, nunca um `[x]` envergonhado.
+2. **A evidência do ambiente real é do orquestrador** (T002, T033–T036, agora
+   rotulados). Entregue o que medir, não a medição.
+3. **`stage_index == 6` com o run ainda não terminado**: os seis segmentos são
+   concluídos e **não há segmento corrente** — nenhum shimmer. A leitura
+   literal da FR-002 punha o segmento 6 nos dois estados ao mesmo tempo.
+
 ## Phase 0: Linha de base
 
 - [ ] T001 Rodar `make verify` na árvore intacta e guardar o log fora do
       repositório: exit code, contagem e quais falham. Linha de base não verde
       = parar e reportar.
-- [ ] T002 Capturar fora do repositório o "antes" do staging: captura Orca do
-      Painel atual nos dois temas, e
+- [ ] T002 **(orquestrador)** Capturar fora do repositório o "antes" do
+      staging: captura Orca do Painel atual nos dois temas, e
       `SELECT count(*) FROM agent_runs WHERE status NOT IN ('completed','failed','cancelled');`
       — os números contra os quais SC-001 e a consulta 1 da spec serão lidos.
+      Uma worktree não alcança nem o cluster nem o banco: o implementer não
+      executa esta tarefa. O que ele deve entregar no lugar é **o que medir** —
+      a consulta exata e a rota/tema de cada captura — para o orquestrador
+      rodar. Pedir uma contagem de linhas do staging a quem trabalha numa
+      worktree é pedir o impossível.
 - [ ] T003 Registrar contagem e resultado da suíte de cenários sintéticos —
       o "antes" da medição de efeito sobre investigação ("sem efeito" é
       resposta aceitável no fim; "não medido" não é).
@@ -155,17 +179,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 - [ ] T033 No fim do slot (orquestrador): `make deploy-stg COMPONENTS="app web"`,
       aguardar Argo Synced+Healthy.
-- [ ] T034 Acceptance staging-safe + staging-write contra
+- [ ] T034 **(orquestrador)** Acceptance staging-safe + staging-write contra
       `https://stg-ninjasre.lan.kyo.ninja` via
       `tools/spec_validation browser --backing staging`: AN-01→AN-05 com run
       real disparado pela UI, o único run criado no slot S3; a sessão vem do
       credential proxy e nenhum segredo entra no agente, argumentos ou
       evidência. A 020 reutiliza este fixture. AN-07/AN-08 decidindo uma
-      aprovação em propose-only. Registrar SC-001→SC-004.
-- [ ] T035 Consultas de evidência da spec no banco de staging (cards×banco,
+      aprovação em propose-only — sobre a aprovação que **este** run gerar, nunca
+      sobre a pendente que o S2 deixou no staging: aquela é a única proposta
+      real criada pela UI e o S5 ainda a demonstra. Registrar SC-001→SC-004.
+- [ ] T035 **(orquestrador)** Consultas de evidência da spec no banco de staging (cards×banco,
       fotografia única em `estate_daily`, decisão gravada) — resultados no
       controle.
-- [ ] T036 **Gate visual**: captura Orca de `/` nos dois temas (alternando
+- [ ] T036 **(orquestrador)** **Gate visual**: captura Orca de `/` nos dois temas (alternando
       pelo botão de tema), salvas em `evidence/visual/`, comparadas a
       `Main.dc.html` e `DashboardLight.dc.html`; `VEREDITO.md` com uma linha
       por tela×tema — CONFORME ou o desvio nomeado. Desvio sem registro
