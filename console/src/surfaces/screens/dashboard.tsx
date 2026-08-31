@@ -203,6 +203,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     runs,
     overview,
     incidents,
+    resources,
     blocked,
     held,
     checklist,
@@ -226,6 +227,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     // wants everything still open however long ago it opened, and those are
     // not the same page.
     panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+    // The estate's own name for a recurring subject (FR-024/SC-007): a raw
+    // resource id must never stand alone as "O que insiste em acontecer"'s
+    // subtitle when the estate already has a name for it. The same read the
+    // Incidents screen already makes for the identical reason, not a second
+    // opinion computed here.
+    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
     panelRead('/v1/incidents', () =>
       read('/v1/incidents', { ...authorised(credential), query: HUMAN_INCIDENT_QUERY }),
     ),
@@ -267,6 +274,20 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     now,
     SUBJECT_WINDOW_HOURS,
   ).filter((group) => group.count > 1);
+  // What the estate calls every resource it holds, resolved once for the
+  // whole page from the same read -- never a second request, and never per
+  // row. A subject the estate does not hold at all simply has no entry, and
+  // `SubjectStrip` renders that honestly, as the shortened id, rather than
+  // inventing one -- the same map and the same fallback the Incidents screen
+  // already builds from this endpoint (`screens/incidents.tsx`).
+  const subjectNames = new Map<string, string>();
+  if (resources.status === 'ready') {
+    for (const record of list(dataOf(resources), 'resources')) {
+      const id = text(record, 'resource_id');
+      const name = text(record, 'display_name');
+      if (id !== '' && name !== '') subjectNames.set(id, name);
+    }
+  }
   const overviewData = dataOf(overview);
   // Distinct from any one KPI's own `value` being `null` (nothing in the
   // window can answer that KPI yet): this is the whole document failing to
@@ -595,7 +616,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             href: '/incidents',
           }}
         >
-          <SubjectStrip locale={locale} now={now} groups={recurring} />
+          <SubjectStrip
+            locale={locale}
+            now={now}
+            groups={recurring}
+            subjectNames={subjectNames}
+          />
         </Panel>
       </div>
 

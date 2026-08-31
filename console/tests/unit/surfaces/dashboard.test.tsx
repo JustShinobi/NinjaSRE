@@ -586,6 +586,70 @@ describe('the header\'s "blocked on you" count', () => {
     ).toEqual(['2×', '3×']);
   });
 
+  it("resolves a recurring subject's raw resource id to the estate's own name for it", async () => {
+    // AN-12/FR-024/SC-007: staging showed InstanceDown's subtitle as the raw,
+    // merely-shortened identifier ("res-76ab1466…") because this screen never
+    // built the `subjectNames` map the Incidents screen already builds from
+    // the same `/v1/estate/resources` read (`screens/incidents.tsx:283-296`).
+    // The "populated" scenario's own recurring subject is a human-readable
+    // string (`unresolved-target:...`), which never exercises this fallback,
+    // so this subject is deliberately an opaque `res-<hex>` id -- the shape
+    // `isOpaque` (`incident-group-list.tsx`) and real data actually produce.
+    const resourceId = 'res-76ab1466f4c9a2d1e3b8c7f6a5d4e3c2';
+    const displayName = 'edge-node-04';
+    serveScenario('populated');
+    const scenario = globalThis.fetch;
+    const firing = (over: Record<string, unknown>): Record<string, unknown> => ({
+      incident_id: 'inc-opaque',
+      public_id: 'inc-opaque',
+      correlation_key: 'detector:instance-down:resource:opaque',
+      title: 'InstanceDown',
+      summary: '',
+      state: 'open',
+      severity: 'critical',
+      detector: 'alertmanager',
+      subjects: [resourceId],
+      opened_at: hoursAgo(1),
+      ...over,
+    });
+    const incidents = [
+      firing({ incident_id: 'x', public_id: 'x' }),
+      firing({ incident_id: 'y', public_id: 'y', opened_at: hoursAgo(2) }),
+    ];
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const address = new URL(String(input), FIXTURES_BASE);
+      if (address.pathname === '/v1/incidents') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ incidents }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      if (address.pathname === '/v1/estate/resources') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              resources: [{ resource_id: resourceId, display_name: displayName }],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await DashboardScreen(await surfaceContext({})));
+
+    const panel = screen.getByTestId('recurring-problems');
+    const row = within(panel).getByTestId('subject-row');
+    // A name resolved: the shortened id survives only as the trailing,
+    // muted detail `SubjectLine` renders beside it -- never standing alone
+    // as the whole subtitle the way the raw id did on staging.
+    expect(within(row).getByTestId('incident-subject-name')).toHaveTextContent(
+      displayName,
+    );
+  });
+
   it('counts only what the agent is holding, whatever the deployment answers with', async () => {
     // The narrowing is asked for in the query and held again here. A read is a
     // request, not a guarantee: a deployment that ignores the parameter — the
