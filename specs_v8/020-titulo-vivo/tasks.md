@@ -183,3 +183,80 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       run único, SC2 pela medida real — não pela string morta — e a
       varredura de A6/A7 na API ao vivo) estão no relatório final e em
       `/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md`.
+
+## Phase 7: Convergence
+
+- [x] T015 Em `gateway/http/orchestration.py::start_investigation`, passar
+      `sanitized_objective`/`sanitized_labels` — já computados pela própria
+      função — para as três chamadas que hoje recebem os parâmetros crus:
+      `IncidentLifecycle.attach_run(..., objective=objective, ...)`,
+      `IncidentLifecycle.record_alert_received(..., labels=alert_labels or
+      {}, ...)`, e o `InvestigationStart(objective=objective, ...,
+      alert_labels=dict(alert_labels or {}), ...)` entregue ao runtime.
+      Hoje a função sanitiza os dois valores e os usa **só** para
+      `recorder.start_run` — as outras três leituras do parâmetro cru
+      persistem o objetivo/labels sem redação: `attach_run` grava `cause`
+      cru em `TimelineEntry` (`platform/incidents/lifecycle.py`, método
+      `_record`, sem nenhuma passagem por guardrail), `record_alert_received`
+      grava um `detail` renderizado a partir dos labels crus, e o runtime
+      recebe o objetivo cru no pedido que efetivamente investiga — o exato
+      prompt que R3 e o Artigo IV (Segredos Nunca Chegam ao Agente, cláusula
+      1) proíbem. A chamada direta e redundante a `attach_run` em
+      `gateway/webhooks/router.py` (em torno da linha 422, com
+      `objective=objective_for(incident)` cru) tem o mesmo defeito e precisa
+      da mesma correção. Adicionar um teste de contrato que exercite
+      `start_investigation`/`POST /v1/investigations` (ou o caminho do
+      webhook) de ponta a ponta com um segredo no objetivo e num label de
+      alerta, e afirme que o segredo não aparece nem na timeline do
+      incidente nem no `InvestigationStart` que o runtime recebe — os testes
+      existentes (`TestASecretNeverReachesAnyTitleOrTheStartEvent`) constroem
+      o run chamando `RunRecorder.start_run` diretamente e nunca exercitam
+      `orchestration.start_investigation`, então essa classe de vazamento
+      nunca foi testada. per R3 (contradicts)
+
+      **FEITO.** As quatro chamadas passaram a usar `sanitized_objective`/
+      `sanitized_labels` (as duas funções ganharam nomes públicos —
+      `redact_text`/`redact_labels` — e foram exportadas, exatamente para
+      que `gateway/webhooks/router.py` pudesse reusá-las em vez de duplicar
+      a lógica). A chamada redundante do webhook router (linha ~427) também
+      foi corrigida. Teste novo:
+      `tests/contract/runs/test_live_title_contract.py::
+      TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime` (chama
+      `start_investigation` direto, com incidente e credential_name para
+      exercitar os quatro consumidores) e
+      `tests/unit/gateway/webhooks/test_router.py::
+      test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime`
+      (entrega real por HTTP). Cada um dos quatro pontos foi cortado à mão e
+      confirmado vermelho com a mensagem real antes de restaurar — inclusive
+      um achado honesto: a correção própria do webhook router não é hoje
+      alcançável (o attach_run interno de start_investigation já torna
+      idempotente a chamada redundante), então nenhum teste pode prová-la
+      "load-bearing" — é código defensivo correto, não uma correção provada
+      necessária. Mensagens completas em `evidence/red.log` §13-14.
+
+- [x] T016 Cobrir com um teste de regressão, com marcador de segredo real
+      (o mesmo padrão `AKIA[0-9A-Z]{16}` já usado no resto da suíte), os dois
+      caminhos de `start_run` que hoje não têm nenhum teste de redação
+      próprio: o agendador (`platform/scheduler/executor.py::_sanitized`,
+      que protege o prompt que `_investigate` constrói a partir de
+      `schedule.objective` — uma superfície distinta da linha que o
+      `RunRecorder` já redige de novo) e o subagente
+      (`RunRecorder.start_subagent_run`, cujo único teste hoje,
+      `test_a_subagent_run_records_its_own_objective`, prova o vínculo
+      objetivo/headline mas não usa nenhum segredo). Ambos hoje dependem
+      inteiramente da redação do `RunRecorder.start_run` de que fazem uso —
+      correta por reúso de código, não protegida por uma regressão própria.
+      per R3 (partial)
+
+      **FEITO.** Dois testes novos, ambos cortados à mão e confirmados
+      vermelhos com a mensagem real, restaurados depois:
+      `tests/unit/platform/scheduler/test_claiming_and_execution.py::
+      test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt`
+      (corta `JobExecutor._sanitized`, reprova mostrando o segredo no
+      `pipeline.requests[-1].objective`) e
+      `tests/unit/platform/runs/test_recorder.py::
+      test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run`
+      (corta o repasse `objective=objective` na chamada interna de
+      `start_subagent_run` a `self.start_run`, reprova junto com o teste de
+      vínculo objetivo/headline já existente). Mensagens completas em
+      `evidence/red.log` §15.

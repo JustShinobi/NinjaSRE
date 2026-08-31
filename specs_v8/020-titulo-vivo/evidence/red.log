@@ -172,11 +172,168 @@ Restaurado. Rodei de novo contra Postgres real (--postgres, docker local):
 2 passed (fakes + postgres) — a migração 0020 também aplicou de novo sem
 erro nessa segunda rodada, confirmando a cadeia de revisões.
 
---- 11. Varredura final: nenhum corte de fio sobrou em nenhuma linguagem ---
+--- 11. Correção de convergência: o corte do detector do console não tinha saída capturada ---
+
+A rodada de convergência apontou, corretamente: os seis cortes acima têm a
+mensagem real de pytest; o do detector `inventedRunTitle` do console só
+existia como prosa neste arquivo e em controle.md, sem saída capturada.
+Rodada de novo, de propósito, com a saída redirecionada para um arquivo
+antes de ser colada aqui — não reconstruída de memória.
+
+Mudança: `return null;` inserido como primeira linha de
+`inventedRunTitle` em console/tests/e2e/bans.ts, antes de qualquer outra
+lógica da função.
+
+$ pnpm exec vitest run tests/unit/e2e/bans.test.ts > invented-run-title-wire-cut.log 2>&1; echo "EXIT=$?" >> invented-run-title-wire-cut.log
+
+ FAIL  tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact hash-based sentence the staging audit recorded
+AssertionError: expected null not to be null
+ ❯ tests/unit/e2e/bans.test.ts:92:11
+     90|     expect(
+     91|       inventedRunTitle('investigation triggered by bc7bdbd452fae8f1c9d…
+     92|     ).not.toBeNull();
+       |           ^
+     93|   });
+
+ FAIL  tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact trigger-word sentence a manual run used to read as
+AssertionError: expected null not to be null
+ ❯ tests/unit/e2e/bans.test.ts:96:63
+     96|     expect(inventedRunTitle('interactive investigation')).not.toBeNull…
+       |                                                               ^
+     97|     expect(inventedRunTitle('alert investigation')).not.toBeNull();
+     98|     expect(inventedRunTitle('schedule investigation')).not.toBeNull();
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 20 passed (22)
+EXIT=1
+
+Restaurado (`return null;` removido). Confirmado verde de novo:
+22 passed (22). Full log mirrored at
+/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/evidence/invented-run-title-wire-cut.log
+
+--- 12. Varredura final: nenhum corte de fio sobrou em nenhuma linguagem ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" --include="*.ts" --include="*.tsx" .
+(nenhum resultado — grep saiu com status 1, checado de novo depois de T015/T016)
+
+Todos os seis mecanismos de backend originais, mais os quatro de T015
+(attach_run, record_alert_received, InvestigationStart no caminho de
+orquestração e no de webhook), mais os dois de T016 (agendador, subagente),
+mais o detector do console — treze cortes ao todo nesta sessão — foram
+cortados à mão, confirmados vermelhos com a mensagem real capturada, e
+restaurados para verde antes de seguir.
+
+--- 13. Convergência T015: os três consumidores que start_investigation deixava crus ---
+
+Achado real do convergence: `sanitized_objective`/`sanitized_labels` eram
+computados em gateway/http/orchestration.py::start_investigation e usados
+**só** em recorder.start_run. attach_run, record_alert_received e
+InvestigationStart (o pedido que o runtime recebe) continuavam lendo o
+parâmetro cru. Os testes antigos de segredo só chamavam
+RunRecorder.start_run direto e nunca exercitavam start_investigation, então
+essa classe de vazamento nunca foi testada — exatamente como o convergence
+apontou.
+
+Teste novo: tests/contract/runs/test_live_title_contract.py::
+TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime::
+test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+
+Corte #1 — attach_run (`objective=objective` no lugar de `sanitized_objective`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in rendered_timeline
+    AssertionError: the incident timeline still carries the secret:
+    'host-9 is full 1 subject(s) Investigate host-9. Rotate the key
+    AKIAIOSFODNN7EXAMPLE first. 387b1136d24f427cb1664eca83173dd9 the
+    delivery was authenticated by delivery-token-9 alertname=DiskFull,
+    instance=[REDACTED]'
+    (nota: o label já saía redigido — [REDACTED] — confirmando que esse
+    corte isolou só o objective de attach_run, não o resto)
+
+Restaurado. Corte #2 — record_alert_received (`labels=alert_labels or {}`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in rendered_timeline
+    AssertionError: ...Rotate the key [REDACTED] first. ...
+    instance=AKIAIOSFODNN7EXAMPLE'
+    (nota: o objective já saía redigido — [REDACTED] — confirmando
+    isolamento correto do corte)
+
+Restaurado. Corte #3 — InvestigationStart (`objective=objective` e
+`alert_labels=dict(alert_labels or {})`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in request.objective
+    AssertionError: InvestigationStart.objective still carries the secret:
+    'Investigate host-9. Rotate the key AKIAIOSFODNN7EXAMPLE first.'
+
+Restaurado. 17/17 verde em test_live_title_contract.py depois dos três.
+
+--- 14. Convergência T015: caminho do webhook ---
+
+Teste novo: tests/unit/gateway/webhooks/test_router.py::
+test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+
+Achado honesto, não escondido: cortar a correção **própria** do webhook
+router (`redact_text(objective_for(incident), state.guardrails)` de volta
+para `objective_for(incident)` cru) **não** derruba este teste — porque a
+chamada própria do router a attach_run é redundante e hoje sempre um no-op
+(o attach_run interno de start_investigation já anexou o run_id ao
+incidente primeiro, então o guard de idempotência do segundo attach_run
+retorna antes de gravar qualquer coisa). Isso bate com a análise já feita
+antes da correção. O teste continua genuíno: cortar o attach_run
+**compartilhado** dentro de start_investigation (o mesmo do item 13, corte
+#1) derruba este teste também:
+
+FAILED test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    (mesmo corte #1 do item 13 — a árvore de código é a mesma função)
+    passou, sem reprovar — porque o segredo deste teste está no LABEL, não
+    no objective, e attach_run só lê objective. Ver o corte seguinte.
+
+Corte que de fato derruba este teste — InvestigationStart.alert_labels
+(`alert_labels=dict(alert_labels or {})` cru):
+
+FAILED test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert LEAKED_CREDENTIAL not in str(request.alert_labels)
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in "{'alertname':
+    'HighErrorRate', 'severity': 'critical', 'service': 'checkout',
+    'leaked_credential': 'AKIAIOSFODNN7EXAMPLE'}"
+
+Restaurado tudo. Registro honesto: a correção específica do webhook router
+(linha ~427) é código defensivo correto e sem custo, mas **não é hoje
+alcançável** pela ordem de execução atual — nenhum teste pode prová-la
+"load-bearing" porque ela não é, o que é diferente de estar quebrada.
+
+--- 15. Convergência T016: agendador e subagente ---
+
+Teste novo: tests/unit/platform/scheduler/test_claiming_and_execution.py::
+test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt
+
+Corte — `_sanitized` desligado em JobExecutor.execute:
+
+FAILED test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt
+    assert secret not in pipeline.requests[-1].objective
+    AssertionError: the prompt still carries the secret: 'Investigate the
+    standby. Rotate the key AKIAIOSFODNN7EXAMPLE first.'
+
+Restaurado. 67/67 verde na suíte do agendador depois.
+
+Teste novo: tests/unit/platform/runs/test_recorder.py::
+test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run
+
+Corte — `objective=objective` removido da chamada interna de
+start_subagent_run a self.start_run:
+
+FAILED test_a_subagent_run_records_its_own_objective
+    assert stored.objective == "Check the replica lag on redis-1"
+    AssertionError: assert '' == 'Check the replica lag on redis-1'
+FAILED test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run
+    assert "[REDACTED]" in stored.objective
+    AssertionError: assert '[REDACTED]' in ''
+
+Restaurado. 18/18 verde em test_recorder.py depois.
+
+--- 16. Varredura final pós-T015/T016 ---
 
 $ grep -rn "WIRE-CUT" --include="*.py" --include="*.ts" --include="*.tsx" .
 (nenhum resultado — grep saiu com status 1)
-
-Todos os seis mecanismos de backend e o detector novo do console foram
-cortados à mão, confirmados vermelhos com a mensagem real, e restaurados
-para verde antes de seguir.

@@ -11,16 +11,25 @@ headline already is, and the invented sentence is gone rather than bypassed.
 
 from __future__ import annotations
 
+import asyncio
+from datetime import UTC, datetime
+
 import pytest
 
 from config.constants.runs import MAX_HEADLINE_LENGTH, TRIGGER_ALERT, TRIGGER_INTERACTIVE
+from gateway.http.orchestration import start_investigation
+from gateway.http.state import GatewayState
 from platform.guardrails.engine import GuardrailEngine
+from platform.identity.tokens import TokenService
+from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
 from platform.persistence.fakes.run_trace_store import FakeRunTraceStore
+from platform.persistence.ports.incident_store import IncidentOrigin, IncidentSubject
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.headline import normalize_headline, synthesize_headline
 from platform.runs.recorder import RunRecorder
 from tests.contract.runs._deployment import ORG, TEAM, Deployment, bearer
+from tests.unit.gateway.http.conftest import FakeInvestigationRunner
 
 pytestmark = pytest.mark.contract
 
@@ -240,6 +249,85 @@ class TestASecretNeverReachesAnyTitleOrTheStartEvent:
 
         assert SECRET not in response.json()["headline"]
         assert SECRET not in response.text
+
+
+class TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime:
+    """T015 — every consumer inside ``start_investigation`` sees the redacted
+    value, not just ``start_run``.
+
+    The two tests above only ever call ``RunRecorder.start_run`` directly,
+    so they never exercised ``start_investigation`` itself — the function
+    that computes ``sanitized_objective``/``sanitized_labels`` and, before
+    this fix, used them for the recorder only. Three other consumers in the
+    same function still read the raw parameter: ``IncidentLifecycle.
+    attach_run`` (the incident timeline's ``cause``), ``IncidentLifecycle.
+    record_alert_received`` (the timeline's ``detail``, rendered from the
+    labels), and the ``InvestigationStart`` handed to the runtime — the
+    actual prompt an investigation reasons over. This class calls
+    ``start_investigation`` for real, with an incident and a credential name
+    so all three fire, and checks all three destinations.
+    """
+
+    async def test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime(
+        self, deployment: Deployment
+    ) -> None:
+        runner = FakeInvestigationRunner()
+        state = GatewayState(
+            gateway=deployment.gateway,
+            tokens=TokenService(gateway=deployment.gateway),
+            investigator=runner,
+        )
+        scope = _scope()
+        async with deployment.gateway.begin(scope) as uow:
+            incident = await IncidentLifecycle(store=uow.incidents).raise_incident(
+                IncidentRaise(
+                    correlation_key="alert:secret-test:host-9",
+                    title="DiskFull",
+                    summary="host-9 is full",
+                    origin=IncidentOrigin.ALERT,
+                    origin_id="alertmanager",
+                    severity="critical",
+                    subjects=(IncidentSubject(resource_id="host-9"),),
+                    team_node_id=TEAM,
+                ),
+                now=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+            )
+
+        run_id = await start_investigation(
+            state,
+            scope=scope,
+            trigger=TRIGGER_ALERT,
+            objective=f"Investigate host-9. Rotate the key {SECRET} first.",
+            principal_id="alertmanager",
+            alert_id="alert-secret-9",
+            incident_id=incident.incident_id,
+            alert_labels={"alertname": "DiskFull", "instance": SECRET},
+            credential_name="delivery-token-9",
+        )
+
+        # start_investigation only schedules the investigation as a
+        # background task (acceptance scenario 1: the response comes back
+        # before the run itself does) — wait for it, the same way a
+        # graceful shutdown would, before reading what it produced.
+        await asyncio.gather(*state.background_runs)
+
+        async with deployment.gateway.begin(scope) as uow:
+            timeline = await IncidentLifecycle(store=uow.incidents).timeline(incident.incident_id)
+
+        rendered_timeline = " ".join(f"{entry.cause} {entry.detail}" for entry in timeline)
+        assert SECRET not in rendered_timeline, (
+            f"the incident timeline still carries the secret: {rendered_timeline!r}"
+        )
+
+        assert runner.started, "start_investigation never reached the runtime"
+        request = runner.started[-1]
+        assert request.run_id == run_id
+        assert SECRET not in request.objective, (
+            f"InvestigationStart.objective still carries the secret: {request.objective!r}"
+        )
+        assert SECRET not in str(request.alert_labels), (
+            f"InvestigationStart.alert_labels still carries the secret: {request.alert_labels!r}"
+        )
 
 
 class TestTheListKnowsWhatStageALiveRunReached:

@@ -335,6 +335,43 @@ async def test_a_subagent_run_records_its_own_objective(
     assert stored.headline == "Check the replica lag on redis-1"
 
 
+async def test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run(
+    uow: UnitOfWork, clock: Callable[[], datetime]
+) -> None:
+    """T016 — the only other test of this path proves the objective/headline
+    link, never redaction; ``start_subagent_run`` depends entirely on the
+    ``start_run`` it calls internally for that defence, correct by reuse but
+    not covered by a regression of its own until now.
+    """
+    ruleset = Ruleset(
+        rules=(
+            GuardrailRule(
+                name="aws-access-key",
+                patterns=(re.compile(r"AKIA[0-9A-Z]{16}"),),
+                action=GuardrailAction.REDACT,
+                replacement="[REDACTED]",
+            ),
+        )
+    )
+    writer = recorder(uow, clock, guardrails=GuardrailEngine(ruleset=ruleset))
+    parent = await writer.start_run(
+        trigger=TRIGGER_ALERT, principal_id=PRINCIPAL, team_node_id=TEAM
+    )
+
+    child = await writer.start_subagent_run(
+        parent_run_id=parent.run_id,
+        objective="Check the replica lag on redis-1, key AKIAIOSFODNN7EXAMPLE",
+        principal_id=PRINCIPAL,
+        team_node_id=TEAM,
+    )
+
+    stored = await uow.run_traces.get_run(child.run_id)
+    assert stored is not None
+    assert "AKIAIOSFODNN7EXAMPLE" not in stored.objective
+    assert "[REDACTED]" in stored.objective
+    assert "AKIAIOSFODNN7EXAMPLE" not in stored.headline
+
+
 async def test_an_oversized_result_is_truncated_with_a_marker(
     uow: UnitOfWork, clock: Callable[[], datetime]
 ) -> None:

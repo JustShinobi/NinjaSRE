@@ -27,24 +27,33 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def _sanitized(text: str, guardrails: GuardrailEngine) -> str:
+def redact_text(text: str, guardrails: GuardrailEngine) -> str:
     """Return ``text`` with anything the ruleset matches already removed.
 
-    Applied before ``objective`` is used for anything at all — the
-    provisional headline, the runtime's own request, and the run's stored
-    row — so a secret typed into an objective reaches none of them. The
-    recorder scans again before it writes; this is the defence the prompt
-    the runtime builds could not otherwise get, since nothing about handing a
-    request to a runtime passes back through the recorder.
+    Computed once, here, and then used for **every** consumer of an
+    objective or a label this function reaches — the provisional headline,
+    the row ``start_run`` writes, the incident timeline (``attach_run``,
+    ``record_alert_received``), and the ``InvestigationStart`` the runtime
+    actually reasons over. A caller that sanitised only the value it passed
+    to ``start_run`` and then reused the raw parameter for anything else
+    would have redacted the row and leaked everywhere else the same text
+    goes — which is exactly the shape convergence found here: the runtime's
+    own prompt and the incident's timeline were both still reading the raw
+    parameter after this function had already computed a clean one.
+    Exported so ``gateway/webhooks/router.py`` — which builds its own
+    incident-timeline entry from the same untrusted alert data, in a
+    second, redundant ``attach_run`` call this module's docstring already
+    explains — redacts with the identical rule rather than a second
+    hand-rolled pass.
     """
     if not text:
         return text
     return guardrails.scan(text).text
 
 
-def _sanitized_labels(labels: Mapping[str, str], guardrails: GuardrailEngine) -> dict[str, str]:
-    """Return ``labels`` with every value scanned, for the same reason as ``objective``."""
-    return {key: _sanitized(value, guardrails) for key, value in labels.items()}
+def redact_labels(labels: Mapping[str, str], guardrails: GuardrailEngine) -> dict[str, str]:
+    """Return ``labels`` with every value scanned, for the same reason as ``redact_text``."""
+    return {key: redact_text(value, guardrails) for key, value in labels.items()}
 
 
 async def start_investigation(
@@ -83,8 +92,8 @@ async def start_investigation(
     receipt at a time, or the entry would be recorded twice.
     """
     team_node_id = scope.team_node_id or ""
-    sanitized_objective = _sanitized(objective, state.guardrails)
-    sanitized_labels = _sanitized_labels(alert_labels or {}, state.guardrails)
+    sanitized_objective = redact_text(objective, state.guardrails)
+    sanitized_labels = redact_labels(alert_labels or {}, state.guardrails)
     async with state.gateway.begin(scope) as uow:
         if not team_node_id:
             # A local sign-in issues a token that stands for the person across
@@ -133,11 +142,13 @@ async def start_investigation(
             # webhook router, which does it to record the objective on the
             # timeline — is not a second link.
             lifecycle = IncidentLifecycle(store=uow.incidents)
-            await lifecycle.attach_run(incident_id, run.run_id, objective=objective, now=_utc_now())
+            await lifecycle.attach_run(
+                incident_id, run.run_id, objective=sanitized_objective, now=_utc_now()
+            )
             if credential_name:
                 await lifecycle.record_alert_received(
                     incident_id,
-                    labels=alert_labels or {},
+                    labels=sanitized_labels,
                     credential_name=credential_name,
                     now=_utc_now(),
                 )
@@ -148,14 +159,14 @@ async def start_investigation(
             scope=scope,
             request=InvestigationStart(
                 run_id=run.run_id,
-                objective=objective,
+                objective=sanitized_objective,
                 team_node_id=team_node_id,
                 principal_id=principal_id,
                 org_id=scope.org_id,
                 alert_source=alert_source,
                 context=dict(context or {}),
                 incident_id=incident_id,
-                alert_labels=dict(alert_labels or {}),
+                alert_labels=dict(sanitized_labels),
                 credential_name=credential_name,
             ),
         ),
@@ -205,4 +216,4 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
             )
 
 
-__all__ = ["start_investigation"]
+__all__ = ["redact_labels", "redact_text", "start_investigation"]

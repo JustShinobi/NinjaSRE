@@ -13,6 +13,7 @@ três vezes seguidas para rodadas que na verdade saíram 2.
 | 3 | `console-static` (prettier) | `transversal-rules.spec.ts` e `bans.test.ts`, editados por script Python/sed, não seguiam o estilo Prettier | 2 |
 | 4 | — nenhum | verde de ponta a ponta: suíte principal 13136 passed/31 skipped, benchmark 38 passed | 0 |
 | 5 | — nenhum | depois de fechar a lacuna de cobertura de `GET /v1/runs`: suíte principal 13137 passed/31 skipped (mais um teste), benchmark 38 passed | 0 |
+| 6 | — nenhum | pós-convergência (T015/T016 fechados, quatro testes novos): suíte principal 13141 passed/31 skipped, benchmark 38 passed | 0 |
 
 Cada correção foi feita nos arquivos exatos que a mensagem de erro nomeou —
 nunca `ruff format .`/`prettier --write .` sobre o repositório inteiro.
@@ -22,4 +23,5 @@ Logs completos (fora do repositório, como T001 pede):
 (`baseline-make-verify.log`, `final-make-verify.log` [rodada 1],
 `final-make-verify-2.log` [rodada 2], `final-make-verify-3.log` [rodada 3],
 `final-make-verify-4.log` [rodada 4, verde], `final-make-verify-5.log`
-[rodada 5, verde, estado final]).
+[rodada 5, verde], `final-make-verify-6-convergence.log` [rodada 6, verde,
+estado final pós-convergência]).

@@ -196,3 +196,105 @@ final desta sessão.
    test_get_v1_runs_reports_the_same_stage_the_console_actually_reads`,
    batendo em `/v1/runs` (lista) e `/v1/runs/{id}` diretamente. 16/16 verde
    em `test_live_title_contract.py`.
+
+## Phase 7 — Convergência (rodada 1)
+
+Convergence voltou **NÃO CONVERGIDO** e achou um vazamento de segredo real
+que meus próprios testes nunca exercitaram, mais uma lacuna evidenciária
+genuína. As duas coisas foram corrigidas nesta sessão, não apenas
+documentadas.
+
+### T015 — o vazamento real
+
+`orchestration.py::start_investigation` computava `sanitized_objective`/
+`sanitized_labels` e os usava **só** em `recorder.start_run`. Três outros
+consumidores da mesma função continuavam lendo o parâmetro cru:
+`IncidentLifecycle.attach_run` (grava `cause` sem guardrail,
+`platform/incidents/lifecycle.py`), `IncidentLifecycle.record_alert_received`
+(grava `detail` renderizado dos labels crus), e o `InvestigationStart`
+entregue ao runtime — o prompt real que a investigação usa. Meus testes de
+segredo (`TestASecretNeverReachesAnyTitleOrTheStartEvent`) só chamavam
+`RunRecorder.start_run` direto e nunca exercitaram `start_investigation`,
+então essa classe inteira de vazamento nunca foi testada — exatamente o que
+o convergence disse.
+
+Corrigido: as quatro leituras agora usam `sanitized_objective`/
+`sanitized_labels`. As duas funções de sanitização ganharam nomes públicos
+(`redact_text`/`redact_labels`, exportadas de `orchestration.py`) para que
+`gateway/webhooks/router.py` pudesse reusá-las na sua própria chamada
+redundante a `attach_run` (linha ~427) em vez de duplicar a lógica.
+
+Teste novo que prova isso, cortado à mão quatro vezes (uma por consumidor) e
+confirmado vermelho com a mensagem real a cada corte, restaurado depois de
+cada um:
+- `tests/contract/runs/test_live_title_contract.py::
+  TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime` — chama
+  `start_investigation` diretamente (não via HTTP, para poder inspecionar o
+  `InvestigationStart` capturado por um `FakeInvestigationRunner` reusado de
+  `tests.unit.gateway.http.conftest`), com um incidente e um
+  `credential_name` para que os quatro consumidores disparem.
+- `tests/unit/gateway/webhooks/test_router.py::
+  test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime`
+  — entrega real por HTTP (`POST /webhooks/alertmanager`), com o segredo num
+  label do alerta.
+
+**Achado honesto que não escondo**: cortar a correção *própria* do webhook
+router (a chamada redundante a `attach_run`) não derruba nenhum teste,
+porque essa chamada é hoje sempre um no-op — o `attach_run` *interno* de
+`start_investigation` já anexa o `run_id` ao incidente primeiro, e o guard
+de idempotência do segundo `attach_run` retorna antes de gravar qualquer
+coisa. Fiz a correção mesmo assim (defesa em profundidade, sem custo), mas
+nenhum teste pode provar que ela é *necessária* hoje — porque não é. É
+código correto e morto-mas-inofensivo, não uma correção comprovadamente
+carregada de peso; achado nomeado, não inflado. Mensagens completas de
+todos os cortes em `evidence/red.log` §13-14.
+
+### T016 — cobertura de regressão para agendador e subagente
+
+Dois testes novos, cada um cortado à mão e confirmado vermelho com a
+mensagem real antes de restaurar:
+- `tests/unit/platform/scheduler/test_claiming_and_execution.py::
+  test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt` — corta
+  `JobExecutor._sanitized`; reprova mostrando o segredo dentro do
+  `ScheduledRunRequest.objective` que o pipeline recebeu.
+- `tests/unit/platform/runs/test_recorder.py::
+  test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run` —
+  corta o repasse `objective=objective` que `start_subagent_run` faz para
+  `self.start_run`; reprova junto com o teste de vínculo objetivo/headline
+  já existente (os dois dependem da mesma linha).
+
+Mensagens completas em `evidence/red.log` §15.
+
+### A lacuna evidenciária: o sétimo corte nunca tinha saída capturada
+
+Convergence apontou, com razão: eu relatei sete cortes manuais, mas
+`red.log` só documentava seis com saída real de pytest — o do detector
+`inventedRunTitle` do console só existia como prosa neste arquivo e nas
+linhas finais de `red.log`, sem nenhuma captura. **Cortei o mesmo fio de
+novo**, de propósito, com a saída redirecionada para um arquivo antes de
+colar aqui — não reconstruída de memória:
+
+```
+FAIL tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact hash-based sentence the staging audit recorded
+AssertionError: expected null not to be null
+FAIL tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact trigger-word sentence a manual run used to read as
+AssertionError: expected null not to be null
+Tests  2 failed | 20 passed (22)
+EXIT=1
+```
+
+Restaurado; confirmado 22/22 de novo. `red.log` §11 corrigido com esta saída
+real; §12-16 documentam os treze cortes desta rodada de convergência.
+Contagem final honesta: **treze cortes de fio nesta sessão inteira**, todos
+com mensagem real capturada — não mais "sete".
+
+### make verify, rodada 6 (pós-convergência)
+
+`EXIT=0`, lido do log depois de esperar com
+`until grep -q "^EXIT=" ...; do sleep 5; done`. Suíte principal —
+`13141 passed, 31 skipped` (mais quatro que a rodada 5: os dois testes de
+T015 e os dois de T016). Benchmark — `38 passed, 13172 deselected`. Nenhuma
+correção de gate foi necessária desta vez — ruff, mypy e prettier já
+saíram limpos nos arquivos tocados antes de eu rodar o `make verify`
+completo.
+
