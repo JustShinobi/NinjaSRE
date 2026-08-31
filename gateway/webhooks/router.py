@@ -59,7 +59,7 @@ from config.constants.transit import (
 )
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
 from gateway.http.errors import ApiProblem
-from gateway.http.orchestration import start_investigation
+from gateway.http.orchestration import redact_text, start_investigation
 from gateway.http.state import GatewayState
 from gateway.webhooks.dedup import fingerprint
 from gateway.webhooks.sources import (
@@ -424,7 +424,11 @@ def _handler(
             await IncidentLifecycle(store=uow.incidents).attach_run(
                 incident.incident_id,
                 run_id,
-                objective=objective_for(incident),
+                # Redacted the same way ``start_investigation`` redacted its
+                # own copy of this same text — this call is a second,
+                # redundant write to the timeline (see the docstring this
+                # attaches after), not a second, unguarded one.
+                objective=redact_text(objective_for(incident), state.guardrails),
                 now=_utc_now(),
             )
         await recorded.accepted(match, resolution=resolution, run_id=run_id, incident=incident)

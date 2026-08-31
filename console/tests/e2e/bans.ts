@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The five detectors the "Now" transversal rules are built on.
+ * The six detectors the "Now" transversal rules are built on.
  *
  * Each one is a pure function — text (and, where the rule is inherently about
  * two facts on one page, a second piece of text or a flag) goes in, a
  * violation or `null` comes out. Nothing here touches a page. That split is
  * deliberate: `transversal-rules.spec.ts` is the only thing that knows which
  * routes exist and what a page actually drew, and a unit test can prove these
- * five functions accuse the exact text a diagnosis once recorded without ever
+ * six functions accuse the exact text a diagnosis once recorded without ever
  * opening a browser — which is what keeps them proved on every run of the
  * standard gate, not only on the day somebody points the suite at a
  * violating dataset.
@@ -117,7 +117,38 @@ export function identifierAsName(text: string): string | null {
   return null;
 }
 
-// --- 3. A metadata line carries at most one placeholder ---------------------
+// --- 3. A run's rendered title is never an invented sentence about its trigger ---
+
+/** The prefix a hash-based fallback title used to be built from. */
+const TRIGGERED_BY_PREFIX = /investigation triggered by/i;
+
+/** The generic sentence a run's own trigger word used to stand in for a subject. */
+const TRIGGER_AS_TITLE = /^(interactive|alert|schedule|subagent) investigation$/i;
+
+/**
+ * The offending text, when a run's rendered title is an invented sentence
+ * about its own trigger rather than a name derived from its subject.
+ *
+ * The raw-hex shape this rule's diagnosis also named — a run's alert id
+ * printed bare, sixteen-plus hexadecimal characters — is already covered by
+ * `identifierAsName`'s `RAW_HEX`, eight or more, a superset of sixteen.
+ * Reusing it here rather than adding a second, narrower pattern is
+ * deliberate: `identifierAsName` already runs against every one of these
+ * same title positions (`/runs`'s subject column, `/runs/{id}`'s header and
+ * breadcrumb) for every "now" screen, so a second hex check would test
+ * nothing the first does not already prove. This function only adds the two
+ * shapes that are not an identifier at all — a sentence assembled from an
+ * alert's hash, and a sentence assembled from nothing but the trigger word.
+ */
+export function inventedRunTitle(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  if (TRIGGERED_BY_PREFIX.test(trimmed)) return trimmed;
+  if (TRIGGER_AS_TITLE.test(trimmed)) return trimmed;
+  return null;
+}
+
+// --- 4. A metadata line carries at most one placeholder ---------------------
 
 /** What this console shows for a fact nothing recorded — read, not repeated. */
 export const FALLBACK_TOKEN = catalogueMessage('surface.none');
@@ -136,7 +167,7 @@ export function twoPlaceholders(line: string): string | null {
   return `"${FALLBACK_TOKEN}" appears ${String(count)} times in "${line.trim()}"`;
 }
 
-// --- 4. A live control never survives onto a terminal run -------------------
+// --- 5. A live control never survives onto a terminal run -------------------
 
 /** The words a run's own status settles on. Mirrors `design/status.ts#isSettled`. */
 const SETTLED_RUN_WORDS: readonly string[] = ['succeeded', 'failed', 'cancelled'];
@@ -164,7 +195,7 @@ export function liveControlOnTerminalRun(
   return null;
 }
 
-// --- 5. Nothing is asserted in the negative from a read that failed ---------
+// --- 6. Nothing is asserted in the negative from a read that failed ---------
 
 /**
  * The violation, when `assertion` is shown while the read behind it failed.

@@ -28,20 +28,65 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ---
 
+## O que o lead resolveu antes do despacho (achados do analyze)
+
+1. **O payload interno do evento de início não muda.** `RUN_STARTED` grava
+   `{trigger, team_node_id}` no traço, e é o tradutor do stream público que
+   constrói `{run_id}` — são dois mecanismos, não um. A exigência é que
+   objetivo e rótulos **nunca vazem** para nenhum dos dois; ler R2/A4 como
+   ordem para reescrever a chamada de `record_event` seria uma mudança que
+   ninguém pediu e que contradiz o fato já verificado nesta própria spec.
+2. **A evidência do ambiente real é do orquestrador** (T002 e T014, agora
+   ambos rotulados). Entregue a consulta, não a medição.
+3. **A cláusula da SC2 sobre "o próximo alerta real" é oportunista.** Nenhuma
+   tarefa a possui e o orçamento do slot é de **um** run, criado pela 050 —
+   forçar um alerta real não está ao alcance de ninguém aqui. O mecanismo se
+   prova no teste de contrato (T003b): rótulos de alerta produzem
+   "alertname on recurso". No staging, o orquestrador mede o que existe —
+   `SELECT count(*), headline FROM agent_runs WHERE trigger='alert'` — e
+   registra "observado" ou "nenhum alerta real na janela". A segunda resposta
+   é aceitável; um verde inferido não é.
+4. **Três casos de borda não têm teste novo** — objetivo só com espaços,
+   objetivo longo demais, e headline provisório que permanece em
+   `PARTIAL/FAILED/INTERRUPTED`. O analyze conferiu que os três já se
+   comportam certo por construção (`headline.py` faz `strip` e trunca por
+   fronteira de palavra; `complete_run` preserva o headline quando recebe
+   `None`). Corretos por reúso não é o mesmo que protegidos por regressão:
+   acrescente os três casos ao teste de contrato, ou nomeie a lacuna no
+   relatório. "Não medido" não é resposta.
+
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar `make verify` na árvore intacta; guardar log fora do
+- [~] T001 Rodar `make verify` na árvore intacta; guardar log fora do
       repositório; registrar exit code e contagem. Linha de base não-verde:
-      parar e reportar.
-- [ ] T002 Registrar o "antes" no staging, em `evidence/antes.md`:
+      parar e reportar. **Rodada, mas não válida como linha de base**: o
+      job de fundo correu enquanto a primeira edição desta sessão
+      (`last_completed_stages` no protocolo `RunTraceStore`) ainda estava
+      pousando, então a árvore que ele mediu não era mais a intacta —
+      contaminação explicada e comprovada em `evidence/baseline.md`
+      (`git show f02bf942:...` confirma que porta/fake/Postgres estavam
+      mutuamente consistentes no commit de partida). `make verify` completo
+      rodou de novo, verde, sobre o estado final — ver T013.
+- [~] T002 **(orquestrador — a worktree não alcança o cluster nem o banco)**
+      Registrar o "antes" no staging, em `evidence/antes.md`:
       `SELECT count(*) FROM agent_runs WHERE headline LIKE 'investigation
       triggered by%';` e `SELECT run_id, trigger, headline FROM agent_runs
       ORDER BY started_at DESC LIMIT 5;` — os números contra os quais SC2 é
-      medido.
+      medido. O implementer não executa esta tarefa: entrega no relatório a
+      consulta exata que quer ver rodada, e nada mais. **Reatribuída ao
+      orquestrador: uma worktree não alcança nem o cluster nem o banco.**
+      O "antes" real já foi lido pelo orquestrador de dentro do cluster
+      (704 `agent_runs`, 699 por alerta, 155 com headline vazio entre
+      esses, 1/699 na forma nova, 0 no padrão `LIKE 'investigation
+      triggered by%'` — esse padrão nunca é persistido, só era sintetizado
+      na leitura, então vai continuar 0 antes e depois do deploy para
+      sempre). Consultas corrigidas para o "depois" entregues no relatório
+      final e em
+      `/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md`.
 
 ## Phase 1: Vermelho
 
-- [ ] T003 Escrever o teste de contrato novo em
+- [x] T003 Escrever o teste de contrato novo em
   `tests/contract/runs/test_live_title_contract.py`: (a) run criado com
   objetivo responde headline==objetivo enquanto running; (b) run com
   alert_labels responde "alertname on recurso"; (c) run antigo (linha
@@ -52,33 +97,33 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
   lê estágios em ≤ 2 consultas (contador de queries no padrão de
   `tests/contract/persistence/`). Rodar; **confirmar vermelho**; salvar
   as mensagens em `evidence/red.log`.
-- [ ] T004 Estender `tests/contract/persistence/test_run_trace_store.py`
+- [x] T004 Estender `tests/contract/persistence/test_run_trace_store.py`
       (roda contra fake E Postgres): `start_run` com objective persiste a
       coluna; `last_completed_stages` devolve o último estágio por run e
       ignora runs sem nenhum. Confirmar vermelho junto com T003.
 
 ## Phase 2: Persistência
 
-- [ ] T005 `AgentRun.objective: str = ""` no port
+- [x] T005 `AgentRun.objective: str = ""` no port
       (`platform/persistence/ports/run_trace_store.py`) e assinatura
       `last_completed_stages(run_ids)` no protocolo `RunTraceStore`, com
       docstring dizendo a semântica "último estágio **completado**" (um run
       parado dentro de um estágio não o tem).
-- [ ] T006 Migração `platform/persistence/migrations/versions/
+- [x] T006 Migração `platform/persistence/migrations/versions/
       0020_run_objective.py`: coluna `objective TEXT NOT NULL DEFAULT ''` em
       `agent_runs`; índice parcial em `trace_events (run_id, sequence DESC)
-      WHERE kind='stage_completed'` **somente se** T003(e) reprovar sem ele;
+      WHERE kind='stage_completed'` **somente se** T003(f) reprovar sem ele;
       downgrade completo.
-- [ ] T007 Postgres store: gravar/ler `objective`; implementar
+- [x] T007 Postgres store: gravar/ler `objective`; implementar
       `last_completed_stages` com `SELECT DISTINCT ON (run_id)` filtrado por
       `kind='stage_completed'`, ordenado por run e sequência decrescente,
       extraindo o nome do estágio do payload.
-- [ ] T008 Fake store (`platform/persistence/fakes/run_trace_store.py`):
+- [x] T008 Fake store (`platform/persistence/fakes/run_trace_store.py`):
       mesmos comportamentos, varredura em memória.
 
 ## Phase 3: Escrita do título
 
-- [ ] T009 `RunRecorder.start_run` (`platform/runs/recorder.py`): parâmetros
+- [x] T009 `RunRecorder.start_run` (`platform/runs/recorder.py`): parâmetros
       `objective=""` e `alert_labels=None`; gravar
       `redacted_objective=self._redact(objective)` antes de qualquer escrita;
       sanitizar labels; computar o provisório com
@@ -88,7 +133,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       início somente com `run_id`, conforme a 010. `start_subagent_run` repassa
       somente o objetivo sanitizado que recebe. Unit em
       `tests/unit/platform/runs/test_recorder.py`, incluindo marcador secreto.
-- [ ] T010 `gateway/http/orchestration.py::start_investigation` repassa
+- [x] T010 `gateway/http/orchestration.py::start_investigation` repassa
       `objective` e `alert_labels` já sanitizados ao runtime e ao `start_run`.
       `platform/scheduler/executor.py` também sanitiza o objetivo do job
       agendado antes de qualquer prompt ou persistência.
@@ -98,7 +143,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 4: Leitura
 
-- [ ] T011 `gateway/http/routes/investigations.py`: remover
+- [x] T011 `gateway/http/routes/investigations.py`: remover
       `_fallback_objective`; `summary_of` passa a `run.headline or
       synthesize_headline(objective=run.objective)`; `InvestigationSummary`
       ganha `last_completed_stage`/`stage_index`; `list_investigations` e o
@@ -108,20 +153,110 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 5: Ban transversal
 
-- [ ] T012 Localizar a suíte transversal (`rg -l "transversal"
-      console/tests/e2e` ou o nome que a v7 usou) e estender: nenhum título
-      renderizado (h1, célula-título, aba, breadcrumb) casa
-      `/^[0-9a-f]{16,}$/`, contém "investigation triggered by", ou casa
-      `/^(interactive|alert|schedule|subagent) investigation$/`. Rodar
-      contra o produto atual para calibrar o seletor de "título".
+- [x] T012 Estender a suíte transversal (`console/tests/e2e/bans.ts` e
+      `transversal-rules.spec.ts`): nenhum título renderizado (h1,
+      célula-título, aba, breadcrumb) contém "investigation triggered by" nem
+      casa `/^(interactive|alert|schedule|subagent) investigation$/`. **O ban
+      de hash cru já existe** — `RAW_HEX = /^[0-9a-f]{8,}$/i` em `bans.ts`,
+      ligado à regra "identificador como nome" e já rodando contra estas
+      mesmas superfícies em `/runs` e `/runs/{id}`. Oito ou mais dígitos é
+      superconjunto de dezesseis: reutilize o detector existente em vez de
+      somar um segundo mais estreito, e diga no relatório o que ele já pegava
+      antes desta feature. Rodar contra o produto atual para calibrar o
+      seletor de "título".
 
 ## Phase 6: Verde e evidência
 
-- [ ] T013 T003/T004 verdes; `make verify` completo; logs em `evidence/`.
-- [ ] T014 No fechamento do slot (orquestrador, EXECUCAO.md §4): após
+- [x] T013 T003/T004 verdes; `make verify` completo; logs em `evidence/`.
+      `EXIT=0` lido do log (não da notificação — três rodadas antes saíram 2
+      de verdade enquanto a notificação dizia 0): 13137 passed/31 skipped na
+      suíte principal, 38 passed no benchmark. Três correções reais no
+      caminho (format, mypy, prettier) — ver `evidence/make-verify.md`.
+- [~] T014 No fechamento do slot (orquestrador, EXECUCAO.md §4): após
       `make deploy-stg COMPONENTS=app web`, reutilizar o único run criado pela
       UI no S3 por 050; capturar a requisição POST emitida pelo modal e o GET
       com o headline vivo, SELECT das contagens de T002 inalteradas para
       linhas novas — e guardar em `evidence/staging.md`. Não criar outro run.
       O acceptance visual do Painel exibindo estes títulos é da 050, no
-      mesmo slot.
+      mesmo slot. **Reatribuída ao orquestrador: uma worktree não alcança
+      nem o cluster nem o banco.** As consultas exatas do "depois" (SC1 no
+      run único, SC2 pela medida real — não pela string morta — e a
+      varredura de A6/A7 na API ao vivo) estão no relatório final e em
+      `/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md`.
+
+## Phase 7: Convergence
+
+- [x] T015 Em `gateway/http/orchestration.py::start_investigation`, passar
+      `sanitized_objective`/`sanitized_labels` — já computados pela própria
+      função — para as três chamadas que hoje recebem os parâmetros crus:
+      `IncidentLifecycle.attach_run(..., objective=objective, ...)`,
+      `IncidentLifecycle.record_alert_received(..., labels=alert_labels or
+      {}, ...)`, e o `InvestigationStart(objective=objective, ...,
+      alert_labels=dict(alert_labels or {}), ...)` entregue ao runtime.
+      Hoje a função sanitiza os dois valores e os usa **só** para
+      `recorder.start_run` — as outras três leituras do parâmetro cru
+      persistem o objetivo/labels sem redação: `attach_run` grava `cause`
+      cru em `TimelineEntry` (`platform/incidents/lifecycle.py`, método
+      `_record`, sem nenhuma passagem por guardrail), `record_alert_received`
+      grava um `detail` renderizado a partir dos labels crus, e o runtime
+      recebe o objetivo cru no pedido que efetivamente investiga — o exato
+      prompt que R3 e o Artigo IV (Segredos Nunca Chegam ao Agente, cláusula
+      1) proíbem. A chamada direta e redundante a `attach_run` em
+      `gateway/webhooks/router.py` (em torno da linha 422, com
+      `objective=objective_for(incident)` cru) tem o mesmo defeito e precisa
+      da mesma correção. Adicionar um teste de contrato que exercite
+      `start_investigation`/`POST /v1/investigations` (ou o caminho do
+      webhook) de ponta a ponta com um segredo no objetivo e num label de
+      alerta, e afirme que o segredo não aparece nem na timeline do
+      incidente nem no `InvestigationStart` que o runtime recebe — os testes
+      existentes (`TestASecretNeverReachesAnyTitleOrTheStartEvent`) constroem
+      o run chamando `RunRecorder.start_run` diretamente e nunca exercitam
+      `orchestration.start_investigation`, então essa classe de vazamento
+      nunca foi testada. per R3 (contradicts)
+
+      **FEITO.** As quatro chamadas passaram a usar `sanitized_objective`/
+      `sanitized_labels` (as duas funções ganharam nomes públicos —
+      `redact_text`/`redact_labels` — e foram exportadas, exatamente para
+      que `gateway/webhooks/router.py` pudesse reusá-las em vez de duplicar
+      a lógica). A chamada redundante do webhook router (linha ~427) também
+      foi corrigida. Teste novo:
+      `tests/contract/runs/test_live_title_contract.py::
+      TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime` (chama
+      `start_investigation` direto, com incidente e credential_name para
+      exercitar os quatro consumidores) e
+      `tests/unit/gateway/webhooks/test_router.py::
+      test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime`
+      (entrega real por HTTP). Cada um dos quatro pontos foi cortado à mão e
+      confirmado vermelho com a mensagem real antes de restaurar — inclusive
+      um achado honesto: a correção própria do webhook router não é hoje
+      alcançável (o attach_run interno de start_investigation já torna
+      idempotente a chamada redundante), então nenhum teste pode prová-la
+      "load-bearing" — é código defensivo correto, não uma correção provada
+      necessária. Mensagens completas em `evidence/red.log` §13-14.
+
+- [x] T016 Cobrir com um teste de regressão, com marcador de segredo real
+      (o mesmo padrão `AKIA[0-9A-Z]{16}` já usado no resto da suíte), os dois
+      caminhos de `start_run` que hoje não têm nenhum teste de redação
+      próprio: o agendador (`platform/scheduler/executor.py::_sanitized`,
+      que protege o prompt que `_investigate` constrói a partir de
+      `schedule.objective` — uma superfície distinta da linha que o
+      `RunRecorder` já redige de novo) e o subagente
+      (`RunRecorder.start_subagent_run`, cujo único teste hoje,
+      `test_a_subagent_run_records_its_own_objective`, prova o vínculo
+      objetivo/headline mas não usa nenhum segredo). Ambos hoje dependem
+      inteiramente da redação do `RunRecorder.start_run` de que fazem uso —
+      correta por reúso de código, não protegida por uma regressão própria.
+      per R3 (partial)
+
+      **FEITO.** Dois testes novos, ambos cortados à mão e confirmados
+      vermelhos com a mensagem real, restaurados depois:
+      `tests/unit/platform/scheduler/test_claiming_and_execution.py::
+      test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt`
+      (corta `JobExecutor._sanitized`, reprova mostrando o segredo no
+      `pipeline.requests[-1].objective`) e
+      `tests/unit/platform/runs/test_recorder.py::
+      test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run`
+      (corta o repasse `objective=objective` na chamada interna de
+      `start_subagent_run` a `self.start_run`, reprova junto com o teste de
+      vínculo objetivo/headline já existente). Mensagens completas em
+      `evidence/red.log` §15.

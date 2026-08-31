@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
 from config.constants.persistence import MAX_QUERY_PAGE_SIZE
+from config.constants.runs import STAGE_EVENT_NAME
 from platform.persistence.errors import DuplicateRecord, RecordNotFound
 from platform.persistence.fakes.state import TenantState, check_limit, check_payload
 from platform.persistence.ports.run_trace_store import (
@@ -18,6 +19,7 @@ from platform.persistence.ports.run_trace_store import (
     TraceEventRecord,
     TurnRecord,
 )
+from platform.runs.events import TraceEventKind
 
 
 @dataclass(slots=True)
@@ -59,6 +61,21 @@ class FakeRunTraceStore:
     async def get_run(self, run_id: str) -> AgentRun | None:
         """Return the run with ``run_id``, or ``None``."""
         return self.state.runs.get(run_id)
+
+    async def last_completed_stages(self, run_ids: Sequence[str]) -> Mapping[str, str]:
+        """Return each run's last completed stage, from the events already held."""
+        wanted = set(run_ids)
+        latest: dict[str, tuple[int, str]] = {}
+        for event in self.state.trace_events.values():
+            if event.run_id not in wanted or event.kind != TraceEventKind.STAGE_COMPLETED.value:
+                continue
+            stage = str(event.payload.get(STAGE_EVENT_NAME, ""))
+            if not stage:
+                continue
+            current = latest.get(event.run_id)
+            if current is None or event.sequence > current[0]:
+                latest[event.run_id] = (event.sequence, stage)
+        return {run_id: stage for run_id, (_, stage) in latest.items()}
 
     async def list_runs(
         self,

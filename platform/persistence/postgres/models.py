@@ -306,6 +306,10 @@ class AgentRun(Base):
     runtime: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     model_id: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: What the run was asked to investigate, redacted, verbatim, never
+    #: truncated. ``NOT NULL DEFAULT ''`` — a run from before this column
+    #: existed reads as having declared no subject.
+    objective: Mapped[str] = mapped_column(Text, nullable=False, default="")
     #: One sentence naming the run, apart from the document ``summary`` holds.
     #: ``NOT NULL DEFAULT ''`` — a run from before this column existed reads
     #: as an empty headline, which the read path synthesises one for rather

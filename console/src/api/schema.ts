@@ -1809,7 +1809,11 @@ export interface paths {
         put?: never;
         /**
          * Create Investigation
-         * @description Start an investigation and return its identity immediately.
+         * @description Start an investigation and return its identity, headline already named.
+         *
+         *     ``start_investigation`` has already committed the row — with its
+         *     provisional headline — by the time it returns the identity, so reading it
+         *     back here costs one query and never a guess at what the row says.
          */
         post: operations["create_investigation_v1_investigations_post"];
         delete?: never;
@@ -5114,12 +5118,22 @@ export interface components {
              */
             incident_id: string;
             /**
+             * Last Completed Stage
+             * @default
+             */
+            last_completed_stage: string;
+            /**
              * Report
              * @default
              */
             report: string;
             /** Run Id */
             run_id: string;
+            /**
+             * Stage Index
+             * @default 0
+             */
+            stage_index: number;
             /** Started At */
             started_at?: string | null;
             /** Status */

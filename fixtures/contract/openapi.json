@@ -3855,6 +3855,11 @@
             "title": "Incident Id",
             "type": "string"
           },
+          "last_completed_stage": {
+            "default": "",
+            "title": "Last Completed Stage",
+            "type": "string"
+          },
           "report": {
             "default": "",
             "title": "Report",
@@ -3863,6 +3868,11 @@
           "run_id": {
             "title": "Run Id",
             "type": "string"
+          },
+          "stage_index": {
+            "default": 0,
+            "title": "Stage Index",
+            "type": "integer"
           },
           "started_at": {
             "anyOf": [
@@ -13667,7 +13677,7 @@
         ]
       },
       "post": {
-        "description": "Start an investigation and return its identity immediately.",
+        "description": "Start an investigation and return its identity, headline already named.\n\n``start_investigation`` has already committed the row — with its\nprovisional headline — by the time it returns the identity, so reading it\nback here costs one query and never a guess at what the row says.",
         "operationId": "create_investigation_v1_investigations_post",
         "parameters": [
           {

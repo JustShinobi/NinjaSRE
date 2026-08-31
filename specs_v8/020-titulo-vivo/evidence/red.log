@@ -1,0 +1,339 @@
+=== evidence/red.log — 020-titulo-vivo ===
+
+Nota honesta sobre ordem: a implementação das Fases 2-3 pousou antes de
+tests/contract/runs/test_live_title_contract.py (T003) e da extensão de
+tests/contract/persistence/test_run_trace_store.py (T004) nascerem. O
+vermelho abaixo é o que ficou genuinamente vermelho na primeira execução de
+T003 (achados reais de bugs de teste, não da produção) e o resultado real de
+cada corte de fio manual feito depois, por mecanismo. T004 nunca ficou
+vermelho nesta sessão porque T005-T008 (persistência) já estavam prontos
+quando o arquivo foi escrito — dito aqui, não escondido.
+
+--- 1. Primeira execução real de T003, antes de qualquer correção do arquivo de teste ---
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -v
+
+FAILED TestAManualRunIsNamedByWhatWasAsked::test_the_list_and_the_detail_agree_with_the_post_while_running
+    assert listed["status"] == "running"
+    AssertionError: assert 'failed' == 'running'
+    (causa real: o teste usava o POST completo, que agenda _drive em
+    background contra UnconfiguredInvestigator, que falha o run quase
+    imediatamente — bug no teste, não na produção; corrigido semeando via
+    RunRecorder direto, como o resto do arquivo já faz, e renomeando o teste)
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_the_objective_never_appears_anywhere
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'Rotate the key AKIAIOSFODNN7EXAMPLE before it leaks further'
+    (causa real: o teste construía RunRecorder(store=uow.run_traces) sem
+    guardrails= — com guardrails=None a redação nunca roda. Bug no teste, não
+    na produção: orchestration.py sempre constrói o recorder com
+    guardrails=state.guardrails. Corrigido passando guardrails=GuardrailEngine()
+    explicitamente no teste.)
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_an_alert_label_never_reaches_the_headline
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'DiskFull on AKIAIOSFODNN7EXAMPLE'
+    (mesma causa do teste acima; mesma correção)
+
+3 failed, 13 passed nessa primeira rodada real.
+
+--- 2. Depois de corrigir os dois bugs de teste acima: 15 passed ---
+
+--- 3. Corte de fio manual #1: headline no início de recorder.start_run ---
+
+Mudança: `headline=headline,` -> `headline="",` na construção de AgentRun em
+platform/runs/recorder.py (start_run).
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestAManualRunIsNamedByWhatWasAsked or TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource" -v
+
+FAILED TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource::test_headline_is_alertname_on_resource
+    assert response.json()["headline"] == "RedisExporterDown on redis-1"
+    AssertionError: assert 'Investigation with no declared subject' == 'RedisExporterDown on redis-1'
+
+FAILED TestAnAlertTriggeredRunIsNamedByTheAlertAndTheResource::test_headline_is_alertname_alone_with_no_resource_label
+    assert response.json()["headline"] == "DiskFull"
+    AssertionError: assert 'Investigation with no declared subject' == 'DiskFull'
+
+2 failed, 3 passed (os 3 de run manual continuaram verdes — achado real,
+explicado no controle.md: summary_of's fallback de leitura reconstrói o
+mesmo headline a partir de run.objective para o caso manual, então a escrita
+no início é redundante só nesse caso; para alerta não é, porque os labels
+nunca são persistidos por si).
+
+Restaurado: `headline=headline,`. Suíte voltou a 15 passed.
+
+--- 4. Corte de fio manual #2: _fallback_objective reintroduzida em summary_of ---
+
+Mudança em gateway/http/routes/investigations.py, summary_of:
+    _wire_cut_fallback = f"investigation triggered by {run.alert_id}" if run.alert_id else ""
+    headline = run.headline or synthesize_headline(objective=_wire_cut_fallback or run.objective)
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestAnOldRowNeverServesTheAlertIdAsATitle" -v
+
+FAILED TestAnOldRowNeverServesTheAlertIdAsATitle::test_a_pre_migration_row_synthesises_a_generic_headline
+    assert headline == synthesize_headline()
+    AssertionError: assert 'investigation triggered by a1b2c3d4e5f60718293041526374859' == 'Investigation with no declared subject'
+
+1 failed (o único teste dessa classe). Restaurado. Suíte voltou a 15 passed.
+
+--- 5. Corte de fio manual #3: redação desligada em recorder.start_run ---
+
+Mudança:
+    redacted_objective = objective  # bypass
+    sanitized_labels = dict(alert_labels or {})  # bypass
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestASecretNeverReachesAnyTitleOrTheStartEvent" -v
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_the_objective_never_appears_anywhere
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'Rotate the key AKIAIOSFODNN7EXAMPLE before it leaks further'
+
+FAILED TestASecretNeverReachesAnyTitleOrTheStartEvent::test_a_secret_in_an_alert_label_never_reaches_the_headline
+    assert SECRET not in response.json()["headline"]
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in 'DiskFull on AKIAIOSFODNN7EXAMPLE'
+
+2 failed. Restaurado (redacted_objective = self._redact(objective);
+sanitized_labels = self._scrub(...)). Suíte voltou a 15 passed.
+
+--- 6. Corte de fio manual #4: campo de estágio desligado em linked_summary ---
+
+Mudança em investigations.py, linked_summary: `return summary` no lugar de
+`return with_stage(summary, stages.get(run.run_id, ""))`.
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py -k "TestTheListKnowsWhatStageALiveRunReached" -v
+
+FAILED TestTheListKnowsWhatStageALiveRunReached::test_a_run_that_completed_three_stages_reports_the_last_one
+    assert response.json()["last_completed_stage"] == "plan_evidence"
+    AssertionError: assert '' == 'plan_evidence'
+
+PASSED test_a_freshly_started_run_reports_no_stage_yet (correto — não testa
+linked_summary com estágio real, testa list_investigations)
+PASSED test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls (correto
+pela mesma razão — testa o caminho de lista, não o de detalhe)
+
+1 failed, 2 passed — confirma que o corte isolou exatamente o mecanismo do
+detalhe (linked_summary), sem falso-positivo nos outros dois. Restaurado.
+Suíte voltou a 15 passed.
+
+--- 7. Confirmação final pós-resgate do orquestrador (commit 6158b474) ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" .
+(nenhum resultado)
+
+$ uv run pytest tests/contract/runs/test_live_title_contract.py tests/contract/persistence/test_run_trace_store.py tests/unit/platform/runs/test_recorder.py -q
+48 passed in 0.58s
+
+$ uv run pytest tests/unit/gateway/http/ -q
+662 passed, 1 warning in 47.65s
+
+Nenhum fio ficou cortado no commit do resgate.
+
+--- 8. Cortes NÃO feitos (nomeados, não escondidos) ---
+
+- Contagem de queries (N+1) em list_investigations: implementado e coberto
+  por teste (test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls),
+  mas não desconectado manualmente para confirmar que reprovaria sem o
+  batching. Pendente se houver tempo.
+- Round-trip de `objective` em T004 (persistência): implementado e coberto,
+  não desconectado manualmente.
+
+--- 9. Corte de fio manual #5: contagem de queries (N+1) em list_investigations ---
+
+Mudança: substituí a chamada única `stages = await stages_of([run.run_id for
+run in shown], uow)` por um laço `for run in shown: one = await
+stages_of([run.run_id], uow)` — uma chamada por run, simulando exatamente o
+N+1 que o batching existe para evitar.
+
+$ uv run pytest "tests/contract/runs/test_live_title_contract.py::TestTheListKnowsWhatStageALiveRunReached::test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls" -v
+
+FAILED test_the_list_reads_a_page_of_stages_in_exactly_two_store_calls
+    assert calls["last_completed_stages"] == 1
+    AssertionError: assert 50 == 1
+
+Restaurado (`stages = await stages_of([run.run_id for run in shown], uow)`
+antes do laço). Confirmei `grep -c WIRE-CUT` = 0 depois.
+
+--- 10. Corte de fio manual #6: round-trip de `objective` no Postgres (T004) ---
+
+Mudança em platform/persistence/postgres/repositories/run_trace_store.py,
+start_run: `objective=run.objective,` -> `objective="",  # WIRE-CUT` na
+construção de `models.AgentRun`.
+
+$ uv run pytest "tests/contract/persistence/test_run_trace_store.py::test_starting_a_run_with_an_objective_persists_it" -v --postgres
+
+FAILED test_starting_a_run_with_an_objective_persists_it[postgres]
+    assert reread.objective == "Find the leak in checkout"
+    AssertionError: assert '' == 'Find the leak in checkout'
+PASSED test_starting_a_run_with_an_objective_persists_it[fakes]
+    (o fake guarda o dataclass inteiro, então não é afetado por este corte —
+    isola corretamente o mecanismo específico do Postgres, sem falso-negativo)
+
+Restaurado. Rodei de novo contra Postgres real (--postgres, docker local):
+2 passed (fakes + postgres) — a migração 0020 também aplicou de novo sem
+erro nessa segunda rodada, confirmando a cadeia de revisões.
+
+--- 11. Correção de convergência: o corte do detector do console não tinha saída capturada ---
+
+A rodada de convergência apontou, corretamente: os seis cortes acima têm a
+mensagem real de pytest; o do detector `inventedRunTitle` do console só
+existia como prosa neste arquivo e em controle.md, sem saída capturada.
+Rodada de novo, de propósito, com a saída redirecionada para um arquivo
+antes de ser colada aqui — não reconstruída de memória.
+
+Mudança: `return null;` inserido como primeira linha de
+`inventedRunTitle` em console/tests/e2e/bans.ts, antes de qualquer outra
+lógica da função.
+
+$ pnpm exec vitest run tests/unit/e2e/bans.test.ts > invented-run-title-wire-cut.log 2>&1; echo "EXIT=$?" >> invented-run-title-wire-cut.log
+
+ FAIL  tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact hash-based sentence the staging audit recorded
+AssertionError: expected null not to be null
+ ❯ tests/unit/e2e/bans.test.ts:92:11
+     90|     expect(
+     91|       inventedRunTitle('investigation triggered by bc7bdbd452fae8f1c9d…
+     92|     ).not.toBeNull();
+       |           ^
+     93|   });
+
+ FAIL  tests/unit/e2e/bans.test.ts > inventedRunTitle > accuses the exact trigger-word sentence a manual run used to read as
+AssertionError: expected null not to be null
+ ❯ tests/unit/e2e/bans.test.ts:96:63
+     96|     expect(inventedRunTitle('interactive investigation')).not.toBeNull…
+       |                                                               ^
+     97|     expect(inventedRunTitle('alert investigation')).not.toBeNull();
+     98|     expect(inventedRunTitle('schedule investigation')).not.toBeNull();
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 20 passed (22)
+EXIT=1
+
+Restaurado (`return null;` removido). Confirmado verde de novo:
+22 passed (22). Full log mirrored at
+/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/evidence/invented-run-title-wire-cut.log
+
+--- 12. Varredura final: nenhum corte de fio sobrou em nenhuma linguagem ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" --include="*.ts" --include="*.tsx" .
+(nenhum resultado — grep saiu com status 1, checado de novo depois de T015/T016)
+
+Todos os seis mecanismos de backend originais, mais os quatro de T015
+(attach_run, record_alert_received, InvestigationStart no caminho de
+orquestração e no de webhook), mais os dois de T016 (agendador, subagente),
+mais o detector do console — treze cortes ao todo nesta sessão — foram
+cortados à mão, confirmados vermelhos com a mensagem real capturada, e
+restaurados para verde antes de seguir.
+
+--- 13. Convergência T015: os três consumidores que start_investigation deixava crus ---
+
+Achado real do convergence: `sanitized_objective`/`sanitized_labels` eram
+computados em gateway/http/orchestration.py::start_investigation e usados
+**só** em recorder.start_run. attach_run, record_alert_received e
+InvestigationStart (o pedido que o runtime recebe) continuavam lendo o
+parâmetro cru. Os testes antigos de segredo só chamavam
+RunRecorder.start_run direto e nunca exercitavam start_investigation, então
+essa classe de vazamento nunca foi testada — exatamente como o convergence
+apontou.
+
+Teste novo: tests/contract/runs/test_live_title_contract.py::
+TestSecretsFromOrchestrationNeverReachTheTimelineOrTheRuntime::
+test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+
+Corte #1 — attach_run (`objective=objective` no lugar de `sanitized_objective`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in rendered_timeline
+    AssertionError: the incident timeline still carries the secret:
+    'host-9 is full 1 subject(s) Investigate host-9. Rotate the key
+    AKIAIOSFODNN7EXAMPLE first. 387b1136d24f427cb1664eca83173dd9 the
+    delivery was authenticated by delivery-token-9 alertname=DiskFull,
+    instance=[REDACTED]'
+    (nota: o label já saía redigido — [REDACTED] — confirmando que esse
+    corte isolou só o objective de attach_run, não o resto)
+
+Restaurado. Corte #2 — record_alert_received (`labels=alert_labels or {}`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in rendered_timeline
+    AssertionError: ...Rotate the key [REDACTED] first. ...
+    instance=AKIAIOSFODNN7EXAMPLE'
+    (nota: o objective já saía redigido — [REDACTED] — confirmando
+    isolamento correto do corte)
+
+Restaurado. Corte #3 — InvestigationStart (`objective=objective` e
+`alert_labels=dict(alert_labels or {})`):
+
+FAILED test_a_secret_in_the_objective_and_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert SECRET not in request.objective
+    AssertionError: InvestigationStart.objective still carries the secret:
+    'Investigate host-9. Rotate the key AKIAIOSFODNN7EXAMPLE first.'
+
+Restaurado. 17/17 verde em test_live_title_contract.py depois dos três.
+
+--- 14. Convergência T015: caminho do webhook ---
+
+Teste novo: tests/unit/gateway/webhooks/test_router.py::
+test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+
+Achado honesto, não escondido: cortar a correção **própria** do webhook
+router (`redact_text(objective_for(incident), state.guardrails)` de volta
+para `objective_for(incident)` cru) **não** derruba este teste — porque a
+chamada própria do router a attach_run é redundante e hoje sempre um no-op
+(o attach_run interno de start_investigation já anexou o run_id ao
+incidente primeiro, então o guard de idempotência do segundo attach_run
+retorna antes de gravar qualquer coisa). Isso bate com a análise já feita
+antes da correção. O teste continua genuíno: cortar o attach_run
+**compartilhado** dentro de start_investigation (o mesmo do item 13, corte
+#1) derruba este teste também:
+
+FAILED test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    (mesmo corte #1 do item 13 — a árvore de código é a mesma função)
+    passou, sem reprovar — porque o segredo deste teste está no LABEL, não
+    no objective, e attach_run só lê objective. Ver o corte seguinte.
+
+Corte que de fato derruba este teste — InvestigationStart.alert_labels
+(`alert_labels=dict(alert_labels or {})` cru):
+
+FAILED test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime
+    assert LEAKED_CREDENTIAL not in str(request.alert_labels)
+    AssertionError: assert 'AKIAIOSFODNN7EXAMPLE' not in "{'alertname':
+    'HighErrorRate', 'severity': 'critical', 'service': 'checkout',
+    'leaked_credential': 'AKIAIOSFODNN7EXAMPLE'}"
+
+Restaurado tudo. Registro honesto: a correção específica do webhook router
+(linha ~427) é código defensivo correto e sem custo, mas **não é hoje
+alcançável** pela ordem de execução atual — nenhum teste pode prová-la
+"load-bearing" porque ela não é, o que é diferente de estar quebrada.
+
+--- 15. Convergência T016: agendador e subagente ---
+
+Teste novo: tests/unit/platform/scheduler/test_claiming_and_execution.py::
+test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt
+
+Corte — `_sanitized` desligado em JobExecutor.execute:
+
+FAILED test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt
+    assert secret not in pipeline.requests[-1].objective
+    AssertionError: the prompt still carries the secret: 'Investigate the
+    standby. Rotate the key AKIAIOSFODNN7EXAMPLE first.'
+
+Restaurado. 67/67 verde na suíte do agendador depois.
+
+Teste novo: tests/unit/platform/runs/test_recorder.py::
+test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run
+
+Corte — `objective=objective` removido da chamada interna de
+start_subagent_run a self.start_run:
+
+FAILED test_a_subagent_run_records_its_own_objective
+    assert stored.objective == "Check the replica lag on redis-1"
+    AssertionError: assert '' == 'Check the replica lag on redis-1'
+FAILED test_a_secret_in_a_subagent_objective_is_redacted_like_any_other_run
+    assert "[REDACTED]" in stored.objective
+    AssertionError: assert '[REDACTED]' in ''
+
+Restaurado. 18/18 verde em test_recorder.py depois.
+
+--- 16. Varredura final pós-T015/T016 ---
+
+$ grep -rn "WIRE-CUT" --include="*.py" --include="*.ts" --include="*.tsx" .
+(nenhum resultado — grep saiu com status 1)

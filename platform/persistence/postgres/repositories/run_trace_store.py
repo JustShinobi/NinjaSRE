@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 
 from config.constants.persistence import MAX_JSONB_PAYLOAD_BYTES, MAX_QUERY_PAGE_SIZE
+from config.constants.runs import STAGE_EVENT_NAME
 from platform.persistence.errors import DuplicateRecord, PayloadTooLarge, RecordNotFound
 from platform.persistence.ports.run_trace_store import (
     AgentRun,
@@ -32,6 +33,7 @@ from platform.persistence.postgres.repositories.common import (
     rows_affected,
     translating,
 )
+from platform.runs.events import TraceEventKind
 
 
 def check_payload(payload: Mapping[str, Any], *, kind: str) -> dict[str, Any]:
@@ -59,6 +61,7 @@ def _to_run(row: models.AgentRun) -> AgentRun:
         runtime=row.runtime,
         model_id=row.model_id,
         summary=row.summary,
+        objective=row.objective,
         headline=row.headline,
         metadata=dict(row.run_metadata),
     )
@@ -135,6 +138,7 @@ class PostgresRunTraceStore(TenantBound):
             runtime=run.runtime,
             model_id=run.model_id,
             summary=run.summary,
+            objective=run.objective,
             headline=run.headline,
             run_metadata=check_payload(run.metadata, kind="agent run metadata"),
         )
@@ -167,6 +171,33 @@ class PostgresRunTraceStore(TenantBound):
         """Return the run with ``run_id``, or ``None``."""
         row = await self.session.get(models.AgentRun, (self.org_id, run_id))
         return _to_run(row) if row is not None else None
+
+    async def last_completed_stages(self, run_ids: Sequence[str]) -> Mapping[str, str]:
+        """Return each run's last completed stage, in one query.
+
+        ``DISTINCT ON (run_id)`` over the highest ``sequence`` — the trace's
+        own arrival order — rather than a query per run: a page of fifty
+        runs asking once each would be the N+1 a list can least afford, since
+        a list is read on every visit to the screen it feeds.
+        """
+        wanted = list(dict.fromkeys(run_ids))
+        if not wanted:
+            return {}
+        statement = (
+            select(
+                models.TraceEvent.run_id,
+                models.TraceEvent.payload[STAGE_EVENT_NAME].astext,
+            )
+            .distinct(models.TraceEvent.run_id)
+            .where(
+                models.TraceEvent.org_id == self.org_id,
+                models.TraceEvent.run_id.in_(wanted),
+                models.TraceEvent.kind == TraceEventKind.STAGE_COMPLETED.value,
+            )
+            .order_by(models.TraceEvent.run_id, models.TraceEvent.sequence.desc())
+        )
+        rows = await self.session.execute(statement)
+        return {run_id: stage for run_id, stage in rows.all() if stage}
 
     async def list_runs(
         self,
