@@ -22,6 +22,7 @@ from platform.persistence.ports import (
     CredentialStore,
     EpisodeStore,
     EstateRepository,
+    EstateSnapshotStore,
     IdentityRepository,
     IncidentStore,
     KnowledgeStore,
@@ -44,7 +45,11 @@ from platform.persistence.ports.transaction import SystemUnitOfWork
 
 pytestmark = pytest.mark.unit
 
-#: The sixteen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
+#: The seventeen tracked here, as ``(attribute on the unit of work, the protocol
+#: it must satisfy)``. ``transit`` and ``verifications`` are two more ports the
+#: unit of work carries and are not parametrized below — a pre-existing gap
+#: this feature found and left as it was, being no part of the daily estate
+#: snapshot this feature added.
 TENANT_PORTS = (
     ("config", ConfigRepository),
     ("identity", IdentityRepository),
@@ -59,6 +64,7 @@ TENANT_PORTS = (
     ("schedules", ScheduleStore),
     ("credentials", CredentialStore),
     ("estate", EstateRepository),
+    ("estate_snapshots", EstateSnapshotStore),
     ("signals", SignalStore),
     ("incidents", IncidentStore),
     ("remediation", RemediationLedger),
@@ -72,17 +78,18 @@ SYSTEM_PORTS = (
 )
 
 
-def test_the_specification_names_exactly_sixteen_ports() -> None:
-    """A seventeenth is a specification change, not a refactor.
+def test_the_specification_names_exactly_seventeen_tracked_ports() -> None:
+    """An eighteenth tracked entry is a specification change, not a refactor.
 
     The count was twelve until the estate arrived, thirteen and fourteen until
-    continuous observation brought the signal history and the incident, and
+    continuous observation brought the signal history and the incident,
     fifteen until closed-loop remediation brought the ledger of what each
-    remediation did — which is exactly what this test is for: adding a port is a
-    deliberate act with a plan behind it, and the number moving without one is
-    the thing worth catching.
+    remediation did, sixteen where it sat before this feature, and seventeen
+    now that the daily estate snapshot has its own port — which is exactly
+    what this test is for: adding a port is a deliberate act with a plan
+    behind it, and the number moving without one is the thing worth catching.
     """
-    assert len(TENANT_PORTS) == 16
+    assert len(TENANT_PORTS) == 17
 
 
 def test_the_in_memory_gateway_is_a_persistence_gateway() -> None:

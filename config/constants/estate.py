@@ -195,6 +195,14 @@ MAX_UNRESOLVED_ALERT_TARGETS: Final[int] = 50
 #: not what learning is measured against.
 RETENTION_DAYS_ESTATE_HISTORY: Final[int] = 180
 
+# --- The overview's daily sparkline --------------------------------------------
+
+#: Days of daily estate snapshots `GET /v1/overview` draws a sparkline point
+#: from, and the bound `EstateSnapshotStore.list_daily` refuses to page past.
+#: Fourteen, because the overview's own KPI tiles are a two-week trend rather
+#: than a full history — the same window the reference dashboard draws.
+MAX_OVERVIEW_DAILY_BUCKETS: Final[int] = 14
+
 __all__ = [
     "ALERT_DOMAIN_LABEL",
     "ALERT_RANKING_TAG_LABELS",
@@ -215,6 +223,7 @@ __all__ = [
     "MAX_ESTATE_SWEEP_PAGES",
     "MAX_HEALTH_SIGNALS",
     "MAX_MAINTENANCE_SECONDS",
+    "MAX_OVERVIEW_DAILY_BUCKETS",
     "MAX_SWEEP_PROVIDER_CALLS",
     "MAX_SWEEP_RESOURCES",
     "MAX_SWEEP_SECONDS",

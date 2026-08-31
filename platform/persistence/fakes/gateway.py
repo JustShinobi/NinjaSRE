@@ -39,6 +39,7 @@ from platform.persistence.fakes.config_repository import FakeConfigRepository, F
 from platform.persistence.fakes.credential_store import FakeCredentialStore
 from platform.persistence.fakes.episode_store import FakeEpisodeStore
 from platform.persistence.fakes.estate_repository import FakeEstateRepository
+from platform.persistence.fakes.estate_snapshot_store import FakeEstateSnapshotStore
 from platform.persistence.fakes.identity_repository import (
     FakeIdentityRepository,
     FakeTokenDirectory,
@@ -77,7 +78,7 @@ FAKE_HEAD_REVISION = "in-memory"
 
 @dataclass(slots=True)
 class FakeUnitOfWork:
-    """Eighteen repositories over one tenant's slice of one snapshot."""
+    """Nineteen repositories over one tenant's slice of one snapshot."""
 
     scope: TenantScope
     state: State
@@ -147,6 +148,11 @@ class FakeUnitOfWork:
     def estate(self) -> FakeEstateRepository:
         """Return the discovered-resource inventory and its health history."""
         return FakeEstateRepository(self.scope.org_id, self._tenant)
+
+    @property
+    def estate_snapshots(self) -> FakeEstateSnapshotStore:
+        """Return the estate's daily counts, written once a day by the sweeper."""
+        return FakeEstateSnapshotStore(self.scope.org_id, self._tenant)
 
     @property
     def signals(self) -> FakeSignalStore:

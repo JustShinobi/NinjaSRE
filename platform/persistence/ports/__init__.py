@@ -1,4 +1,4 @@
-"""The eighteen repository ports, and the unit of work that composes them.
+"""The nineteen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The eighteen, and what each owns:
+The nineteen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -22,6 +22,7 @@ The eighteen, and what each owns:
 ``ScheduleStore``            scheduled job definitions
 ``CredentialStore``          encrypted credentials
 ``EstateRepository``         discovered resources, their health, their history
+``EstateSnapshotStore``      the estate's counts, once a day, per organisation
 ``SignalStore``              the observation history the detectors read
 ``IncidentStore``            incidents, their subjects, and their timelines
 ``RemediationLedger``        what each remediation did, and whether it worked
@@ -29,7 +30,7 @@ The eighteen, and what each owns:
 ``VerificationLedger``       what has been checked, and what the check found
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all eighteen to one
+They are reached through ``UnitOfWork``, which binds all nineteen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -83,6 +84,10 @@ from platform.persistence.ports.estate_repository import (
     ResourceSource,
     SweepOutcome,
     SweepRecord,
+)
+from platform.persistence.ports.estate_snapshot_store import (
+    EstateDailySnapshot,
+    EstateSnapshotStore,
 )
 from platform.persistence.ports.health import (
     ExtensionStatus,
@@ -222,8 +227,10 @@ __all__ = [
     "Episode",
     "EpisodeOutcome",
     "EpisodeStore",
+    "EstateDailySnapshot",
     "EstateQuery",
     "EstateRepository",
+    "EstateSnapshotStore",
     "EstateSummary",
     "EvidenceRecord",
     "ExtensionStatus",

@@ -94,6 +94,11 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
         sweeper=EnrichingSweeper(
             sweeper=EstateSweeper(gateway=state.gateway, kinds=state.estate_kinds)
         ),
+        # The same gateway the sweep itself writes through, so the day's
+        # estate snapshot the overview's sparkline reads is confirmed by the
+        # one job that already runs the estate's own sweep — no second
+        # schedule, no separate composition.
+        gateway=state.gateway,
     )
     dispatcher.register(TOPOLOGY_DISCOVERY_JOB_KIND, sweep)
     dispatcher.register(ESTATE_DISCOVERY_JOB_KIND, sweep)

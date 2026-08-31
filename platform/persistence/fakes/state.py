@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from config.constants.persistence import (
@@ -40,6 +40,7 @@ from platform.persistence.ports.estate_repository import (
     ResourceReference,
     SweepRecord,
 )
+from platform.persistence.ports.estate_snapshot_store import EstateDailySnapshot
 from platform.persistence.ports.identity_repository import (
     ApiToken,
     LocalSignInOpening,
@@ -213,6 +214,10 @@ class TenantState:
     health_transitions: dict[str, HealthTransition] = field(default_factory=dict)
     resource_references: dict[ReferenceKey, ResourceReference] = field(default_factory=dict)
     sweeps: dict[str, SweepRecord] = field(default_factory=dict)
+    #: Keyed by the day, so a second sweep the same day finds its key already
+    #: taken and confirms rather than replaces — the in-memory shape of the
+    #: same idempotence the Postgres store gets from a unique index.
+    estate_daily_snapshots: dict[date, EstateDailySnapshot] = field(default_factory=dict)
     #: Keyed by the derived signal id rather than appended to, which is what
     #: makes a retried poll one sample instead of two.
     signals: dict[str, Signal] = field(default_factory=dict)

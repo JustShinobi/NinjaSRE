@@ -47,6 +47,9 @@ from platform.persistence.postgres.repositories.episode_store import PostgresEpi
 from platform.persistence.postgres.repositories.estate_repository import (
     PostgresEstateRepository,
 )
+from platform.persistence.postgres.repositories.estate_snapshot_store import (
+    PostgresEstateSnapshotStore,
+)
 from platform.persistence.postgres.repositories.identity_repository import (
     PostgresIdentityRepository,
     PostgresTokenDirectory,
@@ -84,7 +87,7 @@ class _RollbackOnly(Exception):
 
 @dataclass(slots=True)
 class PostgresUnitOfWork:
-    """Eighteen repositories over one session and one tenant."""
+    """Nineteen repositories over one session and one tenant."""
 
     scope: TenantScope
     session: AsyncSession
@@ -155,6 +158,11 @@ class PostgresUnitOfWork:
     def estate(self) -> PostgresEstateRepository:
         """Return the discovered-resource inventory and its health history."""
         return PostgresEstateRepository(self.scope.org_id, self.session)
+
+    @property
+    def estate_snapshots(self) -> PostgresEstateSnapshotStore:
+        """Return the estate's daily counts, written once a day by the sweeper."""
+        return PostgresEstateSnapshotStore(self.scope.org_id, self.session)
 
     @property
     def signals(self) -> PostgresSignalStore:

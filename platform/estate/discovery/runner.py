@@ -28,7 +28,8 @@ from platform.estate.discovery.port import DiscoveryMode, ResourceReader, SweepB
 from platform.estate.discovery.schedule import PAYLOAD_MODE, PAYLOAD_SOURCE, zones_of
 from platform.estate.enrichment import EnrichmentPlan, ZoneMap
 from platform.observability.logging import get_logger
-from platform.persistence.ports.transaction import TenantScope
+from platform.persistence.ports.estate_snapshot_store import EstateDailySnapshot
+from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.scheduler.dispatch import JobContext
 
 logger = get_logger(__name__)
@@ -87,6 +88,12 @@ class TopologyDiscoveryRunner:
     #: deployment that has declared nothing sweeps and writes the graph without
     #: annotations, which is the documented degradation rather than a refusal.
     plans: Mapping[str, EnrichmentPlan] = field(default_factory=dict)
+    #: Where the day's estate snapshot is confirmed after this sweep. ``None``
+    #: skips it — the shape every test double that only cares about the sweep
+    #: itself already constructs, and the composition root is the one caller
+    #: that wires a real one, because deciding whether a deployment keeps this
+    #: history is a composition concern, not the sweep's.
+    gateway: PersistenceGateway | None = None
 
     async def run(self, context: JobContext) -> Mapping[str, Any]:
         """Sweep the named source, apply what was declared, and report it all."""
@@ -112,7 +119,32 @@ class TopologyDiscoveryRunner:
             mode=_mode(context),
             source=name,
         )
+        await self._confirm_daily_snapshot(context.scope, now=context.fire_time)
         return record_of(result)
+
+    async def _confirm_daily_snapshot(self, scope: TenantScope, *, now: datetime) -> None:
+        """Record today's whole-estate counts, once.
+
+        Read from `EstateRepository.summarise` rather than from anything this
+        sweep itself just ingested, because the daily figure is about the
+        *whole* estate — every source, not only the one this job just swept —
+        and `record` is idempotent by day, so a fifteen-minute sweep of ten
+        different sources confirms one row rather than writing ten candidates
+        for the same point on the sparkline.
+        """
+        if self.gateway is None:
+            return
+        async with self.gateway.begin(scope) as uow:
+            summary = await uow.estate.summarise(now=now)
+            await uow.estate_snapshots.record(
+                EstateDailySnapshot(
+                    snapshot_date=now.date(),
+                    total=summary.total,
+                    captured_at=now,
+                    counts_by_kind=dict(summary.by_kind),
+                    counts_by_health=dict(summary.by_health),
+                )
+            )
 
 
 def record_of(result: EnrichedSweep) -> dict[str, Any]:
