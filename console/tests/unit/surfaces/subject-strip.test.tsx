@@ -339,3 +339,39 @@ describe('SubjectStrip', () => {
     expect(shapeOf(rows[1])).toBe('filled-circle');
   });
 });
+
+describe('SubjectStrip row treatment', () => {
+  /**
+   * Two treatments, because the two rows mean different things. A subject
+   * still firing sits on its own raised surface with a border; one that is
+   * over sits flat, its name dimmed. The strip used to draw both identically,
+   * so the only thing separating "this is happening" from "this happened" was
+   * the chip at the far right of the row.
+   */
+  it('gives a live subject a bordered, raised row', () => {
+    render(
+      <SubjectStrip
+        locale="en"
+        now={NOW}
+        groups={[group({ live: true, state: 'investigating' })]}
+      />,
+    );
+    const row = screen.getByTestId('subject-row');
+    expect(row.getAttribute('data-live')).toBe('true');
+    expect(row.className).toContain('border-border');
+  });
+
+  it('gives a settled subject a flat row with a dimmed name', () => {
+    render(
+      <SubjectStrip
+        locale="en"
+        now={NOW}
+        groups={[group({ live: false, state: 'resolved' })]}
+      />,
+    );
+    const row = screen.getByTestId('subject-row');
+    expect(row.getAttribute('data-live')).toBe('false');
+    expect(row.className).toContain('border-transparent');
+    expect(within(row).getByTestId('subject-title').className).toContain('text-muted');
+  });
+});

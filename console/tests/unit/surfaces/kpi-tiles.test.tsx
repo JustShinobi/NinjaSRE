@@ -159,3 +159,39 @@ describe('KpiTiles', () => {
     }
   });
 });
+
+describe('KpiTiles value colour', () => {
+  /**
+   * The board tints three of the five numbers -- degraded in danger, the two
+   * percentages in accent -- and leaves the other two in body colour. The
+   * sparkline under each already carries that colour; a number in body colour
+   * above a danger-coloured line is the tile disagreeing with itself.
+   */
+  it("colours each tile's number the way its own sparkline is coloured", () => {
+    render(
+      <KpiTiles
+        locale="en"
+        failed={false}
+        watched={kpi({ value: 99 })}
+        degraded={kpi({ value: 14 })}
+        selfResolved={kpi({ value: 100 })}
+        successRate={kpi({ value: 100 })}
+        timeToCause={kpi({ value: 75 })}
+      />,
+    );
+    const colourOf = (id: string): string =>
+      within(screen.getByTestId('main-figures'))
+        .getAllByTestId('kpi-tile')
+        .find((tile) => tile.getAttribute('data-kpi') === id)
+        ?.querySelector('[data-testid="kpi-value"]')?.className ?? '';
+
+    expect(colourOf('degraded')).toContain('text-danger');
+    expect(colourOf('selfResolved')).toContain('text-success');
+    expect(colourOf('successRate')).toContain('text-success');
+    // The two the board leaves alone stay in body colour.
+    expect(colourOf('watched')).not.toContain('text-danger');
+    expect(colourOf('watched')).not.toContain('text-success');
+    expect(colourOf('timeToCause')).not.toContain('text-danger');
+    expect(colourOf('timeToCause')).not.toContain('text-success');
+  });
+});

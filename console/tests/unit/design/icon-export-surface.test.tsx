@@ -57,6 +57,9 @@ const EXPECTED_ICON_NAMES = [
   'ContrastIcon',
   'CompassIcon',
   'MenuIcon',
+  // Added after the redesign, not renamed from anything: the board draws a
+  // stop mark on "Parar automação" and the set had no glyph for stopping.
+  'StopIcon',
 ] as const;
 
 describe('the icon module export surface', () => {

@@ -190,3 +190,17 @@ describe('AttentionBlock, deciding inline', () => {
     expect(REFRESH).not.toHaveBeenCalled();
   });
 });
+
+describe('AttentionBlock mark', () => {
+  /**
+   * The warning triangle the board draws at the head of the band. Colour is
+   * never the only carrier of a state, and a card tinted `warning` with no
+   * shape on it is exactly that -- the same rule every status mark on this
+   * console already follows.
+   */
+  it('carries the warning shape on a pending decision, not colour alone', () => {
+    render(<AttentionBlock locale="en" decisions={[decision()]} canDecide />);
+    const mark = screen.getByTestId('attention-decision-mark');
+    expect(mark.className).toContain('clip-triangle');
+  });
+});

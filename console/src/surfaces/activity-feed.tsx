@@ -58,6 +58,28 @@ export interface ActivityFeedEntry {
   /** How many consecutive firings of the same subject this entry already
    * folds -- 1 for an entry `collapseFeed` has not touched. */
   readonly count: number;
+  /**
+   * What produced this entry, in the viewer's language -- the board's own
+   * middle term on the second line (`agora mesmo · manual`,
+   * `há 50 min · Alertmanager`, `há 29 min · sem intervenção humana`).
+   *
+   * Read from what the entry's own source already served, never composed
+   * here: a run's trigger, an incident's detector, the fact that a closure
+   * had no human in it. Empty when the source named nothing, in which case
+   * the second line is the instant alone rather than a word invented to fill
+   * the slot.
+   */
+  readonly kindLabel: string;
+  /**
+   * How long the work behind the entry took, already formatted -- empty for
+   * an entry with no duration to report.
+   *
+   * Only a settled run has one: it is the distance between the two instants
+   * the runs listing already carries. An incident opening, a decision being
+   * proposed and a closure are moments rather than spans, and none of them
+   * gets a fabricated one.
+   */
+  readonly duration: string;
 }
 
 /**

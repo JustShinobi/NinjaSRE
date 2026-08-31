@@ -414,6 +414,23 @@ export function MenuIcon(props: IconProps): ReactNode {
   );
 }
 
+/**
+ * Stopping everything: a square inside a circle, the board's own coordinates.
+ *
+ * The one addition to this set since the redesign, and an addition rather than
+ * a rename — the set had no glyph for stopping, and the emergency stop was the
+ * one destructive control on the console whose meaning was carried by its
+ * colour alone.
+ */
+export function StopIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <rect x="6.4" y="6.4" width="7.2" height="7.2" rx="1" />
+      <circle cx="10" cy="10" r="8" />
+    </Glyph>
+  );
+}
+
 /** Every icon this set ships, for the gallery and for the coverage test. */
 export const ICON_NAMES = [
   'CheckIcon',
@@ -450,4 +467,5 @@ export const ICON_NAMES = [
   'ContrastIcon',
   'CompassIcon',
   'MenuIcon',
+  'StopIcon',
 ] as const;

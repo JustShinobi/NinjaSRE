@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { Button, Link } from '@/components/action';
+import { StopIcon } from '@/design/icons';
 import { formatDateTime } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
@@ -156,6 +157,10 @@ export function KillSwitchControl({
           setConfirming(true);
         }}
       >
+        {/* The shape carries the meaning alongside the colour. A destructive
+            control identified only by being red is one a reader who does not
+            separate red from green cannot pick out of a bar of five controls. */}
+        <StopIcon />
         {message(locale, 'stop.engage')}
       </Button>
       {confirming ? (

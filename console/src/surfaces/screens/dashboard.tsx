@@ -10,7 +10,7 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { formatNumber, timestamp } from '@/i18n/format';
+import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -21,6 +21,7 @@ import { KpiTiles, type KpiData } from '../kpi-tiles';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
 import { subjectOf } from '../run-subject';
+import { triggerLabel } from '../run-trigger';
 import { SetupHero } from '../setup-hero';
 import { SubjectStrip } from '../subject-strip';
 import {
@@ -162,6 +163,26 @@ const ATTENTION_WEIGHT: Readonly<Record<string, number>> = {
 
 function attentionWeight(kind: string): number {
   return ATTENTION_WEIGHT[kind] ?? 5;
+}
+
+/**
+ * How long a settled run took, already phrased -- empty when either instant
+ * is missing or the pair does not describe a span.
+ *
+ * Both instants are on the runs listing already; nothing here asks a second
+ * endpoint for a duration, and a run still working has no span to report
+ * rather than a zero.
+ */
+function runSpan(
+  locale: import('@/i18n/messages').Locale,
+  record: unknown,
+): string {
+  const started = Date.parse(text(record, 'started_at'));
+  const finished = Date.parse(text(record, 'finished_at'));
+  if (Number.isNaN(started) || Number.isNaN(finished)) return '';
+  const seconds = (finished - started) / 1000;
+  if (seconds < 0) return '';
+  return formatDuration(locale, seconds);
 }
 
 /** Return the attention row whose source timestamp is the earliest valid instant. */
@@ -438,6 +459,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       href: `/runs?selected=${id}`,
       subjectKey: '',
       count: 1,
+      // What set it off, which is the run's own served `trigger` and the
+      // word the board writes here. A run has no duration yet.
+      kindLabel: triggerLabel(locale, text(record, 'trigger')),
+      duration: '',
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });
     // A run still working has not resolved into anything yet -- only a
@@ -459,6 +484,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       href: `/runs?selected=${id}`,
       subjectKey: '',
       count: 1,
+      // The work this came out of, and how long it took -- the two facts the
+      // board's own `investigação · 1m 27s` carries, both from instants the
+      // listing already served.
+      kindLabel: message(locale, 'dashboard.liveActivity.by.investigation'),
+      duration: runSpan(locale, record),
       ...timestamp(locale, text(record, 'finished_at'), now, zone),
     });
   }
@@ -477,6 +507,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       // a fresh firing does, and folding it would fold two different facts.
       subjectKey: text(record, 'correlation_key'),
       count: 1,
+      // Who opened it: the detector's own name, as the incident carries it.
+      // Empty when the deployment named none, which leaves the second line
+      // as the instant alone rather than a guess.
+      kindLabel: text(record, 'detector'),
+      duration: '',
       ...timestamp(locale, text(record, 'opened_at'), now, zone),
     });
     const closedAt = text(record, 'closed_at');
@@ -490,6 +525,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         href: `/incidents/${id}`,
         subjectKey: '',
         count: 1,
+        // Reached only inside `flag(record, 'self_resolved')`, so the words
+        // are the flag's own meaning rather than a claim this line makes.
+        kindLabel: message(locale, 'dashboard.liveActivity.by.noHuman'),
+        duration: '',
         ...timestamp(locale, closedAt, now, zone),
       });
     }
@@ -510,6 +549,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       href: `/decisions?tab=actions&selected=${id}`,
       subjectKey: '',
       count: 1,
+      // What it is waiting on, which is what makes a proposal different from
+      // every other entry in the feed.
+      kindLabel: message(locale, 'dashboard.liveActivity.by.awaitingApproval'),
+      duration: '',
       ...timestamp(locale, text(record, 'requested_at'), now, zone),
     });
     const decidedAt = text(record, 'decided_at');
@@ -523,6 +566,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         href: `/decisions?tab=actions&selected=${id}`,
         subjectKey: '',
         count: 1,
+        // The kind, in words. Who decided it is not on the listing, and this
+        // line will not name somebody the deployment never did.
+        kindLabel: message(locale, 'dashboard.liveActivity.by.decision'),
+        duration: '',
         ...timestamp(locale, decidedAt, now, zone),
       });
     }

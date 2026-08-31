@@ -476,6 +476,11 @@ test(
     // larger share and the narrative the smaller one.
     expect(recurring.x + recurring.width).toBeLessThanOrEqual(activity.x + 1);
     expect(recurring.width).toBeGreaterThan(activity.width);
+    // And in the board's own proportion, one and a half to one. At two to one
+    // the narrative column is narrow enough that every entry wraps to four
+    // lines, which is what turned a timeline into a wall of text.
+    expect(recurring.width / activity.width).toBeGreaterThan(1.35);
+    expect(recurring.width / activity.width).toBeLessThan(1.65);
   },
 );
 
@@ -606,6 +611,38 @@ test(
     for (const kind of kinds) {
       expect(['investigation', 'resolution', 'incident', 'approval']).toContain(kind);
     }
+
+    // And the shape is drawn, not merely declared. Reading `data-kind` alone
+    // passed for as long as the diamond and the square were rendered with a
+    // corner radius that made both of them circles: three of the four kinds
+    // were one shape on screen while this test stayed green. A kind's mark is
+    // measured here by what actually reaches the box.
+    const geometry = await page
+      .getByTestId('activity-feed-entry')
+      .locator('[aria-hidden="true"]')
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const style = getComputedStyle(node);
+          return [
+            style.borderTopLeftRadius,
+            style.transform,
+            style.clipPath,
+          ].join('|');
+        }),
+      );
+    const drawn = new Map<string, string>();
+    kinds.forEach((kind, index) => {
+      const shape = geometry[index];
+      if (kind === null || shape === undefined) return;
+      const already = drawn.get(kind);
+      if (already !== undefined) {
+        expect(already).toBe(shape);
+        return;
+      }
+      drawn.set(kind, shape);
+    });
+    // No two kinds present on this page may be drawn identically.
+    expect(new Set(drawn.values()).size).toBe(drawn.size);
   },
 );
 

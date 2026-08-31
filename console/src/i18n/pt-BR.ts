@@ -550,10 +550,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   // --- O Painel: "Em execução agora" ------------------------------------------
   'dashboard.runBand.title': 'Em execução agora',
-  'dashboard.runBand.flight': 'em voo',
-  'dashboard.runBand.followed': 'acompanhados',
+  // Os substantivos que dizem o que cada contagem conta: sem eles a linha
+  // e' "0 · 12 · 0" e o leitor tem que adivinhar o segundo numero.
+  'dashboard.runBand.flight': 'investigações em voo',
+  'dashboard.runBand.followed': 'incidentes acompanhados',
   'dashboard.runBand.blocked': 'bloqueado em você',
   'dashboard.runBand.more': 'todas as investigações →',
+  // O estagio em curso, pelo nome, e onde ele cai entre os seis.
+  'dashboard.runBand.stage': '{stage} · {position} de {total}',
   'dashboard.runBand.empty':
     'Nada está rodando agora — toda investigação terminou ou nenhuma foi iniciada.',
   'dashboard.runBand.empty.action': 'Investigar algo →',
@@ -639,6 +643,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.liveActivity.incidentSelfResolved': 'Incidente fechado sozinho',
   'dashboard.liveActivity.decisionProposed': 'Remediação proposta',
   'dashboard.liveActivity.decisionDecided': 'Decisão registrada',
+  // O segundo termo da segunda linha de cada entrada: o que produziu
+  // aquilo. Duas destas palavras nomeiam o tipo da entrada; as outras
+  // duas dizem o que o deployment de fato registrou (que ninguem tocou,
+  // que alguem precisa decidir).
+  'dashboard.liveActivity.by.investigation': 'investigação',
+  'dashboard.liveActivity.by.awaitingApproval': 'aguardando aprovação',
+  'dashboard.liveActivity.by.noHuman': 'sem intervenção humana',
+  'dashboard.liveActivity.by.decision': 'decisão',
   'dashboard.hero.title': 'Continuar a configuração',
   'dashboard.hero.remaining': '{count} de {total} passos por fazer',
   'dashboard.hero.next': 'Próximo',
@@ -1849,7 +1861,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.outcome.recorded': 'na transcrição desta investigação',
   'live.outcome.refused': 'O deployment recusou: {reason}',
   'live.outcome.unreachable': 'Não foi possível alcançar o deployment.',
-  'nav.agent': 'Agente',
+  'nav.agent': 'O agente',
   'page.agent.title': 'O agente',
   'page.agent.context':
     'O que ele é, o que ele pode fazer e o que ele vai fazer sem perguntar a ninguém.',

@@ -299,3 +299,22 @@ describe('when the deployment refuses', () => {
     expect(screen.queryByTestId('release-stop')).toBeNull();
   });
 });
+
+describe('the kill switch mark', () => {
+  /**
+   * The board draws a stop mark before the words. A destructive control that
+   * is only red is a control whose meaning is carried by colour alone, which
+   * is the one thing this console does not do anywhere else.
+   */
+  it('draws a shape beside the words, not colour alone', () => {
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        engaged={false}
+      />,
+    );
+    const control = screen.getByTestId('engage-stop');
+    expect(control.querySelector('svg')).not.toBeNull();
+  });
+});

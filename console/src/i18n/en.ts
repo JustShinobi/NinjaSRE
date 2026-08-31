@@ -528,10 +528,14 @@ export const EN = {
   // --- The overview --------------------------------------------------------------
   // --- The Painel: "Em execução agora" ------------------------------------------
   'dashboard.runBand.title': 'Running now',
-  'dashboard.runBand.flight': 'in flight',
-  'dashboard.runBand.followed': 'followed',
+  // The nouns that say what each count counts: without them the line reads
+  // "0 · 12 · 0" and the reader has to guess what the second number is.
+  'dashboard.runBand.flight': 'investigations in flight',
+  'dashboard.runBand.followed': 'incidents followed',
   'dashboard.runBand.blocked': 'blocked on you',
   'dashboard.runBand.more': 'all investigations →',
+  // The stage under way, by name, and where it falls among the six.
+  'dashboard.runBand.stage': '{stage} · {position} of {total}',
   'dashboard.runBand.empty':
     'Nothing is running right now — every investigation has finished or none has started.',
   'dashboard.runBand.empty.action': 'Start one →',
@@ -617,6 +621,14 @@ export const EN = {
   'dashboard.liveActivity.incidentSelfResolved': 'Incident closed on its own',
   'dashboard.liveActivity.decisionProposed': 'Remediation proposed',
   'dashboard.liveActivity.decisionDecided': 'Decision recorded',
+  // The middle term of each entry's second line: what produced it. Two
+  // of these name the entry's kind; the other two say what the
+  // deployment actually recorded (that nobody touched it, that somebody
+  // has to decide).
+  'dashboard.liveActivity.by.investigation': 'investigation',
+  'dashboard.liveActivity.by.awaitingApproval': 'awaiting approval',
+  'dashboard.liveActivity.by.noHuman': 'with no human intervention',
+  'dashboard.liveActivity.by.decision': 'decision',
   'dashboard.hero.title': 'Continue setting up',
   'dashboard.hero.remaining': '{count} of {total} steps left',
   'dashboard.hero.next': 'Next',

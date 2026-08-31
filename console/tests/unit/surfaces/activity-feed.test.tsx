@@ -27,6 +27,8 @@ function entry(over: Partial<ActivityFeedEntry> = {}): ActivityFeedEntry {
     iso: '2026-08-31T09:00:00.000Z',
     subjectKey: 'detector:dns:resource:adguard-primary',
     count: 1,
+    kindLabel: '',
+    duration: '',
     ...over,
   };
 }
@@ -155,5 +157,98 @@ describe('ActivityFeed', () => {
   it('renders nothing when there are no entries, without error', () => {
     render(<ActivityFeed locale="en" entries={[]} />);
     expect(screen.queryByTestId('activity-feed-entry')).toBeNull();
+  });
+});
+
+describe('ActivityFeed shapes', () => {
+  /**
+   * Four kinds, four shapes -- and a shape is only a shape if it is not a
+   * circle. The marks were written at the icon scale with a `rounded-1`
+   * corner, which on a 14px box is a 6px radius: two pixels of flat edge per
+   * side, so the "diamond" and the "square" both drew as circles and three of
+   * the four kinds were indistinguishable on screen.
+   */
+  function marks(): readonly Element[] {
+    return screen
+      .getAllByTestId('activity-feed-entry')
+      .map((row) => row.querySelector('[aria-hidden="true"]'))
+      .filter((node): node is Element => node !== null);
+  }
+
+  it('draws the investigation mark as a diamond with corners, never a rounded blob', () => {
+    render(
+      <ActivityFeed
+        locale="en"
+        entries={[entry({ id: 'a', kind: 'investigation' })]}
+      />,
+    );
+    const mark = marks()[0];
+    expect(mark?.className).toContain('rotate-45');
+    expect(mark?.className).not.toContain('rounded');
+  });
+
+  it('draws the incident mark as a square with corners, never a rounded blob', () => {
+    render(<ActivityFeed locale="en" entries={[entry({ id: 'a', kind: 'incident' })]} />);
+    const mark = marks()[0];
+    expect(mark?.className).not.toContain('rounded');
+    expect(mark?.className).not.toContain('rotate');
+  });
+
+  it('gives the four kinds four different marks', () => {
+    render(
+      <ActivityFeed
+        locale="en"
+        entries={[
+          entry({ id: 'a', kind: 'investigation' }),
+          entry({ id: 'b', kind: 'resolution' }),
+          entry({ id: 'c', kind: 'incident' }),
+          entry({ id: 'd', kind: 'approval' }),
+        ]}
+      />,
+    );
+    const shapes = marks().map((mark) =>
+      mark.className
+        .split(/\s+/)
+        .filter((name) => name.startsWith('rounded') || name.startsWith('rotate') || name === 'clip-triangle')
+        .sort()
+        .join(' '),
+    );
+    expect(new Set(shapes).size).toBe(4);
+  });
+});
+
+describe('ActivityFeed second line', () => {
+  /**
+   * Time, then what produced the entry, then how long it took where there is
+   * a duration -- the board's own `agora mesmo · manual`,
+   * `há 2 min · investigação · 1m 27s`. The feed used to render the relative
+   * time alone, which left every entry saying only when, never by what.
+   */
+  it("names what produced the entry beside its time", () => {
+    render(
+      <ActivityFeed
+        locale="en"
+        entries={[entry({ id: 'a', kindLabel: 'Alertmanager' })]}
+      />,
+    );
+    expect(screen.getByTestId('activity-feed-entry')).toHaveTextContent('Alertmanager');
+  });
+
+  it('shows the duration when the entry has one', () => {
+    render(
+      <ActivityFeed
+        locale="en"
+        entries={[
+          entry({ id: 'a', kind: 'resolution', kindLabel: 'investigation', duration: '1m 27s' }),
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('activity-feed-entry')).toHaveTextContent('1m 27s');
+  });
+
+  it('renders the time alone when the entry has nothing else to say', () => {
+    render(<ActivityFeed locale="en" entries={[entry({ id: 'a' })]} />);
+    const meta = screen.getByTestId('activity-feed-meta');
+    expect(meta.textContent?.trim()).toBe('2 minutes ago');
   });
 });

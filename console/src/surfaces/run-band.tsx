@@ -7,6 +7,7 @@ import { formatDuration, formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { cx } from '@/design/cx';
 import { field, text } from './read';
+import { STAGE_NAMES, stageLabel } from './run-card';
 import { triggerLabel } from './run-trigger';
 
 /**
@@ -98,6 +99,16 @@ export interface RunCardData {
   readonly trigger: string;
   readonly elapsedSeconds: number;
   readonly stageIndex: number | undefined;
+  /**
+   * The last stage the run completed, by the pipeline's own name for it —
+   * served on the listing beside the index, empty for a run that has
+   * finished none.
+   *
+   * The bar alone says how far along a run is without ever saying what it is
+   * doing, and "three of six" is a fraction of something the reader has to
+   * already know. This is the word.
+   */
+  readonly stage: string;
 }
 
 /** `record`, as `RunCardData` — reading only, no title or stage derived here. */
@@ -112,7 +123,26 @@ export function runCardOf(record: unknown, now: Date): RunCardData {
     trigger: text(record, 'trigger'),
     elapsedSeconds,
     stageIndex: stageIndexOf(record),
+    stage: text(record, 'last_completed_stage'),
   };
+}
+
+/**
+ * An investigation's own mark: the rotated square this console gives the kind
+ * everywhere it appears, the live activity feed included.
+ *
+ * Sharp, because `rotate-45` on a box with a corner radius is a circle at this
+ * size -- the icon scale is 14px and the smallest declared radius is 6, which
+ * leaves two pixels of flat edge per side. The shape has to be a shape.
+ */
+function RunMark({ testId }: { readonly testId: string }): ReactNode {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={testId}
+      className="icon-inline rotate-45 bg-accent shrink-0 inline-block"
+    />
+  );
 }
 
 /** One segment of the stage bar. */
@@ -133,6 +163,29 @@ function StageSegment({ state }: { readonly state: StageState }): ReactNode {
   );
 }
 
+/**
+ * The stage a run is working on now, and where it sits among the six.
+ *
+ * `stage_index` names the last stage *completed*, so the one under way is the
+ * next in `STAGE_NAMES` -- the same "index + 1" the bar's own current segment
+ * is derived from, read once here so the words and the bar cannot disagree.
+ *
+ * `undefined` in the two cases where there is nothing honest to say: a run
+ * that has completed all six and not yet terminated (no segment is current,
+ * so no stage is under way), and a run whose listing named no stage at all,
+ * where the six segments already draw future and a name would be invented.
+ */
+function stageUnderWay(
+  card: RunCardData,
+): { readonly name: string; readonly position: number } | undefined {
+  if (card.stageIndex === undefined) return undefined;
+  if (card.stageIndex >= RUN_BAND_STAGE_COUNT) return undefined;
+  // The pipeline's own order, from the one place this console declares it.
+  const name = STAGE_NAMES[card.stageIndex];
+  if (name === undefined) return undefined;
+  return { name, position: card.stageIndex + 1 };
+}
+
 interface RunCardProps {
   readonly locale: Locale;
   readonly card: RunCardData;
@@ -140,6 +193,7 @@ interface RunCardProps {
 
 /** One run's card: title, trigger, stage bar, elapsed — the entrance treatment always present. */
 function RunCard({ locale, card }: RunCardProps): ReactNode {
+  const reached = stageUnderWay(card);
   return (
     <li
       key={card.id}
@@ -152,6 +206,7 @@ function RunCard({ locale, card }: RunCardProps): ReactNode {
       className="slide-in edge border-border rounded-2 bg-raised px-4 py-3 flex flex-col gap-2"
     >
       <div className="flex items-center gap-3">
+        <RunMark testId="run-card-mark" />
         <span
           data-testid="run-card-title"
           className="text-strong truncate flex-1 min-w-0"
@@ -168,6 +223,18 @@ function RunCard({ locale, card }: RunCardProps): ReactNode {
             <StageSegment key={`${card.id}-stage-${String(index)}`} state={state} />
           ))}
         </div>
+        {reached === undefined ? null : (
+          <span
+            data-testid="run-card-stage-label"
+            className="text-meta text-muted shrink-0"
+          >
+            {message(locale, 'dashboard.runBand.stage', {
+              stage: stageLabel(locale, reached.name),
+              position: formatNumber(locale, reached.position),
+              total: formatNumber(locale, RUN_BAND_STAGE_COUNT),
+            })}
+          </span>
+        )}
         <span
           data-testid="run-card-elapsed"
           className="font-mono text-meta text-muted tabular-nums shrink-0"
@@ -206,6 +273,7 @@ export function RunBand({
     >
       <header className="flex items-center gap-4 flex-wrap">
         <span className="flex items-center gap-2 text-strong">
+          <RunMark testId="run-band-mark" />
           {message(locale, 'dashboard.runBand.title')}
         </span>
         <span className="text-meta text-muted flex items-center gap-1">
