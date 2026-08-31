@@ -91,6 +91,62 @@ export function groupByNode(resources: readonly unknown[]): readonly NodeGroup[]
   });
 }
 
+/**
+ * How many cards a node section draws before the grid gives way to a link —
+ * one row (the grid's own four columns) when nothing on the node is
+ * unhealthy, two rows when something is. A section with nothing wrong has
+ * nothing urgent to earn the second row; a section with a problem gets the
+ * extra space to show it without immediately reaching for the link.
+ */
+const NODE_SECTION_ROW = 4;
+const NODE_SECTION_ROWS_WITH_PROBLEM = 2;
+
+export interface SectionCap {
+  /** The cards the grid actually draws — every one of the section's own
+   * resources when nothing was hidden. */
+  readonly shown: readonly unknown[];
+  /**
+   * Present only when the grid stopped short of the section's own total.
+   * `count` is the unhealthy total when unhealthy ones are still hidden
+   * behind the cap (`onlyUnhealthy: true`) — never the node's whole count,
+   * which would bury the more urgent number under a bigger one — and the
+   * node's whole count otherwise, once every unhealthy resource already
+   * fits in what is shown.
+   */
+  readonly more?: {
+    readonly count: number;
+    readonly onlyUnhealthy: boolean;
+  };
+}
+
+/**
+ * `section`'s cards, capped for a grid that has to end — the same fact as
+ * the wave's own inherited debt: nothing fit in a capture window because the
+ * grid never stopped. `section.resources` is read as `groupByNode` already
+ * sorted it, unhealthy first, so the cards this keeps are always the most
+ * pressing ones the section has.
+ */
+export function capNodeSection(section: NodeGroup): SectionCap {
+  const unhealthyCount = section.resources.filter(isUnhealthy).length;
+  const capacity =
+    unhealthyCount > 0
+      ? NODE_SECTION_ROW * NODE_SECTION_ROWS_WITH_PROBLEM
+      : NODE_SECTION_ROW;
+
+  if (section.resources.length <= capacity) {
+    return { shown: section.resources };
+  }
+
+  const onlyUnhealthy = unhealthyCount > capacity;
+  return {
+    shown: section.resources.slice(0, capacity),
+    more: {
+      count: onlyUnhealthy ? unhealthyCount : section.resources.length,
+      onlyUnhealthy,
+    },
+  };
+}
+
 /** How close two instants have to be to count as "the same window". */
 const SYNTHESIS_WINDOW_MINUTES = 30;
 

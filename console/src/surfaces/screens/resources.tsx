@@ -36,7 +36,12 @@ import {
   type FilterName,
 } from '../url-state';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
-import { groupByNode, healthSegments, unhealthySynthesis } from './resources-grouping';
+import {
+  capNodeSection,
+  groupByNode,
+  healthSegments,
+  unhealthySynthesis,
+} from './resources-grouping';
 
 /**
  * What am I responsible for, and what state is it in?
@@ -605,51 +610,85 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           }}
         >
           <div className="flex flex-col gap-5">
-            {sections.map((section) => (
-              <div
-                key={section.nodeId || 'none'}
-                data-testid="node-section"
-                data-has-unhealthy={section.hasUnhealthy ? 'true' : 'false'}
-                className="flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-strong" data-testid="node-section-name">
-                    {section.nodeName || message(locale, 'resources.node.none')}
-                  </span>
-                  {section.hasUnhealthy ? (
-                    <span className="flex items-center gap-1 text-small text-danger">
-                      <HealthMark health="unhealthy" />
-                      {message(locale, 'resources.node.unhealthyCount', {
-                        count: section.resources.filter((entry) =>
-                          PROBLEM_HEALTH.has(text(entry, 'health')),
-                        ).length,
+            {sections.map((section) => {
+              const capped = capNodeSection(section);
+              const nodeName =
+                section.nodeName || message(locale, 'resources.node.none');
+              return (
+                <div
+                  key={section.nodeId || 'none'}
+                  data-testid="node-section"
+                  data-has-unhealthy={section.hasUnhealthy ? 'true' : 'false'}
+                  className="flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-strong" data-testid="node-section-name">
+                      {nodeName}
+                    </span>
+                    {section.hasUnhealthy ? (
+                      <span className="flex items-center gap-1 text-small text-danger">
+                        <HealthMark health="unhealthy" />
+                        {message(locale, 'resources.node.unhealthyCount', {
+                          count: section.resources.filter((entry) =>
+                            PROBLEM_HEALTH.has(text(entry, 'health')),
+                          ).length,
+                        })}
+                      </span>
+                    ) : null}
+                    <span
+                      className="text-micro text-muted"
+                      data-testid="node-section-count"
+                    >
+                      {message(locale, 'resources.node.count', {
+                        count: section.resources.length,
                       })}
                     </span>
-                  ) : null}
-                  <span
-                    className="text-micro text-muted"
-                    data-testid="node-section-count"
+                  </div>
+                  <div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                    data-testid="node-section-grid"
+                    data-shown={capped.shown.length}
                   >
-                    {message(locale, 'resources.node.count', {
-                      count: section.resources.length,
-                    })}
-                  </span>
+                    {capped.shown.map((resource) => (
+                      <ResourceCard
+                        key={text(resource, 'resource_id')}
+                        locale={locale}
+                        now={now}
+                        zone={zone}
+                        state={state}
+                        filters={RESOURCE_FILTERS}
+                        resource={resource}
+                      />
+                    ))}
+                  </div>
+                  {capped.more === undefined ? null : (
+                    <NextLink
+                      href={hrefFor(
+                        '/resources',
+                        withFilter(
+                          state,
+                          'health',
+                          capped.more.onlyUnhealthy ? 'problem' : state.filters.health,
+                        ),
+                        RESOURCE_FILTERS,
+                      )}
+                      prefetch={false}
+                      data-testid="node-section-more"
+                      data-only-unhealthy={capped.more.onlyUnhealthy ? 'true' : 'false'}
+                      className="text-small text-accent hover:underline self-start"
+                    >
+                      {message(
+                        locale,
+                        capped.more.onlyUnhealthy
+                          ? 'resources.node.seeUnhealthy'
+                          : 'resources.node.seeAll',
+                        { count: capped.more.count, node: nodeName },
+                      )}
+                    </NextLink>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {section.resources.map((resource) => (
-                    <ResourceCard
-                      key={text(resource, 'resource_id')}
-                      locale={locale}
-                      now={now}
-                      zone={zone}
-                      state={state}
-                      filters={RESOURCE_FILTERS}
-                      resource={resource}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
 

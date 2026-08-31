@@ -1198,6 +1198,8 @@ export const EN = {
   'resources.node.none': 'No node declared',
   'resources.node.count': '{count} resources on this node',
   'resources.node.unhealthyCount': '{count} unhealthy',
+  'resources.node.seeUnhealthy': 'See the {count} unhealthy of {node} →',
+  'resources.node.seeAll': 'See all {count} resources of {node} →',
   'resources.synthesis.line':
     '{count} {kind} unhealthy since {since} — all on {node}, same start window',
   'resources.synthesis.action': 'investigate as a batch →',

@@ -968,6 +968,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.node.none': 'Sem nó declarado',
   'resources.node.count': '{count} recursos neste nó',
   'resources.node.unhealthyCount': '{count} não saudáveis',
+  'resources.node.seeUnhealthy': 'Ver os {count} não saudáveis de {node} →',
+  'resources.node.seeAll': 'Ver os {count} recursos de {node} →',
   'resources.synthesis.line':
     '{count} {kind} não saudáveis há mais de {since} — todos em {node}, mesma janela de início',
   'resources.synthesis.action': 'investigar em lote →',
