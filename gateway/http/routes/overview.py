@@ -27,6 +27,7 @@ from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
 from platform.config_service.service import ConfigService
 from platform.incidents.service import DetectorService
+from platform.persistence.ports.estate_snapshot_store import EstateDailySnapshot
 from platform.persistence.ports.incident_store import Incident, IncidentQuery
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
 
@@ -87,7 +88,7 @@ def _window(now: datetime) -> tuple[date, date, datetime]:
 def _watched(
     summary_total: int,
     summary_by_kind: dict[str, int],
-    daily: tuple[object, ...],
+    daily: tuple[EstateDailySnapshot, ...],
 ) -> KpiView:
     """Return the "resources watched" KPI, from the estate summary and its history."""
     return KpiView(
@@ -102,7 +103,7 @@ def _watched(
 
 def _degraded(
     problems: int,
-    daily: tuple[object, ...],
+    daily: tuple[EstateDailySnapshot, ...],
     *,
     any_detector_enabled: bool,
 ) -> KpiView:
@@ -146,9 +147,7 @@ def _self_resolved(incidents: tuple[Incident, ...], *, since: date, until: date)
     series = [
         SeriesPointView(
             date=day.isoformat(),
-            value=round(
-                100 * sum(1 for entry in entries if entry.self_resolved) / len(entries), 1
-            ),
+            value=round(100 * sum(1 for entry in entries if entry.self_resolved) / len(entries), 1),
         )
         for day, entries in sorted(by_day.items())
     ]
@@ -180,8 +179,9 @@ def _success_rate(runs: tuple[AgentRun, ...], *, since: date, until: date) -> Kp
         SeriesPointView(
             date=day.isoformat(),
             value=round(
-                100 * sum(1 for entry in entries if entry.status is RunStatus.COMPLETED) /
-                len(entries),
+                100
+                * sum(1 for entry in entries if entry.status is RunStatus.COMPLETED)
+                / len(entries),
                 1,
             ),
         )

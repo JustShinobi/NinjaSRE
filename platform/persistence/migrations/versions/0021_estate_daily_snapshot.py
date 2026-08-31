@@ -10,8 +10,15 @@ sweeper that writes this table calls `ON CONFLICT DO NOTHING`, so the first
 sweep of a day to reach it is the one whose counts stand for that day, and
 every later sweep the same day is a confirmation rather than a correction.
 
-Revision: 0020_estate_daily_snapshot
-Parent: 0019_users_email_optional
+Numbered 0021 rather than 0020 because 020-titulo-vivo, this slot's paired
+feature, declared `0020_run_objective` from the same parent first and keeps
+the number. `down_revision` stays pointed at `0019_users_email_optional`
+while this feature's worktree has no way to see `0020_run_objective`; the
+orchestrator re-points it to `0020_run_objective` at merge, once both exist
+in the same tree.
+
+Revision: 0021_estate_daily_snapshot
+Parent: 0019_users_email_optional (re-pointed to 0020_run_objective at merge)
 """
 
 from __future__ import annotations
@@ -20,7 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0020_estate_daily_snapshot"
+revision = "0021_estate_daily_snapshot"
 down_revision = "0019_users_email_optional"
 branch_labels = None
 depends_on = None
@@ -38,12 +45,8 @@ def upgrade() -> None:
         sa.Column("org_id", sa.String(length=_ID_LENGTH), nullable=False),
         sa.Column("snapshot_date", sa.Date(), nullable=False),
         sa.Column("total", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column(
-            "counts_by_kind", postgresql.JSONB(astext_type=sa.Text()), nullable=False
-        ),
-        sa.Column(
-            "counts_by_health", postgresql.JSONB(astext_type=sa.Text()), nullable=False
-        ),
+        sa.Column("counts_by_kind", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("counts_by_health", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("captured_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("org_id", "snapshot_date"),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
