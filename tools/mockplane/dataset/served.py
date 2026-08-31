@@ -1693,6 +1693,11 @@ def proposal_records() -> tuple[CapturedRecord, ...]:
 
 # --- Memory and knowledge ----------------------------------------------------------
 
+# ``outcome`` reads from the values ``EpisodeOutcome`` actually declares
+# (``platform/persistence/ports/episode_store.py``) — ``"resolved"``,
+# ``"mitigated"``, ``"inconclusive"`` or ``"false_positive"`` — not
+# ``"acknowledged"``/``"unresolved"``, which the real backend has never
+# emitted and the console has no presentation declared for.
 EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
     {
         "episode_id": "ep-0001",
@@ -1709,7 +1714,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0002",
         "title": "Quorum has no margin",
         "summary": "Two of two required votes, and the device in the membership view carries none.",
-        "outcome": "acknowledged",
+        "outcome": "inconclusive",
         "components": ["cluster"],
         "occurred_at": at(days=1, hours=2, minutes=47),
     },
@@ -1719,7 +1724,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "title": "The investigation could not reach the metrics agent",
         "summary": "The agent is one of the failed units on the primary; nothing was "
         "watching the watcher.",
-        "outcome": "unresolved",
+        "outcome": "inconclusive",
         "components": ["node01", "metrics-agent.service"],
         "occurred_at": at(days=3, hours=5, minutes=50),
     },
@@ -1738,7 +1743,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "title": "A kernel was installed and never booted",
         "summary": "The usual signal did not fire, so the first real boot of it will be "
         "an unplanned one.",
-        "outcome": "acknowledged",
+        "outcome": "inconclusive",
         "components": ["node01", "node02"],
         "occurred_at": at(days=1, hours=2, minutes=40),
     },
