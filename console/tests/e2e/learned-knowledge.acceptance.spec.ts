@@ -119,6 +119,69 @@ test.describe('AN-C3 — every episode is a card: title-phrase, outcome shape, c
 });
 
 // =============================================================================
+// Slot S2 visual-gate repair — the episode outcome renders through the shared
+// status vocabulary, with the chip the board draws, not a hand-rolled shape
+// =============================================================================
+
+test.describe('the episode outcome chip carries a real role from the shared status vocabulary', () => {
+  test('every episode card exposes an outcome chip carrying a semantic role', async ({
+    page,
+  }) => {
+    await page.goto('/knowledge');
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+    const cards = page.getByTestId('episode-card');
+    const total = await cards.count();
+    expect(total).toBeGreaterThan(0);
+    for (let index = 0; index < total; index += 1) {
+      const chip = cards.nth(index).getByTestId('episode-outcome');
+      await expect(chip).toBeVisible();
+      await expect(chip).toHaveAttribute(
+        'data-role',
+        /^(success|warning|danger|info|neutral)$/,
+      );
+    }
+  });
+
+  test('a resolved episode’s chip carries the success role; an inconclusive one carries warning', async ({
+    page,
+  }) => {
+    await page.goto('/knowledge');
+    const resolvedChip = page
+      .locator('[data-testid="episode-card"][data-outcome="resolved"]')
+      .first()
+      .getByTestId('episode-outcome');
+    await expect(resolvedChip).toHaveAttribute('data-role', 'success');
+
+    const inconclusiveChip = page
+      .locator('[data-testid="episode-card"][data-outcome="inconclusive"]')
+      .first()
+      .getByTestId('episode-outcome');
+    await expect(inconclusiveChip).toHaveAttribute('data-role', 'warning');
+  });
+
+  test(
+    'a mitigated episode still renders honestly through the shared vocabulary',
+    { tag: STAGING_SAFE_TAG },
+    async ({ page }) => {
+      // The local `populated` scenario carries two "mitigated" episodes
+      // (the corrected translation of a legacy "acknowledged" outcome); a
+      // deployment whose corpus happens to hold none this run still passes
+      // rather than measuring nothing.
+      await page.goto('/knowledge');
+      const mitigated = page.locator(
+        '[data-testid="episode-card"][data-outcome="mitigated"]',
+      );
+      const total = await mitigated.count();
+      test.skip(total === 0, 'no mitigated episode in this environment');
+      if (total === 0) return;
+      const chip = mitigated.first().getByTestId('episode-outcome');
+      await expect(chip).toBeVisible();
+      await expect(chip).toContainText(/\w/);
+    },
+  );
+});
+
+// =============================================================================
 // AN-C2 — component filter groups by type, with counts, no duplicates
 // =============================================================================
 

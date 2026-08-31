@@ -22,7 +22,7 @@
             ],
             "episode_id": "ep-0002",
             "occurred_at": "2026-08-06T09:13:00+00:00",
-            "outcome": "inconclusive",
+            "outcome": "mitigated",
             "run_id": "run-0002",
             "summary": "Two of two required votes, and the device in the membership view carries none.",
             "title": "Quorum has no margin"
@@ -58,7 +58,7 @@
             ],
             "episode_id": "ep-0005",
             "occurred_at": "2026-08-06T09:20:00+00:00",
-            "outcome": "inconclusive",
+            "outcome": "mitigated",
             "run_id": "run-0002",
             "summary": "The usual signal did not fire, so the first real boot of it will be an unplanned one.",
             "title": "A kernel was installed and never booted"
