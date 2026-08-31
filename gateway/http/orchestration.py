@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from config.constants.runs import RUN_METADATA_TEAM
 from gateway.http.services import InvestigationRunner, InvestigationStart
 from gateway.http.state import GatewayState
+from platform.guardrails.engine import GuardrailEngine
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
@@ -24,6 +25,26 @@ from platform.runs.recorder import RunRecorder
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _sanitized(text: str, guardrails: GuardrailEngine) -> str:
+    """Return ``text`` with anything the ruleset matches already removed.
+
+    Applied before ``objective`` is used for anything at all — the
+    provisional headline, the runtime's own request, and the run's stored
+    row — so a secret typed into an objective reaches none of them. The
+    recorder scans again before it writes; this is the defence the prompt
+    the runtime builds could not otherwise get, since nothing about handing a
+    request to a runtime passes back through the recorder.
+    """
+    if not text:
+        return text
+    return guardrails.scan(text).text
+
+
+def _sanitized_labels(labels: Mapping[str, str], guardrails: GuardrailEngine) -> dict[str, str]:
+    """Return ``labels`` with every value scanned, for the same reason as ``objective``."""
+    return {key: _sanitized(value, guardrails) for key, value in labels.items()}
 
 
 async def start_investigation(
@@ -62,6 +83,8 @@ async def start_investigation(
     receipt at a time, or the entry would be recorded twice.
     """
     team_node_id = scope.team_node_id or ""
+    sanitized_objective = _sanitized(objective, state.guardrails)
+    sanitized_labels = _sanitized_labels(alert_labels or {}, state.guardrails)
     async with state.gateway.begin(scope) as uow:
         if not team_node_id:
             # A local sign-in issues a token that stands for the person across
@@ -92,6 +115,8 @@ async def start_investigation(
             principal_id=principal_id,
             team_node_id=team_node_id,
             alert_id=alert_id,
+            objective=sanitized_objective,
+            alert_labels=sanitized_labels,
             metadata={RUN_METADATA_TEAM: team_node_id},
         )
         if incident_id:

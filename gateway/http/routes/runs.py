@@ -15,7 +15,13 @@ from pydantic import BaseModel, Field
 from config.constants.investigation import EVIDENCE_ASSESSMENT_CAPABILITY
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
-from gateway.http.routes.investigations import InvestigationSummary, linked_summary, summary_of
+from gateway.http.routes.investigations import (
+    InvestigationSummary,
+    linked_summary,
+    stages_of,
+    summary_of,
+    with_stage,
+)
 from gateway.http.routes.tenancy import visible
 from gateway.http.routes.threads import ThreadCallView, thread_turn_view
 from gateway.http.state import GatewayState
@@ -181,9 +187,11 @@ async def list_runs(
     async with state.gateway.begin(auth.scope) as uow:
         runs = await uow.run_traces.list_runs(limit=limit)
         shown = [run for run in runs if visible(run, auth)]
+        run_ids = [run.run_id for run in shown]
         assessments = await uow.run_traces.named_tool_calls_for_runs(
-            [run.run_id for run in shown], EVIDENCE_ASSESSMENT_CAPABILITY
+            run_ids, EVIDENCE_ASSESSMENT_CAPABILITY
         )
+        stages = await stages_of(run_ids, uow)
 
     by_run: dict[str, list[ToolCallRecord]] = {}
     for call in assessments:
@@ -192,15 +200,14 @@ async def list_runs(
     listed: list[InvestigationSummary] = []
     for run in shown:
         assessment = assessment_from_calls(by_run.get(run.run_id, []))
-        listed.append(
-            summary_of(run).model_copy(
-                update={
-                    "evidence_assessed": assessment.assessed,
-                    "evidence_backed": assessment.backed,
-                    "evidence_missing": assessment.missing,
-                }
-            )
+        summary = summary_of(run).model_copy(
+            update={
+                "evidence_assessed": assessment.assessed,
+                "evidence_backed": assessment.backed,
+                "evidence_missing": assessment.missing,
+            }
         )
+        listed.append(with_stage(summary, stages.get(run.run_id, "")))
     return RunList(runs=listed)
 
 

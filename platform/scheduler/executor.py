@@ -30,11 +30,12 @@ up a model.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from config.constants.runs import TRIGGER_SCHEDULE
+from platform.guardrails.engine import GuardrailEngine
 from platform.observability.logging import get_logger
 from platform.persistence.errors import DuplicateRecord
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
@@ -50,6 +51,21 @@ logger = get_logger(__name__)
 def _utc_now() -> datetime:
     """Return the current instant, timezone-aware."""
     return datetime.now(UTC)
+
+
+def _sanitized(text: str, guardrails: GuardrailEngine | None) -> str:
+    """Return ``text`` with anything the ruleset matches already removed.
+
+    Applied before a scheduled job's objective reaches either the pipeline's
+    prompt or the run's stored row. The recorder redacts again before it
+    writes, but nothing else stands between this call and the prompt the
+    investigation actually runs with — a schedule's objective, unlike a
+    request built from a live caller, is never seen by anything upstream of
+    this executor.
+    """
+    if not text or guardrails is None:
+        return text
+    return guardrails.scan(text).text
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,6 +145,12 @@ class JobExecutor:
         minutes of a schedule not existing.
         """
         run_id = fire_key(schedule.job_id, fire_time)
+        # Sanitized once, here, and carried on the schedule from this point
+        # on — so both the row this call writes and the prompt ``_investigate``
+        # builds below read the same redacted objective, never the raw one.
+        schedule = replace(
+            schedule, objective=_sanitized(schedule.objective, self.recorder.guardrails)
+        )
 
         async with self.limits.permit(schedule.team_node_id):
             try:
@@ -138,6 +160,7 @@ class JobExecutor:
                     team_node_id=schedule.team_node_id,
                     run_id=run_id,
                     job_id=schedule.job_id,
+                    objective=schedule.objective,
                 )
             except DuplicateRecord:
                 # Another replica got this firing. Not an error and not a

@@ -72,10 +72,20 @@ class AgentRun:
     runtime: str | None = None
     model_id: str | None = None
     summary: str | None = None
+    #: What the run was asked to look into, redacted before this was ever
+    #: set — verbatim otherwise, and never truncated. Empty for a run
+    #: started with no declared subject, and for one recorded before this
+    #: field existed. The stored form a reader falls back to when
+    #: ``headline`` is empty; never truncated so a headline derived from it
+    #: is a normalisation of the real objective rather than of a copy
+    #: already cut down.
+    objective: str = ""
     #: One sentence naming the run, apart from the document ``summary``
-    #: holds. Empty for a run that has not concluded yet, or one recorded
-    #: before this field existed — a reader synthesises a headline for
-    #: either case rather than treating the empty string as the run's name.
+    #: holds. Provisional from the moment the run starts — the objective, or
+    #: the alert and resource it fired on — and replaced by the sentence the
+    #: delivery produced once the run completes. Empty only for a run
+    #: recorded before this field existed — a reader synthesises a headline
+    #: for that case rather than treating the empty string as the run's name.
     headline: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
@@ -192,6 +202,20 @@ class RunTraceStore(Protocol):
 
     async def get_run(self, run_id: str) -> AgentRun | None:
         """Return the run with ``run_id``, or ``None``."""
+
+    async def last_completed_stages(self, run_ids: Sequence[str]) -> Mapping[str, str]:
+        """Return each run's last **completed** stage, for every id that has one.
+
+        One read for the whole page rather than one per run — the same
+        reason ``named_tool_calls_for_runs`` exists. A run in the mapping
+        maps to a ``StageName`` value; a run with none completed yet is
+        simply absent, never present with an empty string standing in for
+        it.
+
+        "Completed" is the word to hold onto: a stage is recorded when it
+        *finishes*, so a run stopped partway through one has not completed
+        it, and this never reports a stage that only started.
+        """
 
     async def list_runs(
         self,
