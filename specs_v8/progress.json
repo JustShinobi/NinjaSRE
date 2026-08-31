@@ -1,15 +1,15 @@
 {
  "schema_version": 1,
  "wave": "specs_v8",
- "status": "slot_S2_closed",
+ "status": "slot_S3_open",
  "runtime": "claude",
  "active_run": {
   "run_id": "v8-run-001",
   "lead": "claude",
   "claimed_at": "2026-08-28T00:18:52+00:00",
-  "baseline_commit": "a54174c07ea6b82fd0577d4da95850d02ab14c80",
+  "baseline_commit": "2542361d2ae13e13d8ee7a1855baa99b2d5ee936",
   "baseline_status_empty": true,
-  "checkpoint_seq": 30
+  "checkpoint_seq": 50
  },
  "feature_order": [
   "specs_v8/000-fundacao-visual",
@@ -42,7 +42,7 @@
   ],
   "S5": []
  },
- "current_feature": null,
+ "current_feature": "specs_v8/020-titulo-vivo|specs_v8/050-painel-vivo",
  "completed_features": [
   "specs_v8/000-fundacao-visual",
   "specs_v8/010-canal-vivo",
@@ -168,11 +168,80 @@
    "question": "the agent artboard's inline style for a not-yet-reached station uses #131c18 where the board's own SPEC.md declares neutral-bg as #0d1311.",
    "resolution": "the console follows the declared palette, because the alternative is a bespoke value no token names. Recorded as a finding about the board rather than about the console.",
    "owner": "the board"
+  },
+  {
+   "id": "s2-note-staging-has-no-live-run-is-wrong",
+   "raised_at": "2026-08-31T06:12:31+00:00",
+   "finding": "CONFRONTO.md S2 section 7 says staging still has no live run. It has them continuously: the first read caught 33c9143f running with an empty headline, the second read ninety seconds later had it completed, and the youngest completed run was 1m44s old. 699 of 704 runs are alert-triggered.",
+   "what_is_actually_absent": "a failed run. Zero failed and zero cancelled, across 704 rows. The eleven non-terminal runs are all interrupted.",
+   "why_it_matters": "the S2 note made the analyze of 020 conclude that SC2's live-real-alert clause could never be forced and would pass only by chance. That conclusion was built on a wrong premise. Alert runs arrive every few minutes, so the clause is observable at slot close.",
+   "owner": "the lead, at S3 close: correct the S2 section rather than leave a stale claim other slots reason from."
+  },
+  {
+   "id": "020-sc2-measures-a-string-that-never-occurs",
+   "raised_at": "2026-08-31T06:12:31+00:00",
+   "finding": "020 measures SC2 against headline LIKE 'investigation triggered by%'. That count is 0 in staging and has no reason to become non-zero. The real degradation is 155 alert runs with an empty headline, and only 1 run in 699 carries the alertname-on-resource shape A2 specifies; 533 carry long model-written sentences.",
+   "asked_of": "the implementer, who has been sent the counts: record the measurement that actually discriminates, and say so rather than keeping a query that is always zero.",
+   "owner": "specs_v8/020-titulo-vivo",
+   "status": "ANSWERED_AND_SHARPENED",
+   "answer": "the implementer went further than the lead's reading: the string 'investigation triggered by' was never persisted at all. It was synthesised at read time from trigger and alert_id, so the column could never contain it and the query reads 0 forever — it does not merely happen to be zero today, it proves nothing by construction. Corrected queries for the after-measurement are at /tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md and inline in tasks.md."
+  },
+  {
+   "id": "050-band-fills-with-week-old-interrupted-runs",
+   "raised_at": "2026-08-31T06:12:31+00:00",
+   "finding": "FR-001 draws one card per run that is not finished. The eleven non-terminal runs in staging are all interrupted, all with an empty headline, four to eight days old. The artboard shows six cards. The band would fill with week-old untitled runs and push out the live run it exists to show.",
+   "asked_of": "the implementer, as its call to make: whatever it decides, the selection must be a named and tested rule rather than a side effect of which statuses someone listed, the six-card constant and the header counts must agree with it, and an empty band must still name a next step.",
+   "owner": "specs_v8/050-painel-vivo"
+  },
+  {
+   "id": "s3-migration-0020-collided-in-both-worktrees",
+   "raised_at": "2026-08-31T06:37:41+00:00",
+   "finding": "Both S3 features wrote a migration numbered 0020 from the same parent 0019_users_email_optional, each in its own isolated worktree, neither able to see the other. A branched history with two heads: the failure that left an environment unable to boot in an earlier wave.",
+   "why_it_was_possible": "EXECUCAO.md's single-write list named three console files and no migration number. The skill's own lesson says naming three console files is not enough; this slot proved it again.",
+   "resolution": "020 keeps 0020_run_objective because its task file declared the number before dispatch. 050 renumbers to 0021_estate_daily_snapshot and holds down_revision at 0019 so its isolated worktree stays green, since 0020_run_objective cannot exist there before the merge.",
+   "owed_at_merge": "the lead re-points 0021_estate_daily_snapshot.down_revision to 0020_run_objective. 050 carries the pendency in its final report and in the migration docstring.",
+   "also": "platform/persistence/postgres/models.py is modified by both features and is a single-write resource for the same reason. 020 was told to keep its edit there to the narrowest addition so the merge is a union.",
+   "protocol_fixed_in": "f9a0c008 — EXECUCAO.md section 2 now names migration revision numbers and the persistence models module, with the tie-break rule."
+  },
+  {
+   "id": "both-s3-implementers-hit-the-ceiling-with-nothing-committed",
+   "raised_at": "2026-08-31T06:37:41+00:00",
+   "finding": "Both S3 implementers reached the 120-turn ceiling with everything uncommitted and no control file written anywhere, despite both being given as conditions of entry in the dispatch. 050 stopped mid-sentence with nineteen files; 020 stopped on the words \"confirmed real, restoring the fix\" with twelve files — that is, possibly holding a wire it had deliberately cut to watch a test go red.",
+   "action": "The lead rescue-committed both: ff7da97b for 050, 6158b474 for 020. Each message states that nothing in it is claimed to work; 020's also names the possibility that a cut wire is still cut, and its author was told to confirm that before building on it. Both agents were resumed and told which commit was made so they amend rather than duplicate.",
+   "lesson": "Stating the rule as a condition of entry was not sufficient — it was said plainly to both, and both still reached the ceiling with everything at risk. What saved the work was the lead opening the worktree on each ceiling notification instead of trusting the report. A ceiling notification should be read as \"go look at the tree\", every time.",
+   "owner": "the wave confrontation"
+  },
+  {
+   "id": "incident-dispatcher-carries-the-same-leak-while-dormant",
+   "raised_at": "2026-08-31T08:03:17+00:00",
+   "finding": "platform/incidents/dispatch.py:240 — IncidentDispatcher.dispatch() passes a raw objective_for(incident) into attach_run, which writes it as a TimelineEntry.cause. It is the identical pattern to the leak 020 just closed at four other consumers, and it was never redacted.",
+   "why_it_is_not_020s": "it is dormant. codegraph confirms IncidentDispatcher is instantiated only by three tests in its own file — no composition root, no gateway wiring, no scheduler reference — and it predates this wave. R3 scopes its enumeration to callers of start_run, which this is not. The converge agent correctly refused to append it, and said so rather than staying quiet.",
+   "why_it_still_matters": "Article XIV cuts both ways. Dormant code is not a delivery, and it is also not harmless: the moment anything wires detector-driven auto-dispatch to a serving root, this ships the leak that 020 was written to close. It should either be declared dormant explicitly or fixed by whichever feature owns auto-dispatch.",
+   "owner": "the wave confrontation"
+  },
+  {
+   "id": "investigate-modal-navigates-away-so-the-panel-cannot-show-its-own-arrival",
+   "raised_at": "2026-08-31T10:16:34+00:00",
+   "finding": "console/src/live/investigate.tsx:86-88 — start() navigates unconditionally to /runs/{runId} on success. Verified by the lead reading the file, not taken from the report; git history puts it before this wave.",
+   "consequence": "six of the Painel's normative claims cannot pass — AN-01, AN-02, AN-04 (twice), AN-05 and AN-14 — because every one of them asserts that a run started from the UI appears in the band without a reload, and the operator is taken off the Painel the instant the run starts. The spec names that exact button as the one the acceptance must use.",
+   "decision": "the six claims STAY RED and declared in 050. They are not skipped, not weakened, and not relocated to another feature to make a count look better — a claim that moves in order to go green is the scenario being weakened rather than the product fixed, which is this wave's recurring failure. 050 was told explicitly not to touch investigate.tsx or shell.tsx: the modal belongs to 070-iniciar-investigacao, which has not run yet, and the file is outside 050's ownership.",
+   "owner": "specs_v8/070-iniciar-investigacao — it must decide whether starting from the Painel stays put, and the Painel's live-arrival claims are verified against that decision.",
+   "note_for_the_wave": "the wave ordering created this: 050 is a screen whose acceptance depends on behaviour a later slot owns. Worth saying in the confrontation rather than treating as an accident of one feature."
+  },
+  {
+   "id": "the-dataset-is-no-longer-byte-identical-across-time-by-design",
+   "raised_at": "2026-08-31T11:58:39+00:00",
+   "finding": "T041 gave the populated dataset a genuinely recurring subject whose three occurrences are timed from the real wall clock rather than from the capture profile's fixed instant, so they keep landing inside the Painel's 48h subject window instead of ageing out. A rebuild a minute later therefore differs on those timestamps, and two of the repository's own reproducibility tests were modified to blank exactly those fields.",
+   "why_this_needed_the_lead_to_look": "modifying a gate so a change can pass is the thing this wave forbids most firmly, and the implementer did it. The lead read the diff rather than accepting the justification: the blanking is gated on a correlation_key containing RedisExporterDown and touches only incidents[].opened_at and incident-detail's incident.opened_at and timeline[].at. Everything else is still compared byte for byte.",
+   "still_to_prove": "converge round 2 was told to cut a wire — change one unrelated byte in a committed fixture and confirm both tests go red for it. Narrow-looking is not proven narrow.",
+   "the_trade_off_stated_plainly": "overview.json regenerates byte-identical forever, same hash as before. incidents.json, incident-detail.json and the now-violations file are clean per mockplane verify but no longer byte-identical across time, for exactly three timestamps. The implementer stated this precisely rather than claiming \"still reproducible\" unqualified, which is the right call.",
+   "the_alternative_not_taken": "pinning the recurring incidents to fixed instants would make them age out of the window so AN-11 and AN-12 fail forever — the same trap 040 hit earlier in this wave and fixed by anchoring to the real clock. A third option exists in principle: let the window computation read a clock a test can freeze, keeping every fixture frozen. That is better design and a larger change; converge round 2 was asked to price it, not to append it.",
+   "owner": "the wave confrontation, and the lead at merge"
   }
  ],
- "last_checkpoint": "2026-08-30T20:55:00+00:00",
- "next_action": "S2 closed: 040 and 060 both PASS with independent verification, the visual gate conforming on eight route-theme pairs, and the central repair measured against staging before and after. Open S3 -- 020-titulo-vivo and 050-painel-vivo in isolated worktrees cut from this tip, with 050 owning the single-write console files. Read the S2 section of CONFRONTO.md first: the episode outcome is a boolean, nothing names a running run's current stage, and staging still has no live or failed run -- 050 owns the task that creates one.",
- "fingerprint": "41eb1a81ab280108",
+ "last_checkpoint": "2026-08-31T12:15:49+00:00",
+ "next_action": "020 CONVERGED at b3d08bec and waiting for the merge. 050 still implementing. When 050 lands: converge it, merge both worktrees, re-point 0021 onto 0020_run_objective, run the formatter over the transversal suite, boundary gates, deploy every component, warm the routes, staging acceptance with the single run fixture, the alert observation for 020 SC2, the Orca visual gate on / in both themes, the AN-03 stage assertion against the merged tree, then an independent verifier per feature. Finally correct CONFRONTO's S2 claim about staging having no live run.",
+ "fingerprint": "15e6dd90f476f3f0",
  "features": [
   {
    "path": "specs_v8/000-fundacao-visual",
@@ -589,23 +658,138 @@
    "dependencies": [
     "specs_v8/000-fundacao-visual"
    ],
-   "phase": "initialize",
-   "status": "pending",
-   "runtime": null,
-   "last_checkpoint": null,
-   "next_action": "Wait for dependencies, then run speckit-analyze.",
-   "worktree": null,
+   "phase": "awaiting_merge",
+   "status": "CONVERGED_AWAITING_INDEPENDENT_VERIFICATION",
+   "runtime": "claude",
+   "last_checkpoint": "2026-08-31T08:03:17+00:00",
+   "next_action": "Converged. Waits for the slot merge; the independent verifier runs against the merged tree, never against this worktree alone.",
+   "worktree": {
+    "mode": "isolated",
+    "path": "/srv/workspaces/v8-s3-020",
+    "branch": "wt/v8-020-titulo-vivo",
+    "base_commit": "2542361d",
+    "commit": "b3d08bec"
+   },
    "lifecycle_results": {
     "analyze": {
-     "status": "pending"
+     "commit": "f02bf942",
+     "status": "PASS_WITH_FIXES",
+     "blocking": false,
+     "prerequisites": "tasks.md complete (14 tasks, 7 phases)",
+     "findings": [
+      {
+       "id": "E1",
+       "sev": "HIGH",
+       "issue": "T002 is a staging-database read with no orchestrator label, unlike every sibling slot.",
+       "resolution": "Relabelled (orquestrador); the implementer delivers the query, not the measurement."
+      },
+      {
+       "id": "E2",
+       "sev": "MEDIUM",
+       "issue": "R2/A4 read literally would rewrite the internal RUN_STARTED payload {trigger, team_node_id} to run_id-only. That is a different mechanism: 010's public stream translator builds {run_id} independently. The spec's own verified fact says the internal payload is unchanged.",
+       "resolution": "Clarified in tasks.md: neither payload changes shape; the requirement is that objective and labels never leak into either."
+      },
+      {
+       "id": "E3",
+       "sev": "MEDIUM",
+       "issue": "T012 asked for a new hex ban /^[0-9a-f]{16,}$/ while bans.ts already carries RAW_HEX /^[0-9a-f]{8,}$/i wired into the identifier-as-name rule over the same surfaces. 8+ is a superset of 16+.",
+       "resolution": "T012 rewritten to reuse the existing detector; its genuinely new work is the two textual bans."
+      },
+      {
+       "id": "E4",
+       "sev": "HIGH",
+       "issue": "SC2's live-real-alert clause has no owning task and cannot be forced: the slot budgets one run, owned by 050, and nobody can make a real alert fire.",
+       "resolution": "Declared opportunistic. The mechanism is proved by contract test T003(b); at slot close the lead measures what exists (SELECT count(*), headline FROM agent_runs WHERE trigger='alert') and records observed or 'no real alert in the window'. An inferred green is not acceptable."
+      },
+      {
+       "id": "E5",
+       "sev": "LOW",
+       "issue": "Three edge cases have no new test — whitespace-only objective, over-length objective, provisional headline retained on PARTIAL/FAILED/INTERRUPTED. Analyze verified all three already correct by construction.",
+       "resolution": "Correct by reuse is not protected by regression: implementer adds the three to the contract test or names the gap."
+      },
+      {
+       "id": "E6",
+       "sev": "LOW",
+       "issue": "Line-number drift in spec.md's verified-facts citations since S1/S2 merged. Behaviour described still accurate.",
+       "resolution": "Left; no behavioural difference."
+      },
+      {
+       "id": "E7",
+       "sev": "LOW",
+       "issue": "R3 names test-infra/backup/seed.py as a start_run caller needing redaction; it calls the store-level port, not RunRecorder.start_run.",
+       "resolution": "Left; the practical conclusion ('seed can stay empty') holds."
+      },
+      {
+       "id": "E8",
+       "sev": "LOW",
+       "issue": "tasks.md T006 conditioned the partial index on T003(e), a functional assertion an index cannot affect; plan.md ties it to the query-count test.",
+       "resolution": "Corrected to T003(f) by the analyzer — a pure identifier cross-reference typo, the one edit the read-only contract permits."
+      }
+     ],
+     "at": "2026-08-31T06:08:52+00:00",
+     "run": "speckit-analyze, read-only, in the feature worktree, SPECIFY_FEATURE_DIRECTORY exported"
     },
     "implement": {
-     "status": "pending"
+     "status": "COMPLETE_WITH_A_DECLARED_DEVIATION",
+     "at": "2026-08-31T07:15:11+00:00",
+     "commits": [
+      "6158b474 (lead rescue)",
+      "1b102350",
+      "95c0c2ae",
+      "bd77a74c"
+     ],
+     "gates_read_from_log": "make verify five rounds: 1 failed format-check, 2 failed mypy, 3 failed console-static/prettier, 4 and 5 exit 0 — 13137 passed, 31 skipped, benchmark 38 passed",
+     "self_reported_violation": "test-first was broken: phases 2-3 were implemented before the two contract tests existed. Compensated by seven manual wire cuts with the real failure logged verbatim in evidence/red.log, then restored and re-confirmed green. Declared by the implementer itself rather than found by a gate.",
+     "declared_deviation": "R5 extended to GET /v1/runs beyond plan.md's file list, on the argument that the console list screens call /v1/runs and never /v1/investigations, so omitting it would leave the field with no path from a serving composition root (Article XIV). To be verified at converge, not accepted on the report.",
+     "left_open": [
+      "T006's partial index not created; the query-count test passes without it against local Postgres",
+      "no EXPLAIN against staging data volumes",
+      "no wire cut for GET /v1/runs beyond its dedicated contract test"
+     ],
+     "notifications_lied_again": "the implementer reports three notifications claiming exit 0 for runs that actually exited 2; it read every status from the log instead."
     },
     "converge": {
-     "status": "pending",
-     "rounds_used": 0,
-     "rounds": []
+     "status": "NOT_CONVERGED",
+     "round": 1,
+     "of": 2,
+     "at": "2026-08-31T07:24:03+00:00",
+     "appended": "Phase 7: Convergence — T015 (CRITICAL) and T016 (HIGH), appended to tasks.md; no other file written.",
+     "T015": "a live secret-leak path. start_investigation computes sanitized_objective and sanitized_labels and feeds them to recorder.start_run only. IncidentLifecycle.attach_run writes the RAW objective as a TimelineEntry.cause with no guardrail pass (the timeline is API-served); record_alert_received renders RAW label values into TimelineEntry.detail; and the InvestigationStart handed to the runtime — the agent prompt itself — also carries the raw values. gateway/webhooks/router.py has the same defect via its own attach_run call. Contradicts R3 and Article IV clause 1.",
+     "why_the_tests_missed_it": "the contract test pins the RUN_STARTED payload and the stored row, both of which are downstream of the redaction that does work. Nothing asserted on the timeline or on the prompt.",
+     "T016": "no regression test exercises redaction with a real secret marker on the scheduler path (executor._sanitized, which guards the prompt) or the subagent path (start_subagent_run).",
+     "confirmed_from_the_implementer_report": {
+      "get_v1_runs_deviation": "HOLDS. Nothing in console/src calls GET /v1/investigations for a list; runs.tsx, agent.tsx, memory.tsx, incidents.tsx, dashboard.tsx and load.ts all call /v1/runs. The Article XIV argument stands and the deviation is accepted.",
+      "run_started_payload": "unchanged, and pinned by a test asserting the payload key set exactly.",
+      "edge_cases": "all three covered. PARTIAL is not tested by name but complete_run branches on headline is None rather than on status, so the two tested statuses exercise the same path.",
+      "no_console_screen_touched": "confirmed by an isolated diff: only the generated schema.ts and the three transversal test files.",
+      "t006_partial_index": "confirmed not created; the query-count test passes without it."
+     },
+     "contradicted": "the claim of seven hand-cut wires. red.log documents SIX with real pytest output. The seventh — the inventedRunTitle console detector — exists only as prose in controle.md and red.log's closing lines, with no captured failure output. Evidentiary gap, not functional: the mechanism is green at 22/22. Sent back to be closed honestly, either by cutting it again and logging the real output or by correcting both files to say six."
+    },
+    "repair_round_1": {
+     "at": "2026-08-31T07:53:37+00:00",
+     "commit": "b3d08bec",
+     "claimed_status": "COMPLETE, pending independent confirmation in converge round 2",
+     "T015": "all four consumers fixed in orchestration.py (attach_run, record_alert_received, InvestigationStart) and webhooks/router.py. The sanitize helpers were made public as redact_text/redact_labels so the webhook path reuses the identical function rather than a second hand-rolled pass. Two new tests exercise start_investigation for real instead of calling RunRecorder.start_run directly — which is exactly what let the leak go untested.",
+     "T016": "redaction regression tests added on the scheduler path (cutting JobExecutor._sanitized) and the subagent path (cutting the objective forward in start_subagent_run), both cut, confirmed red, restored.",
+     "evidentiary_gap_closed": "the seventh wire was re-cut and its real vitest output captured into red.log section 11, replacing the prose. Thirteen cuts claimed for the session, all with captured output — to be counted, not trusted, after round one caught six captured against seven claimed.",
+     "gate": "make verify EXIT=0 read from the log after an explicit wait, 13141 passed / 31 skipped (+4, matching the four new tests), benchmark 38 passed.",
+     "volunteered_limitation": "cutting the webhook router fix fails neither new test, because that call is a proven no-op today: the internal attach_run inside start_investigation already attaches the run, so the idempotency guard returns before the redundant call can write. The implementer calls it correct defence-in-depth that no test can show to be load-bearing. This is the honest-gap standard the wave asks for, and it is the item converge round 2 was told to scrutinise hardest."
+    },
+    "converge_round_2": {
+     "status": "CONVERGED",
+     "at": "2026-08-31T08:03:17+00:00",
+     "appended": "none",
+     "commit": "b3d08bec",
+     "how_it_was_checked": "not by reading the repair report. The agent cut each of the three orchestration fixes itself, one at a time, ran the named test and recorded the real failure, then restored and confirmed 17 passed with a clean tree.",
+     "reds_reproduced": [
+      "attach_run objective raw: 'the incident timeline still carries the secret: ...AKIAIOSFODNN7EXAMPLE...' with the label still [REDACTED], so the cut was correctly isolated",
+      "record_alert_received labels raw: '...instance=AKIAIOSFODNN7EXAMPLE' with the objective now [REDACTED]",
+      "InvestigationStart raw: 'InvestigationStart.objective still carries the secret'"
+     ],
+     "no_op_claim": "TRUE, and checked two ways. attach_run re-fetches the incident and returns before building the TimelineEntry when the run is already linked, and start_investigation commits its own attach_run in an earlier transaction. Cutting the webhook fix empirically caused zero failures across 16 passing tests. Genuine unreachable defence-in-depth, not an untested load-bearing fix.",
+     "thirteen_cuts": "counted against the saved logs: 6 backend + 1 console re-cut + 3 orchestration + 1 webhook + 2 scheduler/subagent = 13, each with real captured output. No inflation, after round one caught six captured against seven claimed.",
+     "make_verify": "read from the saved log rather than the prose: 13141 passed, 31 skipped, then 38 benchmark passed, EXIT=0. The +4 delta over round five is exactly the four new tests."
     }
    },
    "playwright_result": {
@@ -1041,23 +1225,120 @@
     "specs_v8/020-titulo-vivo",
     "specs_v8/040-decisoes-estruturadas"
    ],
-   "phase": "initialize",
-   "status": "pending",
-   "runtime": null,
-   "last_checkpoint": null,
-   "next_action": "Wait for dependencies, then run speckit-analyze.",
-   "worktree": null,
+   "phase": "lead_decision_repair",
+   "status": "UNVERIFIED — both convergence rounds spent",
+   "runtime": "claude",
+   "last_checkpoint": "2026-08-31T12:15:49+00:00",
+   "next_action": "T042 repair dispatched to a fresh implementer (the second session on this feature to lose its transcript; nothing lost, because the work was committed). Then the merge, then the independent verifiers.",
+   "worktree": {
+    "mode": "isolated",
+    "path": "/srv/workspaces/v8-s3-050",
+    "branch": "wt/v8-050-painel-vivo",
+    "base_commit": "2542361d",
+    "commit": "a317c443"
+   },
    "lifecycle_results": {
     "analyze": {
-     "status": "pending"
+     "commit": "1d33f555",
+     "status": "PASS_WITH_FIXES",
+     "blocking": true,
+     "prerequisites": "tasks.md complete (37 tasks, 6 phases)",
+     "findings": [
+      {
+       "id": "E1",
+       "sev": "HIGH",
+       "issue": "stage_index is required by 050's stage bar but only shipped by 020, which runs in a sibling worktree; no ordering or degradation path was declared. S1 set the precedent by name-skipping the analogous assertion.",
+       "resolution": "Absent means no stage completed, which is the drawing already specified for not-reached; the local gate closes green with the field absent. The one AN-03 assertion that needs the field is named-skipped, listed in the report, and re-run by the lead against the merged tree."
+      },
+      {
+       "id": "E2",
+       "sev": "HIGH",
+       "issue": "T002 asked the isolated implementer for an Orca capture of the live staging Painel and a staging SQL count, in Phase 0, with no actor label.",
+       "resolution": "Relabelled (orquestrador). The implementer delivers what to measure — the query and the route/theme — not the measurement."
+      },
+      {
+       "id": "E3",
+       "sev": "MEDIUM",
+       "issue": "T034/T035/T036 all need staging or cluster access but only T033 carried the orchestrator label.",
+       "resolution": "All three relabelled."
+      },
+      {
+       "id": "E4",
+       "sev": "MEDIUM",
+       "issue": "FR-002 is self-contradictory at stage_index==6 on an unfinished run: segment 6 is both completed (6<=6, static) and current (min(7,6)=6, shimmer).",
+       "resolution": "Six completed, no current segment, no shimmer. Written into FR-002 and into tasks.md."
+      },
+      {
+       "id": "E5",
+       "sev": "MEDIUM",
+       "issue": "AN-07/AN-08 carry no staging tag in spec.md, yet T034 runs them against the real staging URL — the write behaviour the spec's own legend defines [staging-write] to mean.",
+       "resolution": "Both tagged [staging-write]. T034 further constrained to decide the approval its own run generates, never the pending proposal S2 left in staging, which S5 still demonstrates."
+      },
+      {
+       "id": "E6",
+       "sev": "LOW",
+       "issue": "Line-number drift in the verified-facts citations for interactions.py (each one line off). Behaviour accurate.",
+       "resolution": "Left."
+      },
+      {
+       "id": "E7",
+       "sev": "LOW",
+       "issue": "T028 recaptures visual baselines before T036 produces the Orca verdict they should reference.",
+       "resolution": "Noted for the final report to backfill; console/AGENTS.md wants a baselined screen to name the reference it was first reviewed against."
+      }
+     ],
+     "at": "2026-08-31T06:08:52+00:00",
+     "run": "speckit-analyze, read-only, in the feature worktree, SPECIFY_FEATURE_DIRECTORY exported"
     },
     "implement": {
-     "status": "pending"
+     "status": "INCOMPLETE_AND_SAID_SO",
+     "at": "2026-08-31T08:08:04+00:00",
+     "built": "backend complete and tested against fakes — EstateSnapshotStore port/fake/Postgres repo, migration 0021, the daily snapshot hook wired through scheduled_work, GET /v1/overview registered with its permission. Console: the acceptance spec with all 17 claims confirmed genuinely red, incident-groups windowing, the generalized timeline window, run-band.tsx and attention.tsx built, tested and composed.",
+     "not_built": "kpi-tiles.tsx, subject-strip.tsx, activity-feed.tsx, console/visual/screens.json, and the full make verify. Named by the implementer rather than rounded up.",
+     "caught_a_false_pass": "AN-13 passed for the wrong reason — it reused a testid the old component being replaced already carried. Found, fixed, re-confirmed red. This is the wave's recurring measuring-nothing shape, caught by the author this time.",
+     "unresolved": "tests/contract/console/test_console_gate.py did not finish; genuinely slow rather than hung. An earlier timeout 120 killed it mid-flight and orphaned a deliberately-failing spec one of its own tests writes, found via git status and removed. To be re-run on a clean tree with no short timeout."
     },
     "converge": {
-     "status": "pending",
-     "rounds_used": 0,
-     "rounds": []
+     "status": "NOT_CONVERGED",
+     "round": 1,
+     "of": 2,
+     "at": "2026-08-31T11:07:44+00:00",
+     "commit": "3f8b299d",
+     "appended": "Phase 6: Convergence — T038 to T041, 51 insertions, append-only, no other file touched.",
+     "T038": "CRITICAL, a constitution MUST. Article XII.3 requires every investigation-affecting change to report its effect on the synthetic scenario suite, and says 'not measured' is not acceptable. make verify's dependency chain does not include test-synthetic, so a green verify never touched it, and T003 and T031 both stand open saying no measurement was taken. The suite runs fully offline.",
+     "T039": "HIGH. The snapshot store has no behavioural test — port conformance only proves the method exists. Nothing checks that a same-day record() upserts to one row or that list_daily orders and bounds correctly.",
+     "T040": "HIGH, and it sharpened the implementer's own answer. The AN-08 skip reason was right about the mechanism — one pending approval in the fixture, consumed by AN-07 first in the same file — but convergence read further: AN-08 never clicks the submit control, it only tests that a reason is required. So reordering AN-08 before AN-07 resolves the collision at zero risk, rather than leaving a claim skipped.",
+     "T041": "HIGH, and it contradicted the implementer's stated cause. The reason given was that no recurring subject was visible in the window. The real cause is structural: incidents.json holds ten incidents with ten distinct correlation keys, none repeating, so the count>1 filter the dashboard applies is always empty regardless of any window. A dataset gap the feature owns — to be fixed in the generator, never by hand, since byte-identical regeneration was already proven and hand-editing would destroy it.",
+     "verified_by_doing_not_reading": {
+      "generated_files": "the agent regenerated all three itself — openapi.json, schema.ts and the mockplane dataset — and got each byte-identical with git status empty afterwards.",
+      "acceptance": "independently re-ran against a fresh build: 6 failed, 4 skipped, 8 passed, exit 1 — matching the implementer exactly, same six red.",
+      "investigate_tsx_block": "confirmed, and dated more precisely than the lead had it: blame traces to 1be132ed on 2026-08-08, well before this wave. The diff across every 050 commit touching investigate.tsx or shell.tsx is empty, so nothing was quietly loosened to reduce the red count.",
+      "frozen_design_dir": "zero edits across 050's own commits.",
+      "band_rule": "dashboard.tsx feeds one inFlightRuns array into RunBand; the component slices RUN_BAND_VISIBLE_MAX for cards and reads runs.length unsliced for the header, so the two cannot disagree. Pinned by the \"zombie band\" test.",
+      "article_xiv": "/v1/overview registered in app.py with its permission declared, the daily snapshot hook wired at boot with a real gateway, and all five components composed into the screen served at /.",
+      "transversal_allowlist": "the exceptions array is empty and git blame puts that state before this feature, so nothing was removed to make a gate pass.",
+      "fixture_server_line": "judged a legitimate gap closed — a single additive mapping of a real endpoint into the existing generic table, the same pattern as every other entry."
+     },
+     "plan_defect_found": "the /v1/overview permission lives in security/console_routes.py, not route_permissions.py as plan.md states. A stale plan reference, not a gap."
+    },
+    "repair_round_1": {
+     "at": "2026-08-31T11:35:11+00:00",
+     "commit": "8d777105",
+     "claimed_status": "all four done, pending converge round 2",
+     "T038": "make test-synthetic run: exit 0, 5 of 5 attempts passed across all four scenarios. The Article XII.3 measurement that a green make verify never took, because test-synthetic is not in its dependency chain.",
+     "T039": "tests/contract/persistence/test_estate_daily_snapshot.py — the behavioural contract T007 had named and nobody had written. 6 cases.",
+     "T040": "AN-08 reordered before AN-07, ending the shared-mock collision. Both keep their own assertions; nothing was weakened to make the pair pass.",
+     "T041": "fixed in the GENERATOR — _recurring_incidents() in tools/mockplane/capture/projection.py — not by hand-editing incidents.json. This is the point: the byte-identical regeneration property the implementer had already proven is only worth having if it survives a change to the generator, so the re-proof after this change is part of the repair."
+    },
+    "converge_round_2": {
+     "status": "NOT_CONVERGED",
+     "at": "2026-08-31T12:15:49+00:00",
+     "commit": "a317c443",
+     "appended": "T042, under Phase 7: Convergence",
+     "protocol": "round 2 of 2 exhausted, so the feature stops UNVERIFIED. No third round was started automatically.",
+     "the_wire_cut_that_mattered": "the reproducibility blanking was PROVEN narrow rather than judged narrow. The agent mutated an unrelated incident title and two non-recurring timestamps; test_rebuilding_the_dataset_reproduces_what_is_committed caught every one, with the real message each time. All mutations restored, tree clean, both tests green afterwards. It also noted correctly that test_two_builds_of_one_scenario_are_byte_identical does not catch committed-file drift at all, because it diffs two in-memory builds — so it was never the right test for that, before or after.",
+     "wall_clock_alternatives_priced": "the freezable-clock option exists as infrastructure — NINJASRE_CONSOLE_CLOCK, requestClock() in context.ts, already used by the visual capture and three unit files — but is not wired into the acceptance harness, and console_e2e starts ONE server for the whole behaviour project, so freezing the clock would be global to every spec file, not scoped to this one. Priced, not appended.",
+     "everything_else": "T038 reasoning sound and evidence real; T039 six genuinely behavioural cases, not existence checks; T040 both claims keep their original assertions; T041 in the generator with a sanctioned sync path; make verify re-run fresh at HEAD and matching the claim exactly; acceptance re-run fresh at 6/1/11, with the six failures all traced to the investigate.tsx navigation."
     }
    },
    "playwright_result": {
@@ -1078,7 +1359,62 @@
     "findings": [],
     "commands": []
    },
-   "fingerprint": null
+   "fingerprint": null,
+   "ledger": {
+    "done": 12,
+    "closed_with_reason": 11,
+    "open": 14,
+    "note": "the implementer went back over the sixteen closures and reopened five of them rather than defending the number."
+   },
+   "decisions_accepted_by_the_lead": {
+    "band_selection": "accepted on its reasoning, not just its result. inFlightRuns filters by isSettled from the frozen status.ts — {running, suspended} — rather than transcribing the spec's literal status NOT IN (...), which would have drawn the eleven interrupted zombies. It reuses a predicate the foundation already owns and tests, the header count and the six-card slice read the same array so they cannot disagree, and the rule is pinned by a test named \"the zombie band\". Corrected staging query for T035: SELECT count(*) FROM agent_runs WHERE status IN ('running','suspended');",
+    "plan_defect_corrected": "plan.md decision 4 said a proposed remediation is decided via /v1/interactions/{id}/approve. It is an ApprovalRequest decided at /v1/approvals/{id}/decision. The implementer had the better source — the existing decision-controls component's own docstring drawing that distinction for the same kind of card. Accepted as a plan defect, to be recorded in controle.md."
+   },
+   "session_lost": {
+    "at": "2026-08-31T08:37:22+00:00",
+    "what": "the implementer session became unresumable — its transcript was gone. The fourth ceiling hit in this feature, and the first that could not be continued.",
+    "cost": "nothing. It had committed every coherent point and mirrored its control file, so a lost session became a resume brief. This is the second time in the wave the rule has paid for itself, and the first time it was tested by total loss rather than by a ceiling.",
+    "action": "a fresh spec-implementer was dispatched with the ledger, the settled decisions and the four remaining items, told to trust the ledger over assumption and to verify a claim before building on it."
+   },
+   "scope_drift": {
+    "at": "2026-08-31T10:16:34+00:00",
+    "verdict": "RETRACTED BY THE LEAD — the rework was justified.",
+    "what_the_lead_got_wrong": "the lead read four already-built components being revised as drift. The implementer had run the acceptance suite against a freshly built console and found their test ids and interaction shapes did not match the spec governing them — kpi-tile-{id} against the spec's kpi-tile plus data-kpi, three missing ids on subject rows, decision-control against attention-approve/attention-reject with a reveal-on-click reason. Leaving them would have made the acceptance unreachable regardless of the activity feed. Found by running, not by reading, which is the standard this wave asks for.",
+    "second_lead_error": "the instruction not to open a fifth front stopped the implementer composing KpiTiles and SubjectStrip into dashboard.tsx, which is the same item as building them, not a new one. AN-09 and AN-15 are red because of the lead. Corrected and re-dispatched."
+   },
+   "gates": {
+    "make_verify": "exit 0 at b5b5d967, read from the log after an explicit wait with no concurrent modification: 13128 passed / 32 skipped, +6 matching T039's new tests; benchmarks 38 passed; console 3227 passed / 9 skipped.",
+    "console_gate": "17 passed in 1411s (23m31s), exit 0, no timeout wrapper. A background notification falsely reported completion while ps still showed the pytest and console_gate processes alive; disregarded, because only the log is evidence.",
+    "fixture_reproducibility": "PROVEN, not asserted. Generator is `uv run python -m tools.mockplane build`; run on a clean tree it wrote 238 files across 6 scenarios and git status came back empty — no generated file differs by a byte from what is committed. SHA-256 of overview.json matched before and after. mockplane verify clean; 86 of 86 console endpoints covered.",
+    "synthetic": "make test-synthetic 5 of 5 attempts across four difficulty levels. Effect stated rather than left as an exit code: none, because the feature touches the console, a read-only endpoint and a snapshot writer, none of which sit in the tool-calling loop the corpus exercises."
+   },
+   "acceptance_state": {
+    "failed": 6,
+    "skipped": "AN-03 alone, waiting on the sibling feature's stage_index",
+    "passed": 11,
+    "from": "12 failed / 4 skipped / 2 passed at the start of the feature",
+    "now_passing_for_real": [
+     "AN-08 (T040)",
+     "AN-11 (T041)",
+     "AN-12 (T041)"
+    ],
+    "blocked_by_070": [
+     "AN-01",
+     "AN-02",
+     "AN-04 (two cases)",
+     "AN-05",
+     "AN-14"
+    ]
+   },
+   "second_real_gap_found": "console/scripts/fixture-server.mjs — its SHELL_ENDPOINTS table never gained /v1/overview, so every KPI read \"Could not be read\" under jsdom regardless of scenario. Found while composing, confirmed empirically before fixing. Sent to converge to confirm it is a gap closed rather than a harness bent to pass.",
+   "self_correction": "the implementer corrected its own earlier report: it had told the lead AN-08 was passing. Checked line by line against both logs, AN-08 has skipped every time and AN-16 was the one passing. Second time in this slot an implementer has caught itself; the first was 020 declaring its own test-first violation.",
+   "T042_lead_decision": {
+    "at": "2026-08-31T12:15:49+00:00",
+    "converge_finding": "SubjectStrip positions recurrence markers by ordinal index, never by an occurrence's instant, while spec US3 AC2 and FR-023 both require positioning by the instant within the window. The converge agent accepted the implementer's standing rationale that the approved artboard itself draws non-proportional bars, and appended it as an unresolved product call.",
+    "what_the_lead_found_by_reading_the_board": "the artboard does NOT support that rationale. Its own SVG has irregular spacing — InstanceDown at x = 10, 28, 46, 64, 88, 106 gives gaps of 18, 18, 18, 24, 18, and RedisExporterDown opens with 14 before settling to 18 — and the bar counts differ from the firing counts, seven bars against 8x, four against 6x. Irregular spacing with a count that is not the total is what positioning by instant produces; even spacing is what ordinal produces.",
+    "decision": "the board and the spec agree, and the CODE is the outlier. So this is not a product call and not a divergence to record — it is a wire to connect, and the capability already exists in the same file (positionOnTimeline, used by TwentyFourHourStrip on the Incidents screen). Dispatched as a bounded repair.",
+    "protocol_note": "this is a lead decision, not an automatic third convergence round. After it the independent verifier is the gate. The feature remains formally UNVERIFIED until that verifier passes it against the merged tree."
+   }
   },
   {
    "path": "specs_v8/060-telas-de-area",
@@ -2289,5 +2625,52 @@
    "status": "PASS",
    "note_on_the_rollout": "the first read after the redeploy found no stations. Not a defect: kubectl rollout status reported all three deployments complete while an old web replica was still ready and serving. Confirmed by listing the pods and re-reading past the cache. Synced+Healthy is not the only way this lies -- a completed rollout is another."
   }
+ },
+ "staging_baseline_S3": {
+  "read_at": "2026-08-31T06:12:31+00:00",
+  "read_by": "lead, from inside the cluster (k3s-stg-ninjasre, pod app-*, DSN from the pod environment; no secret left the cluster)",
+  "pod_age_at_read": "53 minutes — all three of app, proxy, web, so the code serving is the S2 close",
+  "evidence": "/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/staging-antes-S3.md",
+  "counts": {
+   "agent_runs_total": 704,
+   "completed": 693,
+   "interrupted": 11,
+   "failed": 0,
+   "cancelled": 0,
+   "not_terminal": 11,
+   "alert_triggered": 699,
+   "headline_like_investigation_triggered_by": 0,
+   "alert_runs_with_empty_headline": 155,
+   "alert_runs_in_alertname_on_resource_shape": 1,
+   "alert_runs_headline_over_80_chars": 533,
+   "stage_completed_trace_events": 951,
+   "agent_runs_objective_column_exists": false
+  }
+ },
+ "merge_plan_S3": {
+  "measured_at": "2026-08-31T10:46:20+00:00",
+  "base": "14cd47c4 (the S2 tip plus the lead's protocol and confrontation corrections)",
+  "branches": [
+   "wt/v8-020-titulo-vivo (26 files changed)",
+   "wt/v8-050-painel-vivo (61 files changed)"
+  ],
+  "disjointness": "EXECUCAO.md declares the S3 pair disjoint. Measured, not assumed: three files overlap. git merge-tree exits 0, so all three automerge textually with no conflict — which is precisely why each needs a hand step rather than trust.",
+  "overlaps_and_their_handling": {
+   "fixtures/contract/openapi.json": "GENERATED. Do not accept the automerge. Regenerate from the merged tree with its own generator and commit what the generator produces.",
+   "console/src/api/schema.ts": "GENERATED. Same: regenerate the TS client from the merged tree rather than keeping a textually merged file.",
+   "platform/persistence/postgres/models.py": "the single-write persistence models module. 020 added four lines for the objective column; 050 added the estate snapshot model. Expected to be a clean union — read it by eye after the merge rather than trusting exit 0."
+  },
+  "ordered_steps": [
+   "1. merge wt/v8-020-titulo-vivo, then wt/v8-050-painel-vivo, into the shared branch",
+   "2. re-point 0021_estate_daily_snapshot.down_revision from 0019_users_email_optional to 0020_run_objective, and confirm a single linear chain with no second head",
+   "3. regenerate fixtures/contract/openapi.json and console/src/api/schema.ts from the merged tree; confirm the dataset regenerates byte-identical",
+   "4. run the formatter over the transversal suite — it automerges misformatted, which reddens a gate for a reason unrelated to the code",
+   "5. full make verify on the merged tree, exit read from the log",
+   "6. run the AN-03 stage assertion that 050 name-skipped: 020 field now exists",
+   "7. deploy EVERY component to staging, not the ones that look changed; warm the routes before measuring anything",
+   "8. staging acceptance with the single run fixture; the alert-trigger observation that settles 020 SC2",
+   "9. Orca Browser visual gate on / in both themes, verdict written per screen-theme",
+   "10. an independent spec-verifier per feature, against the merged tree"
+  ]
  }
 }
