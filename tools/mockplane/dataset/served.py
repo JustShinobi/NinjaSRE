@@ -3470,7 +3470,7 @@ def overview_record(*, populated: bool) -> CapturedRecord:
     schema and enough for kpi-tiles.tsx to render against.
     """
     if not populated:
-        empty_kpi = {"value": None, "breakdown": {}, "series": [], "note": ""}
+        empty_kpi: dict[str, Any] = {"value": None, "breakdown": {}, "series": [], "note": ""}
         return _record(
             "overview",
             {},
