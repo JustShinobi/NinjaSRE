@@ -254,9 +254,6 @@ async function dashboardWithLiveIncidents(
   render(await DashboardScreen(await surfaceContext({})));
 }
 
-
-
-
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
@@ -387,7 +384,7 @@ describe('the figures on a populated deployment', () => {
     // longer lives in this screen.
   });
 
-  it.skip('sends the problem figure to the resource list that contains both problem states -- the href is KpiTiles\' own now; see kpi-tiles.test.tsx', () => {
+  it.skip("sends the problem figure to the resource list that contains both problem states -- the href is KpiTiles' own now; see kpi-tiles.test.tsx", () => {
     // Intentionally left unimplemented: the href this asserted is declared
     // inside kpi-tiles.tsx, not derived here.
   });

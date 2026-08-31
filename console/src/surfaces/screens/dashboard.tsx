@@ -49,7 +49,11 @@ import {
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
 import { RunBand, inFlightRuns, runCardOf, type RunCardData } from '../run-band';
-import { groupBySubject, subjectsInWindow, SUBJECT_WINDOW_HOURS } from '../incident-groups';
+import {
+  groupBySubject,
+  subjectsInWindow,
+  SUBJECT_WINDOW_HOURS,
+} from '../incident-groups';
 import { viewerNode } from '../tree';
 import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
