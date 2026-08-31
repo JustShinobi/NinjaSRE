@@ -117,6 +117,31 @@ describe('KpiTiles', () => {
     );
   });
 
+  it('never nests an anchor inside another anchor on the no-detector tile', () => {
+    // AN-17: `Tile` wraps its whole body in a `NextLink` whenever `href` is
+    // given, and the degraded tile's own `href` is set to the same
+    // `/config?tab=detectors` destination in this exact state -- while
+    // `degradedLegend` independently rendered a second, inner `NextLink` to
+    // the same place. Two anchors, one inside the other, is invalid HTML:
+    // real staging (where no detector is enabled) hit React error #418 --
+    // hydration failing on precisely this markup -- confirmed by a stderr
+    // hydration warning, an `orca eval` reading
+    // `{"outerAnchorHref":"/config?tab=detectors","innerAnchorCount":1}`,
+    // and an accessibility snapshot showing `link [ref=e12]` containing
+    // `link [ref=e20]`. The existing test above only checks that *a* link
+    // exists and says "detector" -- it does not notice a second one nested
+    // inside it, which is exactly how this shipped unnoticed.
+    tiles({ degraded: kpi({ value: 0, note: 'no_detector_enabled' }) });
+    const tile = tileFor('degraded');
+    const anchors = Array.from(tile.querySelectorAll('a'));
+    // Still reachable -- this assertion is about nesting, not about removing
+    // the only way to get to detector configuration from this tile.
+    expect(anchors.length).toBeGreaterThan(0);
+    for (const anchor of anchors) {
+      expect(anchor.parentElement?.closest('a') ?? null).toBeNull();
+    }
+  });
+
   it('renders the median and the worst case on the time-to-cause tile as durations', () => {
     tiles();
     const tile = tileFor('timeToCause');

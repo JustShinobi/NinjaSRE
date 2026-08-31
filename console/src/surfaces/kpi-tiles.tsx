@@ -118,7 +118,7 @@ interface TileProps {
   readonly value: ReactNode | undefined;
   readonly legend: ReactNode;
   readonly sparkline: ReactNode;
-  readonly href?: string;
+  readonly href?: string | undefined;
 }
 
 /** One tile's shell: label, big number, sparkline, legend -- the same four
@@ -221,6 +221,13 @@ export function KpiTiles({
     );
   }
 
+  // This is the tile's one link in the no-detector state -- below, `Tile`
+  // itself is given no `href` for that same state, specifically so it does
+  // not wrap this anchor in a second one. Nesting an anchor inside an anchor
+  // is invalid HTML and was the concrete cause of a hydration failure (React
+  // error #418) on a deployment with no detector enabled: the browser's
+  // parser splits a nested `<a>` apart while parsing the server's markup, so
+  // the tree it hydrates against never matches the one React rendered.
   const degradedLegend =
     degraded.note === 'no_detector_enabled' ? (
       <NextLink href="/config?tab=detectors" className="text-accent hover:underline">
@@ -253,10 +260,14 @@ export function KpiTiles({
         sparkline={
           <Sparkline locale={locale} series={degraded.series} className="text-danger" />
         }
+        // No tile-level `href` in the no-detector state: `degradedLegend`
+        // above already carries the one anchor this tile gets in that state,
+        // to this exact destination. A deployment with a detector enabled
+        // gets the whole card wrapped in a link to the estate, same as every
+        // other tile; a deployment with none gets one link, to configuration,
+        // never two.
         href={
-          degraded.note === 'no_detector_enabled'
-            ? '/config?tab=detectors'
-            : '/estate?health=problem'
+          degraded.note === 'no_detector_enabled' ? undefined : '/estate?health=problem'
         }
       />
       <Tile
