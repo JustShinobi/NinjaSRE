@@ -382,6 +382,46 @@ test(
 );
 
 // =============================================================================
+// AN-11 — and the panel carries the name the board gives it
+// =============================================================================
+
+// Every claim above finds this panel by `data-testid`, so the suite stayed
+// green while the heading read "O que continua acontecendo" — a wording the
+// board never authorises and `spec.md` contradicts seven times. It reached a
+// live deployment that way.
+//
+// Locating it by name is only half the guard. The suite runs `locale: 'en-GB'`
+// (`playwright.config.ts:40`), so every other test on this page reads English
+// and *no* test in this file can see a pt-BR string at all — while the board is
+// drawn in pt-BR. This one asks for the reader's own language the way the
+// console's own toggle does, through the `ninjasre_locale` cookie that
+// `requestLocale` prefers over `accept-language`, and then reads the heading.
+//
+// No skip guard, deliberately: `Panel` renders its `<h3>` whether or not it has
+// rows to show, so an empty window is still a real assertion rather than a
+// silent pass.
+test(
+  'AN-11: the panel is named "O que insiste em acontecer", in the board\'s own words',
+  { tag: STAGING_SAFE_TAG },
+  async ({ context, page, baseURL }) => {
+    const url = new URL(baseURL ?? 'http://127.0.0.1:8423');
+    await context.addCookies([
+      {
+        name: 'ninjasre_locale',
+        value: 'pt-BR',
+        domain: url.hostname,
+        path: '/',
+        sameSite: 'Lax',
+      },
+    ]);
+    await page.goto('/');
+    await expect(
+      page.getByTestId('recurring-problems').getByRole('heading', { level: 3 }),
+    ).toHaveText('O que insiste em acontecer');
+  },
+);
+
+// =============================================================================
 // AN-12 — no subject shows a raw identifier as its subtitle
 // =============================================================================
 
