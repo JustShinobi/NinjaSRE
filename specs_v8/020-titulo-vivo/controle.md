@@ -1,5 +1,14 @@
 # Controle — 020-titulo-vivo
 
+**Nota de reconciliação.** Uma mensagem do orquestrador recebida durante
+esta sessão listou T009 (unit test com marcador secreto), a regeneração de
+OpenAPI/cliente TS, e os bans transversais como "ainda na sua lista" — os
+três já estavam feitos e commitados (`95c0c2ae`) antes dessa mensagem
+chegar; o pedido genuinamente novo nela era `tasks.md` estar com as
+quatorze caixas em branco enquanto este arquivo já dizia bastante coisa
+pronta. Corrigido: `tasks.md` agora tem `[x]`/`[~]` fiéis a este controle,
+com a razão na própria linha para T001, T002 e T014.
+
 Estado abaixo verificado contra o código atual do worktree
 `/srv/workspaces/v8-s3-020`, a partir do commit `6158b474` (resgate do
 orquestrador após teto de turno) mais o trabalho desta sessão em cima dele.

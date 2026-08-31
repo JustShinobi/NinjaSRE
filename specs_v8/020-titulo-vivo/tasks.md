@@ -57,20 +57,36 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 0: Linha de base
 
-- [ ] T001 Rodar `make verify` na árvore intacta; guardar log fora do
+- [~] T001 Rodar `make verify` na árvore intacta; guardar log fora do
       repositório; registrar exit code e contagem. Linha de base não-verde:
-      parar e reportar.
-- [ ] T002 **(orquestrador — a worktree não alcança o cluster nem o banco)**
+      parar e reportar. **Rodada, mas não válida como linha de base**: o
+      job de fundo correu enquanto a primeira edição desta sessão
+      (`last_completed_stages` no protocolo `RunTraceStore`) ainda estava
+      pousando, então a árvore que ele mediu não era mais a intacta —
+      contaminação explicada e comprovada em `evidence/baseline.md`
+      (`git show f02bf942:...` confirma que porta/fake/Postgres estavam
+      mutuamente consistentes no commit de partida). `make verify` completo
+      rodou de novo, verde, sobre o estado final — ver T013.
+- [~] T002 **(orquestrador — a worktree não alcança o cluster nem o banco)**
       Registrar o "antes" no staging, em `evidence/antes.md`:
       `SELECT count(*) FROM agent_runs WHERE headline LIKE 'investigation
       triggered by%';` e `SELECT run_id, trigger, headline FROM agent_runs
       ORDER BY started_at DESC LIMIT 5;` — os números contra os quais SC2 é
       medido. O implementer não executa esta tarefa: entrega no relatório a
-      consulta exata que quer ver rodada, e nada mais.
+      consulta exata que quer ver rodada, e nada mais. **Reatribuída ao
+      orquestrador: uma worktree não alcança nem o cluster nem o banco.**
+      O "antes" real já foi lido pelo orquestrador de dentro do cluster
+      (704 `agent_runs`, 699 por alerta, 155 com headline vazio entre
+      esses, 1/699 na forma nova, 0 no padrão `LIKE 'investigation
+      triggered by%'` — esse padrão nunca é persistido, só era sintetizado
+      na leitura, então vai continuar 0 antes e depois do deploy para
+      sempre). Consultas corrigidas para o "depois" entregues no relatório
+      final e em
+      `/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md`.
 
 ## Phase 1: Vermelho
 
-- [ ] T003 Escrever o teste de contrato novo em
+- [x] T003 Escrever o teste de contrato novo em
   `tests/contract/runs/test_live_title_contract.py`: (a) run criado com
   objetivo responde headline==objetivo enquanto running; (b) run com
   alert_labels responde "alertname on recurso"; (c) run antigo (linha
@@ -81,33 +97,33 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
   lê estágios em ≤ 2 consultas (contador de queries no padrão de
   `tests/contract/persistence/`). Rodar; **confirmar vermelho**; salvar
   as mensagens em `evidence/red.log`.
-- [ ] T004 Estender `tests/contract/persistence/test_run_trace_store.py`
+- [x] T004 Estender `tests/contract/persistence/test_run_trace_store.py`
       (roda contra fake E Postgres): `start_run` com objective persiste a
       coluna; `last_completed_stages` devolve o último estágio por run e
       ignora runs sem nenhum. Confirmar vermelho junto com T003.
 
 ## Phase 2: Persistência
 
-- [ ] T005 `AgentRun.objective: str = ""` no port
+- [x] T005 `AgentRun.objective: str = ""` no port
       (`platform/persistence/ports/run_trace_store.py`) e assinatura
       `last_completed_stages(run_ids)` no protocolo `RunTraceStore`, com
       docstring dizendo a semântica "último estágio **completado**" (um run
       parado dentro de um estágio não o tem).
-- [ ] T006 Migração `platform/persistence/migrations/versions/
+- [x] T006 Migração `platform/persistence/migrations/versions/
       0020_run_objective.py`: coluna `objective TEXT NOT NULL DEFAULT ''` em
       `agent_runs`; índice parcial em `trace_events (run_id, sequence DESC)
       WHERE kind='stage_completed'` **somente se** T003(f) reprovar sem ele;
       downgrade completo.
-- [ ] T007 Postgres store: gravar/ler `objective`; implementar
+- [x] T007 Postgres store: gravar/ler `objective`; implementar
       `last_completed_stages` com `SELECT DISTINCT ON (run_id)` filtrado por
       `kind='stage_completed'`, ordenado por run e sequência decrescente,
       extraindo o nome do estágio do payload.
-- [ ] T008 Fake store (`platform/persistence/fakes/run_trace_store.py`):
+- [x] T008 Fake store (`platform/persistence/fakes/run_trace_store.py`):
       mesmos comportamentos, varredura em memória.
 
 ## Phase 3: Escrita do título
 
-- [ ] T009 `RunRecorder.start_run` (`platform/runs/recorder.py`): parâmetros
+- [x] T009 `RunRecorder.start_run` (`platform/runs/recorder.py`): parâmetros
       `objective=""` e `alert_labels=None`; gravar
       `redacted_objective=self._redact(objective)` antes de qualquer escrita;
       sanitizar labels; computar o provisório com
@@ -117,7 +133,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       início somente com `run_id`, conforme a 010. `start_subagent_run` repassa
       somente o objetivo sanitizado que recebe. Unit em
       `tests/unit/platform/runs/test_recorder.py`, incluindo marcador secreto.
-- [ ] T010 `gateway/http/orchestration.py::start_investigation` repassa
+- [x] T010 `gateway/http/orchestration.py::start_investigation` repassa
       `objective` e `alert_labels` já sanitizados ao runtime e ao `start_run`.
       `platform/scheduler/executor.py` também sanitiza o objetivo do job
       agendado antes de qualquer prompt ou persistência.
@@ -127,7 +143,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 4: Leitura
 
-- [ ] T011 `gateway/http/routes/investigations.py`: remover
+- [x] T011 `gateway/http/routes/investigations.py`: remover
       `_fallback_objective`; `summary_of` passa a `run.headline or
       synthesize_headline(objective=run.objective)`; `InvestigationSummary`
       ganha `last_completed_stage`/`stage_index`; `list_investigations` e o
@@ -137,7 +153,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 5: Ban transversal
 
-- [ ] T012 Estender a suíte transversal (`console/tests/e2e/bans.ts` e
+- [x] T012 Estender a suíte transversal (`console/tests/e2e/bans.ts` e
       `transversal-rules.spec.ts`): nenhum título renderizado (h1,
       célula-título, aba, breadcrumb) contém "investigation triggered by" nem
       casa `/^(interactive|alert|schedule|subagent) investigation$/`. **O ban
@@ -151,11 +167,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 6: Verde e evidência
 
-- [ ] T013 T003/T004 verdes; `make verify` completo; logs em `evidence/`.
-- [ ] T014 No fechamento do slot (orquestrador, EXECUCAO.md §4): após
+- [x] T013 T003/T004 verdes; `make verify` completo; logs em `evidence/`.
+      `EXIT=0` lido do log (não da notificação — três rodadas antes saíram 2
+      de verdade enquanto a notificação dizia 0): 13137 passed/31 skipped na
+      suíte principal, 38 passed no benchmark. Três correções reais no
+      caminho (format, mypy, prettier) — ver `evidence/make-verify.md`.
+- [~] T014 No fechamento do slot (orquestrador, EXECUCAO.md §4): após
       `make deploy-stg COMPONENTS=app web`, reutilizar o único run criado pela
       UI no S3 por 050; capturar a requisição POST emitida pelo modal e o GET
       com o headline vivo, SELECT das contagens de T002 inalteradas para
       linhas novas — e guardar em `evidence/staging.md`. Não criar outro run.
       O acceptance visual do Painel exibindo estes títulos é da 050, no
-      mesmo slot.
+      mesmo slot. **Reatribuída ao orquestrador: uma worktree não alcança
+      nem o cluster nem o banco.** As consultas exatas do "depois" (SC1 no
+      run único, SC2 pela medida real — não pela string morta — e a
+      varredura de A6/A7 na API ao vivo) estão no relatório final e em
+      `/tmp/claude-999/-srv-workspaces-NinjaSRE/ec6dd9db-b857-442a-ad52-779c42f3a2c8/scratchpad/t014-queries.md`.
