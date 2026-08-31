@@ -138,3 +138,86 @@ corpus de aprendizado mais precisa distinguir: um falso positivo é problema do
 detector, uma mitigação é um conserto pela metade. Enquanto o colapso existir,
 estas duas formas só aparecem na demonstração. Está registrado no confronto da
 onda, porque é lacuna de produto e não de desenho.
+
+## 9. A atividade ao vivo não desenha o trilho vertical
+
+`Main.dc.html` e `DashboardLight.dc.html` desenham, na coluna "Atividade ao
+vivo", um trilho de 1,5px em degradê atrás das entradas, com a forma de cada
+entrada posicionada em cima dele (`position: absolute; left: -18px`). O
+console desenha as mesmas quatro formas — losango, círculo, quadrado,
+triângulo — mas **ao lado** do texto, numa linha flex por entrada, sem
+trilho.
+
+**Por quê.** O trilho do board passa pelo centro de quatro formas de
+geometrias diferentes. Centralizá-lo de verdade exige um deslocamento
+próprio por forma — o triângulo do board é feito de bordas e nasce 1px acima
+do círculo de mesmo tamanho — e cada um desses deslocamentos é um valor fora
+da escala de espaçamento declarada, que não tem base e não abre exceção para
+decoração. A alternativa honesta seria alinhar o trilho a uma forma só e
+deixar as outras três tortas, que é pior do que não ter trilho.
+
+O que o trilho carrega de significado — "isto é uma sequência no tempo" — a
+ordem das entradas e o instante relativo de cada uma já carregam. A razão
+está escrita no próprio componente (`console/src/surfaces/activity-feed.tsx`).
+
+**O custo, dito por inteiro**: a coluna lê como lista, não como linha do
+tempo desenhada. Se a escala ganhar um degrau que sirva a esses
+deslocamentos, o trilho volta a ser possível e este registro cai.
+
+## 10. Um segundo e um terceiro indicador de frescor não entram
+
+O board diz três vezes, no mesmo quadro, que a página se atualiza sozinha: o
+chip "Ao vivo" na topbar, o chip `stream` ao lado do título "Atividade ao
+vivo", e a legenda "atualizado por eventos · sem recarregar" à direita do
+cabeçalho da página.
+
+O console implementa **o primeiro** e nenhum dos outros dois. É a regra que o
+registro 3 desta lista já preservou por escrito — indicador único de frescor
+por página, um por quadro, nunca um por painel — aplicada aos dois lugares
+onde este board a contraria. Um leitor que precisa saber se a tela está viva
+tem um lugar para olhar, e quando o stream cai é esse mesmo lugar que muda,
+em vez de três afirmações que discordam entre si por alguns segundos.
+
+## 11. A decomposição de "Recursos vigiados" usa as palavras do estate
+
+O board escreve `68 contêineres · 21 datastores · 2 nós`: nomes traduzidos,
+pluralizados, e só três tipos. O console escreve as chaves que a decomposição
+do overview devolve, como o deployment as soletra — `63 container · 21
+datastore · 2 node · 5 backup_job · 1 cluster · 1 virtual_machine` — e todas
+elas.
+
+**Por quê.** O conjunto de tipos é aberto: cada integração declara os seus, e
+o catálogo do console não tem como conhecer de antemão o tipo que a próxima
+trouxer. Um substantivo traduzido por tipo é um catálogo que envelhece na
+primeira integração nova, e o que ele imprime nesse dia é a chave crua no
+meio de palavras — exatamente o defeito que a tradução existia para evitar,
+só que intermitente. A palavra do estate é também a que toda outra tela
+mostra para o mesmo recurso, então ela concorda com `/resources` em vez de
+divergir dele em um lugar só.
+
+Cortar em três, como o board faz, é o que sobra a decidir; hoje a legenda
+mostra todos. Fica registrado porque é desvio visível, não porque esteja
+resolvido.
+
+## 12. O chip de estado do assunto diz a palavra do deployment
+
+O board escreve `investigando` e `resolvido` nos chips de "O que insiste em
+acontecer". O console escreve a palavra que a API mandou, capitalizada —
+`Investigating`, `Resolved` — inclusive num console em pt-BR.
+
+**Por quê.** `Badge` (`console/src/components/status.tsx`) é declaradamente o
+único chip que carrega uma palavra escrita pelo deployment e não escolhida
+por este console: um estado que a enumeração local não conhece aparece com o
+papel neutro e o texto que veio, em vez de em branco ou como erro. Traduzir
+aqui significa ou uma tabela que cala o que não conhece, ou duas fontes para
+a mesma palavra.
+
+**Onde isso se decide, e não é aqui.** O vocabulário de status é da fundação
+visual, e o mesmo chip aparece em `/incidents`, `/runs` e `/decisions`. A
+050 não muda o vocabulário de estado de toda a UI a partir de uma tela; se o
+operador quiser as palavras do board, o conserto é da fundação — um rótulo
+por estado conhecido, com a palavra crua como degradação — e vale para todas
+as telas de uma vez.
+
+**O custo, dito por inteiro**: numa tela em pt-BR, o chip é a única palavra
+em inglês da linha.
