@@ -31,9 +31,17 @@ O comentário de seção do próprio catálogo pt-BR, na linha 599, ainda diz
 cabeçalho.
 
 Corrigido pelo lead em `pt-BR.ts:800`, como dono do single-write de i18n no
-merge. Falta ainda uma asserção sobre o título, para que o portão não possa
-ficar verde de novo com o nome errado. O par em inglês fica como está: o item
-6 do `DIVERGENCIAS.md` deixa o inglês livre.
+merge. A asserção sobre o título existe agora — `console/tests/e2e/
+painel-vivo.acceptance.spec.ts` (commit `ec1d8336`), o teste
+`'AN-11: the panel is named "O que insiste em acontecer", in the board's own
+words'`: troca para o cookie `ninjasre_locale=pt-BR`, abre `/` e lê o `<h3>`
+de nível 3 dentro de `data-testid="recurring-problems"`, sem guarda de skip
+— uma janela sem recorrências ainda renderiza o cabeçalho, então o teste
+segue sendo uma asserção real mesmo vazia. É exatamente o que falhava antes
+dela existir: com a grafia antiga restaurada a alegação falha citando o
+`<h3>` que de fato encontrou, e o portão não pode mais fechar verde com o
+nome errado. O par em inglês fica como está: o item 6 do `DIVERGENCIAS.md`
+deixa o inglês livre.
 
 ## O que confere
 

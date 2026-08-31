@@ -102,18 +102,27 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       insere o card, evento de run já listado atualiza sem duplicar, refresh
       com run já inserido pelo stream não duplica e run completado sai.
       Vermelho.
-- [~] T010 [P] Teste de unidade do recusar: envio bloqueado com razão vazia; — **[~ motivo, verificado uma a uma]** as três subalegações do enunciado,
+- [~] T010 [P] Teste de unidade do recusar: envio bloqueado com razão vazia; — **[~ motivo, verificado uma a uma; citação corrigida]** as três subalegações do enunciado,
       conferidas contra o código real, não por afirmação: (1) razão vazia
       bloqueia o envio e (2) razão preenchida é aceita — cobertas por
-      `console/tests/unit/surfaces/incident-decision-controls.test.tsx`
-      (`'rejecting without a reason' > 'never reaches the deployment, and
-      says why not'`; `'deciding' > 'sends the rejection and its reason once
-      a reason is given'`), do componente reutilizado da 060, sem precisar de
-      teste novo. (3) "já decidida → mensagem informativa" não tem teste em
+      `console/tests/unit/surfaces/attention.test.tsx:137-175`
+      (`'reveals the reason field only once Recusar is clicked, disables
+      submit until it is filled'`; `'sends the rejection and its reason once
+      submitted, and refreshes'`), do componente **próprio da 050**
+      (`console/src/surfaces/attention-decision-controls.tsx`,
+      `AttentionDecisionControls`) — a citação anterior desta linha apontava
+      para `incident-decision-controls.test.tsx`/`IncidentDecisionControls`,
+      o componente de tela **da 060** (`console/src/surfaces/screens/
+      incident-decision-controls.tsx`), um arquivo diferente que por
+      coincidência de nome parecia o mesmo; corrigido aqui, sem precisar de
+      teste novo — a alegação já era coberta, só citada errado. (3) "já
+      decidida → mensagem informativa" não tem teste em
       lugar nenhum, mas também não é um estado alcançável nesta integração:
-      `dashboard.tsx:349` filtra `approvalRecords` por
+      `dashboard.tsx:407` (linha atual; era 349 antes desta rodada acrescentar
+      a leitura de `/v1/estate/resources` acima dela) filtra `approvalRecords`
+      por
       `state === 'pending'` antes de montar `pendingDecisions`, então uma
-      aprovação já decidida nunca chega a `IncidentDecisionControls` por
+      aprovação já decidida nunca chega a `AttentionDecisionControls` por
       este caminho — verificado lendo o filtro, não presumido.
       com razão, o cliente chama a rota de reject com ela; interação já
       fechada vira desfecho informativo, não erro. Vermelho.
