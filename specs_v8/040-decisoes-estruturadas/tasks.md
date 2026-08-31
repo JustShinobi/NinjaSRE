@@ -364,16 +364,39 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 6: Convergence
 
-- [ ] T037 Declare `POST /v1/approvals/{approval_id}/decision` in the mock
+- [x] T037 Declare `POST /v1/approvals/{approval_id}/decision` in the mock
       catalogue (`tools/mockplane/endpoints.py`), give it a write handler
       (approve/reject, mirroring the real gateway's `decide_approval`
       response shape), and add an acceptance test that actually clicks
       through `IncidentDecisionControls` end to end against it, per FR-012
       (missing).
-- [ ] T038 Give AN-06 ("a pending, unexpired decision shows Approve and
+      Feito — endpoint declared (`tools/mockplane/endpoints.py`, slug
+      `approval-decision`), one generic success fixture mirroring
+      `proposal-decision`'s own "same shape either way" precedent
+      (`tools/mockplane/dataset/served.py`), and a write case in
+      `_apply_write` (`tools/mockplane/server.py`) that moves the decided
+      id out of the pending bucket and into `decided` with the real
+      verdict — mirrors `decide_approval`
+      (`gateway/http/routes/approvals.py:839-909`). New acceptance test
+      ("IncidentDecisionControls decides a pending approval directly, not
+      through an interaction", end of
+      `decisoes-estruturadas.acceptance.spec.ts`) reaches a pending,
+      interaction-less hero by discarding both expired decisions through
+      the same courier the expired footer already uses, then clicks Reject
+      for real and asserts the card leaves the pending queue and reads
+      back from "Decided recently". Two wire cuts confirmed red with a
+      real message, then restored — see `controle.md`.
+- [x] T038 Give AN-06 ("a pending, unexpired decision shows Approve and
       Reject") a mock scenario where it can actually run rather than
       unconditionally skip — a pending decision with no expired one ahead of
       it in the combined queue — or, short of that, correct its skip reason
       so it no longer implies a data condition that can resolve under the
       current queue design (`queue = [...expired, ...pending]`, only
       `queue[0]` expands), per US1/AC6 (partial).
+      Feito — second ending chosen: the skip reason now names the real,
+      structural cause (the combined queue always opens on an expired
+      decision while any exists, and every built scenario carries two) and
+      points at what actually covers the claim — the vitest render test and
+      T037's own new click-through test, which reaches this exact shape for
+      real by discarding both expired decisions. See `controle.md` for why
+      a genuinely-occurring scenario was not the ending chosen.

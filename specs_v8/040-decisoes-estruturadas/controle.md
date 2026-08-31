@@ -560,3 +560,250 @@ antes — sua cadeia de dependências para no primeiro checkpoint vermelho de
 alegação "T015...verde" registrada mais acima no controle era verdadeira
 só para as suítes tocadas diretamente, não para o repositório inteiro. Não
 reescrevo essa seção: fica como estava, com esta correção ao lado dela.
+
+## T037 — o caminho de decidir que o mock nunca serviu
+
+**O defeito confirmado antes de qualquer edição**: `tools/mockplane/endpoints.py`
+nunca declarou `POST /v1/approvals/{approval_id}/decision` — nenhuma entrada
+`ConsoleEndpoint` com esse `path`/`method`. `MockPlane.answer('POST',
+'/v1/approvals/apr-0001/decision', ...)` (chamado direto, sem HTTP) devolvia
+404 com `"apr-0001/decision is not an endpoint this mock serves"` antes de
+qualquer mudança — confirmado rodando o script antes de tocar o código.
+Como `decisionFor` (`console/src/surfaces/screens/approvals.tsx:205-227`)
+só compõe `IncidentDecisionControls` quando a aprovação não tem interação
+aberta, e a única aprovação nativamente pendente do dataset (`apr-0001`,
+`run-0005`) tem uma interação aberta de propósito (para cobrir o outro
+ramo), nenhum teste — nem o mock, nem o gateway real via TestClient — jamais
+clicou Aprovar/Recusar através de `IncidentDecisionControls`.
+
+**O que foi acrescentado, e o que foi espelhado de onde**:
+
+1. `tools/mockplane/endpoints.py:224-230` — `ConsoleEndpoint(method="POST",
+   path="/v1/approvals/{approval_id}/decision", slug="approval-decision",
+   ...)`, mesmo path/method de `gateway/http/routes/approvals.py:839`
+   (`decide_approval`).
+2. `tools/mockplane/dataset/served.py` (bloco logo após o registro genérico
+   de `approval-discard`) — um único registro de sucesso genérico (chave
+   `{}`, casa qualquer `approval_id`), corpo no formato de
+   `ApprovalDecisionResult` (`approval_id`, `state`, `decided_at`,
+   `decided_by`). **Não varia por veredito** — a mesma simplificação que
+   `proposal-decision` já usa, com o comentário original explicando por
+   quê ("the served answer is the same shape either way",
+   `served.py`, bloco `proposal_records()`). Decisão de fidelidade
+   registrada, não escondida: como nenhum chamador (console nem teste) lê
+   o corpo desta resposta — `IncidentDecisionControls.decide()` só olha
+   `response.ok` — o veredito real fica inteiramente a cargo de onde
+   realmente importa: a leitura seguinte.
+3. `tools/mockplane/server.py:978-1032` — novo `case "approval-decision":`
+   dentro de `_apply_write`, no mesmo padrão de `approval-repropose`/
+   `approval-discard` (linhas vizinhas): lê `verdict`/`reason` do corpo
+   real da requisição HTTP (`body`, já passado por `_read_body`), remove o
+   id dos buckets `{}` e `{"state": "pending"}` (uma decisão só nasce de
+   uma pendente — nunca de uma expirada, por FR-014), grava a versão
+   decidida em `approval-detail` e a prefixa no bucket `decided`, e reclama
+   o bucket `expired` (sem mudar seu conteúdo) para não cair no mesmo
+   perigo de fallback que o comentário de `approval-repropose` já
+   documentava. `_DECISION_VERDICTS` (`server.py`, perto de
+   `_MOCK_DECIDER`) espelha o `_VERDICTS` privado do gateway, não o
+   importa — mesmo padrão que `_ORIGIN_APPROVAL_ID_KEY` já usava para essa
+   fronteira.
+
+**Comando que prova o ganho de cobertura**: `uv run python -m tools.mockplane
+report` → `85 of 85 console endpoints are covered` (era 84 antes desta
+tarefa). `uv run python -m tools.mockplane build` regenerou só um arquivo
+novo — `fixtures/scenarios/populated/approval-decision.json` — confirmado
+por `git status --porcelain fixtures/` mostrando exatamente essa linha e
+nenhuma outra. `uv run python -m tools.mockplane verify` → "the dataset is
+clean", EXIT=0.
+
+**O teste que clica de verdade**: `IncidentDecisionControls decides a
+pending approval directly, not through an interaction` (fim de
+`console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts`). Alcança um
+herói pendente sem interação descartando as duas decisões expiradas
+através do mesmo courier que `ExpiredFooterControls` já usa (reaproveitando
+uma reproposta já feita por outro teste do mesmo arquivo, na mesma sessão
+do mock, em vez de repropor de novo e duplicar o id fixo que o mock
+sempre devolve — `REPROPOSED_APPROVAL_ID`), digita uma razão, clica
+Recusar de verdade, espera a resposta HTTP do courier (`/api/approval`,
+POST) e afirma `response.ok()`, e então — sem recarregar a página à força,
+só com o `expect()` que já espera sozinho — confirma que o cartão saiu da
+fila pendente e apareceu em "Decididas recentemente" com o veredito
+`rejected`.
+
+**Sobre o "recarregamento forçado" que existiu e foi removido.** Uma
+primeira versão deste teste, ao rodar dentro do arquivo inteiro (não
+isolado), falhava de verdade: depois do clique, `[data-approval="apr-1002"]`
+continuava resolvendo para 1 elemento mesmo após os 5s de espera do
+`expect()`. Investigado por observação, não por suposição — antes de
+clicar, a página já tinha **dois** elementos com esse mesmo id (um
+`decision-card` herói, um `decision-row-collapsed` colapsado), porque outro
+teste deste mesmo arquivo (`AN-08`) já tinha reproposto a mesma origem
+antes, e o mock sempre devolve o mesmo id fixo
+(`REPROPOSED_APPROVAL_ID = "apr-1002"`) não importa quantas vezes
+`repropose` for chamado na mesma sessão — uma chave React duplicada, não um
+defeito de produto. Provado por eliminação: rodando o mesmo teste isolado
+(sem `AN-08` antes), sem nenhum recarregamento forçado, ele já passava
+limpo em ~1s; e simulando as duas chamadas de repropor em sequência direto
+contra `MockPlane.answer()` (fora do navegador), a remoção do id duplicado
+nos dois buckets aconteceu corretamente nas duas vezes — o servidor nunca
+errou, só a tela tinha uma chave repetida para reconciliar. Corrigido pela
+raiz, não pelo sintoma: o passo de arranjo do teste agora reaproveita uma
+reproposta já existente na sessão em vez de criar uma segunda, e a
+asserção final não recarrega mais nada — só espera. Rodado depois do
+reparo, isolado e dentro do arquivo inteiro, várias vezes: sempre verde,
+sempre abaixo de 1s de execução do próprio teste.
+
+**Confirmado que pode falhar — dois cortes, duas mensagens reais, ambos
+restaurados e confirmados via `git diff --stat` (sem diferença após
+restaurar):**
+
+1. Removida a declaração do endpoint
+   (`tools/mockplane/endpoints.py:224-230`, o bloco inteiro do
+   `ConsoleEndpoint` de `approval-decision`). Rodado:
+   `uv run python -m tools.console_e2e run --backing mock --
+   tests/e2e/decisoes-estruturadas.acceptance.spec.ts --grep
+   "IncidentDecisionControls"` → **EXIT=2**, o próprio mock nem sobe:
+   `tools.mockplane.scenarios.ScenarioError:
+   .../fixtures/scenarios/populated/approval-decision.json answers
+   'approval-decision', which is not an endpoint` — o fixture já
+   commitado referencia um slug que deixou de existir. Restaurado;
+   `git diff --stat tools/mockplane/endpoints.py` voltou vazio.
+2. Desativado só o `case` que reflete a escrita
+   (`tools/mockplane/server.py:978`, renomeado de `case
+   "approval-decision":` para um rótulo que nunca casa, caindo no `case _:
+   return` — endpoint e fixture intactos, resposta continua 200). Rodado o
+   mesmo comando → **EXIT=1**: `POST
+   /v1/approvals/apr-1002/decision` responde 200 (confirmado no log), mas
+   a asserção final falha de verdade —
+   `expect(locator).toHaveCount(expected) failed / Locator:
+   locator('[data-approval="apr-1002"]') / Expected: 0 / Received: 1`,
+   apontando exatamente para a linha da asserção
+   (`decisoes-estruturadas.acceptance.spec.ts:630`), depois de esperar os
+   5s inteiros do `expect()` — prova que um clique que "funciona" (200) mas
+   não faz nada é exatamente o defeito que esta tarefa existe para
+   eliminar. Restaurado; `git diff --stat tools/mockplane/server.py`
+   voltou vazio, e uma nova rodada confirmou verde de novo (992ms).
+
+## T038 — a razão do skip corrigida, não uma alegação inventada
+
+**Diagnóstico confirmado, não presumido**: `approvals.tsx` só expande
+`queue[0]` da fila combinada `[...expired, ...pending]`
+(`console/src/surfaces/screens/approvals.tsx`, o `.map` do painel principal)
+— toda linha além da primeira renderiza como `decision-row-collapsed`, sem
+nenhum controle de decisão. Os seis cenários commitados que compartilham
+`interaction_records()` (`populated`, `first-run`, `restricted`,
+`incident-live`, `audit-flooded` por herança de `populated`; `empty` com seu
+próprio conjunto vazio) carregam sempre duas decisões expiradas
+(`_EXPIRED`/`apr-0002`, `_EXPIRED_DEAD_ORIGIN`/`apr-0005`,
+`tools/mockplane/dataset/served.py`), então `queue[0]` é sempre uma
+expirada enquanto qualquer uma existir — **nenhum cenário commitado pode
+ter uma pendente na posição herói sem que algo primeiro descarte as duas**.
+Isso não é uma lacuna de dado que um cenário diferente resolveria; é uma
+propriedade estrutural conjunta da regra de expansão (`queue[0]` só) com a
+forma como o dataset desta feature foi desenhado (duas expiradas sempre
+presentes).
+
+**A razão antiga era falsa, não só imprecisa.** Dizia "the mock queue
+holds no pending, unexpired approval right now" — uma frase que lê como
+"esta rodada específica não tem o caso", implicando que rodar de novo, ou
+contra outro cenário, poderia mudar isso. Não pode: é sempre assim, em
+qualquer um dos seis cenários, sempre.
+
+**Desfecho escolhido: a segunda opção — razão corrigida, não um cenário
+novo.** Considerei a primeira (um cenário genuinamente sem nenhuma
+expirada) e descartei conscientemente, pelas seguintes razões, ditas aqui
+para não esconder a escolha:
+
+- Um cenário commitado novo mudaria a superfície compartilhada que
+  `BUILT_SCENARIOS`, `fixtures/manifest.json`, o gerador e o
+  `mockplane verify` tratam como fixa — um alcance maior que dois reparos
+  pontuais deveriam abrir, e nada em T037/T038 pede isso.
+- A mesma condição ("herói pendente, sem interação") já é alcançável **de
+  verdade**, sem um cenário novo, descartando as duas expiradas através do
+  courier que já existe (`/api/approval`, `operation: 'discard'`) — exatamente
+  o que o teste novo de T037 faz. Duplicar esse mesmo arranjo dentro do
+  próprio `AN-06` disputaria o mesmo recurso escasso da sessão (a única
+  origem reproponível de verdade é `apr-0002`; a outra, `apr-0005`, sempre
+  recusa reproposta por design — FR-016) e criaria uma dependência de ordem
+  frágil entre dois testes que hoje não precisam de nenhuma.
+
+A razão nova (`console/tests/e2e/decisoes-estruturadas.acceptance.spec.ts`,
+dentro do `describe` de `AN-06`) nomeia a causa estrutural real — "the
+combined queue always opens on an expired decision while any exists, and
+every built scenario carries two — this shape cannot occur here by
+construction, not by chance" — e aponta para as duas coisas que cobrem a
+alegação hoje: `decision-card.test.tsx` (unitário, os dois ramos de decisão
+renderizados) e o teste novo de T037, que alcança e prova essa mesma forma
+ao vivo, clicando.
+
+## Ledger de critérios — T037/T038
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| T037 endpoint no catálogo mock | FEITO | `tools/mockplane/endpoints.py:224-230` |
+| T037 fixture de sucesso genérico | FEITO | `tools/mockplane/dataset/served.py`, bloco após `approval-discard`; espelha `proposal-decision` |
+| T037 reflexo da escrita | FEITO | `tools/mockplane/server.py:978-1032`, `case "approval-decision"` |
+| T037 teste de clique real | FEITO | novo `describe` no fim de `decisoes-estruturadas.acceptance.spec.ts`; verde isolado e dentro do arquivo inteiro |
+| T037 corte de fio confirmado | FEITO | dois cortes, duas mensagens reais, ver seção acima |
+| T038 razão corrigida | FEITO | `AN-06`, mesma spec — nomeia a causa estrutural, aponta a cobertura real |
+
+**Comandos rodados para fechar as duas tarefas, com saída real:**
+
+- `uv run python -m tools.mockplane build` → `wrote 235 files across 6
+  scenarios` (1 arquivo novo: `approval-decision.json`), EXIT=0.
+- `uv run python -m tools.mockplane verify` → "the dataset is clean",
+  EXIT=0.
+- `uv run python -m tools.mockplane report` → `85 of 85 console endpoints
+  are covered`.
+- `uv run ruff check tools/mockplane/` → "All checks passed!", EXIT=0.
+- `uv run ruff format --check tools/mockplane/` → "34 files already
+  formatted", EXIT=0.
+- `uv run mypy tools/mockplane/` → "Success: no issues found in 34 source
+  files", EXIT=0.
+- `uv run pytest tests/unit/tools/mockplane/ tests/contract/fixtures/ -q`
+  → **315 passed**, EXIT=0.
+- `uv run pytest tests/contract/remediation/test_proposed_action_decision.py
+  -q` (a rota real do gateway, intocada por esta tarefa) → **8 passed**,
+  EXIT=0.
+- `cd console && pnpm exec tsc --noEmit` → EXIT=0.
+- `cd console && pnpm exec eslint tests/e2e/decisoes-estruturadas.acceptance.spec.ts`
+  → EXIT=0.
+- `uv run python -m tools.console_gate typecheck` → EXIT=0.
+- `uv run python -m tools.console_gate lint` → EXIT=0.
+- `uv run python -m tools.console_gate build` → EXIT=0 (rodado antes de
+  cada execução de aceite, nunca presumido).
+- `uv run python -m tools.console_e2e run --backing mock --
+  tests/e2e/decisoes-estruturadas.acceptance.spec.ts` (arquivo inteiro,
+  rodado três vezes ao final, todas verdes) → **13 passed, 3 skipped
+  (AN-06 — razão corrigida; AN-12, AN-13 — condição de dado sob
+  `populated`, já documentado), 0 failed**, EXIT=0.
+- `uv run python -m tools.console_gate test` (suíte vitest inteira) →
+  **1 falha, esperada e pré-existente**: `tests/unit/i18n/catalogue.test.ts`
+  acusa as 27 chaves de `en.ts` ainda ausentes de `pt-BR.ts` — o mesmo
+  vermelho que este `controle.md` já documentava antes de T037/T038
+  existirem (seção "Chaves i18n novas"), confirmado por `git log` mostrando
+  que nem `en.ts` nem `pt-BR.ts` foram tocados por nenhum commit desta
+  sessão. `pt-BR.ts` não é meu para editar (regra do slot). 3154 de 3155
+  testes individuais passaram; 191 de 192 arquivos.
+- `make lint`, `make typecheck`, `make check-imports`, `make check-constants`,
+  `make check-console-boundary` → todos EXIT=0.
+- `make test` (suíte Python completa + benchmark) → **13100 passed, 31
+  skipped, 0 failed** mais **38 passed** de benchmark — idêntico ao
+  baseline que este `controle.md` já registrava antes desta sessão (seção
+  "T015 verde era verde parcial"), confirmando zero regressão em toda a
+  árvore tocável. EXIT=0, lido do arquivo de log, não de uma notificação
+  de processo em segundo plano.
+
+**O que fica pendente, nomeado, não escondido**: nada de T037/T038 em si.
+O vermelho de `pt-BR.ts` seguirá vermelho até o merge do slot aplicar as
+chaves — já era esperado antes desta sessão e continua fora do escopo
+destas duas tarefas. A corrida concorrente de re-proposta (limitação já
+registrada acima, seção "T015-T021") continua sem solução, também fora do
+escopo. O reflexo de `interaction-approve`/`interaction-reject` sobre os
+buckets de `approvals` no mock continua sendo um no-op — achado durante a
+investigação do recarregamento forçado, não uma regressão desta tarefa: é
+por isso que `apr-0001` (a única pendente nativa com interação aberta)
+nunca sai da fila dentro de uma sessão de teste, e por isso o teste novo de
+T037 precisa reaproveitar/repropor em vez de decidir `apr-0001` — registrado
+aqui para quem um dia for cobrir o ramo `DecisionControls` com um clique
+real também, não descoberto por esta tarefa como um defeito a fechar agora.
