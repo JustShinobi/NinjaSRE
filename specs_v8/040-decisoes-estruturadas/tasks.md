@@ -361,3 +361,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 - Phase 4 depois de 2 e 3; Phase 5 por último. O gate visual e o deploy são
   do orquestrador no fim do slot — esta feature entrega tudo pronto para
   eles em T036.
+
+## Phase 6: Convergence
+
+- [ ] T037 Declare `POST /v1/approvals/{approval_id}/decision` in the mock
+      catalogue (`tools/mockplane/endpoints.py`), give it a write handler
+      (approve/reject, mirroring the real gateway's `decide_approval`
+      response shape), and add an acceptance test that actually clicks
+      through `IncidentDecisionControls` end to end against it, per FR-012
+      (missing).
+- [ ] T038 Give AN-06 ("a pending, unexpired decision shows Approve and
+      Reject") a mock scenario where it can actually run rather than
+      unconditionally skip — a pending decision with no expired one ahead of
+      it in the combined queue — or, short of that, correct its skip reason
+      so it no longer implies a data condition that can resolve under the
+      current queue design (`queue = [...expired, ...pending]`, only
+      `queue[0]` expands), per US1/AC6 (partial).
