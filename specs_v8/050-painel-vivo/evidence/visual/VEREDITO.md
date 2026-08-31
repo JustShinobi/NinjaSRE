@@ -9,8 +9,27 @@ inglês era comportamento correto, não defeito.
 
 | Tela | Tema | Veredito |
 |---|---|---|
-| `/` | dark | **CONFORME** |
-| `/` | light | **CONFORME** |
+| `/` | dark | **DESVIO** — a composição confere; o detalhe ainda não |
+| `/` | light | **DESVIO** — idem |
+
+**O CONFORME anterior foi revertido, e a razão importa mais que o veredito.**
+Três rodadas seguidas deste gate acharam alguns desvios, consertaram, e
+declararam a tela conforme — e o operador achou mais, de olho, nas três. O
+defeito não estava na tela, estava no método: comparação reativa, item a item,
+conforme alguém repara. A varredura sistemática — enumerar tudo primeiro,
+decidir depois, consertar por último — está em curso, e este veredito só volta
+a CONFORME quando existir a tabela elemento a elemento que a sustente.
+
+Desvios confirmados e ainda abertos nesta terceira rodada: o chip
+"Parar automação" não desenha o ícone que o board desenha; e cada entrada da
+atividade ao vivo carrega só o tempo relativo, onde o board dá
+`há 2 min · investigação · 1m 27s` — tempo, tipo e duração.
+
+E um que **não** é desvio, mas precisa de registro: o contador da barra lateral
+e o badge do sino não contam incidentes em `investigating`/`remediating`. É
+deliberado, do commit `d019dd77`, cuja razão está escrita nele — um produto
+cuja alegação é investigar sem você não deve contar o próprio trabalho como o
+seu backlog.
 
 Cada tema foi nomeado pelo valor **medido** de `data-theme`, não pelo
 presumido. Na primeira rodada deste gate os dois arquivos saíram trocados
