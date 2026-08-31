@@ -186,15 +186,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       corrida, gate de permissão; N > 1 pendências → a mais antiga expandida.
       T010 e T013 verdes.
 - [x] T023 `kpi-tiles.tsx`: cinco KPIs de `GET /v1/overview`, sparkline SVG — construída em rodada anterior; corrigida nesta (testid `kpi-tile-{id}`
-      trocado por `kpi-tile` + `data-kpi`, `kpi-legend` adicionado — o
-      acceptance spec já exigia ambos e nenhum existia). 8/8 unit tests
-      verdes. Ainda não composta em `dashboard.tsx`: ver controle.md §4.1.
+      trocado por `kpi-tile` + `data-kpi`, `kpi-legend` adicionado) e
+      **composta em `dashboard.tsx`** nesta mesma rodada, substituindo o
+      grid de `<Figure>` e os cálculos locais que ele sozinho alimentava.
+      8/8 unit tests verdes; AN-09 fecha por causa disto (ver controle.md §2).
       90×28, legenda de decomposição, estado de leitura falhada por KPI, o
       caso "nenhum detector ligado" com link. T012 (metade sparkline) verde.
-- [x] T024 `subject-strip.tsx`: linhas por assunto de `groupBySubject` — construída em rodada anterior; corrigida nesta (faltavam três testids
-      que o acceptance spec exige: `subject-timeline`, `subject-chip` com
-      `data-role`, `subject-subtitle` — nenhum existia). 10/10 unit tests
-      verdes. Ainda não composta em `dashboard.tsx`: ver controle.md §4.1.
+- [x] T024 `subject-strip.tsx`: linhas por assunto de `groupBySubject` — construída em rodada anterior; corrigida nesta (faltavam três testids:
+      `subject-timeline`, `subject-chip` com `data-role`, `subject-subtitle`)
+      e **composta em `dashboard.tsx`** no painel "o que insiste em
+      acontecer", substituindo `IncidentGroupList`, alimentada por
+      `subjectsInWindow(groupBySubject(...), now, SUBJECT_WINDOW_HOURS)`
+      filtrada a `count > 1`. 10/10 unit tests verdes; AN-15 fecha por
+      causa disto (ver controle.md §2).
       (janela 48 h no cliente), ativos primeiro, strip 120×18, chip com
       forma, subtítulo humano (recurso + nó; id interno só em tooltip), link
       para incidente/investigação. T012 (metade strip) verde.
@@ -203,22 +207,19 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       assunto. 10/10 unit tests verdes. Composta em `dashboard.tsx`.
       colapso de T011, inserção por evento com animação de chegada, corte em
       8. T011 verde.
-- [ ] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — parcial: run-band, attention.tsx recomposta e activity-feed (nova
-      nesta rodada, com o feed reconstruído para quatro tipos) já
-      compostos. kpi-tiles e subject-strip continuam NÃO compostas — o
-      grid antigo de `<Figure>` e o painel `IncidentGroupList` continuam
-      no lugar deles, com os cálculos locais que a leitura de
-      `/v1/overview` deveria ter substituído. Maior lacuna que resta;
-      detalhada em controle.md §4.1, incluindo o que falta linha por linha.
+- [x] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — as cinco regiões estão compostas: run-band, attention.tsx recomposta,
+      kpi-tiles (substitui o grid de `<Figure>`), subject-strip (substitui
+      `IncidentGroupList`) e activity-feed. `/v1/estate/summary` e
+      `/v1/detectors` removidos do `Promise.all` — nada mais os lê.
+      `make verify` verde e a suíte de aceitação confirma o efeito (AN-09,
+      AN-15 fecham). Ver controle.md §2-§3 para o detalhe por peça.
       artboard (grid, gutters e hierarquia de `Main.dc.html`), leituras
       migradas para o overview onde ele é o dono, empty states com próximo
       passo, honestidade de leitura falhada.
-- [ ] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — parcial, ligado a T026: run-band, decisionBand (incluindo as duas
-      chaves novas desta rodada — `rejectSubmit`, `cancel`) e
-      `dashboard.liveActivity.*` (novo, sete chaves) já em `en`/`pt-BR`.
-      kpi-tiles e subject-strip já tinham suas próprias chaves de rodadas
-      anteriores — o que falta não é tradução, é a composição em
-      `dashboard.tsx` (T026) que as exerceria.
+- [x] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — completo: run-band, decisionBand (incluindo `rejectSubmit`/`cancel`,
+      novas nesta rodada) e `dashboard.liveActivity.*` (sete chaves novas)
+      em `en`/`pt-BR`; kpi-tiles e subject-strip usam chaves de rodadas
+      anteriores, agora de fato exercidas pela composição (T026).
       nenhuma string hardcoded do artboard.
 - [~] T028 `console/visual/screens.json` + baselines do Painel nos dois temas — **[~ motivo]** o registro está feito nesta rodada (`dashboard-1440-dark`,
       `dashboard-1440-light`, `status: pending`) — mas a captura e a
@@ -231,13 +232,17 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
 
 ## Phase 4: Verde local e gates
 
-- [ ] T029 T004 verde alegação por alegação no backing local (mock); as — parcial: de 12 failed/4 skipped/2 passed no início desta rodada para
-      8 failed/4 skipped/6 passed no fim (evidence/acceptance-current-state.log).
-      Os 8 que restam têm causa raiz nomeada em controle.md §2: 2 por
-      T026 não estar feita (AN-09, AN-15), 6 por um achado novo fora do
-      escopo desta feature (controle.md §4.2 — o botão de investigar
-      navega para fora do Painel, um comportamento anterior a toda a
-      onda). Nenhum dos 8 é um defeito não diagnosticado.
+- [~] T029 T004 verde alegação por alegação no backing local (mock); as — **[~ motivo]** 12 de 18 fecham: 8 passam de verdade (AN-06, AN-07,
+      AN-09, AN-10, AN-13, AN-15, AN-16, AN-17), 4 pulam nomeadamente
+      (AN-03, AN-08, AN-11, AN-12). Os 6 que restam vermelhos — AN-01,
+      AN-02, AN-04 (dois casos), AN-05, AN-14 — têm causa raiz nomeada e
+      fora do escopo desta feature (controle.md §4.2: o botão de investigar
+      existente navega para fora do Painel ao suceder, um comportamento
+      anterior a toda a onda specs_v8, decidido pelo orquestrador como
+      dependência de 070-iniciar-investigacao). "Verde alegação por
+      alegação" não é alcançável por esta feature sozinha; encerrada com o
+      motivo, não deixada aberta sem explicação. Evidência:
+      evidence/acceptance-current-state.log.
       staging-write ficam para a Phase 5. Registrar a virada.
 - [x] T030 Gates do domínio editado antes de commitar: lint/format Python e — a disciplina por checkpoint, que é o que esta tarefa pede, foi seguida
       em todo commit desta feature (lint/typecheck/testes do console e
