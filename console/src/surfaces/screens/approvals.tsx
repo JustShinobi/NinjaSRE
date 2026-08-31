@@ -10,7 +10,12 @@ import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { INVESTIGATION_STEP } from '../first-run/plan';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { ProposalCard, type ProposalRow } from '../proposal';
+import {
+  DecisionCard,
+  type ActionStep,
+  type DecisionCardProps,
+  type EvidenceItem,
+} from '../proposal';
 import { sideEffectLabel } from '../side-effects';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode } from '../url-state';
@@ -23,7 +28,6 @@ import {
   list,
   number,
   optionalRead,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -31,35 +35,39 @@ import {
 } from '../read';
 
 /**
- * The "Actions" tab of Decisions: everything waiting on an approval, grouped by
- * how long it has waited, decidable where it is read.
+ * The "Actions" tab of Decisions: the agent's action, by field, and the
+ * expired one with an exit — `design/padrao-2026-08/Decisions.dc.html`.
  *
- * The grouping is by urgency rather than by run or by kind: an approval that has
- * passed its expiry is a different thing from one that arrived a minute ago, and
- * a queue sorted by identifier makes those two look the same.
+ * Three reads rather than one: `state=pending`, `state=expired`,
+ * `state=decided`, because FR-006 makes the three buckets the gateway's own
+ * concern and a screen that filtered one list into three would be a second
+ * opinion about what "expired" means. Every one of them sweeps lapsed
+ * requests server-side before answering (`GET /v1/approvals`, T015), so
+ * "expired" here is never a client-side clock comparison.
  *
- * The decision controls are **absent** for a viewer who may not decide. Not
- * disabled: a disabled control still says the capability exists, still says
- * somebody else has it, and still ships the handler behind it.
+ * **The decision controls are absent for a viewer who may not decide.** Not
+ * disabled — a disabled control still says the capability exists and still
+ * ships the handler behind it.
  *
- * **This tab is one half of Decisions.** "Can the agent do this now" and
- * "should the deployment be different from tomorrow on" are different
- * questions, and used to be two menu entries with no reference to each other.
- * They are two tabs of one screen now — `screens/decisions.tsx`, which renders
- * this content and `proposals.tsx`'s side by side — so a reader who opens
- * either sees that the other exists without a cross-link paragraph doing the
- * work a tab bar already does.
- *
- * **The empty state names the rule, not only the mechanism.** "None does" is
- * true and unhelpful on a deployment where the approval threshold was never
- * touched; the useful sentence says which side-effect level is gated and
- * whether that is this deployment's own choice or the shipped default —
- * unless the setup itself is unfinished, in which case *that* is the more
- * useful thing to say, and it wins.
+ * **Two live decide-in-place paths, both composed unedited.** An approval
+ * whose run has an open interaction gets `DecisionControls`
+ * (`/v1/interactions/{id}/approve|reject`); one without gets
+ * `IncidentDecisionControls` (`/v1/approvals/{id}/decision`) — the only path
+ * staging exercises today, since it has no live run. Neither component's
+ * interface changes here.
  */
 
-/** The permission the gateway requires to decide a remediation. */
-const DECIDE = 'remediation.approve';
+/** The permission the gateway requires to decide a remediation.
+ *
+ * `approval.review` (`Permission.APPROVAL_REVIEW`) — the same right
+ * `POST /v1/approvals/{id}/decision` itself checks
+ * (`gateway/http/security/console_routes.py`). The screen used to gate on
+ * `remediation.approve`, a real permission that happens to exist but is not
+ * the one this route enforces; every role that has one has had the other too
+ * so far, which is exactly the kind of drift that only shows up the day a
+ * custom role does not.
+ */
+const DECIDE = 'approval.review';
 
 /**
  * The configuration paths used by the live API and the recorded mockplane.
@@ -117,47 +125,198 @@ function ruleFromEffective(payload: unknown): ApprovalRule | null {
 }
 
 /**
- * Whether `record`'s window for being answered has closed, on the clock.
+ * The route an evidence reference resolves to.
  *
- * Asked of the clock rather than of `state`, for the reason the deployment's
- * own refusal is: a lapsed change is relabelled by a sweep, and a deployment
- * whose sweep is not scheduled leaves every lapsed change sitting at
- * `pending`. Reading the label here would draw a live Approve over a change
- * the deployment will refuse — which is the same reading that let a
- * remediation with a fifteen-minute window be approved fifty minutes late.
- *
- * One function rather than two readings of the same field, because the two
- * things this decides are the two that used to disagree: which group the card
- * is filed under, and whether it is offered a control.
+ * References are `source:kind:id` (spec, fact 2 —
+ * `alertmanager:incident_timeline:res-7a73…`, `proxmox:quorum:HAL9000`). Never
+ * empty (AN-11): an unparsable reference still lands somewhere rather than on
+ * a link with no destination.
  */
-function hasExpired(record: unknown, now: Date): boolean {
-  const expires = Date.parse(text(record, 'expires_at'));
-  return !Number.isNaN(expires) && expires < now.getTime();
+function hrefForEvidence(reference: string): string {
+  const parts = reference.split(':');
+  const id = parts[parts.length - 1] ?? '';
+  if (id === '') return '#';
+  const kind = parts.length > 1 ? (parts[1] ?? '') : '';
+  if (kind.includes('incident')) return `/incidents/${encodeURIComponent(id)}`;
+  return `/resources/${encodeURIComponent(id)}`;
 }
 
-/** Which group an approval belongs to, by how long it has been waiting. */
-function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
-  if (hasExpired(record, now)) return 'overdue';
-  const requested = Date.parse(text(record, 'requested_at'));
-  const day = 24 * 60 * 60 * 1000;
-  if (!Number.isNaN(requested) && now.getTime() - requested < day) return 'today';
-  return 'later';
+function stepsOf(record: unknown, key: string): readonly ActionStep[] {
+  return list(record, key).map((entry) => ({
+    ordinal: number(entry, 'ordinal'),
+    summary: text(entry, 'summary'),
+    capability: text(entry, 'capability'),
+  }));
+}
+
+function evidenceOf(record: unknown): readonly EvidenceItem[] {
+  return list(record, 'evidence').map((entry) => {
+    const reference = text(entry, 'reference');
+    return {
+      summary: text(entry, 'summary'),
+      href: hrefForEvidence(reference),
+    };
+  });
+}
+
+/** "N resource(s) known, depth D" — or that the graph could not be read. */
+function blastRadiusTextOf(
+  locale: Parameters<typeof message>[0],
+  record: unknown,
+): string {
+  const radius = field(record, 'blast_radius');
+  if (!flag(radius, 'known')) {
+    return message(locale, 'decisions.card.blastRadius.unknown');
+  }
+  return message(locale, 'decisions.card.blastRadius.text', {
+    count: String(number(radius, 'count')),
+    depth: String(number(radius, 'depth')),
+  });
+}
+
+function autonomyTextOf(
+  locale: Parameters<typeof message>[0],
+  record: unknown,
+): string {
+  const autonomy = field(record, 'autonomy');
+  const level = text(autonomy, 'side_effect_level');
+  const reversible = flag(autonomy, 'reversible');
+  return reversible
+    ? message(locale, 'decisions.card.autonomy.reversible', {
+        level: sideEffectLabel(locale, level),
+      })
+    : message(locale, 'decisions.card.autonomy.irreversible', {
+        level: sideEffectLabel(locale, level),
+      });
+}
+
+/**
+ * The controls this decision is decided with, or nothing for a viewer who
+ * may not decide.
+ *
+ * Two routes, because there are two things called a decision here. One is a
+ * question a live investigation is blocked on — an *interaction* — answered
+ * through the run that raised it. The other is a remediation the gate queued
+ * as an approval in the store, which raises no interaction and is answered
+ * at the approval itself. The interaction is preferred when there is one:
+ * answering through the run releases an investigation standing still waiting
+ * for it.
+ */
+function decisionFor(
+  locale: Parameters<typeof message>[0],
+  decidable: boolean,
+  record: unknown,
+  interactionId: string | undefined,
+): ReactNode {
+  if (!decidable) return undefined;
+  const labels = {
+    approve: message(locale, 'proposal.approve'),
+    reject: message(locale, 'proposal.reject'),
+    reason: message(locale, 'proposal.reason'),
+    reasonRequired: message(locale, 'proposal.reason.required'),
+  };
+  if (interactionId !== undefined) {
+    return <DecisionControls interactionId={interactionId} labels={labels} />;
+  }
+  const approvalId = text(record, 'approval_id');
+  if (approvalId === '') return undefined;
+  return (
+    <IncidentDecisionControls
+      approvalId={approvalId}
+      labels={{
+        ...labels,
+        failed: message(locale, 'incident.proposedAction.decisionFailed'),
+      }}
+    />
+  );
+}
+
+function cardPropsFrom(
+  locale: Parameters<typeof message>[0],
+  record: unknown,
+  state: DecisionCardProps['state'],
+): Omit<DecisionCardProps, 'decision' | 'expiredFooter' | 'outcome'> {
+  const risk = field(record, 'risk');
+  const origin = field(record, 'origin');
+  const originIncidentId = text(origin, 'incident_id');
+  const originHeadline = text(origin, 'headline');
+  return {
+    approvalId: text(record, 'approval_id'),
+    state,
+    title: text(record, 'title') || text(record, 'summary'),
+    requester: text(record, 'requester'),
+    ...(originIncidentId === ''
+      ? {}
+      : { originHref: `/incidents/${encodeURIComponent(originIncidentId)}` }),
+    ...(originHeadline === '' ? {} : { originLabel: originHeadline }),
+    category: text(record, 'category') || 'remediation',
+    risk: {
+      class: text(risk, 'class'),
+      score: number(risk, 'score') || 1,
+      scale: number(risk, 'scale') || 5,
+    },
+    riskLabel: message(locale, 'proposal.risk', {
+      level: String(number(risk, 'score') || 1),
+    }),
+    steps: stepsOf(record, 'steps'),
+    rollback: stepsOf(record, 'rollback'),
+    reversible: flag(field(record, 'autonomy'), 'reversible'),
+    why: text(record, 'intent'),
+    evidence: evidenceOf(record),
+    blastRadiusText: blastRadiusTextOf(locale, record),
+    autonomyText: autonomyTextOf(locale, record),
+    rawPayload: JSON.stringify(field(record, 'raw'), null, 2),
+    labels: cardLabels(locale),
+    summaryFallback: text(record, 'summary'),
+  };
+}
+
+/** The card's own section labels, resolved once per render rather than per card. */
+function cardLabels(
+  locale: Parameters<typeof message>[0],
+): DecisionCardProps['labels'] {
+  return {
+    steps: message(locale, 'decisions.card.steps'),
+    rollback: message(locale, 'decisions.card.rollback'),
+    noRollback: message(locale, 'decisions.card.noRollback'),
+    why: message(locale, 'decisions.card.why'),
+    evidence: message(locale, 'decisions.card.evidence'),
+    evidenceLink: message(locale, 'decisions.card.evidenceLink'),
+    blastRadius: message(locale, 'decisions.card.blastRadius'),
+    rawPayload: message(locale, 'decisions.card.rawPayload'),
+    notRecorded: message(locale, 'decisions.card.notRecorded'),
+    risk: message(locale, 'decisions.card.risk'),
+    outcome: message(locale, 'decisions.card.outcome'),
+    appliedAndVerified: message(locale, 'decisions.card.appliedAndVerified'),
+  };
 }
 
 export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone, search } = context;
   const init = authorised(credential);
 
-  const approvals = await panelRead('/v1/approvals', () => read('/v1/approvals', init));
-  const pending = list(dataOf(approvals), 'approvals').filter(
-    (record) => text(record, 'state') === 'pending',
+  const pendingRead = await panelRead('/v1/approvals?state=pending', () =>
+    read('/v1/approvals', { ...init, query: '?state=pending' }),
+  );
+  const expiredRead = await panelRead('/v1/approvals?state=expired', () =>
+    read('/v1/approvals', { ...init, query: '?state=expired' }),
+  );
+  const decidedRead = await panelRead('/v1/approvals?state=decided', () =>
+    read('/v1/approvals', { ...init, query: '?state=decided&limit=10' }),
   );
 
-  // One read per run, for the interaction each approval is answered through.
-  // The API addresses a decision by interaction rather than by approval, and a
-  // console that guessed the identifier would be a console that decided the
-  // wrong thing exactly once.
-  const runs = [...new Set(pending.map((record) => text(record, 'run_id')))];
+  const pending = list(dataOf(pendingRead), 'approvals');
+  const expired = list(dataOf(expiredRead), 'approvals');
+  const decided = list(dataOf(decidedRead), 'approvals');
+  const queue = [...expired, ...pending];
+
+  // One read per run with a queued or expired decision, for the interaction
+  // it might be answered through. The API addresses a decision by
+  // interaction rather than by approval, and a console that guessed the
+  // identifier would be a console that decided the wrong thing exactly once.
+  const runs = [
+    ...new Set(queue.map((record) => text(record, 'run_id')).filter((id) => id !== '')),
+  ];
   const interactions = new Map<string, string>();
   await Promise.all(
     runs.map(async (runId) => {
@@ -178,21 +337,14 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
 
   const none = message(locale, 'surface.none');
   const decidable = may(viewer, DECIDE);
+  const failed = pendingRead.status === 'error' || expiredRead.status === 'error';
 
   // --- Why the queue reads as it does, when there is nothing in it -----------
-  //
-  // An unfinished setup is the more useful thing to say and wins outright: a
-  // deployment that cannot investigate yet has no approvals for a reason no
-  // policy sentence explains. Once the setup is done, the mechanism ("a change
-  // that needs a person appears here") is true and says nothing about *this*
-  // deployment, so the rule that actually feeds the queue is read and named —
-  // the side-effect level it is gated above, and whether that is this
-  // deployment's own choice or the level nobody has moved off yet.
   const setup = await readSetupState(credential);
   const cause = setupCause(locale, setup, INVESTIGATION_STEP);
 
   let emptyBody = message(locale, 'approvals.empty.body');
-  if (cause === null && pending.length === 0) {
+  if (cause === null && queue.length === 0) {
     const tree = await optionalRead('/v1/config', () => read('/v1/config', init));
     const nodeId = resolveNode(
       readViewState(search, ['node']),
@@ -205,9 +357,6 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
       );
       let rule = ruleFromFields(dataOf(fields));
       if (rule === null) {
-        // The mockplane still serves the pre-schema effective-config shape. Keep
-        // this compatibility read local while recorded scenarios migrate; the
-        // live path above remains the source of the default and its provenance.
         const effective = await optionalRead('/v1/config/{node_id}', () =>
           read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
         );
@@ -225,139 +374,6 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
     }
   }
 
-  /**
-   * The controls this proposal is decided with, or nothing for a viewer who
-   * may not decide.
-   *
-   * Two routes, because there are two things called a proposal here. One is a
-   * question a live investigation is blocked on — an *interaction* — answered
-   * through the run that raised it. The other is a remediation the gate queued
-   * as an approval in the store, which raises no interaction and is answered
-   * at the approval itself.
-   *
-   * Only the first was ever wired. So a queued remediation matched no
-   * interaction, the controls were dropped, and a screen called Decisions
-   * showed a card saying "awaiting your decision" with nothing on it to decide
-   * with. The interaction is still preferred when there is one: answering
-   * through the run releases an investigation that is standing still waiting
-   * for it, and deciding at the store would leave it standing there.
-   *
-   * **A closed window is answered before either of them, and before the
-   * viewer's permission.** The deployment refuses a decision taken after the
-   * expiry, so an Approve on a lapsed card is a button whose only outcome is
-   * an error — and this screen already knows, because it filed the card under
-   * "Past its expiry" to say so. What goes in the control's place is the
-   * reason, not a gap: a card that merely lost its buttons reads as a
-   * permission the viewer does not hold, and sends them to ask for one that
-   * would not have helped. Which is also why the expiry is checked above
-   * `decidable` rather than inside it — a closed window is closed for
-   * everyone, exactly as the deployment's own check has it.
-   */
-  function decisionFor(
-    record: unknown,
-    interactionId: string | undefined,
-  ): { decision?: ReactNode } {
-    if (hasExpired(record, now)) {
-      return {
-        decision: (
-          <p data-testid="window-closed" className="text-small text-muted">
-            {message(locale, 'approvals.expired.note')}
-          </p>
-        ),
-      };
-    }
-    if (!decidable) return {};
-    const labels = {
-      approve: message(locale, 'proposal.approve'),
-      reject: message(locale, 'proposal.reject'),
-      reason: message(locale, 'proposal.reason'),
-      reasonRequired: message(locale, 'proposal.reason.required'),
-    };
-    if (interactionId !== undefined) {
-      return {
-        decision: <DecisionControls interactionId={interactionId} labels={labels} />,
-      };
-    }
-    const approvalId = text(record, 'approval_id');
-    if (approvalId === '') return {};
-    return {
-      decision: (
-        <IncidentDecisionControls
-          approvalId={approvalId}
-          labels={{
-            ...labels,
-            failed: message(locale, 'incident.proposedAction.decisionFailed'),
-          }}
-        />
-      ),
-    };
-  }
-
-  function rowsFor(record: unknown): readonly ProposalRow[] {
-    const plan = field(record, 'rollback_plan');
-    const steps = list(plan, 'steps');
-    const arguments_ = pairs(record, 'arguments')
-      .map(([name, value]) => `${name} = ${value}`)
-      .join(' · ');
-
-    return [
-      {
-        field: 'target',
-        label: message(locale, 'proposal.target'),
-        value: arguments_ === '' ? none : arguments_,
-      },
-      {
-        field: 'current',
-        label: message(locale, 'proposal.current'),
-        value: text(record, 'state'),
-      },
-      {
-        field: 'change',
-        label: message(locale, 'proposal.change'),
-        value: `${text(record, 'action')} — ${text(record, 'summary')}`,
-      },
-      {
-        field: 'protects',
-        label: message(locale, 'proposal.protects'),
-        value: steps.length === 0 ? none : '',
-        items: steps.map((step) => ({
-          badge: text(step, 'capability'),
-          text: text(step, 'description'),
-        })),
-      },
-      {
-        field: 'blast',
-        label: message(locale, 'proposal.blast'),
-        value: text(plan, 'notes') === '' ? none : text(plan, 'notes'),
-      },
-      {
-        field: 'rollback',
-        label: message(locale, 'proposal.rollback'),
-        value:
-          steps.length === 0
-            ? message(locale, 'proposal.norollback')
-            : text(plan, 'plan_id'),
-        grave: steps.length === 0,
-      },
-      {
-        field: 'verification',
-        label: message(locale, 'proposal.verification'),
-        value: none,
-      },
-      {
-        field: 'autonomy',
-        label: message(locale, 'proposal.autonomy'),
-        value: `${sideEffectLabel(locale, text(record, 'side_effect_level'))} ${message(locale, 'proposal.queued')}`,
-      },
-    ];
-  }
-
-  const groups = (['overdue', 'today', 'later'] as const).map((group) => ({
-    group,
-    label: message(locale, `approvals.group.${group}`),
-    records: pending.filter((record) => groupOf(record, now) === group),
-  }));
-
   const empty = emptyBecause(
     {
       heading: message(locale, 'approvals.empty.heading'),
@@ -372,60 +388,151 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
     <>
       <Panel
         title={message(locale, 'approvals.title')}
-        state={stateOf(approvals, pending.length === 0)}
-        dependency={dependencyOf(approvals)}
+        state={failed ? 'error' : stateOf(pendingRead, queue.length === 0)}
+        dependency={
+          failed
+            ? dependencyOf(expiredRead.status === 'error' ? expiredRead : pendingRead)
+            : ''
+        }
         labels={panelLabels(locale, message(locale, 'approvals.title'))}
         empty={empty}
         bare
       >
         <div className="flex flex-col gap-5">
-          {groups
-            .filter((group) => group.records.length > 0)
-            .map((group) => (
-              <section
-                key={group.group}
-                data-testid="approval-group"
-                data-group={group.group}
-              >
-                <h4 className="text-strong mb-2">{group.label}</h4>
-                <div className="flex flex-col gap-4">
-                  {group.records.map((record) => {
-                    const id = text(record, 'approval_id');
-                    const interactionId = interactions.get(text(record, 'run_id'));
-                    const waited = timestamp(
-                      locale,
-                      text(record, 'requested_at'),
-                      now,
-                      zone,
-                    );
-                    return (
-                      <div key={id} data-testid="approval" data-approval={id}>
-                        <ProposalCard
-                          heading={message(locale, 'proposal.title')}
-                          risk={message(locale, 'proposal.risk', {
-                            level: String(
-                              Math.max(
-                                1,
-                                Math.min(5, number(record, 'risk_class') || 3),
-                              ),
-                            ),
-                          })}
-                          rows={rowsFor(record)}
-                          {...decisionFor(record, interactionId)}
-                        />
-                        <p className="text-meta text-muted mt-1">
-                          <time dateTime={waited.iso} title={waited.absolute}>
-                            {waited.relative}
-                          </time>
-                        </p>
-                      </div>
-                    );
-                  })}
+          {queue.map((record, index) => {
+            const id = text(record, 'approval_id');
+            const state = text(record, 'state') as DecisionCardProps['state'];
+            const isExpired = state === 'expired';
+            const interactionId = interactions.get(text(record, 'run_id'));
+            const waited = timestamp(locale, text(record, 'requested_at'), now, zone);
+
+            if (index > 0) {
+              // Only the first card in the combined, oldest-and-most-urgent
+              // ordering is expanded — the rest render as one-sentence rows,
+              // per the "many pending" edge case.
+              return (
+                <div
+                  key={id}
+                  data-testid="decision-row-collapsed"
+                  data-approval={id}
+                  data-state={state}
+                  className="flex items-center gap-3 px-4 py-2 rounded-2 edge border-border bg-raised"
+                >
+                  <span className="text-small min-w-0 truncate">
+                    {text(record, 'title')}
+                  </span>
+                  <span className="ml-auto text-meta text-muted shrink-0">
+                    {message(locale, 'proposal.risk', {
+                      level: String(number(field(record, 'risk'), 'score') || 1),
+                    })}
+                  </span>
+                  <time
+                    className="text-meta text-muted shrink-0"
+                    dateTime={waited.iso}
+                    title={waited.absolute}
+                  >
+                    {waited.relative}
+                  </time>
                 </div>
-              </section>
-            ))}
+              );
+            }
+
+            const cardProps = cardPropsFrom(
+              locale,
+              record,
+              isExpired ? 'expired' : 'pending',
+            );
+            return (
+              <div key={id}>
+                <DecisionCard
+                  {...cardProps}
+                  {...(isExpired
+                    ? {
+                        expiredFooter: {
+                          approvalId: id,
+                          labels: {
+                            explanation: message(
+                              locale,
+                              'decisions.expiredFooter.explanation',
+                            ),
+                            repropose: message(
+                              locale,
+                              'decisions.expiredFooter.repropose',
+                            ),
+                            discard: message(locale, 'decisions.expiredFooter.discard'),
+                            failed: message(locale, 'decisions.expiredFooter.failed'),
+                          },
+                        },
+                      }
+                    : {
+                        decision: decisionFor(locale, decidable, record, interactionId),
+                      })}
+                />
+                <p className="text-meta text-muted mt-1">
+                  <time dateTime={waited.iso} title={waited.absolute}>
+                    {waited.relative}
+                  </time>
+                </p>
+              </div>
+            );
+          })}
         </div>
       </Panel>
+
+      <section
+        data-testid="decided-list"
+        className="rounded-3 edge border-border bg-raised p-4 flex flex-col gap-2 mt-4"
+      >
+        <h4 className="text-strong">{message(locale, 'decisions.decided.heading')}</h4>
+        {decided.length === 0 ? (
+          <p data-testid="decided-empty" className="text-small text-muted">
+            {message(locale, 'decisions.decided.empty')}
+          </p>
+        ) : (
+          decided.map((record) => {
+            const verdict = text(record, 'verdict');
+            const decidedAt = timestamp(locale, text(record, 'decided_at'), now, zone);
+            const who = text(record, 'decided_by') || none;
+            const reason = text(record, 'reason');
+            const outcome =
+              verdict === 'approved'
+                ? flag(record, 'applied_and_verified')
+                  ? message(locale, 'decisions.decided.outcome.approvedVerified', {
+                      who,
+                    })
+                  : message(locale, 'decisions.decided.outcome.approved', { who })
+                : verdict === 'rejected'
+                  ? reason === ''
+                    ? message(locale, 'decisions.decided.outcome.rejectedNoReason', {
+                        who,
+                      })
+                    : message(locale, 'decisions.decided.outcome.rejected', {
+                        who,
+                        reason,
+                      })
+                  : message(locale, 'decisions.decided.outcome.discarded', { who });
+            return (
+              <div
+                key={text(record, 'approval_id')}
+                data-testid="decided-item"
+                data-verdict={verdict}
+                className="flex items-center gap-2 py-2 edge border-border border-t-0 border-x-0 last:border-b-0"
+              >
+                <span className="text-small min-w-0 truncate">
+                  {text(record, 'title')} — {outcome}
+                </span>
+                <time
+                  className="ml-auto text-meta text-muted shrink-0"
+                  dateTime={decidedAt.iso}
+                  title={decidedAt.absolute}
+                >
+                  {decidedAt.relative}
+                </time>
+              </div>
+            );
+          })
+        )}
+      </section>
     </>
   );
 }

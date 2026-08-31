@@ -141,6 +141,74 @@ describe('resolving what the shell needs', () => {
     expect(await loadGuardian('opaque')).toEqual({ live: true, posture: 'propose' });
   });
 
+  it('counts only a pending, unexpired approval toward the decisions badge', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const path = input instanceof Request ? input.url : String(input);
+        if (path.endsWith('/v1/approvals')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                approvals: [
+                  {
+                    approval_id: 'apr-pending',
+                    state: 'pending',
+                    summary: 'x',
+                    action: 'y',
+                  },
+                  {
+                    approval_id: 'apr-expired',
+                    state: 'expired',
+                    summary: 'x',
+                    action: 'y',
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.resolve(new Response('{}', { status: 404 }));
+      }),
+    );
+
+    const counts = countsFrom(await loadAttention('opaque'));
+
+    expect(counts.decisions).toBe(1);
+  });
+
+  it('counts nothing toward the decisions badge when only an expired approval remains', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const path = input instanceof Request ? input.url : String(input);
+        if (path.endsWith('/v1/approvals')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                approvals: [
+                  {
+                    approval_id: 'apr-expired',
+                    state: 'expired',
+                    summary: 'x',
+                    action: 'y',
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.resolve(new Response('{}', { status: 404 }));
+      }),
+    );
+
+    const counts = countsFrom(await loadAttention('opaque'));
+
+    expect(counts.decisions).toBe(0);
+  });
+
   it('counts what each area is waiting on', async () => {
     vi.stubGlobal('fetch', servingFixtures());
     const counts = countsFrom(await loadAttention('opaque'));

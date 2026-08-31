@@ -189,9 +189,9 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         path="/v1/approvals",
         slug="approvals",
         source=_GATEWAY,
-        summary="undecided approvals, longest-waiting first",
+        summary="approvals in one state bucket, by field",
         records_key="approvals",
-        query=("run_id", "limit"),
+        query=("run_id", "limit", "state"),
     ),
     ConsoleEndpoint(
         method="GET",
@@ -206,6 +206,27 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         slug="approval-rollback",
         source=_GATEWAY,
         summary="recording that a stored rollback plan was executed",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/repropose",
+        slug="approval-repropose",
+        source=_GATEWAY,
+        summary="a fresh pending decision, queued from an expired one's origin",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/discard",
+        slug="approval-discard",
+        source=_GATEWAY,
+        summary="withdrawing a decision from the queue, marked rather than deleted",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/decision",
+        slug="approval-decision",
+        source=_GATEWAY,
+        summary="approving or rejecting one approval directly, deciding it in place",
     ),
     # --- Changes the agent has proposed -----------------------------------------
     ConsoleEndpoint(

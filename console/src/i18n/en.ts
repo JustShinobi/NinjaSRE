@@ -2478,6 +2478,38 @@ export const EN = {
   'settings.sso.result.failed': 'This claim set failed the test:',
   'settings.sso.fallback':
     'Local sign-in stays available as a fallback, whatever this provider is set to — nobody is locked out by a broken identity provider alone.',
+  'decisions.card.steps': 'What will happen',
+  'decisions.card.rollback': 'If it goes wrong — rollback',
+  'decisions.card.noRollback': 'No rollback recorded — this action cannot be undone.',
+  'decisions.card.why': 'Why',
+  'decisions.card.evidence': 'Evidence behind this',
+  'decisions.card.evidenceLink': 'view',
+  'decisions.card.blastRadius': 'Blast radius',
+  'decisions.card.blastRadius.text': '{count} resource(s) known, depth {depth}',
+  'decisions.card.blastRadius.unknown':
+    'Unknown — the topology graph could not be read',
+  'decisions.card.rawPayload': 'raw action payload',
+  'decisions.card.notRecorded': 'Not recorded.',
+  'decisions.card.risk': 'Risk',
+  'decisions.card.outcome': 'Decided',
+  'decisions.card.appliedAndVerified': 'applied and verified',
+  'decisions.card.autonomy.reversible':
+    '{level} — queued, applies only after your yes.',
+  'decisions.card.autonomy.irreversible':
+    '{level} — queued, applies only after your yes.',
+  'decisions.expiredFooter.explanation':
+    'The window for this proposal closed — the environment was read before it expired. Propose again to decide on a current reading.',
+  'decisions.expiredFooter.repropose': 'Propose again, now',
+  'decisions.expiredFooter.discard': 'Discard',
+  'decisions.expiredFooter.failed': 'The deployment did not answer. Nothing changed.',
+  'decisions.decided.heading': 'Decided recently',
+  'decisions.decided.empty': 'Nothing has been decided yet.',
+  'decisions.decided.outcome.approved': 'approved by {who}',
+  'decisions.decided.outcome.approvedVerified':
+    'approved by {who}, applied and verified',
+  'decisions.decided.outcome.rejected': 'rejected by {who}: {reason}',
+  'decisions.decided.outcome.rejectedNoReason': 'rejected by {who}',
+  'decisions.decided.outcome.discarded': 'discarded by {who}',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

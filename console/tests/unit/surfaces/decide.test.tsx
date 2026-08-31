@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DecisionControls } from '@/surfaces/decision';
 import { CredentialField } from '@/surfaces/credential';
 import { Figure } from '@/surfaces/figure';
-import { ProposalCard, PROPOSAL_FIELDS } from '@/surfaces/proposal';
 import { DependencyGraph, NEIGHBOUR_BOUND } from '@/surfaces/graph';
 import { AttentionBlock } from '@/surfaces/attention';
 import { ActivityFeed } from '@/surfaces/activity';
@@ -14,10 +13,12 @@ import { ActivityFeed } from '@/surfaces/activity';
  * The pieces a screen is assembled from, each against the property it exists to
  * hold.
  *
- * Every one of these is a rule that is easy to state and easy to lose: eight
- * fields in an order, a figure that cannot be drawn without a drill-down, a
- * rejection that cannot be sent without a reason, a credential field that has no
- * way to show what is stored.
+ * Every one of these is a rule that is easy to state and easy to lose: a
+ * figure that cannot be drawn without a drill-down, a rejection that cannot be
+ * sent without a reason, a credential field that has no way to show what is
+ * stored. The decision card itself moved to `decision-card.test.tsx`, against
+ * its own artboard-shaped anatomy rather than the eight-field generic list
+ * this file used to hold it to.
  */
 
 let sent: { url: string; init: RequestInit } | null = null;
@@ -49,59 +50,6 @@ function bodySent(): string {
   const body = sent?.init.body;
   return typeof body === 'string' ? body : '';
 }
-
-describe('the proposal card', () => {
-  const ROWS = PROPOSAL_FIELDS.map((field) => ({
-    field,
-    label: field,
-    value: `what ${field} says`,
-  }));
-
-  it('carries all eight documented fields, in the documented order', () => {
-    render(<ProposalCard heading="Proposed action" risk="Risk 4 of 5" rows={ROWS} />);
-
-    const drawn = screen
-      .getAllByTestId('proposal-row')
-      .map((row) => row.getAttribute('data-field'));
-    expect(drawn).toEqual([...PROPOSAL_FIELDS]);
-  });
-
-  it('shows the decision controls only when it is handed them', () => {
-    const { rerender } = render(
-      <ProposalCard heading="Proposed action" risk="Risk 4 of 5" rows={ROWS} />,
-    );
-    expect(screen.queryByTestId('decision')).toBeNull();
-
-    rerender(
-      <ProposalCard
-        heading="Proposed action"
-        risk="Risk 4 of 5"
-        rows={ROWS}
-        decision={<span data-testid="decision">here</span>}
-      />,
-    );
-    expect(screen.getByTestId('decision')).toBeInTheDocument();
-  });
-
-  it('draws what each item protects as its own list', () => {
-    render(
-      <ProposalCard
-        heading="Proposed action"
-        risk="Risk 4 of 5"
-        rows={[
-          {
-            field: 'protects',
-            label: 'What each protects',
-            value: '',
-            items: [{ badge: 'safe', text: 'vm-9098-disk-0 — orphaned volume' }],
-          },
-        ]}
-      />,
-    );
-
-    expect(screen.getByText(/vm-9098-disk-0/)).toBeInTheDocument();
-  });
-});
 
 describe('deciding in place', () => {
   const LABELS = {

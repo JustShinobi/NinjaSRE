@@ -193,14 +193,17 @@ describe('the autonomy screen', () => {
 
 describe('a viewer who may act', () => {
   it('is offered the decision controls on an approval', async () => {
+    // approval.review — the permission POST /v1/approvals/{id}/decision
+    // itself checks — not remediation.approve, a real permission this
+    // screen used to gate on that simply is not the one the route enforces.
     serveScenario(
       'populated',
-      principalHolding(['approval.read', 'remediation.approve', 'investigation.read']),
+      principalHolding(['approval.read', 'approval.review', 'investigation.read']),
     );
     await renderArea('decisions', { tab: 'actions' });
 
-    expect(screen.getAllByTestId('approval').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('proposal-row').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('decision-card').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('decision-section').length).toBeGreaterThan(0);
   });
 
   it('is offered the tools browser on the agent screen', async () => {

@@ -1,0 +1,41 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "approval_id": "apr-1002",
+        "created_at": "2026-08-07T12:00:00+00:00",
+        "state": "pending"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "approval-repropose",
+        "query": {}
+      },
+      "status": 201
+    },
+    {
+      "arguments": {
+        "approval_id": "apr-0005"
+      },
+      "body": {
+        "detail": "'apr-0005''s stored document no longer describes a remediation action that can be rebuilt"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "approval-repropose",
+        "query": {}
+      },
+      "status": 422
+    }
+  ],
+  "slug": "approval-repropose"
+}
