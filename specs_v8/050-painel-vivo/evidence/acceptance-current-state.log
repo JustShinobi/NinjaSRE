@@ -1,420 +1,420 @@
 serving the 'populated' scenario on http://127.0.0.1:8424
-Started server process [132258]
+Started server process [171471]
 Waiting for application startup.
 Application startup complete.
 Uvicorn running on http://127.0.0.1:8424 (Press CTRL+C to quit)
-127.0.0.1:40932 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51398 - "GET /v1/runs HTTP/1.1" 200
 ▲ Next.js 16.3.0
 - Local:         http://127.0.0.1:8423
 - Network:       http://127.0.0.1:8423
 ✓ Ready in 0ms
-✓ Running next.config took 3ms
-127.0.0.1:45054 - "GET /v1/setup/local-administrator HTTP/1.1" 200
+✓ Running next.config took 4ms
+127.0.0.1:51410 - "GET /v1/setup/local-administrator HTTP/1.1" 200
 driving the console at http://127.0.0.1:8423 against http://127.0.0.1:8424
 
 Running 18 tests using 1 worker
 
-127.0.0.1:45054 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45064 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45068 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45082 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45092 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45102 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45106 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:45116 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:45130 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45138 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:45142 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:45150 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:45054 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:45064 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:45064 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45068 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:45082 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45092 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45102 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45106 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45116 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45130 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:45138 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45142 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:45064 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:45156 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:45064 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45064 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45068 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:45082 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45092 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45102 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45106 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45116 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45130 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:45138 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45142 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:45064 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51410 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51422 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51428 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51438 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51446 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51452 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51464 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51470 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:51474 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51488 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:51498 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:51510 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:51410 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:51422 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:51422 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51428 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:51438 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51446 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51452 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51464 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51470 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51474 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:51488 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51498 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:51422 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51522 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:51422 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51422 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51428 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:51438 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51446 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51452 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51464 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51470 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51474 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:51488 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51498 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:51422 - "GET /v1/proposals HTTP/1.1" 200
   ✘   1 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:73:1 › AN-01: a run started from the UI enters "Em execução agora" without a reload (5.8s)
-127.0.0.1:45172 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45188 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45200 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45212 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45228 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45244 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45256 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:45264 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:45272 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45284 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:45294 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:45310 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:45172 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:45188 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:45188 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45200 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:45212 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45228 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45244 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45256 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45264 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45272 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:45284 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45294 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:45188 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:45318 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:45188 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45188 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:45200 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:45212 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:45228 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:45244 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:45256 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:45264 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:45272 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:45284 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:45294 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:45188 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51528 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51542 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51558 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51568 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51574 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51582 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51592 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51606 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:51622 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51636 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:51646 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:51654 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:51528 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:51542 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:51542 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51558 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:51568 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51574 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51582 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51592 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51606 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51622 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:51636 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51646 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:51542 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:51666 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:51542 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51542 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:51558 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:51568 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:51574 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:51582 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:51592 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:51606 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:51622 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:51636 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:51646 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:51542 - "GET /v1/proposals HTTP/1.1" 200
   ✘   2 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:94:1 › AN-02: the new card is titled by the typed objective, never "interactive investigation" nor a hex id (5.6s)
   -   3 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:114:6 › AN-03: the card draws six segments with the current stage distinct from completed and future — needs stage_index from 020-titulo-vivo, not present in this worktree
-127.0.0.1:36200 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:36216 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:36230 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:36240 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:36254 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:36266 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:36282 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:36290 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:36294 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:36302 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:36310 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:36324 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:36200 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:36216 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:36216 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:36230 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:36240 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:36254 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:36266 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:36282 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:36290 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:36294 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:36302 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:36310 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:36216 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:36326 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:36216 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:36216 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:36230 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:36240 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:36254 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:36266 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:36282 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:36290 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:36294 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:36302 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:36310 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:36216 - "GET /v1/proposals HTTP/1.1" 200
-  ✘   4 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:130:1 › AN-04: a new card carries the arrival animation class, absent under prefers-reduced-motion (5.6s)
-127.0.0.1:42544 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42550 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42558 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42562 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42572 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42578 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42584 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:42590 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:42592 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42596 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:42606 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:42616 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:42544 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:42550 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:42550 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42558 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:42562 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42572 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42578 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42584 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42590 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42592 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:42596 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42606 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:42550 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:42620 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:42550 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42550 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42558 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:42562 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42572 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42578 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42584 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42590 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42592 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:42596 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42606 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:42550 - "GET /v1/proposals HTTP/1.1" 200
-  ✘   5 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:142:1 › AN-04: under prefers-reduced-motion, the animation does not run (5.4s)
-127.0.0.1:42646 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42660 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42672 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42688 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42698 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42712 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42720 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:42730 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:42742 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42754 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:42766 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:42780 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:42646 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:42660 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:42660 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42672 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:42688 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42698 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42712 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42720 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42730 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42742 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:42754 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42766 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:42660 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:42794 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:42660 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42660 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:42672 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:42688 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:42698 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:42712 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:42720 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:42730 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:42742 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:42754 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:42766 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:42660 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:33508 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:33510 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:33522 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:33524 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:33534 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:33540 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:33544 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:33554 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:33560 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:33574 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:33588 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:33602 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:33508 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:33510 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:33510 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:33522 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:33524 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:33534 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:33540 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:33544 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:33554 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:33560 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:33574 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:33588 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:33510 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:33614 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:33510 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:33510 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:33522 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:33524 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:33534 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:33540 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:33544 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:33554 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:33560 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:33574 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:33588 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:33510 - "GET /v1/proposals HTTP/1.1" 200
+  ✘   4 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:130:1 › AN-04: a new card carries the arrival animation class, absent under prefers-reduced-motion (5.7s)
+127.0.0.1:58244 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58246 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58248 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58260 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58264 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58266 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58268 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:58276 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:58286 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58300 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:58314 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:58318 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:58244 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:58246 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:58246 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58248 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:58260 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58264 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58266 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58268 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58276 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58286 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:58300 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58314 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:58246 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:58330 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:58246 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58246 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58248 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:58260 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58264 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58266 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58268 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58276 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58286 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:58300 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58314 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:58246 - "GET /v1/proposals HTTP/1.1" 200
+  ✘   5 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:142:1 › AN-04: under prefers-reduced-motion, the animation does not run (5.5s)
+127.0.0.1:58342 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58356 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58372 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58386 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58396 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58402 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58406 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:58420 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:58436 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58452 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:58462 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:58468 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:58342 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:58356 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:58356 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58372 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:58386 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58396 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58402 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58406 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58420 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58436 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:58452 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58462 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:58356 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:58484 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:58356 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58356 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:58372 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:58386 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:58396 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:58402 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:58406 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:58420 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:58436 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:58452 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:58462 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:58356 - "GET /v1/proposals HTTP/1.1" 200
   ✘   6 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:162:1 › AN-05: when a run completes, its card leaves the band and "em voo" decreases, without reload (5.7s)
-127.0.0.1:40374 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40374 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓   7 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:189:1 › AN-06: the "needs you" band shows the plan summary and rollback before any button is clickable (345ms)
-127.0.0.1:40498 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40498 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:40378 - "POST /v1/approvals/apr-0001/decision HTTP/1.1" 200
-127.0.0.1:40378 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40396 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40402 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40514 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-  ✓   8 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:213:1 › AN-07: approving from the band closes the approval and the band reflects it without reload (467ms)
-127.0.0.1:40530 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40530 - "GET /v1/events/stream HTTP/1.1" 200
-  -   9 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:237:1 › AN-08: rejecting requires a non-empty reason before submission is possible
-127.0.0.1:40544 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40544 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓  10 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:258:1 › AN-09: each of the five KPIs shows a number, a sparkline and a decomposition legend (440ms)
-127.0.0.1:40556 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40556 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓  11 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:281:1 › AN-10: the "em voo" count on the run band equals the number of cards actually shown (273ms)
-127.0.0.1:40572 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40572 - "GET /v1/events/stream HTTP/1.1" 200
-  -  12 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:299:1 › AN-11: "o que insiste em acontecer" shows a per-subject timeline, an N× count and a shaped chip
-127.0.0.1:40574 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40574 - "GET /v1/events/stream HTTP/1.1" 200
-  -  13 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:319:1 › AN-12: no subject subtitle shows a raw resource or hex identifier
-127.0.0.1:40586 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40586 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓  14 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:342:1 › AN-13: "atividade ao vivo" is a vertical timeline where each entry carries its type's shape (301ms)
-127.0.0.1:40588 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40378 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40396 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40416 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40466 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:40484 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:40588 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:40378 - "POST /v1/investigations HTTP/1.1" 202
-127.0.0.1:40378 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:40396 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40416 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:40466 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:40378 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:40596 - "GET /v1/events/stream HTTP/1.1" 200
-127.0.0.1:40378 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40378 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:40394 - "GET /v1/runs/run-0007 HTTP/1.1" 404
-127.0.0.1:40396 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:40402 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:40416 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:40428 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:40444 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:40452 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
-127.0.0.1:40466 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:40472 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
-127.0.0.1:40378 - "GET /v1/proposals HTTP/1.1" 200
-  ✘  15 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:360:1 › AN-14: a new event inserts an activity entry at the top, without reload (5.7s)
-127.0.0.1:56500 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:56504 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:56512 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:56528 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:56544 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:56554 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:56562 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:56566 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:56576 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:56584 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:56592 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:56598 - "GET /v1/config/org-northwind HTTP/1.1" 200
-  ✓  16 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:378:1 › AN-15: with the stream down, the freshness chip says fallback and the Painel keeps serving reads (2.1s)
-127.0.0.1:56500 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:56504 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:56512 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:56528 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:56544 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:56554 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:56562 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:56566 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:56576 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:56584 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:56592 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:56598 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:56500 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓  17 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:397:1 › AN-16: an empty "needs you" band says nothing waits and links to Decisions history (279ms)
-127.0.0.1:56608 - "GET /auth/me HTTP/1.1" 200
-127.0.0.1:56504 - "GET /v1/approvals HTTP/1.1" 200
-127.0.0.1:56512 - "GET /v1/runs HTTP/1.1" 200
-127.0.0.1:56528 - "GET /health/ready HTTP/1.1" 200
-127.0.0.1:56544 - "GET /v1/setup/checklist HTTP/1.1" 200
-127.0.0.1:56554 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
-127.0.0.1:56562 - "GET /v1/proposals HTTP/1.1" 200
-127.0.0.1:56566 - "GET /v1/overview HTTP/1.1" 200
-127.0.0.1:56576 - "GET /v1/incidents HTTP/1.1" 200
-127.0.0.1:56584 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
-127.0.0.1:56592 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
-127.0.0.1:56598 - "GET /v1/config/org-northwind HTTP/1.1" 200
-127.0.0.1:56608 - "GET /v1/events/stream HTTP/1.1" 200
-  ✓  18 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:416:1 › AN-17: the Painel renders without a console error in both themes (307ms)
+127.0.0.1:54700 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54700 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓   7 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:189:1 › AN-06: the "needs you" band shows the plan summary and rollback before any button is clickable (364ms)
+127.0.0.1:54822 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54822 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓   8 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:213:1 › AN-08: rejecting requires a non-empty reason before submission is possible (370ms)
+127.0.0.1:54838 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54838 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:54702 - "POST /v1/approvals/apr-0001/decision HTTP/1.1" 200
+127.0.0.1:54702 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54718 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54730 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54848 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+  ✓   9 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:237:1 › AN-07: approving from the band closes the approval and the band reflects it without reload (438ms)
+127.0.0.1:54856 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54856 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  10 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:263:1 › AN-09: each of the five KPIs shows a number, a sparkline and a decomposition legend (424ms)
+127.0.0.1:54858 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54858 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  11 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:286:1 › AN-10: the "em voo" count on the run band equals the number of cards actually shown (281ms)
+127.0.0.1:54874 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54874 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  12 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:304:1 › AN-11: "o que insiste em acontecer" shows a per-subject timeline, an N× count and a shaped chip (312ms)
+127.0.0.1:54882 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54882 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  13 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:324:1 › AN-12: no subject subtitle shows a raw resource or hex identifier (289ms)
+127.0.0.1:54898 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54898 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  14 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:347:1 › AN-13: "atividade ao vivo" is a vertical timeline where each entry carries its type's shape (299ms)
+127.0.0.1:54914 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54702 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54718 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54746 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54786 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:54808 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:54914 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:54702 - "POST /v1/investigations HTTP/1.1" 202
+127.0.0.1:54702 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:54718 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54746 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:54786 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:54702 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:54928 - "GET /v1/events/stream HTTP/1.1" 200
+127.0.0.1:54702 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54702 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:54704 - "GET /v1/runs/run-0007 HTTP/1.1" 404
+127.0.0.1:54718 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:54730 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:54746 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:54762 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:54774 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:54784 - "GET /v1/runs/run-0007/replay HTTP/1.1" 404
+127.0.0.1:54786 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:54796 - "GET /v1/investigations/run-0007/interactions HTTP/1.1" 404
+127.0.0.1:54702 - "GET /v1/proposals HTTP/1.1" 200
+  ✘  15 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:365:1 › AN-14: a new event inserts an activity entry at the top, without reload (5.6s)
+127.0.0.1:39596 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:39600 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:39604 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:39616 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:39618 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:39626 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:39642 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:39646 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:39648 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:39664 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:39674 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:39686 - "GET /v1/config/org-northwind HTTP/1.1" 200
+  ✓  16 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:383:1 › AN-15: with the stream down, the freshness chip says fallback and the Painel keeps serving reads (2.1s)
+127.0.0.1:39596 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:39600 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:39604 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:39616 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:39618 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:39626 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:39642 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:39646 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:39648 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:39664 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:39674 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:39686 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:39596 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  17 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:402:1 › AN-16: an empty "needs you" band says nothing waits and links to Decisions history (277ms)
+127.0.0.1:39694 - "GET /auth/me HTTP/1.1" 200
+127.0.0.1:39600 - "GET /v1/approvals HTTP/1.1" 200
+127.0.0.1:39604 - "GET /v1/runs HTTP/1.1" 200
+127.0.0.1:39616 - "GET /health/ready HTTP/1.1" 200
+127.0.0.1:39618 - "GET /v1/setup/checklist HTTP/1.1" 200
+127.0.0.1:39626 - "GET /v1/autonomy/kill-switch HTTP/1.1" 200
+127.0.0.1:39642 - "GET /v1/proposals HTTP/1.1" 200
+127.0.0.1:39646 - "GET /v1/overview HTTP/1.1" 200
+127.0.0.1:39648 - "GET /v1/incidents HTTP/1.1" 200
+127.0.0.1:39664 - "GET /v1/incidents?state=open&state=awaiting_human HTTP/1.1" 200
+127.0.0.1:39674 - "GET /v1/incidents?state=investigating&state=remediating HTTP/1.1" 200
+127.0.0.1:39686 - "GET /v1/config/org-northwind HTTP/1.1" 200
+127.0.0.1:39694 - "GET /v1/events/stream HTTP/1.1" 200
+  ✓  18 [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:421:1 › AN-17: the Painel renders without a console error in both themes (326ms)
 
 
   1) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:73:1 › AN-01: a run started from the UI enters "Em execução agora" without a reload 
@@ -493,7 +493,7 @@ Running 18 tests using 1 worker
     Call log:
       - Expect "toBeVisible" with timeout 5000ms
       - waiting for getByTestId('run-card').first()
-        - waiting for "http://127.0.0.1:8423/runs/run-0007" navigation to finish...
+        - waiting for navigation to finish...
         - navigated to "http://127.0.0.1:8423/runs/run-0007"
 
 
@@ -528,7 +528,7 @@ Running 18 tests using 1 worker
     Call log:
       - Expect "toBeVisible" with timeout 5000ms
       - waiting for getByTestId('run-card').first()
-        - waiting for "http://127.0.0.1:8423/runs/run-0007" navigation to finish...
+        - waiting for navigation to finish...
         - navigated to "http://127.0.0.1:8423/runs/run-0007"
 
 
@@ -580,7 +580,7 @@ Running 18 tests using 1 worker
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  6) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:360:1 › AN-14: a new event inserts an activity entry at the top, without reload 
+  6) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:365:1 › AN-14: a new event inserts an activity entry at the top, without reload 
 
     Error: expect(received).toBeGreaterThan(expected)
 
@@ -590,14 +590,14 @@ Running 18 tests using 1 worker
     Call Log:
     - Timeout 5000ms exceeded while waiting on the predicate
 
-      368 |   await expect
-      369 |     .poll(async () => activityEntries(page).count(), { timeout: 5_000 })
-    > 370 |     .toBeGreaterThan(before);
+      373 |   await expect
+      374 |     .poll(async () => activityEntries(page).count(), { timeout: 5_000 })
+    > 375 |     .toBeGreaterThan(before);
           |      ^
-      371 |   await expect(activityEntries(page).first()).toContainText(objective.slice(0, 20));
-      372 | });
-      373 |
-        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:370:6
+      376 |   await expect(activityEntries(page).first()).toContainText(objective.slice(0, 20));
+      377 | });
+      378 |
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:375:6
 
     Error Context: test-results/painel-vivo.acceptance-AN--527b5-y-at-the-top-without-reload-behaviour/error-context.md
 
@@ -615,9 +615,9 @@ Running 18 tests using 1 worker
     [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:130:1 › AN-04: a new card carries the arrival animation class, absent under prefers-reduced-motion 
     [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:142:1 › AN-04: under prefers-reduced-motion, the animation does not run 
     [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:162:1 › AN-05: when a run completes, its card leaves the band and "em voo" decreases, without reload 
-    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:360:1 › AN-14: a new event inserts an activity entry at the top, without reload 
-  4 skipped
-  8 passed (43.5s)
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:365:1 › AN-14: a new event inserts an activity entry at the top, without reload 
+  1 skipped
+  11 passed (43.9s)
 Shutting down
 Waiting for background tasks to complete. (CTRL+C to force quit)
 ACCEPTANCE_EXIT=1

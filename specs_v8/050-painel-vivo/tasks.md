@@ -287,3 +287,76 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       controle.md reescrito para refletir o código atual (ver §0-§8 lá).
       (se houver lacuna da fundação), evidências anexadas, controle.md com o
       que o código prova — e nada além.
+
+## Phase 6: Convergence
+
+- [x] T038 Run `make test-synthetic` (offline, no credentials) against this — done: `SYNTHETIC_EXIT=0`, 5/5 attempts passed (100%) across all four
+      declared difficulty levels. No effect, as expected -- this feature
+      touches the console, a read-only overview endpoint and a daily estate
+      snapshot writer, none of which the synthetic corpus's tool-calling
+      loop exercises. Evidence: `evidence/test-synthetic.log`. Closes T003
+      and T031 for real, per Article XII.3.
+      feature's final tree and record the pass/fail counts and "no effect" (or
+      the effect found) in `controle.md`, closing T003/T031 for real:
+      Constitution Article XII.3 is a MUST ("every investigation-affecting
+      change MUST report its effect on the synthetic scenario suite... 'not
+      measured' is not [acceptable]") and `make verify`'s own dependency chain
+      does not include `test-synthetic`, so `make verify` green never
+      satisfied it. T003 and T031 are still open (`[ ]`) and both say plainly
+      that no measurement was ever taken. per Constitution XII.3 (missing)
+- [x] T039 Write the `EstateSnapshotStore` behavioural contract test T007 — done: `tests/contract/persistence/test_estate_daily_snapshot.py`, 6/6
+      green against `[fakes]` (Postgres unreachable in this worktree,
+      unchanged from before). Covers idempotent same-day record(), distinct
+      days, ordering regardless of write order, window exclusion, the
+      oldest-`limit`-rows truncation rule, and the `BoundExceeded` refusal.
+      named but never produced: recording twice on the same
+      `(org_id, snapshot_date)` yields one row, distinct days yield distinct
+      rows, and `list_daily(org_id, since, until, limit)` returns the series
+      ordered and bounded by `MAX_OVERVIEW_DAILY_BUCKETS` — parametrized over
+      the fake and Postgres backends the way
+      `tests/contract/persistence/test_estate_daily_snapshot_migration.py`
+      already skips its Postgres case where unreachable, so the fake half can
+      run and pass in any worktree today. `test_port_conformance.py` only
+      checks that the method exists, never that it behaves this way; no other
+      test in the tree does either (confirmed by
+      `rg -l "estate_snapshot|EstateDailySnapshot|list_daily" tests/`). per
+      T007 (missing)
+- [x] T040 Fix the AN-07/AN-08 shared-mock-state collision in — done: AN-08 now runs before AN-07 in file order (both keep their own
+      claim numbering; only execution order changed, with a comment naming
+      why). AN-08 passes for real now instead of skipping; AN-07 still
+      passes, deciding the same approval AN-08 left pending.
+      `console/tests/e2e/painel-vivo.acceptance.spec.ts`: the `populated`
+      scenario's `/v1/approvals` carries exactly one pending approval
+      (`apr-0001`, `fixtures/scenarios/populated/approvals.json`), and AN-07's
+      own approve click closes it before AN-08 runs later in the same
+      single-worker file, so AN-08 finds zero cards and skips every time.
+      AN-08 (`painel-vivo.acceptance.spec.ts:237`) never calls
+      `attention-reject-submit` — it only asserts the reason-required gate —
+      so reordering it ahead of AN-07 (or otherwise isolating the two) lets
+      both actually run against a still-pending approval, with no dataset
+      change and no weakened assertion. per FR-011/SC-004 (partial)
+- [x] T041 Add at least one recurring subject to the mockplane `populated` — done: `_recurring_incidents()` in `tools/mockplane/capture/projection.py`,
+      three firings of one alert on one guest sharing a `correlation_key`,
+      timestamped backwards through the anonymisation pipeline's fixed
+      shift so the committed result reads as wall-clock now minus a few
+      hours (rounded to the minute for build-to-build stability). Also
+      fixed, found along the way: `now-violations`'s own separately
+      committed `incidents.json` derives from `populated` and had frozen
+      the old 10-incident shape, so its inherited `incident-detail` now
+      named incidents that scenario's own declaration lacked --
+      `sync_now_violations_incidents()` keeps that one file in step without
+      touching its other three files or its own added incident.
+      dataset. `fixtures/scenarios/populated/incidents.json` (the unfiltered
+      `/v1/incidents` list `dashboard.tsx`'s `incidentRecords` reads,
+      `screens/dashboard.tsx:228`) currently holds 10 incidents with 10
+      distinct `correlation_key`s — none repeats — so
+      `groupBySubject(incidentRecords).filter(g => g.count > 1)` is
+      structurally always empty regardless of the 48h window, which is the
+      real reason AN-11 and AN-12 skip, not (only) a stale-calendar effect.
+      Give the dataset generator (`tools/mockplane/capture/projection.py` /
+      `tools/mockplane/dataset/served.py`) at least one subject with ≥2
+      occurrences sharing one `correlation_key`, timestamped relative to
+      wall-clock "now" rather than the fixed `CAPTURED_AT` anchor
+      (`tools/mockplane/dataset/profile.py:44`), so the recurrence survives
+      calendar drift the way `dashboardWithLiveIncidents`'s `hoursAgo(n)` fix
+      already does for the unit suite. per US3/AC1, AN-11, AN-12 (missing)
