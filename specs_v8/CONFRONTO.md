@@ -1,4 +1,4 @@
-# specs_v8 — Confronto, checkpoint do slot S1
+# specs_v8 — Confronto, checkpoints dos slots S1 e S2
 
 Este arquivo diz **o que de fato foi entregue**, escrito pelo orquestrador a
 partir da leitura independente dos verifiers — nunca do relatório de quem
@@ -168,3 +168,156 @@ suposição.
 - **A notificação de tarefa em segundo plano mente sobre o exit code.** Relatou
   exit 0 para execuções que saíram 2, três vezes num só dia. Todo status
   registrado neste arquivo foi lido do log.
+
+
+---
+
+# Slot S2 — decisões estruturadas ∥ telas de área
+
+## 1. O que passou, e sob qual prova
+
+| | 040-decisoes-estruturadas | 060-telas-de-area |
+|---|---|---|
+| Verifier independente | **PASS** | **PASS** |
+| Ledger | 33 feitas, 3 encerradas, 1 aberta | 31+ feitas, 6 encerradas, 0 abertas |
+| Acceptance (mock) | 13 passaram, 3 pulados | 61 passaram, 8 pulados |
+| Gate visual (Orca, 2 rodadas) | CONFORME | CONFORME, 8 de 8 |
+| `make verify` na árvore mergeada | exit 0, 13112 passando | idem |
+
+Os dois verifiers reproduziram tudo por conta própria, dos logs e não das
+notificações, e **cada um fez o próprio corte de fio** em vez de ler sobre o do
+implementer. O da 040 renomeou o caso de escrita da decisão no mock e viu o
+vermelho real; o da 060 rodou a alegação estrutural contra os seis cenários
+construídos, um a um.
+
+## 2. A reparação central, medida no ambiente real
+
+Nada nesta implantação jamais chamou a varredura de expiração do store de
+aprovações. Uma proposta vencida **três dias antes** ainda contava como
+pendente e ainda alimentava o badge de "coisas esperando por você".
+
+Medido antes do slot e depois, de dentro do cluster:
+
+| | antes | depois |
+|---|---|---|
+| pendentes | 1 | **0** |
+| expiradas | 0 | **1** |
+| total | 4 | 4 |
+| badge | 1 | **0** |
+
+A linha varrida é a que venceu em 27/08 e carrega `decided_at` de 31/08
+01:39:20 — o instante em que a primeira leitura da lista aconteceu. E o
+verifier achou a prova que faltava: um teste de ordenação **sem relação
+nenhuma** passou a falhar no momento em que a varredura começou a rodar, porque
+a fixture dele tinha vencimento numa data passada fixa. Isso demonstra que a
+varredura roda contra o relógio real, não dentro do cenário do próprio teste.
+
+Depois disso a proposta expirada foi reproposta pela tela — a única escrita
+propose-only que o protocolo permite: total 4 → 5, uma pendente nova carregando
+`origin_approval_id`, e a expirada continua expirada. Nada é apagado; todo
+desfecho é um estado.
+
+## 3. Defeitos achados por rodar, não por ler
+
+Cinco defeitos desta onda compartilham uma forma: **relatar sucesso medindo
+nada.** Três apareceram neste slot, e nenhum foi achado lendo código.
+
+- **Um locator que nunca casava.** O teste de ordenação dentro da seção de
+  recursos selecionava com `filter({ has })` um atributo que está no próprio
+  elemento, nunca num descendente. Devolvia zero em qualquer ambiente e se
+  auto-pulava alegando falta de dado — e o dado estava lá. Achado pela
+  convergência; consertado e provado com corte de fio.
+- **Um balde do mock contaminado.** Uma escrita de sessão num balde respondia
+  por todos os outros do mesmo slug, e por causa disso uma alegação estava
+  **verde pela razão errada**: o balde expirado ficava vazio, então o primeiro
+  item da fila calhava de ser o novo pendente por acidente.
+- **Uma query string que nunca chegava.** O caminho era montado só do
+  `scope["path"]` do ASGI, que não carrega query string, então todo filtro por
+  estado respondia silenciosamente do padrão. Confirmado com `curl` contra um
+  mock isolado.
+- **Fixtures mentindo sobre o domínio.** O mock servia desfechos de episódio
+  `acknowledged` e `unresolved` — palavras que o backend real nunca emitiu.
+- **Uma spec com a duplicação na origem errada.** O cartão de decisão nunca
+  esteve errado: o construtor do payload escrevia a mesma frase em dois campos.
+  O passo passou a carregar a operação que a ação já computava.
+
+## 4. Quem constrói isso em produção?
+
+| Mecanismo | Composto num root que serve? |
+|---|---|
+| Varredura de expiração dentro da listagem | **Sim** — medida contra o staging, pendente → expirada |
+| Repropor via `RequestBuilder.queue()` | **Sim** — exercitado no staging, linha nova com vínculo de origem |
+| Endpoint de decisão do store no mock | **Sim** — 85 de 85 endpoints cobertos, era 84 |
+| Nome de recurso no subtítulo do incidente | **Sim** — de uma leitura que a tela já fazia |
+| Grade de recursos limitada | **Sim** — 3230 px → 1795 px no staging |
+| Chip de desfecho no vocabulário compartilhado | **Sim** — `data-role` presente onde não havia nenhum |
+| Estações do pipeline nos três tratamentos | **Parcial** — desenhadas e testadas; só um delas é alcançável, ver §5 |
+
+## 5. Lacunas de entrega, sem eufemismo
+
+**O desfecho de um episódio é um booleano.** `MemoryEpisode.outcome` devolve
+`RESOLVED` se uma flag está ligada e `INCONCLUSIVE` se não. A enumeração tem
+quatro membros; uma investigação real jamais escreve os outros dois. E são
+justamente os dois que um corpus de aprendizado mais precisa separar: falso
+positivo é problema do detector, mitigação é conserto pela metade. O docstring
+do próprio enum defende manter `inconclusive` com esse raciocínio, e o caminho
+de escrita não o honra. As duas formas foram declaradas e registradas em
+`DIVERGENCIAS.md` §8; só aparecem no inquilino da demonstração.
+
+**Nada nomeia em que estágio um run que está rodando se encontra.**
+`InvestigationSummary` carrega contagem de passos, duração e custo — nenhum
+campo de estágio. Por isso as seis estações do pipeline desenham todas
+"não alcançado". Os três tratamentos existem e são testados; falta um campo,
+não um desenho. É a mesma degradação, pelo mesmo motivo, que a 030 já registrou
+noutra tela.
+
+**O reparo do cartão de decisão não é retroativo.** Um payload é documento
+gravado. A aprovação expirada do staging guarda a duplicação com que nasceu, e
+é justamente ela que a tela expande, porque a fila põe expiradas primeiro. Quem
+olhar hoje vai ver a repetição no cartão de cima — não porque o defeito
+persista, mas porque aquela linha é anterior à correção.
+
+**A corrida de repropor concorrente continua aberta**, aceita e nomeada: a
+checagem de idempotência e a gravação do vínculo são duas transações sem lock
+entre elas. Como propose-only nunca aplica nada sozinho, o pior caso é um
+humano ver duas pendentes e descartar uma.
+
+**Cinco sub-abas não foram reformadas** — Documentos, Topologia, Ferramentas,
+Autonomia, Contexto do time. Corte autorizado pela ordem que a própria feature
+declarou, com razão na linha. Elas servem o conteúdo integral no vocabulário
+compartilhado; falta a estrutura de cada artboard. Os cinco artboards existem,
+então a onda continua devendo.
+
+## 6. Herdado, e o que mudou de estado
+
+- **As falhas transversais de `/incidents/{id}` fecharam de verdade.** As
+  quatro regras passam porque a lista agrupada liga cada assunto ao disparo
+  mais recente — não por edição de allowlist, que as regras da feature proíbem.
+  O array de exceções está vazio e o `git blame` põe esse estado 415 commits
+  antes desta onda. **As quatro de `/runs/{id}` continuam vermelhas**, que é a
+  assimetria exigida: as três juntas ficando verdes significaria cenário
+  enfraquecido, não produto consertado.
+- **As duas baselines de `/resources` sem captura possível** deixaram de ser
+  impossíveis: a dívida não era outra coisa senão a grade sem fim.
+- **O artboard do Agente diverge do próprio `SPEC.md`** num estilo inline: o
+  board declara `neutral-bg: #0d1311` e aquela estação usa `#131c18`. O console
+  segue a paleta declarada. É achado sobre o board, para o dono dele.
+
+## 7. O que o S2 deixa para quem vier
+
+- **O staging agora tem uma proposta pendente de verdade**, criada pela UI, com
+  vínculo de origem — a primeira coisa que o S1 registrou como faltando.
+  Continua sem run vivo e sem run falho.
+- **Um rollout "concluído" mente igual a `Synced + Healthy`.** A primeira
+  leitura depois de um redeploy não achou o elemento novo porque uma réplica
+  antiga ainda estava pronta e servindo, com o `kubectl rollout status` já
+  dizendo que as três implantações tinham terminado. Conferir listando os pods.
+- **Uma notificação de tarefa em segundo plano mentiu de três formas neste
+  slot**: exit 0 para quem saiu 1, exit 0 para quem saiu 2, e "concluído" com o
+  processo ainda rodando e o log ainda crescendo. Uma delas escondeu uma suíte
+  que **não rodou teste nenhum**, barrada por um lock morto de uma execução
+  anterior. Todo status deste arquivo foi lido de log.
+- **Três sessões de implementer foram perdidas inteiras** e nenhuma custou
+  nada, porque todas tinham commitado e escrito o controle. A regra de commitar
+  em qualquer ponto coerente entrou como seguro contra teto de turno; o que ela
+  de fato garante é que uma sessão perdida vira uma mensagem de retomada.
