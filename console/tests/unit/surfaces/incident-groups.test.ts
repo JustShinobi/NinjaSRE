@@ -202,7 +202,7 @@ describe('subjectsInWindow', () => {
       incident({ incident_id: 'c', opened_at: '2026-08-20T00:00:00.000Z' }), // outside
     ];
     const inWindow = records.filter(
-      (record) => now.getTime() - Date.parse(String(record['opened_at'])) <= SUBJECT_WINDOW_HOURS * 3_600_000,
+      (record) => now.getTime() - Date.parse(String(record.opened_at)) <= SUBJECT_WINDOW_HOURS * 3_600_000,
     );
 
     const windowed = subjectsInWindow(groupBySubject(records), now, SUBJECT_WINDOW_HOURS);
