@@ -188,7 +188,9 @@ describe('ActivityFeed shapes', () => {
   });
 
   it('draws the incident mark as a square with corners, never a rounded blob', () => {
-    render(<ActivityFeed locale="en" entries={[entry({ id: 'a', kind: 'incident' })]} />);
+    render(
+      <ActivityFeed locale="en" entries={[entry({ id: 'a', kind: 'incident' })]} />,
+    );
     const mark = marks()[0];
     expect(mark?.className).not.toContain('rounded');
     expect(mark?.className).not.toContain('rotate');
@@ -209,7 +211,12 @@ describe('ActivityFeed shapes', () => {
     const shapes = marks().map((mark) =>
       mark.className
         .split(/\s+/)
-        .filter((name) => name.startsWith('rounded') || name.startsWith('rotate') || name === 'clip-triangle')
+        .filter(
+          (name) =>
+            name.startsWith('rounded') ||
+            name.startsWith('rotate') ||
+            name === 'clip-triangle',
+        )
         .sort()
         .join(' '),
     );
@@ -224,7 +231,7 @@ describe('ActivityFeed second line', () => {
    * `há 2 min · investigação · 1m 27s`. The feed used to render the relative
    * time alone, which left every entry saying only when, never by what.
    */
-  it("names what produced the entry beside its time", () => {
+  it('names what produced the entry beside its time', () => {
     render(
       <ActivityFeed
         locale="en"
@@ -239,7 +246,12 @@ describe('ActivityFeed second line', () => {
       <ActivityFeed
         locale="en"
         entries={[
-          entry({ id: 'a', kind: 'resolution', kindLabel: 'investigation', duration: '1m 27s' }),
+          entry({
+            id: 'a',
+            kind: 'resolution',
+            kindLabel: 'investigation',
+            duration: '1m 27s',
+          }),
         ]}
       />,
     );
@@ -249,6 +261,6 @@ describe('ActivityFeed second line', () => {
   it('renders the time alone when the entry has nothing else to say', () => {
     render(<ActivityFeed locale="en" entries={[entry({ id: 'a' })]} />);
     const meta = screen.getByTestId('activity-feed-meta');
-    expect(meta.textContent?.trim()).toBe('2 minutes ago');
+    expect(meta.textContent.trim()).toBe('2 minutes ago');
   });
 });

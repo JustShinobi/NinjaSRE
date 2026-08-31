@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import NextLink from 'next/link';
 
 import { Badge, StatusDot } from '@/components/status';
+import { cx } from '@/design/cx';
 import { statusPresentation } from '@/design/status';
 import { formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -87,7 +88,17 @@ function SubjectRow({
     <NextLink
       href={rowHref(group)}
       data-testid="subject-row"
-      className="flex items-center gap-3 rounded-2 px-2 py-2 motion-hover hover:bg-sunken min-w-0"
+      data-live={group.live ? 'true' : 'false'}
+      // Two treatments, because the two rows mean different things. A subject
+      // still firing sits on its own surface with a border around it; one
+      // that is over sits flat on the panel, and its name gives up the
+      // emphasis. Drawn identically, the only thing separating "this is
+      // happening" from "this happened" was the chip at the far right of a
+      // row the reader had already stopped scanning.
+      className={cx(
+        'flex items-center gap-3 rounded-2 px-2 py-2 motion-hover hover:bg-sunken min-w-0 edge',
+        group.live ? 'bg-sunken border-border' : 'border-transparent',
+      )}
       {...(subjectTitle(group, subjectNames) === undefined
         ? {}
         : { title: subjectTitle(group, subjectNames) })}
@@ -101,7 +112,15 @@ function SubjectRow({
         <StatusDot status={group.live ? group.severity : group.state} />
       </span>
       <div className="flex flex-col gap-1 min-w-0">
-        <span className="text-small font-medium truncate">{group.title}</span>
+        <span
+          data-testid="subject-title"
+          className={cx(
+            'text-small font-medium truncate',
+            group.live ? '' : 'text-muted',
+          )}
+        >
+          {group.title}
+        </span>
         <span data-testid="subject-subtitle" className="text-meta text-muted truncate">
           <SubjectLine group={group} subjectNames={subjectNames} />
         </span>

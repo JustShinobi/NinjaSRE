@@ -23,11 +23,25 @@ import { message, type Locale } from '@/i18n/messages';
 
 export type ActivityFeedKind = 'investigation' | 'resolution' | 'incident' | 'approval';
 
-/** The glyph for each kind, over the frozen `icon-inline` glyph scale. */
+/**
+ * The glyph for each kind, over the frozen `icon-inline` glyph scale.
+ *
+ * Sharp where the shape is a shape. These were written with `rounded-1` on
+ * the diamond and the square, and at this size that is not a softened corner
+ * -- `icon-inline` is 14px and the smallest declared radius is 6, so a 14px
+ * box keeps two pixels of flat edge per side and draws as a circle. Three of
+ * the four kinds rendered as the same round mark while the suite, which read
+ * `data-kind` and never the geometry, stayed green.
+ *
+ * These four strings are `status.tsx`'s own `SHAPE_CLASS` entries for
+ * `rotated-square`, `filled-circle`, `square` and `triangle`, character for
+ * character: one shape vocabulary for the console, not a second one declared
+ * here.
+ */
 const KIND_MARK: Readonly<Record<ActivityFeedKind, string>> = {
-  investigation: 'icon-inline rotate-45 rounded-1',
+  investigation: 'icon-inline rotate-45',
   resolution: 'icon-inline rounded-full',
-  incident: 'icon-inline rounded-1',
+  incident: 'icon-inline',
   approval: 'icon-inline clip-triangle',
 };
 
@@ -164,13 +178,25 @@ export function ActivityFeed({ locale, entries }: ActivityFeedProps): ReactNode 
                   </span>
                 ) : null}
               </span>
-              <time
-                dateTime={entry.iso}
-                title={entry.absolute}
-                className="text-meta text-muted"
+              {/* When, then what produced it, then how long it took -- the
+                  board's own second line. Each term is dropped rather than
+                  filled when its source said nothing, so an entry never
+                  carries a word this console chose on the deployment's
+                  behalf. */}
+              <span
+                data-testid="activity-feed-meta"
+                className="text-meta text-muted flex items-center gap-1 flex-wrap"
               >
-                {entry.relative}
-              </time>
+                <time dateTime={entry.iso} title={entry.absolute}>
+                  {entry.relative}
+                </time>
+                {entry.kindLabel === '' ? null : (
+                  <span data-testid="activity-feed-kind">· {entry.kindLabel}</span>
+                )}
+                {entry.duration === '' ? null : (
+                  <span className="font-mono tabular-nums">· {entry.duration}</span>
+                )}
+              </span>
             </span>
           </a>
         </li>

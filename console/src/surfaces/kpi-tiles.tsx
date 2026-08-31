@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import NextLink from 'next/link';
 
+import { cx } from '@/design/cx';
 import { formatDuration, formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 
@@ -116,6 +117,15 @@ interface TileProps {
    * this one figure has nothing to report yet, which still earns an em dash
    * in this same region rather than silence. */
   readonly value: ReactNode | undefined;
+  /**
+   * The role colour the number carries, matching the tile's own sparkline.
+   *
+   * Absent leaves it in body colour, which is right for a figure that is
+   * neither good nor bad -- how many resources are watched, how long a
+   * diagnosis takes. A tile whose line is drawn in danger and whose number is
+   * drawn in body colour is a tile disagreeing with itself.
+   */
+  readonly tone?: string | undefined;
   readonly legend: ReactNode;
   readonly sparkline: ReactNode;
   readonly href?: string | undefined;
@@ -123,7 +133,15 @@ interface TileProps {
 
 /** One tile's shell: label, big number, sparkline, legend -- the same four
  * regions for every KPI, whatever failed or is still unmeasured. */
-function Tile({ testId, label, value, legend, sparkline, href }: TileProps): ReactNode {
+function Tile({
+  testId,
+  label,
+  value,
+  tone,
+  legend,
+  sparkline,
+  href,
+}: TileProps): ReactNode {
   const body = (
     <div
       data-testid="kpi-tile"
@@ -134,7 +152,7 @@ function Tile({ testId, label, value, legend, sparkline, href }: TileProps): Rea
       {value === undefined ? null : (
         <span
           data-testid="kpi-value"
-          className="font-display text-display tabular-nums"
+          className={cx('font-display text-display tabular-nums', tone)}
         >
           {value}
         </span>
@@ -254,6 +272,7 @@ export function KpiTiles({
       />
       <Tile
         testId="degraded"
+        tone="text-danger"
         label={message(locale, 'dashboard.kpi.degraded')}
         value={bigValue(locale, degraded.value, 'count')}
         legend={degradedLegend}
@@ -272,6 +291,7 @@ export function KpiTiles({
       />
       <Tile
         testId="selfResolved"
+        tone="text-success"
         label={message(locale, 'dashboard.kpi.selfResolved')}
         value={bigValue(locale, selfResolved.value, 'percent')}
         legend={
@@ -293,6 +313,7 @@ export function KpiTiles({
       />
       <Tile
         testId="successRate"
+        tone="text-success"
         label={message(locale, 'dashboard.kpi.successRate')}
         value={bigValue(locale, successRate.value, 'percent')}
         legend={

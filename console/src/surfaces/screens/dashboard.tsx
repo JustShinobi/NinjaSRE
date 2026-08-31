@@ -173,10 +173,7 @@ function attentionWeight(kind: string): number {
  * endpoint for a duration, and a run still working has no span to report
  * rather than a zero.
  */
-function runSpan(
-  locale: import('@/i18n/messages').Locale,
-  record: unknown,
-): string {
+function runSpan(locale: import('@/i18n/messages').Locale, record: unknown): string {
   const started = Date.parse(text(record, 'started_at'));
   const finished = Date.parse(text(record, 'finished_at'));
   if (Number.isNaN(started) || Number.isNaN(finished)) return '';
@@ -653,9 +650,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           narrative on the right is what those nine firings looked like as
           they arrived. Stacking them put a third of a screen between two
           readings of the same estate, and left the narrower column with
-          nothing to hold but a list of links. */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 min-w-0" data-testid="recurring-problems">
+          nothing to hold but a list of links.
+
+          Three columns to two, which is the board's own one-and-a-half to
+          one. At two to one the narrative column was narrow enough that
+          every entry wrapped to four lines, and a timeline whose entries
+          each take four lines is a wall of text with shapes down the side. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-3 min-w-0" data-testid="recurring-problems">
           <Panel
             title={message(locale, 'dashboard.recurring.title')}
             state={stateOf(incidents, recurring.length === 0)}

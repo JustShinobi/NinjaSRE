@@ -623,11 +623,7 @@ test(
       .evaluateAll((nodes) =>
         nodes.map((node) => {
           const style = getComputedStyle(node);
-          return [
-            style.borderTopLeftRadius,
-            style.transform,
-            style.clipPath,
-          ].join('|');
+          return [style.borderTopLeftRadius, style.transform, style.clipPath].join('|');
         }),
       );
     const drawn = new Map<string, string>();

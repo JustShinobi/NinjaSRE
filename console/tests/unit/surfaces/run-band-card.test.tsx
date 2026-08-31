@@ -83,9 +83,11 @@ describe('RunCard', () => {
       />,
     );
     const label = screen.getByTestId('run-card-stage-label');
-    // `stage_index` is the last stage *completed*, so the stage under way is
-    // the next one -- the third of six here, and the console's own word for it.
-    expect(label).toHaveTextContent('Gather evidence');
+    // `stage_index` is the last stage *completed*, so with two behind it the
+    // stage under way is the third of the six -- `plan_evidence`, in the
+    // console's own words, which is the board's own `planejar evidência · 3
+    // de 6` arrived at from the served index rather than copied from it.
+    expect(label).toHaveTextContent('Plan evidence');
     expect(label).toHaveTextContent('3');
     expect(label).toHaveTextContent('6');
   });
@@ -121,7 +123,7 @@ describe('runCardOf', () => {
     expect(read.stage).toBe('intake');
   });
 
-  it("leaves the stage empty when the listing does not name one", () => {
+  it('leaves the stage empty when the listing does not name one', () => {
     const read = runCardOf(
       {
         run_id: 'run-1',

@@ -97,6 +97,14 @@ function DecisionCard({
       className="edge border-warning rounded-2 bg-warning-bg px-4 py-3 flex flex-col gap-3"
     >
       <div className="flex items-start gap-3 flex-wrap">
+        {/* The warning shape, so the band is not identified by its tint
+            alone. Every other status on this console carries a shape beside
+            its colour; this one card was the exception. */}
+        <span
+          aria-hidden="true"
+          data-testid="attention-decision-mark"
+          className="icon-inline clip-triangle bg-warning shrink-0 inline-block mt-1"
+        />
         <span
           data-testid="attention-decision-title"
           className="text-strong flex-1 min-w-0"
