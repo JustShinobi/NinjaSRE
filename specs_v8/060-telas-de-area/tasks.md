@@ -409,5 +409,40 @@ contra o build real antes da correção.
       onde esperava `"success"`), confirmando que o teste mede a tela e não
       o fixture — restaurado e reconfirmado verde.
 
+- [x] T038 [US4] O agente: nomear a primeira aba pelo que ela desenha agora,
+      e ligar os seis nós da linha de metrô por um trilho
+      (`console/src/surfaces/screens/agent.tsx`). O rótulo visível vem de
+      `agent.tab.topology` (`en.ts`/`pt-BR.ts`); mudou de "Topology"/"Topologia"
+      para "Pipeline" — a palavra do board — sem tocar o slug interno
+      `'topology'` (`AGENT_TABS[0]`), que continua nomeando a URL
+      (`?tab=topology`), `data-tab` e os ramos que leem `tab === 'topology'`,
+      preservado por comentário para que uma futura limpeza não quebre um
+      link existente por engano. `PipelineMetro`: novo `<div data-testid="pipeline-metro-rail">`
+      absolutamente posicionado atrás da grade de seis nós, `insetInlineStart`/`insetInlineEnd`
+      computados de `stages.length` e do token `--space-4` que o próprio
+      `gap-4` da grade usa (não uma aproximação), visível só em `lg:` — nos
+      layouts mais estreitos a grade quebra em mais de uma linha e um trilho
+      cobrindo a largura toda cortaria linhas que não são vizinhas; ordem no
+      DOM antes dos nós, então o preenchimento opaco de cada ícone cobre o
+      trecho do trilho atrás dele, mostrando o trilho só no vão entre
+      estágios, como o board desenha. Prova: dois testes novos em
+      `agent-pipeline.acceptance.spec.ts`; confirmados vermelhos contra o
+      build sem a mudança (`Received: "Topology"` esperando `"Pipeline"`;
+      `pipeline-metro-rail` inexistente), verdes depois. Corte de fio duplo:
+      (a) a tradução revertida para "Topology" reproduziu o vermelho exato
+      do rótulo; (b) o divisor dos insets trocado de `stages.length * 2`
+      para `stages.length` encolheu o trilho e reproduziu vermelho na
+      alegação de alcance (`Expected: <= 543.5, Received: 642`) — as duas
+      linhas restauradas, `git diff` limpo, verdes de novo. Achado durante a
+      própria implementação, não um corte deliberado: a primeira versão do
+      trilho usava `size-6` no invólucro (que fixa `width` além de `height`),
+      o que travava a largura em 24px e ignorava `insetInlineEnd` por
+      completo — pego pelo mesmo teste de alcance antes de qualquer corte de
+      fio proposital, com `Received: 575.5` esperando `>= 1608.5`; corrigido
+      para `h-6` (só altura), que deixa a largura livre para os dois insets
+      calcularem. O chip "N investigações em voo" fica como está — ausente
+      no dataset local e em staging porque não há run em execução, medido,
+      não um defeito desta tarefa.
+
 Registrados aqui à medida que cada um fecha; ver a seção "O que fica
 pendente" no `controle.md` para o estado agregado no meio da execução.

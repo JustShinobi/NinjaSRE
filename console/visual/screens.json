@@ -34,7 +34,7 @@
         "against": null,
         "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced agent settings” section, holding the budgets this tab already printed but could not change, the three per-role prompt overrides, the operating-context switch and the subagent roster. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
       },
-      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route."
+      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route. Since then, the tab itself was also renamed from \"Topology\" to \"Pipeline\" (the board's own word) and the metro line gained the rail joining its six nodes, which the committed image has neither of."
     },
     {
       "id": "agent-autonomy-1440-light",
@@ -271,7 +271,7 @@
         "against": null,
         "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
       },
-      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here."
+      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here. Since that capture, the episode outcome also gained a proper dot and chip through the shared status vocabulary (data-role on both), where it used to be a hand-rolled resolved/not-resolved shape with neither."
     },
     {
       "id": "knowledge-topology-1440-light",
