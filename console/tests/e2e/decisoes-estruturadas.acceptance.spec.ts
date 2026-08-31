@@ -530,19 +530,45 @@ test.describe('IncidentDecisionControls decides a pending approval directly, not
       // — through the same courier `ExpiredFooterControls` already posts
       // to for every repropose and discard, never a fabricated write path.
       await page.goto('/decisions?tab=actions');
-      const liveOriginExpired = page
-        .getByTestId('decision-card')
-        .and(page.locator('[data-state="expired"]'));
-      await expect(liveOriginExpired).toBeVisible();
-      const originId = await liveOriginExpired.getAttribute('data-approval');
 
-      const reproposed = await page.request.post('/api/approval', {
-        data: { operation: 'repropose', target: originId, payload: {} },
-      });
-      expect(reproposed.ok()).toBe(true);
-      const freshId = stringField(await reproposed.json(), 'approval_id');
-      expect(freshId).not.toBe('');
-      expect(freshId).not.toBe(originId);
+      // Reused, not reproposed a second time, when an earlier test in this
+      // same file already put one here. The mock hands out one fixed id
+      // per repropose call regardless of how many times it is called
+      // (`REPROPOSED_APPROVAL_ID`), so calling it again in the same
+      // session would queue the same id twice — a real duplicate the
+      // combined queue has never had to render before, and not the shape
+      // this test exists to prove. Every other id this dataset serves is
+      // one of the three known ones (the native pending decision, and the
+      // two expired ones); anything else already sitting in the queue is
+      // an earlier repropose's leftover, safe to reuse as-is.
+      const KNOWN_APPROVAL_IDS = new Set(['apr-0001', 'apr-0002', 'apr-0005']);
+      const queuedIds = await page
+        .locator('[data-testid="decision-card"], [data-testid="decision-row-collapsed"]')
+        .evaluateAll((elements) =>
+          elements
+            .map((element) => element.getAttribute('data-approval'))
+            .filter((id): id is string => id !== null),
+        );
+      const leftover = queuedIds.find((id) => !KNOWN_APPROVAL_IDS.has(id));
+
+      let freshId: string;
+      if (leftover !== undefined) {
+        freshId = leftover;
+      } else {
+        const liveOriginExpired = page
+          .getByTestId('decision-card')
+          .and(page.locator('[data-state="expired"]'));
+        await expect(liveOriginExpired).toBeVisible();
+        const originId = await liveOriginExpired.getAttribute('data-approval');
+
+        const reproposed = await page.request.post('/api/approval', {
+          data: { operation: 'repropose', target: originId, payload: {} },
+        });
+        expect(reproposed.ok()).toBe(true);
+        freshId = stringField(await reproposed.json(), 'approval_id');
+        expect(freshId).not.toBe('');
+        expect(freshId).not.toBe(originId);
+      }
 
       // Both expired decisions have to go: the origin just reproposed
       // (reproposing never removes it from `state=expired`) and the one
@@ -596,18 +622,11 @@ test.describe('IncidentDecisionControls decides a pending approval directly, not
       ]);
       expect(decisionResponse.ok()).toBe(true);
 
-      // Assert. The write actually landed. A fresh navigation rather than
-      // trusting the in-place `router.refresh()` this control already
-      // triggers on its own: this session's reproposed id is shared with
-      // whichever other test in this file reproposed the same live-origin
-      // expired decision first (the mock hands out one fixed fresh id per
-      // origin, `REPROPOSED_APPROVAL_ID`), so the combined queue can carry
-      // this id twice for one render, and a soft refresh reconciling a
-      // list that briefly held a duplicate key is not the claim this test
-      // makes. The card left the pending queue, and the decision reads
-      // back from "Decided recently" as a rejection — not just that a
-      // button existed to click.
-      await page.goto('/decisions?tab=actions');
+      // Assert. The write actually landed, observed the same way a person
+      // would — on the screen `router.refresh()` already re-rendered in
+      // place, no navigation of this test's own. `expect(...)` polls; it
+      // is what proves the screen updates itself, not a one-shot read
+      // taken before the refresh has had time to land.
       await expect(page.locator(`[data-approval="${freshId}"]`)).toHaveCount(0);
       const decided = page
         .getByTestId('decided-item')
