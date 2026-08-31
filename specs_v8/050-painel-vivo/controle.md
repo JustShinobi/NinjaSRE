@@ -4,6 +4,46 @@ Estado verificado contra o código atual em `wt/v8-050-painel-vivo`, no commit
 que segue este checkpoint. Este arquivo é reescrito a cada commit; a versão
 que importa é a do commit mais recente.
 
+## 0. A decisão de band-selection (FR-001) — RESOLVIDA, implementada, testada
+
+O lead pediu esta decisão três vezes. Está feita, no código, desde o
+checkpoint do commit `512d65d5` (run-band.tsx) e não mudou desde então.
+Resumo direto, sem indireção — os quatro pontos que a mensagem do lead
+nomeou, um por um:
+
+1. **Regra nomeada e testada**: `inFlightRuns()` em
+   `console/src/surfaces/run-band.tsx:71-74` filtra por `!isSettled(status)`,
+   onde `isSettled` é a função já exportada e já testada de
+   `console/src/design/status.ts:502` (frozen, da 000). O conjunto resultante
+   é `{running, suspended}` — exclui `interrupted`, que é o que os onze runs
+   zumbis do staging são. Teste dedicado:
+   `console/tests/unit/surfaces/run-band.test.ts` → `describe('inFlightRuns')`
+   → `'keeps running and suspended runs, and drops every settled status'`,
+   caso nomeado "the zombie band" no comentário, que prova especificamente
+   que `interrupted` é excluído. 9/9 testes de `run-band.test.ts` verdes.
+2. **A constante de seis cartões concorda**: `RUN_BAND_VISIBLE_MAX = 6`
+   (`run-band.tsx:39`) fatia o array que `inFlightRuns` já produziu —
+   `runs.slice(0, RUN_BAND_VISIBLE_MAX)` — nunca um segundo filtro.
+3. **As contagens do cabeçalho concordam**: `run-band-flight-count` lê
+   `runs.length` do mesmo array `inFlightRuns`, sem fatiar
+   (`run-band.tsx:206`) — nunca uma recontagem paralela.
+4. **A banda vazia nomeia o próximo passo, com link**: corrigida nesta
+   rodada (estava faltando antes) — o estado vazio diz por que está vazio
+   ("toda investigação terminou ou nenhuma foi iniciada") e linka para
+   `/runs` via `next/link`, nos dois idiomas
+   (`dashboard.runBand.empty`/`.empty.action`).
+
+**Consequência nomeada para a evidência do orquestrador (T035)**: a consulta
+1 do `spec.md` (`status NOT IN ('completed','failed','cancelled')`) mede a
+coisa errada depois desta decisão — ela conta os zumbis. A corrigida:
+
+```sql
+SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
+```
+
+Não há mais nada a decidir aqui. Se esta seção ainda gerar dúvida, a
+pergunta certa é sobre o código citado acima, não sobre a decisão em si.
+
 ## 1. Peça por peça
 
 | Peça | Estado | Detalhe |
@@ -154,3 +194,54 @@ corresponde ao que a banda de fato mostra:
 ```sql
 SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
 ```
+
+## 6. Declarações para o orquestrador aplicar / conferir no merge
+
+- **Nenhum token, ícone ou primitiva de motion faltando da fundação até
+  agora.** Tudo usado (`bg-accent`, `bg-sunken`, `stage-shimmer`, `slide-in`,
+  `text-warning`, `border-warning`, `bg-warning-bg`, `RiskLadder`,
+  `Badge`/`StatusDot`) já existe em `console/src/design/` ou em componentes
+  já mergeados. Nada foi editado lá.
+- **A asserção AN-03 depende do campo `stage_index` que a 020 ainda não
+  mergeou.** `console/tests/e2e/painel-vivo.acceptance.spec.ts` a escreve e a
+  pula nomeadamente (`test.skip`, com a razão na própria linha). Depois do
+  merge do slot, rodar essa suíte de novo — sem editar o teste — para
+  destravá-la.
+- **Migração `0021_estate_daily_snapshot`**: `down_revision` continua
+  `0019_users_email_optional` nesta worktree; o orquestrador re-aponta para
+  `0020_run_objective` (da 020) no merge, quando as duas árvores se
+  encontram. A nota está no docstring do próprio arquivo de migração.
+- **Vazamento de segredo achado pela convergência (não é desta feature,
+  mas toca esta tela)**: o lead relatou que o objetivo cru e labels de
+  alerta chegam sem redação até a timeline do incidente e o prompt do
+  agente — reparo da 020, não meu. Registro aqui o que esta tela lê da
+  mesma fonte, para ser reconferido quando o reparo da 020 aterrissar:
+  - `run-band.tsx` (já construído) lê `record.headline` como título do
+    card — o MESMO campo que carrega "o objetivo digitado" segundo o
+    fato 7 do `spec.md`. Se o vazamento relatado é sobre este campo
+    especificamente (não apenas sobre a timeline/prompt internos), o
+    título do card pode estar exibindo o mesmo texto não redigido.
+    Precisa ser reconferido contra dados reais depois do reparo da 020,
+    não presumido limpo.
+  - `activity-feed.tsx` e `subject-strip.tsx` (ainda não construídos)
+    vão renderizar `Incident.title`/`Incident.summary` (para "causa
+    encontrada" e o subtítulo do assunto) — os mesmos campos que a
+    convergência achou vazando na timeline do incidente. Quando essas
+    duas telas forem construídas, o mesmo reparo precisa ser conferido
+    contra elas antes de aceitar como limpo, não assumido por
+    proximidade.
+- **Capacidade retirada, nomeada, não substituída**: a banda "precisa de
+  você" antiga (`AttentionBlock` genérica) mostrava runs falhos com link
+  para `/first-run` quando a causa era uma exceção de configuração
+  (`InvestigatorNotConfigured`). A nova banda, seguindo a Main.dc.html à
+  risca, só mostra aprovações pendentes — esta capacidade não tem
+  substituto na tela redesenhada. Dois testes em `dashboard.test.tsx` que
+  verificavam isso foram marcados `it.skip` com a razão na própria linha
+  (não apagados). É uma decisão de produto que cabe ao lead confirmar, não
+  algo que decidi sozinho e escondi.
+- **Chaves i18n órfãs, achado menor**: `dashboard.attention.*` (título,
+  count, oldest, empty.*, more) e `dashboard.band.*` (da antiga
+  `GuardianBand`) ficam sem nenhum consumidor depois desta recomposição.
+  Não removidas nesta rodada — remover uma chave de catálogo é mais
+  arriscado que deixar uma órfã, e confirmar que nada mais as lê merece sua
+  própria varredura, não uma remoção apressada no meio de outra mudança.

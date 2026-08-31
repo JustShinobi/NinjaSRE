@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import { AlertTriangleIcon, ArrowRightIcon } from '@/design/icons';
 import { humaniseIdentifier } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -60,7 +62,7 @@ function StepList({ testId, heading, steps }: StepListProps): ReactNode {
   return (
     <div data-testid={testId} className="flex flex-col gap-1 min-w-0">
       <span className="text-micro text-muted uppercase tracking-wide">{heading}</span>
-      <ol className="flex flex-col gap-0.5 text-small list-decimal list-inside">
+      <ol className="flex flex-col gap-1 text-small list-decimal list-inside">
         {steps.map((step) => (
           <li key={step.ordinal}>{step.summary}</li>
         ))}
@@ -160,9 +162,9 @@ export function AttentionBlock({ locale, decisions, canDecide }: AttentionBlockP
       >
         <p data-testid="attention-decision-empty" className="text-small text-muted">
           {message(locale, 'dashboard.decisionBand.empty')}{' '}
-          <a href="/decisions" className="text-accent hover:underline">
+          <NextLink href="/decisions" className="text-accent hover:underline">
             {message(locale, 'dashboard.decisionBand.empty.action')}
-          </a>
+          </NextLink>
         </p>
       </section>
     );

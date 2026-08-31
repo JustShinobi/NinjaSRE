@@ -79,11 +79,32 @@ async function dashboardWithRaisedFailure(): Promise<void> {
  * which is the whole point: the screen used to drop an incident only when its
  * state equalled that word, so the drop never happened.
  */
+function emptyCollectionResponse(key: string): Response {
+  return new Response(JSON.stringify({ [key]: [] }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/** Whether `path` is one this file isolates away from the "populated" baseline
+ * so an incidents-only override is not diluted by that scenario's own
+ * pending approvals, proposals and runs. */
+function isolatedEmptyPath(path: string): string | null {
+  if (path === '/v1/approvals') return 'approvals';
+  if (path === '/v1/proposals') return 'proposals';
+  if (path === '/v1/runs') return 'runs';
+  return null;
+}
+
 async function dashboardWithFinishedIncidents(): Promise<void> {
   serveScenario('populated');
   const scenario = globalThis.fetch;
   vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
     const path = new URL(String(input), FIXTURES_BASE).pathname;
+    const isolated = isolatedEmptyPath(path);
+    if (isolated !== null) {
+      return Promise.resolve(emptyCollectionResponse(isolated));
+    }
     if (path === '/v1/incidents') {
       return Promise.resolve(
         new Response(
@@ -141,7 +162,7 @@ async function dashboardWithFinishedIncidents(): Promise<void> {
  * Render the dashboard over live incidents in all four live states, plus a
  * cause that fired three times.
  */
-async function dashboardWithLiveIncidents(): Promise<void> {
+async function dashboardWithLiveIncidents(options: { isolate?: boolean } = {}): Promise<void> {
   serveScenario('populated');
   const scenario = globalThis.fetch;
   const firing = (over: Record<string, unknown>): Record<string, unknown> => ({
@@ -204,6 +225,19 @@ async function dashboardWithLiveIncidents(): Promise<void> {
           headers: { 'content-type': 'application/json' },
         }),
       );
+    }
+    // `isolate` neutralises the "populated" scenario's own pending
+    // approvals, proposals and runs -- the header's "blocked on you" count
+    // reads all four sources together, and the incidents override above
+    // *replaces* what the fixture would otherwise serve rather than adding
+    // to it, so a test asserting the incidents' own contribution has to
+    // silence the other three or it is comparing against a number this
+    // function never controlled in the first place.
+    if (options.isolate === true) {
+      const isolated = isolatedEmptyPath(address.pathname);
+      if (isolated !== null) {
+        return Promise.resolve(emptyCollectionResponse(isolated));
+      }
     }
     return scenario(input as Parameters<typeof fetch>[0], init);
   });
@@ -320,10 +354,13 @@ describe('what a failed run reads as', () => {
     expect(document.body.innerHTML).not.toContain('NINJASRE_INVESTIGATOR');
   });
 
-  it('says what an operator can do about it, in words meant for them', async () => {
-    await dashboardWithRaisedFailure();
-
-    expect(screen.getByText(EN['failure.investigator.title'])).toBeInTheDocument();
+  // 050-painel-vivo narrowed the visible "needs you" band to pending
+  // remediation decisions only, so the translated failure message this
+  // checked for -- previously drawn as an attention row -- has no surface
+  // left to render on. Skipped, not deleted; see the note beside the other
+  // failed-run test below and this feature's control file.
+  it.skip('says what an operator can do about it, in words meant for them -- no surface for this in the redesigned band; see 050-painel-vivo/controle.md', () => {
+    expect(EN['failure.investigator.title']).toBeTruthy();
   });
 
   // 050-painel-vivo narrowed the visible "needs you" band to pending
@@ -575,21 +612,13 @@ describe('the header\'s "blocked on you" count', () => {
     // contain, so nothing was ever dropped and three finished incidents were
     // counted as three things waiting on a person.
     //
-    // The three finished incidents this fixture serves must add zero to the
-    // count -- checked as a delta against the "populated" scenario's own
-    // baseline (its pending approvals, proposals and any failed run,
-    // unrelated to what this test is about) rather than against zero
-    // outright, because the fixture is shared and its baseline is not this
-    // test's concern.
+    // The fixture also isolates away the "populated" scenario's own
+    // pending approvals, proposals and runs (see isolatedEmptyPath), so the
+    // count read here is the incidents' own contribution alone: zero, for
+    // three incidents that have all ended.
     await dashboardWithFinishedIncidents();
-    const withFinishedIncidents = Number(
-      screen.getByTestId('run-band-blocked-count').textContent,
-    );
 
-    await dashboard('populated');
-    const baseline = Number(screen.getByTestId('run-band-blocked-count').textContent);
-
-    expect(withFinishedIncidents).toBe(baseline);
+    expect(screen.getByTestId('run-band-blocked-count')).toHaveTextContent('0');
   });
 
   it('tells the narrative that a self-resolved incident ended well', async () => {
@@ -657,17 +686,15 @@ describe('the header\'s "blocked on you" count', () => {
     // person, counts toward "blocked on you" -- checked by count, since the
     // redesigned band no longer draws a row per incident (see the header
     // count section above for why).
-    await dashboardWithLiveIncidents();
-    const withLiveIncidents = Number(screen.getByTestId('run-band-blocked-count').textContent);
-
-    await dashboard('populated');
-    const baseline = Number(screen.getByTestId('run-band-blocked-count').textContent);
+    // Isolated the same way the test above is: with the "populated"
+    // scenario's own approvals, proposals and runs silenced, the count is
+    // the incidents' own contribution alone.
+    await dashboardWithLiveIncidents({ isolate: true });
 
     // Two of the five fired incidents need a person (`open`, `awaiting_human`);
-    // the other two (`investigating`, `remediating`) are the agent's own work
-    // and must add nothing -- checked as a delta against the "populated"
-    // baseline for the same reason the test above is.
-    expect(withLiveIncidents - baseline).toBe(2);
+    // the other two (`investigating`, `remediating`) are the agent's own
+    // work and must add nothing.
+    expect(screen.getByTestId('run-band-blocked-count')).toHaveTextContent('2');
   });
 
   it('folds what keeps happening into one row per cause', async () => {
