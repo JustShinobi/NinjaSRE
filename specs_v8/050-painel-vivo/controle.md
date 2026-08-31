@@ -1,12 +1,20 @@
 # Controle — 050-painel-vivo
 
-Estado verificado contra o código atual em `wt/v8-050-painel-vivo`, commit
-`817d989f`. `make verify` confirmado verde três vezes ao longo das rodadas
-registradas aqui — duas na rodada da convergência (`86965248` antes,
-`b5b5d967` depois), uma nesta terceira rodada (T042, árvore limpa, sem
-nenhuma modificação concorrente) — log completo preservado fora do
-repositório em todos os casos. Este arquivo é reescrito a cada commit; a
-versão que importa é a do commit mais recente.
+Estado verificado contra o código atual na árvore compartilhada
+`feat/000-fundacao-visual`, commit `f84b3aa3`. A árvore isolada
+(`wt/v8-050-painel-vivo`, commit `817d989f`) descrita no restante deste
+arquivo foi mesclada nela (`ddac60e3`/`0d725fe0`); o que aconteceu depois da
+mesclagem está no §11, que é a única parte deste arquivo verificada contra
+`f84b3aa3` — as seções 0–10 documentam a árvore isolada e não foram
+reconferidas nesta rodada. `make verify` confirmado verde três vezes ao
+longo das rodadas registradas nas seções 0–10 — duas na rodada da
+convergência (`86965248` antes, `b5b5d967` depois), uma na terceira rodada
+(T042, árvore limpa, sem nenhuma modificação concorrente) — log completo
+preservado fora do repositório em todos os casos; **esta rodada do §11 não
+reexecuta `make verify`, por instrução explícita de quem a despachou** — só
+os gates de console que ela nomeia, cada um com log próprio fora de
+`evidence/`. Este arquivo é reescrito a cada commit; a versão que importa é
+a do commit mais recente.
 
 Três rodadas de trabalho estão registradas aqui. A primeira fechou os
 quatro itens que a rodada anterior tinha deixado abertos
@@ -33,6 +41,20 @@ acceptance spec. As seis que continuam vermelhas (AN-01, AN-02,
 AN-04×2, AN-05, AN-14) são dependência declarada de
 **070-iniciar-investigacao**, confirmada pelo orquestrador lendo o próprio
 código — não desta feature.
+
+Depois da mesclagem, mais quatro commits alheios às seções 0–10 chegaram na
+árvore compartilhada antes desta rodada, e nenhum controle os registrou até
+agora: `0093e362`/`20c4f6bc` deixam AN-03 rodar de verdade (o mockplane
+passa a servir o estágio que o run já alcançou, não sempre o primeiro);
+`421bf8b0` deu ao Painel a busca do nome do estate para um assunto
+recorrente (FR-024/SC-007); `2092abce` parou de aninhar um link dentro do
+tile de KPI degradado (uma falha de hidratação real em staging, onde
+nenhum detector está ligado); `e005670d` corrigiu duas citações erradas
+neste próprio arquivo. Nenhum dos quatro é reverificado aqui — são citados
+pelo commit e pela mensagem, não relidos linha a linha, porque esta rodada
+é um reparo com escopo próprio, não uma reconvergência da feature inteira.
+O §11 documenta esse reparo (a continuação de `421bf8b0`, que resolveu a
+busca mas não o render) em detalhe, com o mesmo rigor das seções 0–10.
 
 ## 0. Duas decisões já resolvidas, inalteradas — não relitigar
 
@@ -82,6 +104,7 @@ não o código. Achado pela convergência lendo o código, não por mim.
 | `run-band.tsx` | FEITO, testado (9/9 verde), **composta** | `console/src/surfaces/run-band.tsx` |
 | `kpi-tiles.tsx` | FEITO (testids corrigidos nesta rodada) **e composta em `dashboard.tsx` nesta rodada** | `console/src/surfaces/kpi-tiles.tsx`; AN-09 fecha por causa disto |
 | `subject-strip.tsx` | FEITO (testids corrigidos numa rodada anterior) **e composta em `dashboard.tsx`**; posicionamento do mini-timeline por instante corrigido no T042 (ver §6) | `console/src/surfaces/subject-strip.tsx`; AN-15 fecha por causa disto |
+| `SubjectLine`/`subjectTitle` (o subtítulo de assunto, FR-024/SC-007) | FEITO nesta rodada de reparo (§11) — a busca do nome (rodada anterior, `421bf8b0`) funcionava; o render ainda imprimia o id opaco como texto da linha ao lado do nome resolvido, e num assunto opaco sem nome nenhum | `console/src/surfaces/incident-group-list.tsx:145-192`; compartilhado com a tela de Incidents (`IncidentGroupList`), ver §11.4 |
 | `AttentionDecisionControls` (novo) + `attention.tsx` recomposta | FEITO — extraído desta banda porque `IncidentDecisionControls` (o componente compartilhado da 040/060) usa um testid único e um fluxo que não correspondem ao acceptance spec nem ao artboard | `console/src/surfaces/attention-decision-controls.tsx` (novo) |
 | `console/src/surfaces/activity-feed.tsx` (novo) | FEITO — quatro formas, `collapseFeed` | `console/src/surfaces/activity-feed.tsx`, composta em `dashboard.tsx` |
 | Composição completa de `dashboard.tsx` | **FEITO** — as cinco regiões do artboard (run-band, attention, kpi-tiles, subject-strip, activity-feed) estão todas compostas; `/v1/estate/summary` e `/v1/detectors` removidos do `Promise.all` porque nada mais os lê | `console/src/surfaces/screens/dashboard.tsx` |
@@ -608,3 +631,193 @@ verde nas duas vezes.
   prova de posição é o teste de unidade citado no §6.3, confirmado vermelho
   duas vezes (antes de implementar, e de novo revertendo só a linha de
   `subject-strip.tsx` depois) e verde depois de cada correção.
+
+## 11. Reparo pós-mesclagem — o id cru sobrevivia ao lado do nome resolvido (FR-024/SC-007)
+
+Duas rodadas de reparo aconteceram depois da mesclagem descrita acima, e
+esta seção é a primeira vez que um controle as registra — a primeira
+(`421bf8b0`) não foi documentada por quem a fez; esta (`f84b3aa3`) é a
+segunda, no limite declarado de duas.
+
+### 11.1 O que a primeira rodada de reparo (`421bf8b0`) já tinha corrigido
+
+O lead leu a tela publicada em staging e achou o subtítulo do assunto
+recorrente `InstanceDown` como `res-76ab1466…` sozinho — o id cru,
+encurtado, sem nome nenhum. A causa: `dashboard.tsx` nunca construía o mapa
+`subjectNames` que `SubjectLine` precisa para resolver um id ao nome que o
+estate já tem para ele — a mesma leitura que a tela de Incidents já fazia
+pela idêntica razão (`screens/incidents.tsx:283-296`). Corrigido lendo
+`/v1/estate/resources` uma vez por página (nenhuma rota nova) e passando o
+mapa resultante para `SubjectStrip`. Este reparo estava certo e continua
+sem reverter — ver §11.2.
+
+### 11.2 O achado desta rodada: medir antes de decidir
+
+O lead relatou, depois de reimplantar, que o mesmo assunto agora lê
+`pve01 · res-76ab1466…` — o nome apareceu, mas o id cru continua depois
+dele, como texto visível da linha. A pergunta que decide o reparo era: a
+busca falhou de novo (o mapa não alcança o recurso), ou o estate genuinamente
+não tem nome para ele?
+
+**Medido, não presumido**: `pve01` aparecer é a prova de que a busca
+funcionou. `SubjectLine` (`incident-group-list.tsx:153` antes desta
+rodada) só tinha dois ramos — sem nome resolvido, ou com nome resolvido — e
+o grupo carrega um único assunto (o id do recurso). Se o mapa não tivesse
+alcançado o recurso, `resolvedName` teria devolvido `undefined` e a linha
+teria caído no ramo "sem nome", que renderiza só o id encurtado, sem
+palavra nenhuma na frente — não é isso que a tela mostra. O texto
+`pve01 · res-76ab1466…` só existe no ramo "nome resolvido" (`name` +
+` · ` + `shortenIdentifier(subject)`), o que exige `resolvedName(subject,
+subjectNames) === 'pve01'`. A busca alcançou o recurso e o estate o nomeia
+`pve01` — plausivelmente o próprio nó Proxmox que o alerta `InstanceDown`
+mirou (a rota `_row` do gateway usa `resource.display_name` sem inventar
+nada, `gateway/http/routes/estate.py:333-358`). **Não é lacuna de busca —
+é decisão de render**: `SubjectLine` imprimia o id encurtado como detalhe
+à direita do nome, sempre, mesmo depois de resolver um nome de verdade —
+o comentário do próprio código já dizia isso em palavras ("the id last as
+a trailing, shortened detail"), sem que ninguém tivesse medido essa frase
+contra FR-024, que bane o id como texto da linha **incondicionalmente**,
+não só enquanto não resolvido.
+
+### 11.3 O que foi feito — e o que não
+
+`SubjectLine` (`console/src/surfaces/incident-group-list.tsx:145-192`)
+passou a decidir por `isOpaque(subject)`, não por `resolvedName(subject,
+...) !== undefined`:
+
+- **Nome resolvido e o id é opaco** (o caso `pve01`/`res-76ab1466…`): só o
+  nome renderiza como texto da linha. O id cru continua alcançável — pelo
+  atributo `title` da linha (`subjectTitle`, inalterado), nunca pelo texto.
+- **Nenhum nome resolvido e o id é opaco**: o segmento inteiro é omitido
+  (não renderiza nem encurtado) — a linha cai no mesmo `group.detector`
+  que já usava para um grupo sem assunto nenhum, em vez de inventar algo.
+- **Nome resolvido mas o id nunca foi opaco** (`ct-102` → `anchor`, do
+  fixture local da tela de Incidents): o detalhe à direita **continua**,
+  exatamente como antes — `ct-102` não casa `res-[0-9a-f]{8}` nem
+  `[0-9a-f]{16,}`, então mostrá-lo não viola SC-007, e a suíte de
+  aceitação da 060 (`incidents-by-subject.acceptance.spec.ts:122-137`)
+  depende literalmente dessa sobrevivência (`toContainText('ct-102')`).
+  Isto **não é escopo desta feature** — é o contrato que a 060 já tinha
+  com este componente compartilhado, e o reparo tinha que não quebrá-lo.
+- Um assunto que já chegava como nome (`adguard-primary`) continua
+  idêntico — nunca foi opaco, nunca entrou em nenhum dos ramos acima.
+
+Deliberadamente **não tocado**: `isOpaque`/`shortenIdentifier` em si
+(`incident-group-list.tsx:65-87`) — o teste de forma que decide "id
+interno" continua o mesmo em todo o arquivo; `subjectTitle` — já construía
+o tooltip com a lista crua, sem encurtar, e continua sendo o único lugar
+onde o id completo aparece.
+
+### 11.4 Blast radius: o componente é compartilhado com a tela de Incidents
+
+`SubjectLine` não pertence só ao Painel — `IncidentGroupList`
+(`incident-group-list.tsx:456`, a tela de Incidents da 060) chama a mesma
+função, no mesmo arquivo. Medido antes de mexer: a suíte de aceitação da
+060 (`incidents-by-subject.acceptance.spec.ts`) tem duas alegações sobre
+exatamente este texto —
+
+- `AN-I2/AN-T2` ("no visible subject line starts with a resource or opaque
+  id", linha 104): âncora no início da string; nada nela dependia do
+  detalhe à direita, e o reparo só a reforça (um id opaco sem nome agora
+  nem aparece).
+- "a subject the estate holds by id shows its display name, not the id
+  alone" (linha 122): usa `ct-102`/`anchor`, um id **não opaco** — a razão
+  pela qual o reparo teve que ser condicionado a `isOpaque`, não
+  incondicional. Pinado num teste de unidade novo neste mesmo arquivo
+  (§11.5) em vez de só confiado à leitura da suíte da 060, que esta rodada
+  não rodou (fora do escopo desta feature).
+
+Nenhum arquivo da 060 foi tocado. A garantia de que o contrato dela
+sobrevive vem da leitura da sua própria suíte (acima) mais o novo teste de
+unidade citado a seguir — não de rodar a suíte dela, que pertence a outra
+feature.
+
+### 11.5 Testes: vermelho confirmado antes, verde depois
+
+Ordem seguida: os testes primeiro, rodados contra o código ainda não
+corrigido, depois a implementação.
+
+- `console/tests/unit/surfaces/incident-group-list.test.tsx`: três casos
+  reescritos (o antigo "shortens an opaque identifier and keeps the whole
+  of it reachable", o antigo "shows the resolved name first, with the id
+  kept as a trailing detail", o antigo "renders the plain shortened id,
+  honestly...") e um caso novo ("keeps a resolved name trailed by its id
+  when the id was never opaque to begin with", pinando o contrato com a
+  060 citado em §11.4).
+- `console/tests/unit/surfaces/dashboard.test.tsx`: o teste da rodada
+  anterior (`421bf8b0`, "resolves a recurring subject's raw resource id to
+  the estate's own name for it") ganhou as asserções que faltavam —
+  `subtitle` não contém `/res-[0-9a-f]{8}/`, e a linha carrega `title`
+  igual ao id cru.
+- Vermelho real, contra o código anterior a esta rodada (log completo fora
+  de `evidence/`): 4 falhas — `dashboard.test.tsx` mostrou
+  `edge-node-04 · res-76ab1466…` onde a asserção nova exigia ausência do
+  padrão; `incident-group-list.test.tsx` mostrou `res-7a73b8aa…` (duas
+  vezes, os dois casos sem nome resolvido) e
+  `runner-orchestrator · res-dde476d5…` (o caso com nome resolvido) —
+  exatamente o texto que a implementação antiga produzia.
+- Verde depois da implementação: `3 test files passed`,
+  `39 passed | 9 skipped (48)` nos três arquivos tocados
+  (`incident-group-list.test.tsx`, `dashboard.test.tsx`,
+  `subject-strip.test.tsx`); mais `44 passed` em
+  `incidents.test.tsx`/`incident-groups.test.ts`/
+  `incident-decision-controls.test.tsx`/`incident-detail.test.tsx`
+  (verificação adicional da tela de Incidents, não exigida pelo escopo mas
+  rodada por prudência dado o compartilhamento do §11.4).
+- `npx tsc --noEmit -p .`: `EXIT=0`.
+- `npx prettier --check` e `npx eslint` nos quatro arquivos tocados:
+  `EXIT=0` nos dois, sem alteração nenhuma.
+
+### 11.6 O acceptance spec: AN-12 reescrito, e o que ele prova (e não prova) contra o dataset simulado
+
+`AN-12` (`painel-vivo.acceptance.spec.ts:428`) trocou a âncora
+`/^res-[0-9a-f]{8}/` numa asserção por linha por uma leitura sem âncora do
+texto visível inteiro de `main` (`page.getByTestId('main').innerText()`),
+contra as duas expressões literais de SC-007. A âncora antiga nunca
+casaria `pve01 · res-76ab1466…` porque o nome vem primeiro; a segunda
+asserção antiga (`[0-9a-f]{16,}`) também nunca casaria, porque o id
+renderizado é truncado a 8 caracteres hex.
+
+Rodado `uv run python -m tools.spec_validation browser --feature
+specs_v8/050-painel-vivo --test
+console/tests/e2e/painel-vivo.acceptance.spec.ts` duas vezes, isolando só
+a implementação (`git stash` do arquivo `incident-group-list.tsx`, sem
+tocar os testes já reescritos) para medir o efeito real:
+
+- **Antes** (implementação antiga, `AN-12` já reescrito): **6 failed, 13
+  passed** — AN-01, AN-02, AN-04×2, AN-05, AN-14 nomeadas, as mesmas seis
+  já registradas como dependência de 070-iniciar-investigacao. `AN-12`
+  passou.
+- **Depois** (implementação corrigida): **6 failed, 13 passed** — as
+  mesmas seis, nomeadas de novo, idênticas. `AN-12` passou.
+
+`AN-12` não discrimina no dataset commitado, nas duas medições — o assunto
+recorrente do cenário `populated` é uma string já legível
+(`unresolved-target:...`), que nunca exercita o ramo opaco de
+`SubjectLine`, com ou sem o reparo. Isto **não prova que o reparo é
+inócuo** — prova que este dataset não é o lugar onde ele se prova. A prova
+real é o par vermelho/verde do §11.5, com um id sintético `res-<hex>`
+construído para exercitar exatamente o ramo que o dataset local não
+alcança. `AN-12` reescrito continua valendo: é a asserção que teria falhado
+contra a tela como ela estava em staging, e passa a rodar também lá
+(`@staging-safe`), onde o assunto `InstanceDown` é o real.
+
+`make verify` **não foi rodado nesta rodada** — instrução explícita de
+quem despachou este reparo; quem redesploya e remede fica com essa
+verificação. Nenhuma baseline visual foi tocada ou fabricada.
+
+### 11.7 O que fica pendente, nomeado, não escondido
+
+- **A suíte de aceitação da 060** (`incidents-by-subject.acceptance.spec.ts`)
+  **não foi rodada** nesta rodada — o arquivo pertence a outra feature, e
+  o contrato que ela testa foi verificado por leitura mais um teste de
+  unidade novo neste mesmo componente (§11.4/§11.5), não pela execução da
+  suíte dela. Quem mesclar ou reconvergir aquela feature deve confirmar
+  que ela segue verde — a expectativa, pela leitura, é que sim.
+- **`make verify` não foi reexecutado** nesta rodada, por instrução
+  explícita — pendente de quem redesploya.
+- **O gate visual (Orca Browser) não foi rodado** — fora do escopo
+  declarado para um implementador; cabe ao verificador/orquestrador.
+- Nenhuma alegação nova ficou sem decisão: as seis vermelhas do acceptance
+  spec continuam exatamente as seis já registradas como dependência de
+  070-iniciar-investigacao, e nenhuma outra mudou de estado.
