@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import NextLink from 'next/link';
 
 import { Badge } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 import { formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import type { IncidentGroup } from './incident-groups';
@@ -73,14 +74,23 @@ function SubjectRow({
     >
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-small font-medium truncate">{group.title}</span>
-        <span className="text-meta text-muted truncate">
+        <span
+          data-testid="subject-subtitle"
+          className="text-meta text-muted truncate"
+        >
           <SubjectLine group={group} subjectNames={subjectNames} />
         </span>
       </div>
-      <span className="ml-auto shrink-0">
+      <span className="ml-auto shrink-0" data-testid="subject-timeline">
         <RecurrenceStrip group={group} />
       </span>
-      <Badge status={group.state} className="shrink-0" />
+      <span
+        data-testid="subject-chip"
+        data-role={statusPresentation(group.state).role}
+        className="shrink-0"
+      >
+        <Badge status={group.state} />
+      </span>
       <span
         className="font-mono text-meta text-muted shrink-0"
         data-testid="subject-count"

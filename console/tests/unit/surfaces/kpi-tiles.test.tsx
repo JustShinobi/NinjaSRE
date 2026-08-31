@@ -45,20 +45,33 @@ function tiles(over: Partial<Parameters<typeof KpiTiles>[0]> = {}) {
   );
 }
 
+/** The one tile whose `data-kpi` names it -- the same disambiguation the
+ * acceptance suite's own `kpiTile()` locator uses against the live page. */
+function tileFor(name: string): HTMLElement {
+  const found = screen
+    .getAllByTestId('kpi-tile')
+    .find((tile) => tile.getAttribute('data-kpi') === name);
+  if (found === undefined) throw new Error(`no kpi-tile carries data-kpi="${name}"`);
+  return found;
+}
+
 describe('KpiTiles', () => {
   it('renders one tile per KPI, five total', () => {
     tiles();
-    expect(screen.getAllByTestId(/^kpi-tile-/)).toHaveLength(5);
+    expect(screen.getAllByTestId('kpi-tile')).toHaveLength(5);
   });
 
   it('shows the watched count and its breakdown by kind, straight from the field', () => {
     tiles();
-    const tile = screen.getByTestId('kpi-tile-watched');
+    const tile = tileFor('watched');
     expect(within(tile).getByTestId('kpi-value')).toHaveTextContent('86');
     // Every kind the breakdown named, none invented and none dropped.
     expect(within(tile).getByText(/82/)).toBeInTheDocument();
     expect(within(tile).getByText(/container/)).toBeInTheDocument();
     expect(within(tile).getByText(/virtual-machine/)).toBeInTheDocument();
+    // The legend carries its own hook -- the same one the acceptance suite
+    // asserts is visible on the live page.
+    expect(within(tile).getByTestId('kpi-legend')).toBeInTheDocument();
   });
 
   it('draws one sparkline point per bucket the series actually returned', () => {
@@ -70,7 +83,7 @@ describe('KpiTiles', () => {
         ],
       }),
     });
-    const tile = screen.getByTestId('kpi-tile-watched');
+    const tile = tileFor('watched');
     const polyline = within(tile)
       .getByTestId('kpi-sparkline')
       .querySelector('polyline');
@@ -81,20 +94,20 @@ describe('KpiTiles', () => {
 
   it('draws no sparkline, without error, when the series is empty', () => {
     tiles({ watched: kpi({ series: [] }) });
-    const tile = screen.getByTestId('kpi-tile-watched');
+    const tile = tileFor('watched');
     expect(within(tile).queryByTestId('kpi-sparkline')).not.toBeInTheDocument();
   });
 
   it('says a rate with nothing to measure is unmeasured, never a fabricated zero', () => {
     tiles({ successRate: kpi({ value: null, breakdown: {} }) });
-    const tile = screen.getByTestId('kpi-tile-successRate');
+    const tile = tileFor('successRate');
     expect(within(tile).getByTestId('kpi-value')).toHaveTextContent('—');
     expect(within(tile).queryByText('0')).not.toBeInTheDocument();
   });
 
   it('names the no-detector case on the degraded tile, with a link to configuration', () => {
     tiles({ degraded: kpi({ value: 0, note: 'no_detector_enabled' }) });
-    const tile = screen.getByTestId('kpi-tile-degraded');
+    const tile = tileFor('degraded');
     expect(
       within(tile).getByText('No detector promotes a finding to an incident'),
     ).toBeInTheDocument();
@@ -106,14 +119,15 @@ describe('KpiTiles', () => {
 
   it('renders the median and the worst case on the time-to-cause tile as durations', () => {
     tiles();
-    const tile = screen.getByTestId('kpi-tile-timeToCause');
+    const tile = tileFor('timeToCause');
     expect(within(tile).getByTestId('kpi-value')).toHaveTextContent('1m 15s');
     expect(within(tile).getByText(/3m 10s/)).toBeInTheDocument();
   });
 
   it('marks every tile read-failed when the overview panel itself could not be read, inventing nothing', () => {
     tiles({ failed: true });
-    const tiles_ = screen.getAllByTestId(/^kpi-tile-/);
+    const tiles_ = screen.getAllByTestId('kpi-tile');
+    expect(tiles_).toHaveLength(5);
     for (const tile of tiles_) {
       expect(within(tile).getByText('Could not be read')).toBeInTheDocument();
       expect(within(tile).queryByTestId('kpi-value')).not.toBeInTheDocument();

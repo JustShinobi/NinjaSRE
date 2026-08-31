@@ -5,7 +5,7 @@ import NextLink from 'next/link';
 import { AlertTriangleIcon, ArrowRightIcon } from '@/design/icons';
 import { humaniseIdentifier } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
-import { IncidentDecisionControls } from './screens/incident-decision-controls';
+import { AttentionDecisionControls } from './attention-decision-controls';
 import { RiskLadder } from './risk-ladder';
 
 /**
@@ -22,17 +22,21 @@ import { RiskLadder } from './risk-ladder';
  * control file as scope this feature does not cover, not silently dropped.
  *
  * **Decided at the approval store, never through a live-run interaction.**
- * `IncidentDecisionControls` (`screens/incident-decision-controls.tsx`,
- * already built for the same kind of card on the incident page) posts to
+ * `AttentionDecisionControls` (`attention-decision-controls.tsx`) posts to
  * `/api/approval`, which addresses `POST /v1/approvals/{approval_id}
- * /decision`. A proposed remediation — the mockup's own example, "proposed
- * by the alert router" — is an `ApprovalRequest` decided directly at the
- * approval store; it is not a live investigation pausing to ask a question,
- * which is the *other* mechanism (`surfaces/decision.tsx`'s
+ * /decision` — the identical courier `IncidentDecisionControls`
+ * (`screens/incident-decision-controls.tsx`, the incident page's own card for
+ * the same entity) already uses. A proposed remediation — the mockup's own
+ * example, "proposed by the alert router" — is an `ApprovalRequest` decided
+ * directly at the approval store; it is not a live investigation pausing to
+ * ask a question, which is the *other* mechanism (`surfaces/decision.tsx`'s
  * `DecisionControls`, addressing `/v1/interactions/{id}/approve`) exists
- * for. Reusing the component built for the same entity, rather than a third
- * parallel implementation, is what keeps this from becoming a second
- * opinion about which courier route a propose-only decision takes.
+ * for. This band's own component, rather than reusing the incident page's,
+ * because the two disagree about how the reject reason is revealed —
+ * `Main.dc.html` draws Recusar as a flat control with no field open beside
+ * it, where the incident page's card shows the field from the start — and
+ * both go through the one courier, so neither is a second opinion about
+ * which route a propose-only decision takes.
  */
 
 /** One numbered step of a plan or its reversal. */
@@ -129,12 +133,14 @@ function DecisionCard({
       <div className="flex items-center gap-3 flex-wrap">
         {canDecide ? (
           expanded ? (
-            <IncidentDecisionControls
+            <AttentionDecisionControls
               approvalId={decision.id}
               labels={{
                 approve: message(locale, 'dashboard.decisionBand.approve'),
                 reject: message(locale, 'dashboard.decisionBand.reject'),
                 reason: message(locale, 'dashboard.decisionBand.reason'),
+                submit: message(locale, 'dashboard.decisionBand.rejectSubmit'),
+                cancel: message(locale, 'dashboard.decisionBand.cancel'),
                 reasonRequired: message(
                   locale,
                   'dashboard.decisionBand.reasonRequired',

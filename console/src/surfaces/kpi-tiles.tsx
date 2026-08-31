@@ -126,7 +126,8 @@ interface TileProps {
 function Tile({ testId, label, value, legend, sparkline, href }: TileProps): ReactNode {
   const body = (
     <div
-      data-testid={`kpi-tile-${testId}`}
+      data-testid="kpi-tile"
+      data-kpi={testId}
       className="bg-raised edge border-border rounded-3 shadow-1 p-3 flex flex-col gap-2 h-full"
     >
       <span className="text-meta text-muted">{label}</span>
@@ -139,7 +140,9 @@ function Tile({ testId, label, value, legend, sparkline, href }: TileProps): Rea
         </span>
       )}
       {sparkline}
-      <span className="text-meta text-muted">{legend}</span>
+      <span data-testid="kpi-legend" className="text-meta text-muted">
+        {legend}
+      </span>
     </div>
   );
   if (href === undefined) return body;

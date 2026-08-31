@@ -542,6 +542,8 @@ export const EN = {
   'dashboard.decisionBand.rollback': 'How it reverses',
   'dashboard.decisionBand.approve': 'Approve',
   'dashboard.decisionBand.reject': 'Reject',
+  'dashboard.decisionBand.rejectSubmit': 'Confirm rejection',
+  'dashboard.decisionBand.cancel': 'Cancel',
   'dashboard.decisionBand.reason': 'Reason',
   'dashboard.decisionBand.reasonRequired': 'A reason is required to reject.',
   'dashboard.decisionBand.failed': 'The decision could not be recorded. Try again.',

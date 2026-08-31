@@ -564,6 +564,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.decisionBand.rollback': 'Como reverte',
   'dashboard.decisionBand.approve': 'Aprovar',
   'dashboard.decisionBand.reject': 'Recusar',
+  'dashboard.decisionBand.rejectSubmit': 'Confirmar recusa',
+  'dashboard.decisionBand.cancel': 'Cancelar',
   'dashboard.decisionBand.reason': 'Razão',
   'dashboard.decisionBand.reasonRequired': 'Uma razão é obrigatória para recusar.',
   'dashboard.decisionBand.failed': 'A decisão não pôde ser registrada. Tente de novo.',

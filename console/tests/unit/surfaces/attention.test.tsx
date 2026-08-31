@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AttentionBlock, type DecisionCardData } from '@/surfaces/attention';
 
@@ -8,6 +8,12 @@ import { AttentionBlock, type DecisionCardData } from '@/surfaces/attention';
  * oldest pending decision is expanded, the rest are compact with a count,
  * and an empty queue says so with a link to the history.
  */
+
+const REFRESH = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: REFRESH }),
+}));
 
 function decision(over: Partial<DecisionCardData> = {}): DecisionCardData {
   return {
@@ -68,7 +74,8 @@ describe('AttentionBlock', () => {
     render(<AttentionBlock locale="en" decisions={[decision()]} canDecide={false} />);
 
     expect(screen.getByTestId('attention-decision-no-permission')).toBeInTheDocument();
-    expect(screen.queryByTestId('decision-control')).toBeNull();
+    expect(screen.queryByTestId('attention-approve')).toBeNull();
+    expect(screen.queryByTestId('attention-reject')).toBeNull();
   });
 
   it('always reaches the full decision in one click, whichever card it is', () => {
@@ -83,5 +90,93 @@ describe('AttentionBlock', () => {
     const links = screen.getAllByTestId('attention-view-plan');
     expect(links[0]).toHaveAttribute('href', '/decisions?tab=actions&selected=apr-1');
     expect(links[1]).toHaveAttribute('href', '/decisions?tab=actions&selected=apr-2');
+  });
+});
+
+describe('AttentionBlock, deciding inline', () => {
+  beforeEach(() => {
+    REFRESH.mockClear();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function sentBody(): Record<string, unknown> {
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    return JSON.parse(init.body) as Record<string, unknown>;
+  }
+
+  it('shows the approve control enabled before any click, beside the plan already visible', () => {
+    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+
+    expect(screen.getByTestId('attention-decision-plan')).toBeVisible();
+    expect(screen.getByTestId('attention-decision-rollback')).toBeVisible();
+    expect(screen.getByTestId('attention-approve')).toBeEnabled();
+  });
+
+  it('approves with no reason, and refreshes once the deployment records it', async () => {
+    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+
+    fireEvent.click(screen.getByTestId('attention-approve'));
+    await vi.waitFor(() => {
+      expect(REFRESH).toHaveBeenCalled();
+    });
+    expect(sentBody().payload).toEqual({ verdict: 'approve', reason: '' });
+  });
+
+  it('reveals the reason field only once Recusar is clicked, disables submit until it is filled', () => {
+    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+
+    expect(screen.queryByTestId('attention-reject-reason')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('attention-reject'));
+    const reasonField = screen.getByTestId('attention-reject-reason');
+    expect(reasonField).toBeVisible();
+    const submit = screen.getByTestId('attention-reject-submit');
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(reasonField, { target: { value: 'not a real problem' } });
+    expect(submit).toBeEnabled();
+  });
+
+  it('sends the rejection and its reason once submitted, and refreshes', async () => {
+    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+
+    fireEvent.click(screen.getByTestId('attention-reject'));
+    fireEvent.change(screen.getByTestId('attention-reject-reason'), {
+      target: { value: 'the workload recovered on its own' },
+    });
+    fireEvent.click(screen.getByTestId('attention-reject-submit'));
+
+    await vi.waitFor(() => {
+      expect(REFRESH).toHaveBeenCalled();
+    });
+    const body = sentBody();
+    expect(body.operation).toBe('decide');
+    expect(body.target).toBe('apr-1');
+    expect(body.payload).toEqual({
+      verdict: 'reject',
+      reason: 'the workload recovered on its own',
+    });
+  });
+
+  it('says so, rather than looking decided, when the deployment does not record the decision', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false })),
+    );
+    render(<AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />);
+
+    fireEvent.click(screen.getByTestId('attention-approve'));
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('attention-decision-failed')).toBeInTheDocument();
+    });
+    expect(REFRESH).not.toHaveBeenCalled();
   });
 });

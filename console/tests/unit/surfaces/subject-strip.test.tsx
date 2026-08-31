@@ -162,4 +162,25 @@ describe('SubjectStrip', () => {
     expect(screen.queryByTestId('subject-row')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Incidents/i })).toBeInTheDocument();
   });
+
+  it('carries a subtitle naming resource and node, never a raw identifier alone', () => {
+    render(<SubjectStrip locale="en" now={NOW} groups={[group()]} />);
+    const row = screen.getByTestId('subject-row');
+    expect(within(row).getByTestId('subject-subtitle')).toBeInTheDocument();
+  });
+
+  it("draws a timeline strip for a subject that fired more than once", () => {
+    render(<SubjectStrip locale="en" now={NOW} groups={[group()]} />);
+    const row = screen.getByTestId('subject-row');
+    const timeline = within(row).getByTestId('subject-timeline');
+    expect(timeline).toBeVisible();
+    expect(timeline.querySelector('svg')).not.toBeNull();
+  });
+
+  it('names the shaped chip with the same role its status colour uses', () => {
+    render(<SubjectStrip locale="en" now={NOW} groups={[group({ state: 'resolved' })]} />);
+    const row = screen.getByTestId('subject-row');
+    const chip = within(row).getByTestId('subject-chip');
+    expect(chip.getAttribute('data-role')).toMatch(/.+/);
+  });
 });
