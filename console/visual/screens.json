@@ -34,7 +34,7 @@
         "against": null,
         "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced agent settings” section, holding the budgets this tab already printed but could not change, the three per-role prompt overrides, the operating-context switch and the subagent roster. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
       },
-      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route."
+      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route. Since then, the tab itself was also renamed from \"Topology\" to \"Pipeline\" (the board's own word) and the metro line gained the rail joining its six nodes, which the committed image has neither of."
     },
     {
       "id": "agent-autonomy-1440-light",
@@ -271,7 +271,7 @@
         "against": null,
         "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
       },
-      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here."
+      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here. Since that capture, the episode outcome also gained a proper dot and chip through the shared status vocabulary (data-role on both), where it used to be a hand-rolled resolved/not-resolved shape with neither."
     },
     {
       "id": "knowledge-topology-1440-light",
@@ -294,7 +294,7 @@
         "against": "05-screen-estate.png",
         "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
       },
-      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows."
+      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows. Each node section is capped at one row (nothing unhealthy) or two (something is), with a 'see all'/'see the unhealthy' link past the cap, so the page has a bounded height to capture in the first place."
     },
     {
       "id": "resources-320-light",
@@ -306,7 +306,7 @@
         "against": null,
         "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
       },
-      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width -- and this is also where the S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid does not have that problem, but still needs a first real capture of the new layout."
+      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width. The S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid inherited the same failure for a different reason -- it drew every resource on every node with no cap, 59 cards for one node alone, 3230px tall, so nothing fit in a capture window here either. Closed by capping each node section at one row when nothing on it is unhealthy and two when something is, with a 'see all'/'see the unhealthy' link where the board draws one. Still needs its first real capture of the capped layout."
     },
     {
       "id": "run-detail-1440-dark",

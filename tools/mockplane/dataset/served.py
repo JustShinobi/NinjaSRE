@@ -1693,6 +1693,19 @@ def proposal_records() -> tuple[CapturedRecord, ...]:
 
 # --- Memory and knowledge ----------------------------------------------------------
 
+# ``outcome`` reads from the values ``EpisodeOutcome`` actually declares
+# (``platform/persistence/ports/episode_store.py``) — ``"resolved"``,
+# ``"mitigated"``, ``"inconclusive"`` or ``"false_positive"`` — not
+# ``"acknowledged"``/``"unresolved"``, which the real backend has never
+# emitted and the console has no presentation declared for.
+#
+# The two below that used to read ``"acknowledged"`` now read ``"mitigated"``,
+# not ``"inconclusive"``: the demonstration seeder's own translation table
+# (``platform/startup/demo/seeder.py``, ``_EPISODE_OUTCOME``) is the one place
+# this exact legacy vocabulary is already mapped onto the real enum, and it
+# maps ``"acknowledged"`` to ``MITIGATED`` and ``"unresolved"`` to
+# ``INCONCLUSIVE`` — two different words, kept two different outcomes, not
+# flattened to one.
 EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
     {
         "episode_id": "ep-0001",
@@ -1709,7 +1722,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "run_id": "run-0002",
         "title": "Quorum has no margin",
         "summary": "Two of two required votes, and the device in the membership view carries none.",
-        "outcome": "acknowledged",
+        "outcome": "mitigated",
         "components": ["cluster"],
         "occurred_at": at(days=1, hours=2, minutes=47),
     },
@@ -1719,7 +1732,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "title": "The investigation could not reach the metrics agent",
         "summary": "The agent is one of the failed units on the primary; nothing was "
         "watching the watcher.",
-        "outcome": "unresolved",
+        "outcome": "inconclusive",
         "components": ["node01", "metrics-agent.service"],
         "occurred_at": at(days=3, hours=5, minutes=50),
     },
@@ -1738,7 +1751,7 @@ EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
         "title": "A kernel was installed and never booted",
         "summary": "The usual signal did not fire, so the first real boot of it will be "
         "an unplanned one.",
-        "outcome": "acknowledged",
+        "outcome": "mitigated",
         "components": ["node01", "node02"],
         "occurred_at": at(days=1, hours=2, minutes=40),
     },

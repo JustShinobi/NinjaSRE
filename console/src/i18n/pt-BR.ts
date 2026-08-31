@@ -968,6 +968,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.node.none': 'Sem nó declarado',
   'resources.node.count': '{count} recursos neste nó',
   'resources.node.unhealthyCount': '{count} não saudáveis',
+  'resources.node.seeUnhealthy': 'Ver os {count} não saudáveis de {node} →',
+  'resources.node.seeAll': 'Ver os {count} recursos de {node} →',
   'resources.synthesis.line':
     '{count} {kind} não saudáveis há mais de {since} — todos em {node}, mesma janela de início',
   'resources.synthesis.action': 'investigar em lote →',
@@ -1120,6 +1122,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.componentType.node': 'nós',
   'memory.componentType.guest': 'guests',
   'memory.componentType.cluster': 'cluster',
+  'memory.episode.outcome.resolved': 'Resolvido',
+  'memory.episode.outcome.mitigated': 'Mitigado',
+  'memory.episode.outcome.inconclusive': 'Inconclusivo',
+  'memory.episode.outcome.falsePositive': 'Falso positivo',
   'memory.episode.openInvestigation': 'abrir investigação →',
   'memory.count': '{count} episódios',
   'memory.learned.title': 'O que o agente aprendeu com isso',
@@ -1787,7 +1793,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.agent.context':
     'O que ele é, o que ele pode fazer e o que ele vai fazer sem perguntar a ninguém.',
   'agent.tabs': 'O que o agente é, o que pode e o que fará sozinho',
-  'agent.tab.topology': 'Topologia',
+  'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Ferramentas',
   'agent.tab.autonomy': 'Autonomia',
   'agent.graph.title': 'A investigação, do orquestrador até os especialistas',

@@ -97,6 +97,49 @@ test.describe('AN-A1/AN-A2 — the Pipeline tab opens with a six-node metro line
 });
 
 // =============================================================================
+// Slot S2 visual-gate repair — the first tab is named for what it now draws,
+// and the metro line is joined by a rail, not six unrelated columns
+// =============================================================================
+
+test.describe('the first tab reads "Pipeline", the word the board uses for it', () => {
+  test('the first tab link is labelled Pipeline, not the hierarchy view it replaced', async ({
+    page,
+  }) => {
+    await page.goto('/agent');
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+    const first = page.getByTestId('tab-link').first();
+    await expect(first).toHaveText('Pipeline');
+  });
+});
+
+test.describe('the metro line is joined by a rail, the device that makes six nodes read as one sequence', () => {
+  test('a rail spans behind the row, reaching from the first node to the last', async ({
+    page,
+  }) => {
+    await page.goto('/agent');
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+    const rail = page.getByTestId('pipeline-metro-rail');
+    await expect(rail).toBeVisible();
+    const nodes = page.getByTestId('pipeline-metro-node');
+    const [railBox, firstBox, lastBox] = await Promise.all([
+      rail.boundingBox(),
+      nodes.first().boundingBox(),
+      nodes.last().boundingBox(),
+    ]);
+    if (railBox === null || firstBox === null || lastBox === null) {
+      throw new Error('expected the rail and the end nodes to report a layout box');
+    }
+    // Reaches at least from the first node's own horizontal centre to the
+    // last node's -- a width assertion alone would still pass a rail sitting
+    // under one node with room to spare, which is not "joined".
+    expect(railBox.x).toBeLessThanOrEqual(firstBox.x + firstBox.width / 2);
+    expect(railBox.x + railBox.width).toBeGreaterThanOrEqual(
+      lastBox.x + lastBox.width / 2,
+    );
+  });
+});
+
+// =============================================================================
 // AN-A3 — "N investigations in flight" chip, from the runs listing
 // =============================================================================
 

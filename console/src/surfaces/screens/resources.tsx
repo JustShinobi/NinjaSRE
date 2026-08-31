@@ -36,7 +36,13 @@ import {
   type FilterName,
 } from '../url-state';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
-import { groupByNode, healthSegments, unhealthySynthesis } from './resources-grouping';
+import {
+  capNodeSection,
+  groupByNode,
+  healthSegments,
+  NO_NODE,
+  unhealthySynthesis,
+} from './resources-grouping';
 
 /**
  * What am I responsible for, and what state is it in?
@@ -68,10 +74,19 @@ export const RESOURCE_FILTERS: readonly FilterName[] = [
   'health',
   'kind',
   'q',
+  'node',
 ];
 
 /** The two states represented by the legend's own "unhealthy" entry. */
 const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
+
+/**
+ * What the `node` filter carries in the address for the "no node declared"
+ * section — never the empty string itself, because `withFilter` reads an
+ * empty value as "this filter is unset" and would drop it rather than
+ * carry it.
+ */
+const NO_NODE_FILTER_VALUE = 'none';
 
 /**
  * The message key naming what connects a change to this resource.
@@ -310,10 +325,20 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       return false;
     if (query !== '' && !text(record, 'display_name').toLowerCase().includes(query))
       return false;
+    if (state.filters.node !== undefined) {
+      const wantedNode =
+        state.filters.node === NO_NODE_FILTER_VALUE ? NO_NODE : state.filters.node;
+      if (text(record, 'parent_id') !== wantedNode) return false;
+    }
     return true;
   });
 
   const sections = groupByNode(filtered);
+  // The one door the "see all"/"see the unhealthy" link opens: asking for a
+  // single node by id leaves exactly one section, and a section somebody
+  // explicitly asked to see in full is not the "everything on one page"
+  // problem the cap exists for -- it is shown whole.
+  const drilledIntoNode = state.filters.node !== undefined;
   const synthesis = unhealthySynthesis(filtered);
   const hasZone = records.some((record) => zoneOf(record) !== UNPLACED);
   const hasCriticality = records.some((record) => criticalityOf(record) !== '');
@@ -594,6 +619,20 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         <Panel
           title={message(locale, 'resources.list.title')}
           titleHidden
+          action={
+            drilledIntoNode ? (
+              <Link
+                href={hrefFor(
+                  '/resources',
+                  withFilter(state, 'node', ''),
+                  RESOURCE_FILTERS,
+                )}
+                data-testid="node-section-back"
+              >
+                {message(locale, 'resources.detail.back')}
+              </Link>
+            ) : undefined
+          }
           state={stateOf(resources, sections.length === 0)}
           dependency={dependencyOf(resources)}
           labels={panelLabels(locale, message(locale, 'resources.list.title'))}
@@ -605,51 +644,101 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           }}
         >
           <div className="flex flex-col gap-5">
-            {sections.map((section) => (
-              <div
-                key={section.nodeId || 'none'}
-                data-testid="node-section"
-                data-has-unhealthy={section.hasUnhealthy ? 'true' : 'false'}
-                className="flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-strong" data-testid="node-section-name">
-                    {section.nodeName || message(locale, 'resources.node.none')}
-                  </span>
-                  {section.hasUnhealthy ? (
-                    <span className="flex items-center gap-1 text-small text-danger">
-                      <HealthMark health="unhealthy" />
-                      {message(locale, 'resources.node.unhealthyCount', {
-                        count: section.resources.filter((entry) =>
-                          PROBLEM_HEALTH.has(text(entry, 'health')),
-                        ).length,
+            {sections.map((section) => {
+              const capped = drilledIntoNode
+                ? { shown: section.resources }
+                : capNodeSection(section);
+              const nodeName =
+                section.nodeName || message(locale, 'resources.node.none');
+              return (
+                <div
+                  key={section.nodeId || 'none'}
+                  data-testid="node-section"
+                  data-has-unhealthy={section.hasUnhealthy ? 'true' : 'false'}
+                  className="flex flex-col gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-strong" data-testid="node-section-name">
+                      {nodeName}
+                    </span>
+                    {section.hasUnhealthy ? (
+                      <span className="flex items-center gap-1 text-small text-danger">
+                        <HealthMark health="unhealthy" />
+                        {message(locale, 'resources.node.unhealthyCount', {
+                          count: section.resources.filter((entry) =>
+                            PROBLEM_HEALTH.has(text(entry, 'health')),
+                          ).length,
+                        })}
+                      </span>
+                    ) : null}
+                    <span
+                      className="text-micro text-muted"
+                      data-testid="node-section-count"
+                    >
+                      {message(locale, 'resources.node.count', {
+                        count: section.resources.length,
                       })}
                     </span>
-                  ) : null}
-                  <span
-                    className="text-micro text-muted"
-                    data-testid="node-section-count"
+                  </div>
+                  <div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                    data-testid="node-section-grid"
+                    data-shown={capped.shown.length}
                   >
-                    {message(locale, 'resources.node.count', {
-                      count: section.resources.length,
-                    })}
-                  </span>
+                    {capped.shown.map((resource) => (
+                      <ResourceCard
+                        key={text(resource, 'resource_id')}
+                        locale={locale}
+                        now={now}
+                        zone={zone}
+                        state={state}
+                        filters={RESOURCE_FILTERS}
+                        resource={resource}
+                      />
+                    ))}
+                  </div>
+                  {capped.more === undefined ? null : (
+                    <NextLink
+                      href={hrefFor(
+                        '/resources',
+                        capped.more.onlyUnhealthy
+                          ? withFilter(
+                              withFilter(
+                                state,
+                                'node',
+                                section.nodeId === NO_NODE
+                                  ? NO_NODE_FILTER_VALUE
+                                  : section.nodeId,
+                              ),
+                              'health',
+                              'problem',
+                            )
+                          : withFilter(
+                              state,
+                              'node',
+                              section.nodeId === NO_NODE
+                                ? NO_NODE_FILTER_VALUE
+                                : section.nodeId,
+                            ),
+                        RESOURCE_FILTERS,
+                      )}
+                      prefetch={false}
+                      data-testid="node-section-more"
+                      data-only-unhealthy={capped.more.onlyUnhealthy ? 'true' : 'false'}
+                      className="text-small text-accent hover:underline self-start"
+                    >
+                      {message(
+                        locale,
+                        capped.more.onlyUnhealthy
+                          ? 'resources.node.seeUnhealthy'
+                          : 'resources.node.seeAll',
+                        { count: capped.more.count, node: nodeName },
+                      )}
+                    </NextLink>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {section.resources.map((resource) => (
-                    <ResourceCard
-                      key={text(resource, 'resource_id')}
-                      locale={locale}
-                      now={now}
-                      zone={zone}
-                      state={state}
-                      filters={RESOURCE_FILTERS}
-                      resource={resource}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
 

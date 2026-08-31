@@ -116,6 +116,50 @@ test.describe('AN-I2/AN-T2 — no subtitle or title begins with a raw identifier
 });
 
 // =============================================================================
+// AN-I2/AN-T2 (S2 repair) — a subject the estate names shows that name
+// =============================================================================
+
+test.describe('the estate contributes a name to a subject it recognises', () => {
+  test('a subject the estate holds by id shows its display name, not the id alone', async ({
+    page,
+  }) => {
+    await openIncidents(page);
+    // `ct-102`, in the local mock estate, is a container named "anchor" --
+    // and the local fixture's own incident `alert:alertmanager:ct-102@...`
+    // fires on exactly that one subject, alone.
+    const named = page.locator(
+      '[data-testid="incident-subject-name"][data-resource-id="ct-102"]',
+    );
+    await expect(named).toBeVisible();
+    await expect(named).toContainText('anchor');
+    // The id is not lost -- it is still reachable as a trailing detail.
+    await expect(named).toContainText('ct-102');
+  });
+
+  test('a subject the estate genuinely does not hold still renders something honest, not blank', async ({
+    page,
+  }) => {
+    await openIncidents(page);
+    // `cluster`, `store-cove` and `backup-1f376301` are real subjects in the
+    // local fixture's incidents but name nothing the estate table holds --
+    // no backup job, datastore or the cluster itself is a resource there.
+    const subjects = page.getByTestId('incident-group-subjects');
+    const count = await subjects.count();
+    let checked = 0;
+    for (let index = 0; index < count; index += 1) {
+      const text = (await subjects.nth(index).innerText()).trim();
+      if (/\b(cluster|store-cove|store-ridge|backup-[0-9a-f]+)\b/.test(text)) {
+        checked += 1;
+        // Rendered, not empty -- the honest fallback is the id itself, never
+        // a blank cell.
+        expect(text.length).toBeGreaterThan(0);
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});
+
+// =============================================================================
 // AN-I3 / AN-T1 — filters are segmented controls, never a native <select>
 // =============================================================================
 

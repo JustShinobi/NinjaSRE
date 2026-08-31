@@ -2,8 +2,11 @@ import type { ReactNode } from 'react';
 
 import NextLink from 'next/link';
 
-import { SegmentedLinks } from '@/components';
+import { SegmentedLinks, StatusDot } from '@/components';
+import { ResolvedChip } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 import { timestamp } from '@/i18n/format';
+import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
 import { extractionCause, firstCause, readSetupState, setupCause } from '../emptiness';
@@ -56,8 +59,39 @@ const KNOWLEDGE_PROPOSAL_TYPE = 'knowledge';
 /** Where every proposal, knowledge included, is reviewed and decided. */
 const PROPOSALS_HREF = '/decisions?tab=changes';
 
-function outcomeShape(outcome: string): { readonly filled: boolean } {
-  return { filled: outcome === 'resolved' };
+/**
+ * Where the episode store's own outcome word is translated — the four
+ * `EpisodeOutcome` carries, not a shape this screen invented. A word outside
+ * this set still gets a role and a shape from the shared vocabulary and
+ * prints itself, the same graceful unknown `Badge` draws for any status this
+ * catalogue has not been taught: a provider one version ahead is not a fault.
+ */
+const EPISODE_OUTCOME_LABEL: Readonly<Record<string, MessageKey>> = {
+  resolved: 'memory.episode.outcome.resolved',
+  mitigated: 'memory.episode.outcome.mitigated',
+  inconclusive: 'memory.episode.outcome.inconclusive',
+  false_positive: 'memory.episode.outcome.falsePositive',
+};
+
+/** The right-hand chip the board draws beside every episode: the outcome, in role, shape and word. */
+function OutcomeChip({
+  locale,
+  outcome,
+}: {
+  readonly locale: SurfaceContext['locale'];
+  readonly outcome: string;
+}): ReactNode {
+  const presented = statusPresentation(outcome);
+  const declared = EPISODE_OUTCOME_LABEL[outcome];
+  return (
+    <ResolvedChip
+      testId="episode-outcome"
+      role={presented.role}
+      shape={presented.shape}
+      label={declared === undefined ? presented.label : message(locale, declared)}
+      className={declared === undefined ? 'shrink-0 capitalize' : 'shrink-0'}
+    />
+  );
 }
 
 function EpisodeCard({
@@ -73,7 +107,6 @@ function EpisodeCard({
 }): ReactNode {
   const { locale, now, zone } = context;
   const outcome = text(episode, 'outcome');
-  const shape = outcomeShape(outcome);
   const runId = text(episode, 'run_id');
   const components = list(episode, 'components').map(String);
   return (
@@ -83,14 +116,12 @@ function EpisodeCard({
       className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-4"
     >
       <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className={`mt-1 icon-inline shrink-0 rounded-full ${shape.filled ? 'bg-success' : 'edge-ring border-warning bg-transparent'}`}
-        />
+        <StatusDot status={outcome} className="mt-1" />
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span className="text-small font-medium">{text(episode, 'title')}</span>
           <span className="text-meta text-muted">{text(episode, 'summary')}</span>
         </div>
+        <OutcomeChip locale={locale} outcome={outcome} />
       </div>
       <div className="flex items-center gap-2 flex-wrap pl-6">
         {components.map((component) => (

@@ -322,3 +322,127 @@ razão, não silêncio.
       em vez de `.filter({ has })`) e confirmar que o teste passa a exercitar
       a ordenação real (verde, ou um skip de verdade motivado por dado, não
       um skip que dispara sempre).
+
+## Phase 9: Reparos do gate visual do slot S2
+
+Quatro desvios que o veredito visual em staging encontrou contra
+`design/padrao-2026-08/`, cada um com teste vermelho-primeiro confirmado
+contra o build real antes da correção.
+
+- [x] T035 [US1] Incidentes: resolver o nome da estante para um assunto
+      opaco em vez de mostrar só o id encurtado
+      (`console/src/surfaces/incident-group-list.tsx`: `SubjectLine`,
+      `subjectTitle`, `resolvedName` novo). A tela já buscava
+      `/v1/estate/resources` para o cartão de cobertura de detector
+      (`console/src/surfaces/screens/incidents.tsx`); apenas construiu, da
+      mesma leitura, um mapa `resource_id -> display_name` (`subjectNames`,
+      resolvido uma vez por página, nunca por linha — o mesmo padrão de
+      `runHeadlines`) e passou para `IncidentGroupList`. Nenhuma mudança de
+      gateway: o campo já existe em `ResourceSummaryView.display_name`
+      (`gateway/http/routes/estate.py`). Um assunto que a estante
+      genuinamente não tem (`cluster`, um datastore, um job de backup) não
+      ganha entrada no mapa e continua a renderizar o id encurtado, nunca
+      em branco. Prova: dois testes novos em
+      `incidents-by-subject.acceptance.spec.ts`; confirmado vermelho contra
+      o build sem o wiring (`element(s) not found` no locator
+      `incident-subject-name`), verde depois.
+
+- [x] T036 [US2] Recursos: limitar a grade por seção de nó, com o link
+      "ver todos"/"ver os não saudáveis" que o board desenha
+      (`console/src/surfaces/screens/resources-grouping.ts`:
+      `capNodeSection`, novo, testado — uma linha (`NODE_SECTION_ROW`) quando
+      nada na seção é não saudável, duas quando algo é; `console/src/surfaces/screens/resources.tsx`:
+      grade renderiza `capped.shown`, não mais `section.resources` inteiro).
+      A regra reproduz os dois exemplos do próprio board exatamente: pve01
+      (58 recursos, 0 não saudáveis) mostra 4 e "ver os 58 recursos de
+      pve01 →"; pve02 (41, 14 não saudáveis) mostra 8 e "ver os 14 não
+      saudáveis de pve02 →" — o link nomeia o total de não saudáveis, nunca
+      o total do nó, sempre que ainda sobra um não saudável escondido atrás
+      do corte. Filtro `node` novo (`RESOURCE_FILTERS`, `FilterName = string`
+      já suporta), com um valor-sentinela (`NO_NODE_FILTER_VALUE =
+      'none'`) para a seção "sem nó declarado", cujo `nodeId` é a string
+      vazia que `withFilter` trataria como "filtro ausente". Uma seção
+      alcançada por esse filtro (`drilledIntoNode`) nunca é recortada de
+      novo — foi pedida por inteiro — e ganha um link "voltar" no cabeçalho
+      do painel (`action` do `Panel`, mesmo padrão do "voltar à lista" que a
+      seleção de um recurso já usa). Prova: cinco testes novos em
+      `resources-by-node.acceptance.spec.ts`; confirmado vermelho contra o
+      build sem o corte (52 cartões numa seção, 2423px de altura no dataset
+      local — o board cita 3230px em staging), verde depois (altura
+      capturada: 1103px). `console/visual/screens.json`: os dois registros
+      de `/resources` (1440/320) já estavam `pending`; motivo atualizado
+      para não afirmar mais que a grade "não tem esse problema".
+
+- [x] T037 [US3] Conhecimento: o desfecho do episódio usa o vocabulário
+      compartilhado de status, com o chip que o board desenha
+      (`console/src/surfaces/screens/memory.tsx`: `EpisodeCard` trocou o
+      `<span>` calculado à mão (`outcomeShape`, binário resolvido/o-resto)
+      por `StatusDot` no ponto à esquerda e o novo `OutcomeChip`
+      (`ResolvedChip` + `statusPresentation`) no chip à direita — ambos
+      lidos de `outcome`, nenhum mais desenhando por conta própria).
+      `EPISODE_OUTCOME_LABEL` traduz as quatro palavras que
+      `EpisodeOutcome` declara (`platform/persistence/ports/episode_store.py`);
+      uma palavra fora desse conjunto ainda ganha papel e forma do
+      vocabulário compartilhado e imprime a si mesma — o mesmo
+      comportamento gracioso que `Badge` já tem para um status que o
+      catálogo não conhece. Achado ao investigar, não assumido: o fixture
+      que a sessão anterior corrigiu (`4ebdbee5`) tinha nivelado dois
+      episódios que eram `"acknowledged"` e um que era `"unresolved"` para
+      um único `"inconclusive"`; a própria tabela de tradução do seeder de
+      demonstração (`platform/startup/demo/seeder.py`, `_EPISODE_OUTCOME`)
+      já mapeia esse vocabulário legado para o enum real e mapeia os dois
+      de forma diferente — `"acknowledged"` para `MITIGATED`,
+      `"unresolved"` para `INCONCLUSIVE` — então `tools/mockplane/dataset/served.py`
+      foi corrigido para seguir essa mesma tradução (dois episódios agora
+      `"mitigated"`, um `"inconclusive"`) e `fixtures/scenarios/populated/episodes.json`
+      regenerado por `python -m tools.mockplane build --scenario populated`,
+      nunca editado à mão. `mitigated`/`false_positive` não estão em
+      `console/src/design/status.ts` (congelado, decisão do lead) — um
+      episódio `mitigated` real agora existe no dataset local e passa pelo
+      caminho de "palavra não ensinada" (papel neutro, rótulo próprio,
+      `known: false`), honesto e testado, não escondido. Prova: três
+      testes novos em `learned-knowledge.acceptance.spec.ts`; confirmado
+      vermelho contra o build sem o wiring (`element(s) not found` no
+      locator `episode-outcome`), verde depois; corte de fio em
+      `statusPresentation(outcome)` → `statusPresentation('')` reproduziu
+      vermelho só no teste que fixa papel por palavra (`Received: "neutral"`
+      onde esperava `"success"`), confirmando que o teste mede a tela e não
+      o fixture — restaurado e reconfirmado verde.
+
+- [x] T038 [US4] O agente: nomear a primeira aba pelo que ela desenha agora,
+      e ligar os seis nós da linha de metrô por um trilho
+      (`console/src/surfaces/screens/agent.tsx`). O rótulo visível vem de
+      `agent.tab.topology` (`en.ts`/`pt-BR.ts`); mudou de "Topology"/"Topologia"
+      para "Pipeline" — a palavra do board — sem tocar o slug interno
+      `'topology'` (`AGENT_TABS[0]`), que continua nomeando a URL
+      (`?tab=topology`), `data-tab` e os ramos que leem `tab === 'topology'`,
+      preservado por comentário para que uma futura limpeza não quebre um
+      link existente por engano. `PipelineMetro`: novo `<div data-testid="pipeline-metro-rail">`
+      absolutamente posicionado atrás da grade de seis nós, `insetInlineStart`/`insetInlineEnd`
+      computados de `stages.length` e do token `--space-4` que o próprio
+      `gap-4` da grade usa (não uma aproximação), visível só em `lg:` — nos
+      layouts mais estreitos a grade quebra em mais de uma linha e um trilho
+      cobrindo a largura toda cortaria linhas que não são vizinhas; ordem no
+      DOM antes dos nós, então o preenchimento opaco de cada ícone cobre o
+      trecho do trilho atrás dele, mostrando o trilho só no vão entre
+      estágios, como o board desenha. Prova: dois testes novos em
+      `agent-pipeline.acceptance.spec.ts`; confirmados vermelhos contra o
+      build sem a mudança (`Received: "Topology"` esperando `"Pipeline"`;
+      `pipeline-metro-rail` inexistente), verdes depois. Corte de fio duplo:
+      (a) a tradução revertida para "Topology" reproduziu o vermelho exato
+      do rótulo; (b) o divisor dos insets trocado de `stages.length * 2`
+      para `stages.length` encolheu o trilho e reproduziu vermelho na
+      alegação de alcance (`Expected: <= 543.5, Received: 642`) — as duas
+      linhas restauradas, `git diff` limpo, verdes de novo. Achado durante a
+      própria implementação, não um corte deliberado: a primeira versão do
+      trilho usava `size-6` no invólucro (que fixa `width` além de `height`),
+      o que travava a largura em 24px e ignorava `insetInlineEnd` por
+      completo — pego pelo mesmo teste de alcance antes de qualquer corte de
+      fio proposital, com `Received: 575.5` esperando `>= 1608.5`; corrigido
+      para `h-6` (só altura), que deixa a largura livre para os dois insets
+      calcularem. O chip "N investigações em voo" fica como está — ausente
+      no dataset local e em staging porque não há run em execução, medido,
+      não um defeito desta tarefa.
+
+Registrados aqui à medida que cada um fecha; ver a seção "O que fica
+pendente" no `controle.md` para o estado agregado no meio da execução.

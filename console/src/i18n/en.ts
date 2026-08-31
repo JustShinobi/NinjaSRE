@@ -1198,6 +1198,8 @@ export const EN = {
   'resources.node.none': 'No node declared',
   'resources.node.count': '{count} resources on this node',
   'resources.node.unhealthyCount': '{count} unhealthy',
+  'resources.node.seeUnhealthy': 'See the {count} unhealthy of {node} →',
+  'resources.node.seeAll': 'See all {count} resources of {node} →',
   'resources.synthesis.line':
     '{count} {kind} unhealthy since {since} — all on {node}, same start window',
   'resources.synthesis.action': 'investigate as a batch →',
@@ -1360,6 +1362,10 @@ export const EN = {
   'memory.componentType.node': 'nodes',
   'memory.componentType.guest': 'guests',
   'memory.componentType.cluster': 'cluster',
+  'memory.episode.outcome.resolved': 'Resolved',
+  'memory.episode.outcome.mitigated': 'Mitigated',
+  'memory.episode.outcome.inconclusive': 'Inconclusive',
+  'memory.episode.outcome.falsePositive': 'False positive',
   'memory.episode.openInvestigation': 'open investigation →',
   'memory.count': '{count} episodes',
   'memory.learned.title': 'What the agent learned from this',
@@ -2099,7 +2105,7 @@ export const EN = {
 
   // --- The agent: what it is, what it can do, what it will do alone ------------
   'agent.tabs': 'What the agent is, can do, and will do alone',
-  'agent.tab.topology': 'Topology',
+  'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Tools',
   'agent.tab.autonomy': 'Autonomy',
   'agent.graph.title':
