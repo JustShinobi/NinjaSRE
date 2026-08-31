@@ -1,324 +1,387 @@
 # Controle — 050-painel-vivo
 
 Estado verificado contra o código atual em `wt/v8-050-painel-vivo`, no commit
-que segue este checkpoint. Este arquivo é reescrito a cada commit; a versão
-que importa é a do commit mais recente.
+`c0b6a975` (HEAD desta rodada). Este arquivo é reescrito a cada commit; a
+versão que importa é a do commit mais recente. Esta rodada fechou os quatro
+itens que a rodada anterior deixou abertos (`activity-feed.tsx`,
+`screens.json`, `make verify`, `test_console_gate.py`), mais um quinto que
+apareceu no caminho e precisou ser corrigido para o quarto fechar
+(`estate_snapshots` fora do contrato de isolamento por tenant) — e corrigiu,
+antes de tudo isso, três defeitos reais que a suíte de aceitação já vermelha
+expôs em componentes que a rodada anterior tinha marcado como prontos
+(`kpi-tiles.tsx`, `subject-strip.tsx`, `attention.tsx`): nenhum deles tinha
+sido de fato executado contra o próprio acceptance spec antes desta rodada.
 
-## 0. A decisão de band-selection (FR-001) — RESOLVIDA, implementada, testada
+## 0. Duas decisões já resolvidas, inalteradas — não relitigar
 
-O lead pediu esta decisão três vezes. Está feita, no código, desde o
-checkpoint do commit `512d65d5` (run-band.tsx) e não mudou desde então.
-Resumo direto, sem indireção — os quatro pontos que a mensagem do lead
-nomeou, um por um:
+### 0.1 A decisão de band-selection (FR-001)
 
-1. **Regra nomeada e testada**: `inFlightRuns()` em
-   `console/src/surfaces/run-band.tsx:71-74` filtra por `!isSettled(status)`,
-   onde `isSettled` é a função já exportada e já testada de
-   `console/src/design/status.ts:502` (frozen, da 000). O conjunto resultante
-   é `{running, suspended}` — exclui `interrupted`, que é o que os onze runs
-   zumbis do staging são. Teste dedicado:
-   `console/tests/unit/surfaces/run-band.test.ts` → `describe('inFlightRuns')`
-   → `'keeps running and suspended runs, and drops every settled status'`,
-   caso nomeado "the zombie band" no comentário, que prova especificamente
-   que `interrupted` é excluído. 9/9 testes de `run-band.test.ts` verdes.
-2. **A constante de seis cartões concorda**: `RUN_BAND_VISIBLE_MAX = 6`
-   (`run-band.tsx:39`) fatia o array que `inFlightRuns` já produziu —
-   `runs.slice(0, RUN_BAND_VISIBLE_MAX)` — nunca um segundo filtro.
-3. **As contagens do cabeçalho concordam**: `run-band-flight-count` lê
-   `runs.length` do mesmo array `inFlightRuns`, sem fatiar
-   (`run-band.tsx:206`) — nunca uma recontagem paralela.
-4. **A banda vazia nomeia o próximo passo, com link**: corrigida nesta
-   rodada (estava faltando antes) — o estado vazio diz por que está vazio
-   ("toda investigação terminou ou nenhuma foi iniciada") e linka para
-   `/runs` via `next/link`, nos dois idiomas
-   (`dashboard.runBand.empty`/`.empty.action`).
-
-**Consequência nomeada para a evidência do orquestrador (T035)**: a consulta
-1 do `spec.md` (`status NOT IN ('completed','failed','cancelled')`) mede a
-coisa errada depois desta decisão — ela conta os zumbis. A corrigida:
+Inalterada desde o commit `512d65d5`. `inFlightRuns()` em
+`console/src/surfaces/run-band.tsx:74` filtra por `!isSettled(status)`
+(`@/design/status`, congelada), dando `{running, suspended}` e excluindo
+`interrupted` — os onze runs zumbis do staging. `RUN_BAND_VISIBLE_MAX = 6`
+fatia o mesmo array que o cabeçalho conta sem fatiar. Testada em
+`run-band.test.ts::inFlightRuns` ("the zombie band"). A consulta de evidência
+1 do `spec.md` mede a coisa errada depois desta decisão; a corrigida:
 
 ```sql
 SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
 ```
 
-Não há mais nada a decidir aqui. Se esta seção ainda gerar dúvida, a
-pergunta certa é sobre o código citado acima, não sobre a decisão em si.
+### 0.2 O defeito do plan.md sobre a rota de decisão
 
-## 0.5. Um defeito do plan.md, corrigido
-
-`plan.md`, decisão 4, dizia para decidir a remediação proposta via
-`POST /v1/interactions/{id}/approve`. Está errado, e o código já sabia
-disso antes de eu chegar: uma remediação proposta é um `ApprovalRequest`,
-decidido em `POST /v1/approvals/{approval_id}/decision`, não uma
-`interaction` que uma investigação ao vivo está esperando — são dois
-mecanismos e duas rotas diferentes, endereçando dois stores diferentes. A
-fonte não fui eu quem inventei: o próprio componente que já existia,
-`console/src/surfaces/screens/incident-decision-controls.tsx:14-20`, tem a
-distinção escrita no docstring, deliberadamente, para explicar por que ele
-não é `DecisionControls` (`surfaces/decision.tsx`, o componente que decide
-uma interação). `attention.tsx` recomposta usa a rota certa
-(`/v1/approvals/{id}/decision`, via `IncidentDecisionControls`); o plano é
-que estava desatualizado.
+Inalterado: `plan.md` decisão 4 cita `POST /v1/interactions/{id}/approve`;
+o código sempre usou `POST /v1/approvals/{approval_id}/decision`, via
+`/api/approval`, porque uma remediação proposta é um `ApprovalRequest`, não
+uma interação de run vivo. A rota certa é a que `attention.tsx` sempre
+chamou, incluindo depois da recomposição desta rodada (ver §2 abaixo).
 
 ## 1. Peça por peça
 
 | Peça | Estado | Detalhe |
 |---|---|---|
 | `MAX_OVERVIEW_DAILY_BUCKETS` | FEITO | `config/constants/estate.py` |
-| Porta `EstateSnapshotStore` + fake + Postgres + migração `0021` | FEITO (mypy+ruff limpos; Postgres real não alcançável nesta worktree, ver §3) | ver commits anteriores |
+| Porta `EstateSnapshotStore` + fake + Postgres + migração `0021` | FEITO (mypy+ruff limpos; Postgres real inalcançável nesta worktree, ver §6) | `platform/persistence/ports/estate_snapshot_store.py` |
+| `estate_snapshots` no contrato de isolamento por tenant | **FEITO nesta rodada** — não pedido, achado ao rodar `make verify`: a porta estava exposta em `UnitOfWork` mas ausente de `TENANT_SCOPED_PORTS`, o registro que `test_every_tenant_scoped_port_is_covered` mantém honesto | `tests/contract/persistence/test_tenant_isolation.py` — escreve uma fotografia em `write_one_of_everything`, confere que `globex` não a vê via `list_daily`, confere que `acme` continua com ela; 6/6 verde |
 | Gancho de escrita diária | FEITO | `platform/estate/discovery/runner.py::TopologyDiscoveryRunner._confirm_daily_snapshot` |
 | `GET /v1/overview` | FEITO, testado contra fakes (5/5 verde) | `gateway/http/routes/overview.py` |
-| `subjectsInWindow`/`SUBJECT_WINDOW_HOURS` em `incident-groups.ts` | FEITO, testado (17/17 verde) | vermelho confirmado antes (`subjectsInWindow is not a function`), depois implementado |
-| `positionOnTimeline` generalizada para janela configurável | FEITO, testado (7/7 verde) | `console/src/surfaces/incident-timeline.ts` — reusada pelo subject-strip com 48h em vez de reescrita |
-| **Acceptance spec (17 alegações, 18 casos)** | **FEITO — vermelho real confirmado** | `console/tests/e2e/painel-vivo.acceptance.spec.ts` — ver §2 |
-| `run-band.tsx` (banda "Em execução agora") | FEITO, testado (9/9 verde), typecheck+lint limpos | `console/src/surfaces/run-band.tsx` — decisão FR-001 aplicada e testada (ver §5); estado vazio nomeia o próximo passo com link para `/runs` |
-| `kpi-tiles.tsx`, `subject-strip.tsx`, `activity-feed.tsx`, `attention.tsx` (recomposta), recomposição de `dashboard.tsx` | NÃO INICIADO | próxima ação, nesta ordem |
-| `screens.json`, dataset/OpenAPI/cliente regenerados | NÃO INICIADO | |
+| `subjectsInWindow`/`SUBJECT_WINDOW_HOURS` em `incident-groups.ts` | FEITO, testado (17/17 verde) | `console/src/surfaces/incident-groups.ts:188-230` |
+| `positionOnTimeline` generalizada para janela configurável | FEITO, testado (7/7 verde) — **ressalva**: não é consumida por `subject-strip.tsx`; ver §5 | `console/src/surfaces/incident-timeline.ts:44-76` |
+| **Acceptance spec (17 alegações, 18 casos)** | FEITO — vermelho real confirmado antes de qualquer implementação | `console/tests/e2e/painel-vivo.acceptance.spec.ts` |
+| `run-band.tsx` | FEITO, testado (9/9 verde) | `console/src/surfaces/run-band.tsx` |
+| `kpi-tiles.tsx` | **FEITO (corrigido nesta rodada)** — a rodada anterior construiu e testou o componente isoladamente, mas com um testid que o próprio acceptance spec dele não usa (`kpi-tile-{id}` em vez de `kpi-tile` + `data-kpi="{id}"`) e sem `data-testid="kpi-legend"`. Achado rodando o acceptance de verdade contra um build fresco do console, não por inspeção. Corrigido; 8/8 unit tests verdes, atualizados para o novo testid | `console/src/surfaces/kpi-tiles.tsx:129-149`; teste em `console/tests/unit/surfaces/kpi-tiles.test.tsx` |
+| `subject-strip.tsx` | **FEITO (corrigido nesta rodada), com uma lacuna nomeada** — faltavam três testids que o acceptance spec exige (`subject-timeline`, `subject-chip` com `data-role`, `subject-subtitle`); nenhum existia. Corrigidos por composição — `RecurrenceStrip` (já existente, visualmente fiel ao artboard: barras crescendo em altura/opacidade para a direita, não um eixo de tempo proporcional) envolvida num `<span data-testid="subject-timeline">`; `Badge` envolvido num `<span data-testid="subject-chip" data-role={...}>` usando `statusPresentation` (congelada, importada, não editada); `subject-subtitle` adicionado ao `<span>` existente. 10/10 unit tests verdes (3 novos). Ver §5 pela ressalva sobre `positionOnTimeline` não ser a fonte do "mini-timeline" | `console/src/surfaces/subject-strip.tsx` |
+| `AttentionDecisionControls` (novo) + `attention.tsx` recomposta | **FEITO (corrigido nesta rodada)** — a rodada anterior reusava `IncidentDecisionControls` (`screens/incident-decision-controls.tsx`, componente da 040/060), cujo testid único (`decision-control`, para os dois botões) e fluxo (campo de razão sempre visível) não correspondem ao que o próprio acceptance spec exige (`attention-approve`, `attention-reject`, `attention-reject-reason`, `attention-reject-submit`, com Recusar revelando o campo em vez de mostrá-lo sempre) — e ao que o artboard desenha (três controles lisos, sem textarea aberta ao lado). Extraído um componente novo e próprio da banda, sobre o mesmo courier (`POST /api/approval` → `POST /v1/approvals/{id}/decision}`), sem tocar o componente compartilhado. 10/10 unit tests verdes (7 novos, cobrindo aprovar, recusar com revelação, submit desabilitado até haver razão, e a falha de rede) | `console/src/surfaces/attention-decision-controls.tsx` (novo); `console/src/surfaces/attention.tsx` |
+| `Textarea` (`components/form.tsx`) ganhou `data-testid` | FEITO nesta rodada — aditivo, mesmo padrão que `Input`/`Select` já usavam no mesmo arquivo (`FieldProps['data-testid']` já existia no tipo, só não estava sendo aplicada ao elemento); nenhum consumidor existente afetado | `console/src/components/form.tsx:245-276` |
+| `console/src/surfaces/activity-feed.tsx` (novo) | **FEITO nesta rodada** — quatro formas (`investigation`=losango, `resolution`=círculo, `incident`=quadrado, `approval`=triângulo), `collapseFeed` dobrando disparos consecutivos do mesmo assunto numa entrada com contagem. 10/10 unit tests verdes | `console/src/surfaces/activity-feed.tsx` |
+| Composição do feed em `dashboard.tsx` | **FEITO nesta rodada** — a seção antiga (dois tipos: `incident`/`run`) foi substituída por quatro tipos derivados das mesmas três listagens já lidas (runs, incidents, approvals): investigação iniciada/encerrada, incidente aberto/fechado sozinho, decisão proposta/decidida — nenhuma leitura nova. `collapseFeed` aplicado antes do corte em `FEED_LENGTH=8` | `console/src/surfaces/screens/dashboard.tsx` (bloco "The narrative") |
+| `KpiTiles`/`SubjectStrip` compostos em `dashboard.tsx` | **NÃO FEITO — a lacuna mais importante que sobra.** Ver §4.1 | `console/src/surfaces/screens/dashboard.tsx` não importa `KpiTiles` nem `SubjectStrip` em lugar nenhum — confirmado por grep e pela leitura do arquivo inteiro |
+| `console/visual/screens.json` | **FEITO nesta rodada, com o cuidado que a onda pede** — duas entradas novas (`dashboard-1440-dark`, `dashboard-1440-light`), `status: "pending"`, sem baseline fabricada por mim: o suite visual (`screens.spec.ts:126`) só itera `status === 'baselined'`, então `pending` fica inerte até a captura e a aceitação — que são do gate visual Orca do orquestrador, nomeadamente, não deste implementer | `console/visual/screens.json` |
+| `make verify` | **FEITO nesta rodada, verde de verdade, três rodadas vermelhas antes** — ver §3 | `MAKE_VERIFY_EXIT=0`, log completo salvo |
+| `test_console_gate.py` | **FEITO nesta rodada, 17/17 verde, 1411.32s reais** | ver §3.2 |
+| Reprodutibilidade do dataset simulado | **FEITO nesta rodada — reverificado, não apenas herdado** | ver §3.3 |
 
-## 2. O vermelho do acceptance spec, com a mensagem real de cada alegação
+## 2. O vermelho do acceptance spec, do início desta feature até agora
 
-Rodado com `uv run python -m tools.console_e2e run --backing mock -- tests/e2e/painel-vivo.acceptance.spec.ts`
-contra a árvore intacta (nenhuma tela nova construída ainda). 18 casos
-(17 alegações, AN-04 em dois testes: com e sem `prefers-reduced-motion`).
+Quatro leituras, contra quatro estados diferentes do código, todas com
+`uv run python -m tools.console_e2e run --backing mock --
+tests/e2e/painel-vivo.acceptance.spec.ts` sobre um build fresco
+(`console_gate build` rodado antes de cada uma — a suíte usa
+`.next/standalone` já compilado e não reconstrói sozinha, uma armadilha desta
+sessão que vale registrar: ver §7).
 
-**Resultado real, segunda rodada (depois de corrigir um falso-positivo — ver
-abaixo)**: `11 failed, 7 skipped, 0 passed`. Log completo em `specs_v8/050-painel-vivo/evidence/acceptance-red-full.log`;
-a seção de falhas isolada em `evidence/acceptance-red-failures.log`.
+1. **Vermelho original** (nenhuma tela nova construída): 11 failed, 7
+   skipped, 0 passed. `evidence/acceptance-red-full.log`.
+2. **Início desta rodada** (árvore herdada, run-band e attention já
+   compostos, mas contra um build *desatualizado* — ver §7): mesmos 11
+   failed que o vermelho original, porque o build servido não refletia o
+   código já commitado.
+3. **Início desta rodada, build fresco**: 12 failed, 4 skipped, 2 passed
+   (AN-10, AN-17). Foi aqui que os defeitos de `kpi-tiles`/`subject-strip`/
+   `attention` ficaram visíveis pela primeira vez — AN-06/07/08 pararam de
+   pular (o dataset tem uma aprovação pendente) e falharam de verdade por
+   `attention-approve` não existir.
+4. **Final desta rodada**, `evidence/acceptance-current-state.log`: **8
+   failed, 4 skipped, 6 passed** (55.1s). Passam agora: AN-06, AN-07, AN-08,
+   AN-10, AN-13, AN-17.
 
-| Alegação | Resultado | Mensagem real |
-|---|---|---|
-| AN-01 | FALHOU | `getByTestId('run-band')` — Expected: visible — Error: element(s) not found |
-| AN-02 | FALHOU | `getByTestId('run-card').first()` — element(s) not found |
-| AN-03 | **PULADO, nomeado** | `stage_index` vem da 020, não existe nesta worktree — `test.skip` com a razão na própria linha |
-| AN-04 (animação) | FALHOU | `getByTestId('run-card').first()` — element(s) not found |
-| AN-04 (reduced-motion) | FALHOU | `getByTestId('run-card').first()` — element(s) not found |
-| AN-05 | FALHOU | `expect(received).toBeGreaterThan(expected)` — Expected: > 0, Received: 0 (nenhum card jamais aparece) |
-| AN-06 | PULADO, nomeado | "o mock scenario carries no pending approval to assert this against" |
-| AN-07 | PULADO, nomeado | idem |
-| AN-08 | PULADO, nomeado | idem |
-| AN-09 | FALHOU | `getByTestId('kpi-tile').and(locator('[data-kpi="watched"]'))` — element(s) not found |
-| AN-10 | FALHOU | `locator.textContent: Test timeout of 30000ms exceeded` (o elemento a ler não existe) |
-| AN-11 | PULADO, nomeado | "o mock scenario carries no recurring subject to assert this against" |
-| AN-12 | PULADO, nomeado | idem |
-| AN-13 | FALHOU (depois de corrigido — ver abaixo) | `getByTestId('activity-feed-entry').first()` — element(s) not found |
-| AN-14 | FALHOU | `expect(received).toBeGreaterThan(expected)` — Received: 0 |
-| AN-15 | FALHOU | `getByTestId('run-band')` — element(s) not found |
-| AN-16 | PULADO, nomeado | "the mock scenario carries a pending approval, so the empty state does not render" — nota: isto por si só é uma pista de que o cenário populated tem uma aprovação pendente que as skips de AN-06/07/08 dizem não existir; ver a contradição registrada abaixo |
-| AN-17 | FALHOU | `getByTestId('run-band')` — element(s) not found |
+Os 8 que ainda falham, por causa raiz — nenhuma delas nova nesta leitura,
+todas com a mensagem real citada:
 
-**Contradição encontrada e registrada, não escondida**: AN-16 pula dizendo que
-HÁ uma aprovação pendente (por isso o estado vazio não se aplica), mas
-AN-06/07/08 pulam dizendo que NÃO há nenhuma. Isto é porque os dois testes
-leem estruturas diferentes que ainda não existem — `attention-decision-card`
-(AN-06/07/08) e `attention-decision-empty` (AN-16) — e como NENHUMA delas
-existe ainda, o `count() === 0` de ambas é verdadeiro simultaneamente, o que é
-logicamente consistente (nenhuma delas existe) mas nomeia mal a causa em um
-dos dois textos de skip. Corrigido: a causa real de todos os quatro skips
-(AN-06, 07, 08, 16) é a mesma — `attention-decision-band` ainda não foi
-construída — e não uma alegação factual sobre o dataset. Os textos de skip
-serão corrigidos quando a banda for implementada e os testes deixarem de
-pular.
+- **AN-09, AN-15** (2): `getByTestId('kpi-tile')` não encontrado.
+  Causa: `KpiTiles` não está composta em `dashboard.tsx` (§4.1). Corrigir
+  isto por si só torna as duas verdes — não há outro defeito atrás delas.
+- **AN-01, AN-02, AN-04 (2 casos), AN-05, AN-14** (5, o teto de tudo que
+  ainda falha nas Alegações 1 e 5): `runCards(page).count()` e
+  `activityEntries(page).count()` nunca saem de 0 depois de
+  `startInvestigation()`. Causa raiz, **descoberta nesta rodada, fora do
+  escopo desta feature**: ver §4.2 — o botão existente de investigar navega
+  para fora de `/` ao suceder, sempre, hoje, antes de qualquer coisa que
+  esta feature tenha tocado.
 
-**Um falso-positivo achado e corrigido antes deste registro**: a primeira
-rodada relatou AN-13 como **passou**, em 283 ms. Investigado: o componente
-antigo `console/src/surfaces/activity.tsx` (o que esta feature substitui) já
-usa `data-testid="activity-entry"` para suas próprias linhas — meu teste
-original usava esse mesmo id por coincidência de nome e estava lendo a lista
-*velha*, não testando a ausência da nova. Corrigido para `data-testid=
-"activity-feed-entry"` (namespace do componente novo, que ainda não existe);
-a segunda rodada confirma vermelho real. Isto é exatamente a classe de
-defeito "teste que passa medindo nada" que a onda já achou duas vezes antes;
-fica registrado aqui como a razão de eu ter rodado o spec *duas vezes* antes
-de aceitar o vermelho como verdadeiro.
+Puladas (4), inalteradas: AN-03 (nomeadamente, precisa de `stage_index` da
+020); AN-11, AN-12 (o dataset `populated` não tem assunto recorrente visível
+sem `subject-strip` composta — a mesma causa de AN-09/15, uma vez resolvida
+essas duas alegações deixam de pular); AN-16 (o dataset tem uma aprovação
+pendente, então o estado vazio genuinamente não se aplica).
 
-## 3. Lacuna estrutural desta worktree: Postgres real é inalcançável
+## 3. As três verificações pedidas nesta rodada, com o comando e o exit real
 
-Ver commits anteriores — `docker ps` responde, mas `testcontainers` não
-consegue abrir um container aqui, e isto já valia para o teste de migração
-*pré-existente* `test_incident_public_id_migration.py` antes de eu tocar em
-qualquer coisa. Pendente para o orquestrador: rodar
-`uv run pytest tests/contract/persistence/test_estate_daily_snapshot_migration.py -v`
-onde Postgres for alcançável.
+### 3.1 `make verify`
 
-## 4. O que fica pendente, nomeado
+**Sim, foi executado de novo e terminou verde**, no commit `c0b6a975`
+(HEAD). Não estava verde da primeira vez — três rodadas vermelhas, cada uma
+lida do log e corrigida antes da próxima:
 
-**Peças ainda desta worktree, não terminadas:**
+1. `MAKE_VERIFY_EXIT=2` — `mypy`: `tools/mockplane/dataset/served.py:3473`,
+   `empty_kpi` sem anotação de tipo (`dict` heterogêneo: `None`, `dict`,
+   `list`, `str` conforme o call site). Corrigido:
+   `empty_kpi: dict[str, Any] = {...}`, seguindo a mesma convenção já usada
+   duas vezes no mesmo arquivo.
+2. `MAKE_VERIFY_EXIT=2` — `prettier --check` em 5 arquivos que esta rodada
+   tocou. Corrigido com `pnpm exec prettier --write` nos mesmos 5; diff
+   revisado, puramente cosmético (quebra de linha).
+3. `MAKE_VERIFY_EXIT=2` — `pytest`:
+   `tests/contract/persistence/test_tenant_isolation.py::test_every_tenant_scoped_port_is_covered`
+   falhou porque `estate_snapshots` está exposta em `UnitOfWork` mas ausente
+   do registro `TENANT_SCOPED_PORTS`. Corrigido (ver §1); 13122 passed (era
+   13121 passed + 1 failed antes).
+4. **`MAKE_VERIFY_EXIT=0`.** `13122 passed, 32 skipped` na suíte principal
+   (`pytest -n workers`) e `38 passed, 13154 deselected` na suíte de
+   benchmark (`pytest -m benchmark`) — os dois comandos que
+   `make verify`'s alvo `test` roda. Log completo preservado fora do
+   repositório; nada mudou na árvore desde este commit.
 
-- Construção de tela: `attention.tsx` (recomposta), `kpi-tiles.tsx`,
-  `subject-strip.tsx`, `activity-feed.tsx`, recomposição de `dashboard.tsx` —
-  `run-band.tsx` e `subjectsInWindow` já estão feitos e testados (ver §1).
-- `screens.json`, dataset simulado (assuntos ≥3, aprovação pendente
-  suficiente para AN-06/07/08/16 pararem de pular), documento OpenAPI e
-  cliente TS regenerados — nenhum ainda rodado.
+### 3.2 `uv run pytest tests/contract/console/test_console_gate.py`
 
-**T008, minha, tentada e não completável nesta worktree** — não uma
-reatribuição: escrevi o teste
-(`tests/contract/persistence/test_estate_daily_snapshot_migration.py`),
-tentei rodá-lo, e ele não encontra Postgres alcançável aqui (nem
-`NINJASRE_TEST_DATABASE_URL`, nem `testcontainers` conseguindo abrir um
-container, embora `docker ps` responda). Confirmei que a mesma limitação já
-valia, antes de eu tocar em qualquer coisa, para o teste de migração
-pré-existente `test_incident_public_id_migration.py` — não é um defeito desta
-migração. Pendente para quem tiver Postgres alcançável: rodar
-`uv run pytest tests/contract/persistence/test_estate_daily_snapshot_migration.py -v`.
+Rodado sem wrapper de `timeout`, em árvore limpa (`git status` conferido
+antes). **17 passed, 0 failed, em 1411.32s (23m31s) reais** — lido do log,
+não de notificação: a notificação de tarefa em segundo plano do harness
+relatou "completed (exit code 0)" para um monitor que na verdade checava o
+PID errado (o processo do shell persistente, não o do `pytest`), bem antes
+do `pytest` de fato terminar — a mesma classe de mentira que as rodadas S1 e
+S2 já registraram, desta vez capturada com o próprio `ps aux` mostrando o
+`pytest` e o `console_gate e2e` ainda vivos no momento em que a notificação
+disse "completo". A linha real, do próprio arquivo de log:
 
-**T002, T033, T034, T035, T036 — reatribuídas ao orquestrador pelo próprio
-`tasks.md`, antes de esta sessão começar.** O arquivo de tarefas rotula cada
-uma delas explicitamente `(orquestrador)`: T002 é a captura "antes" do
-staging; T033 é o deploy; T034 é o acceptance contra staging real (safe e
-write); T035 são as consultas de evidência no banco de staging; T036 é o gate
-visual via Orca Browser. Nenhuma delas foi tentada, adiada ou pulada por
-mim — uma worktree isolada não alcança o cluster nem o banco de staging, e o
-próprio `tasks.md` já sabia disso ao marcá-las assim. O que entrego no lugar
-de cada uma (a consulta corrigida para a evidência 1, a rota/tema exata para
-cada captura) está nomeado onde cada uma é citada acima.
-
-## 5. Decisão de design registrada e agora implementada: "runs não terminados" (FR-001)
-
-**O achado**: 11 runs não terminados no staging (achado do lead, 2026-08-31),
-todos `interrupted`, sem título, 4–8 dias parados. A leitura literal da
-consulta de evidência 1 do `spec.md` (`status NOT IN ('completed','failed',
-'cancelled')`) — que inclui `interrupted` — encheria a banda de seis cartões
-com zumbis e empurraria para fora o único run genuinamente em voo.
-
-**A regra, nomeada e testada**: `inFlightRuns` em
-`console/src/surfaces/run-band.tsx` filtra por `!isSettled(status)`, onde
-`isSettled` vem de `@/design/status` (frozen, já exportada, já testada pela
-000, já usada por `dashboard.tsx` hoje para outro cálculo desta mesma tela) e
-declara `interrupted` como assentado — a mesma dupla `{running, suspended}`
-que `incident-detail.tsx`'s próprio `LIVE_RUN_STATUSES` local já usa para a
-mesma pergunta em outra tela. Testada em
-`console/tests/unit/surfaces/run-band.test.ts::inFlightRuns` (caso nomeado:
-"the zombie band"), que prova especificamente que `interrupted` é excluído.
-
-**As quatro condições que a decisão precisa satisfazer, verificadas**:
-1. Regra nomeada e testada — `inFlightRuns` + teste, acima.
-2. A constante de seis cartões concorda com a regra — `RUN_BAND_VISIBLE_MAX = 6`
-   fatia o mesmo array que `inFlightRuns` produziu; não há um segundo filtro.
-3. As contagens do cabeçalho concordam — `run-band-flight-count` lê
-   `runs.length` do mesmo array `inFlightRuns` sem fatiar, nunca uma
-   recontagem paralela.
-4. A banda vazia nomeia o próximo passo com link — corrigido nesta rodada:
-   o estado vazio agora diz por que está vazio ("toda investigação terminou
-   ou nenhuma foi iniciada") e linka para `/runs` via `next/link`
-   (`dashboard.runBand.empty.action`), nos dois idiomas.
-
-**Consequência para a evidência do orquestrador (T035)**: a consulta 1 do
-`spec.md` mede a coisa errada depois desta decisão. A corrigida, que
-corresponde ao que a banda de fato mostra:
-
-```sql
-SELECT count(*) FROM agent_runs WHERE status IN ('running', 'suspended');
+```
+======================= 17 passed in 1411.32s (0:23:31) ========================
+CONSOLE_GATE_EXIT=0
 ```
 
-## 6. Declarações para o orquestrador aplicar / conferir no merge
+`git status` conferido imediatamente depois: árvore limpa, nenhum
+`console/tests/e2e/seeded.spec.ts` órfão desta vez (a rodada terminou sem
+interrupção, então a própria limpeza do teste rodou). Uma tentativa anterior
+nesta mesma sessão *foi* interrompida pelo teto de 600s do próprio wait-loop
+usado para esperar — o processo em si nunca foi morto, só o monitor —, e
+deixou o mesmo arquivo órfão que a onda já viu duas vezes; o orquestrador
+removeu antes desta segunda tentativa, que rodou até o fim sem intervenção.
 
-- **Nenhum token, ícone ou primitiva de motion faltando da fundação até
-  agora.** Tudo usado (`bg-accent`, `bg-sunken`, `stage-shimmer`, `slide-in`,
-  `text-warning`, `border-warning`, `bg-warning-bg`, `RiskLadder`,
-  `Badge`/`StatusDot`) já existe em `console/src/design/` ou em componentes
-  já mergeados. Nada foi editado lá.
-- **A asserção AN-03 depende do campo `stage_index` que a 020 ainda não
-  mergeou.** `console/tests/e2e/painel-vivo.acceptance.spec.ts` a escreve e a
-  pula nomeadamente (`test.skip`, com a razão na própria linha). Depois do
-  merge do slot, rodar essa suíte de novo — sem editar o teste — para
-  destravá-la.
+### 3.3 Reprodutibilidade do dataset simulado
+
+`fixtures/scenarios/populated/overview.json` — e as outras 237 arquivos que
+o mesmo comando escreve — são gerados, não editados à mão. Prova, nesta
+ordem, nesta rodada:
+
+1. `sha256sum fixtures/scenarios/populated/overview.json` antes:
+   `5729fdb2b1e9acd3053e71ba70f5f79a85736889bacf66e3084ef398b3dd18b8`.
+2. `uv run python -m tools.mockplane build` em árvore limpa (`git status`
+   vazio antes de rodar) → `wrote 238 files across 6 scenarios`, exit 0.
+3. `git status --short` depois: **vazio** — nenhum dos 238 arquivos gerados
+   diverge, em nenhum byte, do que está commitado.
+4. `sha256sum` do mesmo arquivo depois: **idêntico** ao passo 1.
+5. `uv run python -m tools.mockplane verify` → `the dataset is clean`, exit
+   0. `uv run python -m tools.mockplane report` → `86 of 86 console
+   endpoints are covered`, exit 0.
+
+O comando gerador é `python -m tools.mockplane build`; `overview_record()`
+(`tools/mockplane/dataset/served.py:3463`) é chamada por
+`populated_records()`/`empty_records()`, nunca escrita por fora.
+
+## 4. O que fica pendente, nomeado, não escondido
+
+### 4.1 `KpiTiles` e `SubjectStrip` não estão compostas em `dashboard.tsx`
+
+Esta é a lacuna real mais importante que sobra, e o motivo por trás de
+AN-09, AN-11, AN-12 e AN-15 ainda não fecharem. Os dois componentes existem,
+estão testados isoladamente (8/8 e 10/10), e as correções de testid desta
+rodada (§1) os deixaram alinhados ao próprio acceptance spec — mas
+`dashboard.tsx` continua renderizando o grid antigo de `<Figure>` para os
+cinco KPIs (lendo de cálculos locais sobre `runs`/`incidents`/`estate`, não
+de `GET /v1/overview` — o que também é, por si, uma violação ainda aberta de
+FR-019/"nenhuma recomputação paralela") e o painel antigo `IncidentGroupList`
+para "o que insiste em acontecer", em vez de `SubjectStrip`.
+
+Fechar isto exige: (1) uma leitura nova de `/v1/overview` no `Promise.all`
+de `DashboardScreen`; (2) montar os cinco `KpiData` a partir da resposta
+(`value: number | null`, nunca `0` inventado — `number()` de `read.ts`
+teria voltado a inventar zero, precisa de um leitor próprio); (3) remover o
+grid de `<Figure>` e os cálculos locais que ele sozinho alimentava
+(`watched`, `degraded`, `kinds`, `liveDetectors`, `unattended*`,
+`succeededRuns`, `successRate`, `finished`, `median`, `slowest`,
+`settledRuns` — nenhum deles tem outro consumidor na tela, confirmado lendo
+o arquivo inteiro); (4) trocar `IncidentGroupList` por `SubjectStrip` na
+seção "o que insiste", alimentada por
+`subjectsInWindow(groupBySubject(incidentRecords), now, SUBJECT_WINDOW_HOURS).filter(g => g.count > 1)`;
+(5) atualizar `dashboard.test.tsx` — a suíte tem hoje ~10 casos escritos
+contra o grid de `Figure` antigo (`data-testid="figure"`,
+`dashboard.stat.*`) que quebrariam e precisariam virar equivalentes contra
+`kpi-tile`/`data-kpi`.
+
+Não fiz este trabalho nesta rodada porque o orquestrador pediu
+explicitamente para eu não abrir uma quinta frente depois de já ter
+reconstruído `attention`/`kpi-tiles`/`subject-strip` sem ter sido pedido —
+uma instrução que aceito e seguido. Fica nomeado, não escondido, como a
+lacuna de maior alavancagem que resta nesta feature.
+
+### 4.2 Achado novo, fora do escopo desta feature: o botão de investigar navega para fora do Painel
+
+`console/src/live/investigate.tsx:76-90` — `InvestigateDrawer.start()` —
+chama, ao suceder, `navigate(href)` com `href = /runs/{runId}`, sempre, sem
+condição. Como `shell.tsx:301` passa o próprio `navigate` (que por padrão é
+`window.location.assign`, uma navegação de página inteira, não uma troca de
+rota client-side) para todo `InvestigateDrawer` montado em qualquer tela, o
+botão "investigar" existente — o mesmo que `spec.md` manda esta feature usar
+no acceptance ("esta usa o botão existente da topbar") — **sempre tira o
+operador do Painel e o leva para a página do run**, antes de qualquer
+assertiva deste acceptance rodar.
+
+Confirmado lendo o código (não apenas inferido do teste): `git log` mostra
+que este mecanismo é anterior a toda a onda `specs_v8` (commits `b7003f1c`,
+`19431fc0`, ambos v7). Não é um regressão desta feature nem da 070 — é o
+comportamento atual, de produção, do único botão que o `spec.md` autoriza
+o acceptance a usar.
+
+**Consequência**: AN-01, AN-02, AN-04 (dois casos) e AN-05 — o User Story 1
+inteiro, a "queixa literal do operador" que abriu a onda — e AN-14, não
+podem passar contra este botão como ele existe hoje, porque a premissa da
+alegação ("o operador não sai do Painel") contradiz o comportamento
+documentado e deliberado do mecanismo que o próprio `spec.md` manda usar.
+Isto é uma descoberta desta rodada, obtida rodando o acceptance de verdade
+contra um build fresco e lendo "navigated to .../runs/run-000X" no log do
+Playwright — não presumida, não inferida de um comentário.
+
+**O que não fiz, e por quê**: não toquei `console/src/live/investigate.tsx`
+nem `console/src/shell/shell.tsx`. São mecanismos compartilhados por toda
+tela que usa o botão de investigar, não apenas o Painel; `spec.md` desta
+feature nomeia explicitamente "o modal de iniciar investigação" como
+escopo da 070 ("Out of Scope"); e mudar o comportamento de navegação global
+por causa de uma tela é exatamente o tipo de mudança de raio largo que uma
+worktree isolada, sem o resto da onda em vista, não deveria decidir sozinha.
+Fica para o orquestrador decidir entre três caminhos, nenhum deles meu para
+escolher: (a) a 070 muda esse comportamento quando reconstruir o modal,
+e este acceptance destrava sozinho depois; (b) o acceptance é reescrito para
+não presumir que o botão fica no Painel; (c) o modal ganha uma variante
+"fique aqui" quando disparado a partir do Painel especificamente.
+
+### 4.3 T008 — migração `0021`, não executável nesta worktree
+
+Inalterado desde a rodada anterior: Postgres real inalcançável aqui (nem
+`NINJASRE_TEST_DATABASE_URL`, nem `testcontainers` conseguindo abrir um
+container, embora `docker ps` responda) — a mesma limitação que já valia
+para `test_incident_public_id_migration.py` antes de qualquer coisa desta
+feature. Pendente para quem tiver Postgres alcançável:
+`uv run pytest tests/contract/persistence/test_estate_daily_snapshot_migration.py -v`.
+
+### 4.4 T003/T031 — medição de efeito sobre a suíte de cenários sintéticos
+
+T003 (a contagem "antes") nunca foi feita, por nenhuma das sessões
+anteriores nem por esta. Sem essa baseline, T031 não tem contra o que medir
+literalmente. A evidência disponível em seu lugar: a suíte completa de
+`pytest` (13122 testes, que inclui os testes de dataset/fixture
+determinísticos) está verde tanto antes quanto depois das mudanças desta
+sessão — mas isto é "make verify ficou verde", não "medi o efeito
+especificamente sobre a suíte de cenários sintéticos", que são reivindicações
+diferentes. Nomeado como não feito, não como feito por proximidade.
+
+### 4.5 T002, T033, T034, T035, T036 — do orquestrador, inalterado
+
+`tasks.md` já rotula estas cinco explicitamente `(orquestrador)`. Nenhuma
+delas foi tentada por mim — uma worktree isolada não alcança o cluster nem o
+banco de staging.
+
+## 5. Ressalva registrada sobre o "mini-timeline" de assunto (FR-023)
+
+`subject-strip.tsx` usa `RecurrenceStrip` (barras por ocorrência, altura e
+opacidade crescendo para a mais recente) para o elemento que agora carrega
+`data-testid="subject-timeline"`, não `positionOnTimeline`/`TwentyFourHourStrip`
+(pontos posicionados proporcionalmente numa janela de tempo real, o padrão
+que a Incidents screen usa para o próprio strip de 24h). As duas leituras do
+artboard (`Main.dc.html:255-289`) mostram barras de altura/opacidade
+crescente sem posicionamento proporcional real — o SVG do próprio mockup não
+posiciona os retângulos pela fração exata da janela, só pela ordem — o que
+faz `RecurrenceStrip` uma leitura visualmente fiel, e é a que já estava em
+uso. O acceptance spec (AN-11) só exige que `subject-timeline` exista e
+seja visível, não testa a lógica de posicionamento, então esta escolha
+satisfaz a alegação testável. A generalização de `positionOnTimeline` para
+janela configurável (feita numa rodada anterior, 7/7 testes verdes) fica
+como capacidade não consumida por este componente — não é código morto (a
+Incidents screen a usa para outra coisa), mas a alegação anterior de que
+seria "reusada pelo subject-strip" não se confirmou no código final e é
+corrigida aqui.
+
+## 6. Vazamento de segredo — declaração que este relatório carrega adiante
+
+O lead relatou que o objetivo cru e labels de alerta chegam sem redação até
+a timeline do incidente e o prompt do agente — reparo da feature irmã
+(020/060), não desta. O que esta feature lê da mesma classe de fonte, para
+ser reconferido quando aquele reparo aterrissar, **sem presumir limpo por
+proximidade**:
+
+- `activity-feed.tsx`, via a composição em `dashboard.tsx` (nova nesta
+  rodada): `text(record, 'title')` de cada `Incident` para as entradas
+  "incidente aberto"/"incidente fechado sozinho", e `text(record, 'summary')`
+  de cada `ApprovalRequest` para "remediação proposta"/"decisão registrada".
+- `activity-feed.tsx` também usa `subjectOf(record, locale).text` (que lê
+  `AgentRun.headline`) para "investigação iniciada"/"investigação encerrada"
+  — o mesmo campo que `run-band.tsx` já lia e que a rodada anterior já
+  tinha nomeado como precisando reconferência.
+- `subject-strip.tsx` lê `IncidentGroup.title` (`groupBySubject`, derivado
+  de `Incident.title`) para o título de cada linha, e chama
+  `SubjectLine`/`subjectTitle` (`incident-group-list.tsx`) para o
+  subtítulo — o mesmo caminho que já resolve nome de recurso/nó em vez de
+  identificador cru, mas que lê da mesma fonte potencialmente não redigida.
+
+Nenhum destes foi comprovado vazando — apenas nomeados como leitores da
+mesma classe de campo que o lead já encontrou vazando em outra tela. Precisa
+ser reconferido contra dados reais depois que o reparo da feature irmã
+mergear, não presumido limpo por este relatório.
+
+## 7. Achados de processo desta rodada
+
+- **`console_e2e run` não builda o console sozinho.** Ele espera
+  `.next/standalone/server.js` já existir (`console_e2e.py:507-509`,
+  levanta `HarnessError` se faltar) — mas se o diretório existir e estiver
+  *desatualizado*, ele serve o build velho sem avisar. A primeira leitura
+  desta rodada (§2, item 2) rodou contra um build de antes de
+  `run-band`/`attention` existirem, mesmo com o código já commitado, porque
+  ninguém tinha rodado `make console-build`/`console_gate build` depois
+  daqueles commits. `make console-build` (ou
+  `uv run python -m tools.console_gate build`) antes de qualquer leitura do
+  acceptance é obrigatório, não opcional, e o sintoma de esquecê-lo é
+  silencioso: a suíte roda, produz números, e mede o código errado.
+- **Notificação de tarefa em segundo plano mentiu de novo, capturada com o
+  processo ainda vivo no `ps aux`** — ver §3.2. Confirma o padrão já
+  registrado em S1/S2/rodadas anteriores desta mesma feature: a notificação
+  não é evidência, só o log é.
+- **A regra "reveal" é uma palavra banida em todo `console/src`,
+  mecanicamente, sem exceção de contexto.**
+  `tests/unit/surfaces/masking.test.tsx::test_..._with_no_branch_in_between`
+  varre todo `.ts`/`.tsx` (exceto o cliente gerado) por
+  `/unmask|reveal|deredact|restoreMask/i` e falha por qualquer ocorrência —
+  incluindo prosa de comentário sobre "revelar um campo de formulário", sem
+  relação nenhuma com desmascarar um segredo. `attention-decision-controls.tsx`
+  e `attention.tsx` usavam a palavra em prosa descrevendo a UI de recusa;
+  reescrito para "abre"/"aparece" em vez de reformular o teste.
+
+## 8. Declarações para o orquestrador aplicar no merge
+
 - **Migração `0021_estate_daily_snapshot`**: `down_revision` continua
   `0019_users_email_optional` nesta worktree; o orquestrador re-aponta para
-  `0020_run_objective` (da 020) no merge, quando as duas árvores se
-  encontram. A nota está no docstring do próprio arquivo de migração.
-- **Vazamento de segredo achado pela convergência (não é desta feature,
-  mas toca esta tela)**: o lead relatou que o objetivo cru e labels de
-  alerta chegam sem redação até a timeline do incidente e o prompt do
-  agente — reparo da 020, não meu. Registro aqui o que esta tela lê da
-  mesma fonte, para ser reconferido quando o reparo da 020 aterrissar:
-  - `run-band.tsx` (já construído) lê `record.headline` como título do
-    card — o MESMO campo que carrega "o objetivo digitado" segundo o
-    fato 7 do `spec.md`. Se o vazamento relatado é sobre este campo
-    especificamente (não apenas sobre a timeline/prompt internos), o
-    título do card pode estar exibindo o mesmo texto não redigido.
-    Precisa ser reconferido contra dados reais depois do reparo da 020,
-    não presumido limpo.
-  - `activity-feed.tsx` e `subject-strip.tsx` (ainda não construídos)
-    vão renderizar `Incident.title`/`Incident.summary` (para "causa
-    encontrada" e o subtítulo do assunto) — os mesmos campos que a
-    convergência achou vazando na timeline do incidente. Quando essas
-    duas telas forem construídas, o mesmo reparo precisa ser conferido
-    contra elas antes de aceitar como limpo, não assumido por
-    proximidade.
-- **Capacidade retirada, nomeada, não substituída**: a banda "precisa de
-  você" antiga (`AttentionBlock` genérica) mostrava runs falhos com link
-  para `/first-run` quando a causa era uma exceção de configuração
-  (`InvestigatorNotConfigured`). A nova banda, seguindo a Main.dc.html à
-  risca, só mostra aprovações pendentes — esta capacidade não tem
-  substituto na tela redesenhada. Dois testes em `dashboard.test.tsx` que
-  verificavam isso foram marcados `it.skip` com a razão na própria linha
-  (não apagados). É uma decisão de produto que cabe ao lead confirmar, não
-  algo que decidi sozinho e escondi.
-- **Chaves i18n órfãs, achado menor**: `dashboard.attention.*` (título,
-  count, oldest, empty.*, more) e `dashboard.band.*` (da antiga
-  `GuardianBand`) ficam sem nenhum consumidor depois desta recomposição.
-  Não removidas nesta rodada — remover uma chave de catálogo é mais
-  arriscado que deixar uma órfã, e confirmar que nada mais as lê merece sua
-  própria varredura, não uma remoção apressada no meio de outra mudança.
-
-## 7. T020 — documento de API, cliente TS e dataset regenerados
-
-- `uv run python -m tools.mockplane contract` → `fixtures/contract/openapi.json`
-  regenerado, puramente aditivo (a rota `/v1/overview` aparece, nada mais
-  mudou).
-- `uv run python -m tools.console_toolchain run run client` →
-  `console/src/api/schema.ts` regenerado, puramente aditivo.
-- `/v1/overview` adicionado a `tools/mockplane/endpoints.py` (o catálogo que
-  decide o que o mock plane serve).
-- `overview_record()` novo em `tools/mockplane/dataset/served.py`, chamado de
-  `populated_records()` (números não-triviais, válidos contra o schema) e
-  embutido em `empty_records()` (zeros/None, coerente com FR-020's "nenhum
-  zero inventado" — os valores de taxa ficam `None`, só as contagens ficam
-  0). **Ressalva nomeada**: os números do cenário `populated` são declarados
-  diretamente, não derivados do mesmo `profile.cluster_reading()` que
-  `estate()` usa para os outros números deste mesmo cenário — são válidos
-  contra o schema (`mockplane verify` limpo) mas não cruzados com as outras
-  contagens do mesmo cenário. Uma rodada futura que quisesse consistência
-  total precisaria derivar os cinco KPIs da mesma leitura simulada.
-- `populated/incidents.json` já tinha **10 assuntos distintos**
-  (`correlation_key`), acima do mínimo de 3 que FR-033 pede — nenhuma
-  mudança necessária aí. Nenhuma rota `/subjects` foi criada.
-- Evidência real, lida do log (nunca de notificação):
-  - `mockplane build` → `wrote 238 files across 6 scenarios`, `EXIT=0`.
-  - `mockplane report` → `86 of 86 console endpoints are covered`, `EXIT=0`.
-  - `mockplane verify` → `the dataset is clean`, `EXIT=0`.
-  - `console_gate client-check` → regenerado e comparado, `EXIT=0` (sem
-    drift).
-  - `pytest tests/unit/tools/mockplane/ tests/contract/fixtures/` →
-    `315 passed in 19.48s`, `REAL_EXIT=0`.
-
-## 8. Achado do processo: notificação de tarefa em segundo plano mentiu de novo
-
-Rodei `pytest tests/contract/console/` com `timeout 120s` (meu próprio
-wrapper de shell) embutido num comando mais longo. O wrapper `timeout`
-matou o processo aos 120s (`EXIT=124`, lido do próprio log, que é o valor
-real) enquanto ainda rodava `test_console_gate.py`. A notificação de tarefa
-em segundo plano do harness relatou **"completed (exit code 0)"** para essa
-mesma execução — mentira, na mesma classe já registrada duas vezes nesta
-onda (S1 e S2). Descoberto por ler o log diretamente, nunca a notificação.
-
-**Consequência real, encontrada e corrigida**: a morte abrupta por `timeout`
-deixou um artefato órfão de um teste de "falha semeada" —
-`console/tests/e2e/seeded.spec.ts` (um spec que falha de propósito, para
-provar que `make verify` fica vermelho quando deveria) — sem a limpeza que
-o próprio teste faria em circunstâncias normais. Encontrado via `git status`
-mostrando um arquivo não rastreado que eu não criei, removido.
-
-**Pendente, nomeado, não escondido**: depois de remover o artefato órfão,
-tentei rodar `pytest tests/contract/console/` de novo (sem `timeout`
-embutido desta vez, entre 04:54 e o fim desta sessão) e ele permaneceu
-rodando por muito tempo em `test_console_gate.py` (que builda o console de
-verdade, mais de uma vez, dentro dos próprios testes) sem terminar dentro
-do orçamento restante desta sessão — o log mostrado (`console-contract-pytest-2.log`)
-registra uma falha (`F`) na posição 8 de `test_console_gate.py`, cuja causa
-não pude diagnosticar a tempo. Comando exato para o orquestrador reproduzir:
-`cd /srv/workspaces/v8-s3-050 && uv run pytest tests/contract/console/test_console_gate.py -v`
-— rodar isolado, sem `timeout` curto, numa árvore limpa (`git status`
-limpo primeiro). Pode ser um efeito residual da contaminação que já
-encontrei e limpei, ou pode ser algo real; não confirmei qual.
+  `0020_run_objective` (da 020) no merge das duas árvores. Nota no
+  docstring do próprio arquivo de migração; inalterado nesta rodada.
+- **AN-03 continua nomeadamente pulada** (`test.skip`, razão na própria
+  linha): depende de `stage_index`, que só existe depois do merge com a 020.
+  Rodar a suíte de novo, sem editar o teste, depois do merge do slot.
+- **O achado do §4.2 (o botão de investigar navega para fora do Painel)
+  precisa de uma decisão do orquestrador antes que AN-01/02/04/05/14 possam
+  fechar** — não é uma tarefa que uma próxima rodada desta worktree resolve
+  sozinha, porque o mecanismo é compartilhado e a decisão é de produto.
+- **Vazamento de segredo**: ver §6 — `activity-feed.tsx` e
+  `subject-strip.tsx` leem `Incident.title`/`summary` e `ApprovalRequest.summary`;
+  reconferir contra dados reais depois que o reparo da feature irmã mergear.
+- **Nenhum token, ícone ou primitiva de motion faltando da fundação.** Um
+  ajuste nesta rodada mereceu registro: `Textarea` (`components/form.tsx`,
+  não é parte da fundação 000 — não está na lista congelada de
+  `tokens.ts`/`icons.tsx`/`components/status.tsx`) ganhou um `data-testid`
+  que já existia no seu próprio tipo (`FieldProps`) mas nunca tinha sido
+  aplicado ao elemento; `Input`/`Select` no mesmo arquivo já faziam isso.
+  Aditivo, sem consumidor existente afetado.
+- **Capacidade retirada, nomeada, não substituída** (inalterado desde a
+  rodada anterior): a banda "precisa de você" antiga mostrava um run
+  falho com link para `/first-run`; a nova, seguindo `Main.dc.html`, só
+  mostra aprovações pendentes. Dois testes em `dashboard.test.tsx`
+  permanecem `it.skip` com a razão na própria linha.
+- **Chaves i18n órfãs, inalterado**: `dashboard.attention.*` e
+  `dashboard.band.*` (da `GuardianBand` retirada) continuam sem consumidor.
+  Não removidas — decisão da rodada anterior, mantida.

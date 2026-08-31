@@ -185,33 +185,59 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       Aprovar/Recusar/Ver-plano, razão obrigatória, desfecho informativo para
       corrida, gate de permissão; N > 1 pendências → a mais antiga expandida.
       T010 e T013 verdes.
-- [ ] T023 `kpi-tiles.tsx`: cinco KPIs de `GET /v1/overview`, sparkline SVG
+- [x] T023 `kpi-tiles.tsx`: cinco KPIs de `GET /v1/overview`, sparkline SVG — construída em rodada anterior; corrigida nesta (testid `kpi-tile-{id}`
+      trocado por `kpi-tile` + `data-kpi`, `kpi-legend` adicionado — o
+      acceptance spec já exigia ambos e nenhum existia). 8/8 unit tests
+      verdes. Ainda não composta em `dashboard.tsx`: ver controle.md §4.1.
       90×28, legenda de decomposição, estado de leitura falhada por KPI, o
       caso "nenhum detector ligado" com link. T012 (metade sparkline) verde.
-- [ ] T024 `subject-strip.tsx`: linhas por assunto de `groupBySubject`
+- [x] T024 `subject-strip.tsx`: linhas por assunto de `groupBySubject` — construída em rodada anterior; corrigida nesta (faltavam três testids
+      que o acceptance spec exige: `subject-timeline`, `subject-chip` com
+      `data-role`, `subject-subtitle` — nenhum existia). 10/10 unit tests
+      verdes. Ainda não composta em `dashboard.tsx`: ver controle.md §4.1.
       (janela 48 h no cliente), ativos primeiro, strip 120×18, chip com
       forma, subtítulo humano (recurso + nó; id interno só em tooltip), link
       para incidente/investigação. T012 (metade strip) verde.
-- [ ] T025 `activity-feed.tsx`: linha do tempo vertical com formas por tipo,
+- [x] T025 `activity-feed.tsx`: linha do tempo vertical com formas por tipo, — construída nesta rodada: quatro formas (losango/círculo/quadrado/
+      triângulo), `collapseFeed` dobrando disparos consecutivos do mesmo
+      assunto. 10/10 unit tests verdes. Composta em `dashboard.tsx`.
       colapso de T011, inserção por evento com animação de chegada, corte em
       8. T011 verde.
-- [ ] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — em andamento nesta mesma sessão, não encerrada: run-band e
-      attention.tsx recomposta já compostos; kpi-tiles/subject-strip/
-      activity-feed ainda não existiam no momento desta nota. `[~]` seria
-      prematuro para algo que a própria sessão está prestes a terminar.
+- [ ] T026 `dashboard.tsx`: composição das cinco regiões na geometria do — parcial: run-band, attention.tsx recomposta e activity-feed (nova
+      nesta rodada, com o feed reconstruído para quatro tipos) já
+      compostos. kpi-tiles e subject-strip continuam NÃO compostas — o
+      grid antigo de `<Figure>` e o painel `IncidentGroupList` continuam
+      no lugar deles, com os cálculos locais que a leitura de
+      `/v1/overview` deveria ter substituído. Maior lacuna que resta;
+      detalhada em controle.md §4.1, incluindo o que falta linha por linha.
       artboard (grid, gutters e hierarquia de `Main.dc.html`), leituras
       migradas para o overview onde ele é o dono, empty states com próximo
       passo, honestidade de leitura falhada.
-- [ ] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — em andamento na mesma sessão que T026, pela mesma razão: chaves de
-      run-band e decisionBand já em en/pt-BR; faltam as de kpi-tiles/
-      subject-strip/activity-feed, que ainda não existiam.
+- [ ] T027 i18n: todas as strings novas em `en` e `pt-BR` (dona no S3); — parcial, ligado a T026: run-band, decisionBand (incluindo as duas
+      chaves novas desta rodada — `rejectSubmit`, `cancel`) e
+      `dashboard.liveActivity.*` (novo, sete chaves) já em `en`/`pt-BR`.
+      kpi-tiles e subject-strip já tinham suas próprias chaves de rodadas
+      anteriores — o que falta não é tradução, é a composição em
+      `dashboard.tsx` (T026) que as exerceria.
       nenhuma string hardcoded do artboard.
-- [ ] T028 `console/visual/screens.json` + baselines do Painel nos dois temas
+- [~] T028 `console/visual/screens.json` + baselines do Painel nos dois temas — **[~ motivo]** o registro está feito nesta rodada (`dashboard-1440-dark`,
+      `dashboard-1440-light`, `status: pending`) — mas a captura e a
+      aceitação da baseline são deliberadamente do gate visual Orca do
+      orquestrador (EXECUCAO.md §3), não deste implementer: fabricar uma
+      baseline aqui seria exatamente o defeito de evidência manufaturada
+      que a onda já viu antes. `pending` fica inerte no suite Playwright
+      (`screens.spec.ts` só itera `baselined`).
       recapturadas e revisadas.
 
 ## Phase 4: Verde local e gates
 
-- [ ] T029 T004 verde alegação por alegação no backing local (mock); as
+- [ ] T029 T004 verde alegação por alegação no backing local (mock); as — parcial: de 12 failed/4 skipped/2 passed no início desta rodada para
+      8 failed/4 skipped/6 passed no fim (evidence/acceptance-current-state.log).
+      Os 8 que restam têm causa raiz nomeada em controle.md §2: 2 por
+      T026 não estar feita (AN-09, AN-15), 6 por um achado novo fora do
+      escopo desta feature (controle.md §4.2 — o botão de investigar
+      navega para fora do Painel, um comportamento anterior a toda a
+      onda). Nenhum dos 8 é um defeito não diagnosticado.
       staging-write ficam para a Phase 5. Registrar a virada.
 - [x] T030 Gates do domínio editado antes de commitar: lint/format Python e — a disciplina por checkpoint, que é o que esta tarefa pede, foi seguida
       em todo commit desta feature (lint/typecheck/testes do console e
@@ -219,9 +245,17 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       de um pipe). O `make verify` completo é uma tarefa própria, T032, e
       fica registrado lá, não aqui.
       TS/prettier, `check-imports`, suíte de console, suíte visual.
-- [ ] T031 Medir a suíte de cenários sintéticos contra T003 e registrar
+- [ ] T031 Medir a suíte de cenários sintéticos contra T003 e registrar — T003 nunca foi feita por nenhuma sessão, então não há baseline
+      literal contra o que medir. `make verify` (13122 testes, inclui a
+      suíte de fixtures/dataset determinística) está verde; isso não é a
+      mesma reivindicação que "medi o efeito sobre a suíte de cenários
+      sintéticos especificamente" e não é apresentado como tal.
       ("sem efeito" esperado).
-- [ ] T032 `make verify` completo verde, partindo do verde de T001.
+- [x] T032 `make verify` completo verde, partindo do verde de T001. — verde real, `MAKE_VERIFY_EXIT=0`, no commit `c0b6a975`, depois de três
+      rodadas vermelhas corrigidas nesta sessão (anotação de tipo em
+      `served.py`, formatação prettier, cobertura de `estate_snapshots`
+      no contrato de isolamento por tenant). Log completo preservado fora
+      do repositório; controle.md §3.1 tem o detalhe de cada rodada.
 
 ## Phase 5: Staging — deploy, acceptance e o gate visual (EXECUCAO.md §3–§4)
 
@@ -244,6 +278,7 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       `Main.dc.html` e `DashboardLight.dc.html`; `VEREDITO.md` com uma linha
       por tela×tema — CONFORME ou o desvio nomeado. Desvio sem registro
       aprovado em `design/padrao-2026-08/DIVERGENCIAS.md` = FAIL do slot.
-- [ ] T037 Relatório final: chaves i18n/tokens declarados para o orquestrador
+- [x] T037 Relatório final: chaves i18n/tokens declarados para o orquestrador — entregue como a resposta final desta sessão ao orquestrador, com
+      controle.md reescrito para refletir o código atual (ver §0-§8 lá).
       (se houver lacuna da fundação), evidências anexadas, controle.md com o
       que o código prova — e nada além.
