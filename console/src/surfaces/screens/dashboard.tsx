@@ -8,19 +8,20 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
+import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { ActivityFeed, collapseFeed, type ActivityFeedEntry } from '../activity-feed';
 import { AttentionBlock, type DecisionCardData, type DecisionStep } from '../attention';
 import { readFailure } from '../failures';
-import { Figure } from '../figure';
+import { KpiTiles, type KpiData } from '../kpi-tiles';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
 import { DashboardQuickActions } from '../quick-actions';
 import { subjectOf } from '../run-subject';
 import { SetupHero } from '../setup-hero';
+import { SubjectStrip } from '../subject-strip';
 import {
   authorised,
   counts,
@@ -48,8 +49,7 @@ import {
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
 import { RunBand, inFlightRuns, runCardOf, type RunCardData } from '../run-band';
-import { IncidentGroupList } from '../incident-group-list';
-import { groupBySubject } from '../incident-groups';
+import { groupBySubject, subjectsInWindow, SUBJECT_WINDOW_HOURS } from '../incident-groups';
 import { viewerNode } from '../tree';
 import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
@@ -197,8 +197,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     approvals,
     proposals,
     runs,
-    estate,
-    detectors,
+    overview,
     incidents,
     blocked,
     held,
@@ -210,13 +209,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     // cannot disagree about how many are waiting.
     panelRead('/v1/proposals', () => read('/v1/proposals', init)),
     panelRead('/v1/runs', () => read('/v1/runs', init)),
-    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-    // `/health/ready` is no longer read here: the redesigned Painel has no
-    // "is the guardian active" banner in its own content -- that indicator
-    // lives in the sidebar footer (shell-level, outside this feature's
-    // scope), and reading a source nothing renders is the recomputation
-    // this feature's own rule forbids in the other direction.
-    panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+    // The five KPI tiles' one source (FR-019): a value, its breakdown and its
+    // daily series, never recomputed here from a second read of the estate,
+    // the runs or the incidents this screen used to query directly for the
+    // same numbers. `/v1/estate/summary` and `/v1/detectors` are no longer
+    // read on this screen either, for the identical reason `/health/ready`
+    // already isn't: the "watched" count and the "no detector enabled"
+    // legend are the overview's own fields, computed server-side.
+    panelRead('/v1/overview', () => read('/v1/overview', init)),
     // Two reads of one listing, because they are two questions. The narrative
     // below wants what happened lately, closures included; the attention band
     // wants everything still open however long ago it opened, and those are
@@ -253,12 +253,44 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       !needsAPerson(text(record, 'state')) &&
       !isTerminalIncident(text(record, 'state')),
   );
-  // What keeps happening, from the unfiltered read: a cause that fired four
-  // times and closed each time is exactly what this panel is for, so it must
-  // not be narrowed to what is still open.
-  const recurring = groupBySubject(incidentRecords).filter((group) => group.count > 1);
-  const detectorRecords = list(dataOf(detectors), 'detectors');
-  const summary = dataOf(estate);
+  // What keeps happening, from the unfiltered read, cut to the trailing 48h
+  // window "O que insiste em acontecer" draws (FR-022/FR-023): a cause that
+  // fired four times in the window and closed each time is exactly what this
+  // panel is for, so it must not be narrowed to what is still open, and must
+  // not count a firing from last month as part of what insists *now*.
+  const recurring = subjectsInWindow(
+    groupBySubject(incidentRecords),
+    now,
+    SUBJECT_WINDOW_HOURS,
+  ).filter((group) => group.count > 1);
+  const overviewData = dataOf(overview);
+  // Distinct from any one KPI's own `value` being `null` (nothing in the
+  // window can answer that KPI yet): this is the whole document failing to
+  // arrive, which every tile must say together rather than each guessing on
+  // its own from a `kpiOf` that degrades a missing document to five empty
+  // KPIs by construction.
+  const overviewFailed = overviewData === undefined;
+
+  /** `overviewData[name]`'s own `{value, breakdown, series, note}`, read
+   * defensively: a missing document (`overviewFailed`) degrades every field
+   * to its own honest absence rather than throwing, because `KpiTiles` is
+   * what decides whether to show that absence as "read failed" or as an
+   * unmeasured `null` value -- never this function. */
+  function kpiOf(name: string): KpiData {
+    const kpi = field(overviewData, name);
+    return {
+      value: (() => {
+        const found = field(kpi, 'value');
+        return typeof found === 'number' && Number.isFinite(found) ? found : null;
+      })(),
+      breakdown: Object.fromEntries(counts(kpi, 'breakdown')),
+      series: list(kpi, 'series').map((point) => ({
+        date: text(point, 'date'),
+        value: number(point, 'value'),
+      })),
+      note: text(kpi, 'note'),
+    };
+  }
 
   // --- What needs a person ---------------------------------------------------
   const attention: AttentionRow[] = [];
@@ -468,20 +500,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   feed.sort((left, right) => right.iso.localeCompare(left.iso));
   const recent = collapseFeed(feed).slice(0, FEED_LENGTH);
 
-  // --- The estate ------------------------------------------------------------
-  const watched = number(summary, 'total');
-  // The persistence contract defines `problems` as degraded or unhealthy. Keep
-  // unknown and stale out: they are gaps in observation, not estate faults, and
-  // the problem drill-down must contain exactly what this number counts.
-  const degraded = number(summary, 'problems');
-  const kinds = counts(summary, 'by_kind')
-    .map(([kind, count]) => `${formatNumber(locale, count)} ${kind}`)
-    .join(' · ');
-
-  const liveDetectors = detectorRecords.filter((record) =>
-    flag(record, 'enabled'),
-  ).length;
-
   // The runs the agent is working right now, named rather than counted.
   // `inFlightRuns` is `!isSettled` -- {running, suspended} -- deliberately
   // narrower than the literal "status NOT IN (completed,failed,cancelled)"
@@ -490,57 +508,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const runsInFlight: RunCardData[] = inFlightRuns(runRecords).map((record) =>
     runCardOf(record, now),
   );
-
-  // What the product exists to do, measured rather than asserted: of the
-  // incidents that ended, how many ended without anybody being involved. This
-  // is a different question from whether an investigation completed — a run
-  // can succeed at telling a person what to go and fix.
-  const endedIncidents = incidentRecords.filter((record) =>
-    isTerminalIncident(text(record, 'state')),
-  );
-  const unattended = endedIncidents.filter((record) => flag(record, 'self_resolved'));
-  const unattendedRate =
-    endedIncidents.length === 0
-      ? null
-      : Math.round((unattended.length / endedIncidents.length) * 100);
-
-  // How long it takes to get an answer, which is the figure a console that
-  // counts investigations never prints. The median rather than the mean: one
-  // run that hit its wall clock drags an average somewhere nobody's Tuesday
-  // ever was, and this number exists to describe the ordinary case.
-  const finished = runRecords
-    .map((record) => {
-      const opened = Date.parse(text(record, 'started_at'));
-      const closed = Date.parse(text(record, 'finished_at'));
-      if (Number.isNaN(opened) || Number.isNaN(closed)) return 0;
-      return Math.max(0, (closed - opened) / 1000);
-    })
-    .filter((seconds) => seconds > 0)
-    .sort((left, right) => left - right);
-  const median =
-    finished.length === 0
-      ? null
-      : (finished[Math.floor((finished.length - 1) / 2)] ?? 0);
-  const slowest = finished.length === 0 ? 0 : (finished[finished.length - 1] ?? 0);
-
-  // --- The agent, rather than the estate --------------------------------------
-  // Every other figure on this page is about what is being watched. This one is
-  // about whether the product itself is doing its job — the fact the reference
-  // design leads with and this page, until now, never asked.
-  const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
-  // By role rather than by the literal word "completed": the persistence
-  // store is the only source of a run's status and it never writes
-  // "succeeded", but the shared presentation table still resolves that word
-  // to the same success role a tool call's own outcome needs it for — so a
-  // clean finish counts toward this figure under either spelling, rather
-  // than a future drift between the two silently dragging it down.
-  const succeededRuns = settledRuns.filter(
-    (record) => roleFor(text(record, 'status')) === 'success',
-  );
-  const successRate =
-    settledRuns.length === 0
-      ? null
-      : Math.round((succeededRuns.length / settledRuns.length) * 100);
 
   return (
     <>
@@ -588,109 +555,19 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           absent, not shrunk, the moment nothing is left. */}
       <SetupHero locale={locale} setup={setup} source={checklist} />
 
-      {/* Every figure has context and a list behind it. A figure that had neither
-          would not compile — see `figure.tsx`. */}
-      <div
-        data-testid="main-figures"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
-      >
-        <Figure
-          label={message(locale, 'dashboard.stat.watched')}
-          value={formatNumber(locale, watched)}
-          context={message(locale, 'dashboard.stat.watched.context', {
-            kinds: kinds === '' ? message(locale, 'surface.none') : kinds,
-          })}
-          href="/resources"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-        />
-        <Figure
-          label={message(locale, 'dashboard.stat.degraded')}
-          value={formatNumber(locale, degraded)}
-          // A degraded count with nothing beside it is where "24 unhealthy"
-          // and "Incidents: none" stopped making sense together. Naming how
-          // many detectors are actually switched on is the bridge: a finding
-          // is not an incident until one of these turns it into one.
-          // ...and where there are none at all, said as the sentence it is
-          // rather than as "0 of 0", which the guardian band above was already
-          // saying in the same breath.
-          context={
-            detectorRecords.length === 0
-              ? message(locale, 'dashboard.stat.degraded.context.noDetectors', {
-                  count: formatNumber(locale, number(summary, 'problems')),
-                })
-              : message(locale, 'dashboard.stat.degraded.context', {
-                  count: formatNumber(locale, number(summary, 'problems')),
-                  live: formatNumber(locale, liveDetectors),
-                  total: formatNumber(locale, detectorRecords.length),
-                })
-          }
-          href="/resources?health=problem"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={degraded > 0 ? 'down' : 'flat'}
-        />
-        {/* The one figure about the product's own promise rather than about
-            the estate it watches. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.unattended')}
-          value={
-            unattendedRate === null ? '—' : `${formatNumber(locale, unattendedRate)}%`
-          }
-          context={
-            unattendedRate === null
-              ? message(locale, 'dashboard.stat.unattended.context.none')
-              : message(locale, 'dashboard.stat.unattended.context', {
-                  closed: formatNumber(locale, unattended.length),
-                  total: formatNumber(locale, endedIncidents.length),
-                })
-          }
-          href="/incidents"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={
-            unattendedRate === null ? 'flat' : unattendedRate >= 80 ? 'up' : 'down'
-          }
-        />
-        {/* The one figure on this page about the agent rather than the
-            estate: whether the product itself is doing its job. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.successRate')}
-          value={successRate === null ? '—' : `${formatNumber(locale, successRate)}%`}
-          context={
-            successRate === null
-              ? message(locale, 'dashboard.stat.successRate.context.none')
-              : message(locale, 'dashboard.stat.successRate.context', {
-                  succeeded: formatNumber(locale, succeededRuns.length),
-                  settled: formatNumber(locale, settledRuns.length),
-                })
-          }
-          href={
-            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
-          }
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
-        />
-        {/* How long an answer takes, which every figure beside it leaves
-            unanswered: four of them count things, and none of them says
-            whether waiting for the agent is worth doing. The median rather
-            than the mean, because one run that hit its wall clock drags an
-            average somewhere nobody's Tuesday ever was. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.timeToCause')}
-          value={median === null ? '—' : formatDuration(locale, median)}
-          context={
-            median === null
-              ? message(locale, 'dashboard.stat.timeToCause.context.none')
-              : message(locale, 'dashboard.stat.timeToCause.context', {
-                  settled: formatNumber(locale, finished.length),
-                  slowest: formatDuration(locale, slowest),
-                })
-          }
-          href={
-            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
-          }
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
-        />
-      </div>
+      {/* Every KPI reads only from the overview `GET /v1/overview` served --
+          no client recomputation of a number that endpoint already answers
+          (FR-019). `overviewFailed` is the whole document missing; a `null`
+          on one KPI's own `value` is narrower and handled inside the tile. */}
+      <KpiTiles
+        locale={locale}
+        failed={overviewFailed}
+        watched={kpiOf('watched')}
+        degraded={kpiOf('degraded')}
+        selfResolved={kpiOf('self_resolved')}
+        successRate={kpiOf('success_rate')}
+        timeToCause={kpiOf('time_to_cause')}
+      />
 
       {/* What keeps happening, above the narrative rather than inside it. A
           cause that fired nine times is one problem and the feed would tell
@@ -714,12 +591,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             href: '/incidents',
           }}
         >
-          <IncidentGroupList
-            groups={recurring}
-            locale={locale}
-            now={new Date(now)}
-            zone={zone}
-          />
+          <SubjectStrip locale={locale} now={now} groups={recurring} />
         </Panel>
       </div>
 

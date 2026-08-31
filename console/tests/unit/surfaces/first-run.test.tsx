@@ -1898,12 +1898,14 @@ describe('the dashboard of a deployment that is not set up', () => {
     render(await DashboardScreen(await surfaceContext({})));
   }
 
-  it('renders the figures at zero rather than hiding them', async () => {
+  it('renders the KPI tiles at zero rather than hiding them', async () => {
     await dashboard('first-run');
 
     // Honest numbers on a new deployment are information. The alternative —
     // hiding the product behind a form — is what this feature exists to undo.
-    expect(screen.getAllByTestId('figure').length).toBeGreaterThan(0);
+    // 050-painel-vivo moved these from client-computed <Figure>s to KpiTiles
+    // reading GET /v1/overview; the claim is unchanged, the testid is not.
+    expect(screen.getAllByTestId('kpi-tile').length).toBe(5);
     expect(screen.getByTestId('main-figures')).toHaveTextContent('0');
   });
 
