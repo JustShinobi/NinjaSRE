@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AGENT_INCIDENT_STATES, HUMAN_INCIDENT_STATES } from '@/design/status';
 import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
-import { AttentionBlock } from '@/surfaces/attention';
 import { Figure } from '@/surfaces/figure';
 import { DashboardScreen, oldestAttention } from '@/surfaces/screens/dashboard';
 import { surfaceContext } from '@/surfaces/context';
@@ -327,19 +326,16 @@ describe('what a failed run reads as', () => {
     expect(screen.getByText(EN['failure.investigator.title'])).toBeInTheDocument();
   });
 
-  it('sends the band to the pending setup step, not to the run', async () => {
-    await dashboardWithRaisedFailure();
-
-    const row = screen
-      .getAllByTestId('attention-row')
-      .find((candidate) => candidate.getAttribute('data-kind') === 'failure');
-    if (row === undefined) {
-      throw new Error('no attention row was drawn for the failed run');
-    }
-    // Not the model step by name: this failure is the deployment's own runtime,
-    // never a configuration field, so the band sends somebody to the guided
-    // setup itself rather than to a step that may already be finished.
-    expect(within(row).getByRole('link')).toHaveAttribute('href', '/first-run');
+  // 050-painel-vivo narrowed the visible "needs you" band to pending
+  // remediation decisions only (Main.dc.html draws nothing else there), so
+  // a failed run's own row -- and the link to /first-run this test checks
+  // -- has no home in the redesigned band. Named in this feature's control
+  // file as a capability with no explicit replacement, rather than silently
+  // dropped: skipped, not deleted, so whoever decides where it belongs next
+  // finds the test rather than rediscovering the gap from a bug report.
+  it.skip('sends the band to the pending setup step, not to the run -- no surface for this in the redesigned band; see 050-painel-vivo/controle.md', () => {
+    // Intentionally left unimplemented pending a decision on where a
+    // systemic run failure should now be surfaced.
   });
 });
 
@@ -550,47 +546,50 @@ describe('the estate panel that used to be a plain inventory', () => {
   });
 });
 
-// --- 7. The oldest badge explains itself instead of shouting ------------------------------
+// --- 7. What is waiting on a person is counted correctly, even though the
+//        band that used to list every kind of it now shows only decisions --
 
-describe('the "needs you" band’s oldest badge', () => {
-  it('is not drawn in shouting capitals', () => {
-    render(
-      <AttentionBlock
-        heading="1 item needs you"
-        oldest="Waiting longest: 2h 14m"
-        rows={[
-          {
-            id: 'a-1',
-            kind: 'approval',
-            title: 'Reclaim 41 GiB on local-lvm',
-            detail: 'awaiting decision',
-            href: '/approvals?selected=a-1',
-            since: '2h ago',
-          },
-        ]}
-        openLabel="Open"
-        moreLabel={(over) => `and ${String(over)} more waiting`}
-        moreHref="/decisions"
-      />,
-    );
+describe('the header\'s "blocked on you" count', () => {
+  // 050-painel-vivo narrowed the visible band from a general "waiting on a
+  // person" list (approvals, proposals, incidents, failed runs together) to
+  // the inline decision band Main.dc.html draws -- pending remediations
+  // only. The header count above the run band is the one place the broader
+  // figure survives, reading the same underlying list these tests always
+  // checked; what moved is that a row is no longer drawn for a kind the
+  // decision band cannot render a decision control for, so these tests now
+  // check the count rather than a row's text. The "oldest badge shouts"
+  // case this section covered before is retired outright: the per-card
+  // "since" replaced a single badge for the whole band, and there is
+  // nothing left to test about capitalisation of a rendering that no
+  // longer exists.
+  //
+  // A failed run that raised a configuration exception (`InvestigatorNotConfigured`)
+  // used to get its own row here, pointed at `/first-run`. That specific
+  // sentence has no home in the redesigned Painel and is named, not
+  // silently dropped, in this feature's control file -- a future feature
+  // owns deciding whether it needs one.
 
-    const badge = screen.getByText('Waiting longest: 2h 14m');
-    expect(badge.className).not.toMatch(/\buppercase\b/);
-  });
-
-  it('does not ask a person to look at an incident that has already ended', async () => {
+  it('does not count an incident that has already ended as one waiting on a person', async () => {
     // The regression this replaces: the screen dropped an incident only when
     // its state equalled `closed`, a word the store's enumeration does not
     // contain, so nothing was ever dropped and three finished incidents were
     // counted as three things waiting on a person.
+    //
+    // The three finished incidents this fixture serves must add zero to the
+    // count -- checked as a delta against the "populated" scenario's own
+    // baseline (its pending approvals, proposals and any failed run,
+    // unrelated to what this test is about) rather than against zero
+    // outright, because the fixture is shared and its baseline is not this
+    // test's concern.
     await dashboardWithFinishedIncidents();
+    const withFinishedIncidents = Number(
+      screen.getByTestId('run-band-blocked-count').textContent,
+    );
 
-    const band = screen.queryByTestId('attention');
-    const rows = band === null ? [] : within(band).queryAllByTestId('attention-row');
-    const titles = rows.map((row) => row.textContent);
-    expect(titles.some((text) => text.includes('cleared upstream'))).toBe(false);
-    expect(titles.some((text) => text.includes('maintenance window'))).toBe(false);
-    expect(titles.some((text) => text.includes('shut by an operator'))).toBe(false);
+    await dashboard('populated');
+    const baseline = Number(screen.getByTestId('run-band-blocked-count').textContent);
+
+    expect(withFinishedIncidents).toBe(baseline);
   });
 
   it('tells the narrative that a self-resolved incident ended well', async () => {
@@ -655,17 +654,20 @@ describe('the "needs you" band’s oldest badge', () => {
     // remediated is the agent's, and a product whose claim is that it works
     // without you must not use its first screen to count its own work as your
     // backlog. Only what nothing has picked up, or what stopped to ask a
-    // person, belongs in the band.
+    // person, counts toward "blocked on you" -- checked by count, since the
+    // redesigned band no longer draws a row per incident (see the header
+    // count section above for why).
     await dashboardWithLiveIncidents();
+    const withLiveIncidents = Number(screen.getByTestId('run-band-blocked-count').textContent);
 
-    const band = screen.getByTestId('attention');
-    const kinds = within(band)
-      .getAllByTestId('attention-row')
-      .map((row) => row.textContent);
-    expect(kinds.some((text) => text.includes('nobody has picked up'))).toBe(true);
-    expect(kinds.some((text) => text.includes('asked a person'))).toBe(true);
-    expect(kinds.some((text) => text.includes('agent is reading'))).toBe(false);
-    expect(kinds.some((text) => text.includes('agent is changing'))).toBe(false);
+    await dashboard('populated');
+    const baseline = Number(screen.getByTestId('run-band-blocked-count').textContent);
+
+    // Two of the five fired incidents need a person (`open`, `awaiting_human`);
+    // the other two (`investigating`, `remediating`) are the agent's own work
+    // and must add nothing -- checked as a delta against the "populated"
+    // baseline for the same reason the test above is.
+    expect(withLiveIncidents - baseline).toBe(2);
   });
 
   it('folds what keeps happening into one row per cause', async () => {
@@ -691,18 +693,18 @@ describe('the "needs you" band’s oldest badge', () => {
     await dashboardWithLiveIncidents();
 
     // One `investigating`, one `remediating`, out of five incidents served.
-    expect(screen.getByTestId('tally-held')).toHaveTextContent('2');
+    expect(screen.getByTestId('run-band-followed-count')).toHaveTextContent('2');
   });
 
-  it('leads with whether the deployment is working before what it has left', async () => {
+  it('leads with what is running before what needs a decision', async () => {
     await dashboardWithLiveIncidents();
 
-    const band = screen.getByTestId('guardian-band');
-    const attention = screen.getByTestId('attention');
-    // The band is the first thing on the page. `compareDocumentPosition` says
-    // so structurally rather than by reading class names, so a later layout
-    // change cannot quietly put the backlog back on top.
-    expect(band.compareDocumentPosition(attention)).toBe(
+    const band = screen.getByTestId('run-band');
+    const decisions = screen.getByTestId('attention-decision-band');
+    // The run band is the first thing on the page. `compareDocumentPosition`
+    // says so structurally rather than by reading class names, so a later
+    // layout change cannot quietly put the decision band back on top.
+    expect(band.compareDocumentPosition(decisions)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });

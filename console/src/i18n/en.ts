@@ -535,6 +535,22 @@ export const EN = {
   'dashboard.runBand.empty': 'Nothing is running right now — every investigation has finished or none has started.',
   'dashboard.runBand.empty.action': 'Start one →',
 
+  // --- The Painel: "Precisa de você" (decided inline) --------------------------
+  'dashboard.decisionBand.title': 'Needs you',
+  'dashboard.decisionBand.plan': 'What will happen',
+  'dashboard.decisionBand.rollback': 'How it reverses',
+  'dashboard.decisionBand.approve': 'Approve',
+  'dashboard.decisionBand.reject': 'Reject',
+  'dashboard.decisionBand.reason': 'Reason',
+  'dashboard.decisionBand.reasonRequired': 'A reason is required to reject.',
+  'dashboard.decisionBand.failed': 'The decision could not be recorded. Try again.',
+  'dashboard.decisionBand.noPermission':
+    'You do not hold the permission to decide this. Ask somebody who does.',
+  'dashboard.decisionBand.viewPlan': 'See plan →',
+  'dashboard.decisionBand.empty': 'Nothing is waiting on a decision right now.',
+  'dashboard.decisionBand.empty.action': 'See the decision history →',
+  'dashboard.decisionBand.more': '{count} more waiting →',
+
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
   'dashboard.attention.count.one': '{count} item needs you',

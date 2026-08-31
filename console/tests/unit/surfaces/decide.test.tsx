@@ -6,7 +6,6 @@ import { DecisionControls } from '@/surfaces/decision';
 import { CredentialField } from '@/surfaces/credential';
 import { Figure } from '@/surfaces/figure';
 import { DependencyGraph, NEIGHBOUR_BOUND } from '@/surfaces/graph';
-import { AttentionBlock } from '@/surfaces/attention';
 import { ActivityFeed } from '@/surfaces/activity';
 
 /**
@@ -283,48 +282,10 @@ describe('the graph and the list beside it', () => {
 });
 
 describe('the attention block and the activity feed', () => {
-  it('is absent when nothing is waiting, rather than cheerfully empty', () => {
-    const { container } = render(
-      <AttentionBlock
-        heading="0 items need you"
-        oldest=""
-        rows={[]}
-        openLabel="Open"
-        moreLabel={(over) => `and ${String(over)} more waiting`}
-        moreHref="/decisions"
-      />,
-    );
-
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('reaches each subject in one click', () => {
-    render(
-      <AttentionBlock
-        heading="1 item needs you"
-        oldest="Oldest 2h 14m"
-        rows={[
-          {
-            id: 'a-1',
-            kind: 'approval',
-            title: 'Reclaim 41 GiB on local-lvm',
-            detail: 'awaiting decision',
-            href: '/approvals?selected=a-1',
-            since: '2h ago',
-          },
-        ]}
-        openLabel="Open"
-        moreLabel={(over) => `and ${String(over)} more waiting`}
-        moreHref="/decisions"
-      />,
-    );
-
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/approvals?selected=a-1');
-    expect(screen.getByTestId('attention-row')).toHaveAttribute(
-      'data-kind',
-      'approval',
-    );
-  });
+  // AttentionBlock's own coverage moved to attention.test.tsx when the
+  // 050-painel-vivo feature narrowed it from a general "waiting on a person"
+  // list to the inline decision band Main.dc.html draws -- these two cases
+  // tested the retired generic-row shape and no longer apply.
 
   it('gives every activity entry a kind in words and an absolute instant', () => {
     render(

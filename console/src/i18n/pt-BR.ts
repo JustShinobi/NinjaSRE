@@ -557,6 +557,22 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.runBand.empty': 'Nada está rodando agora — toda investigação terminou ou nenhuma foi iniciada.',
   'dashboard.runBand.empty.action': 'Investigar algo →',
 
+  // --- O Painel: "Precisa de você" (decidido em linha) -------------------------
+  'dashboard.decisionBand.title': 'Precisa de você',
+  'dashboard.decisionBand.plan': 'O que vai acontecer',
+  'dashboard.decisionBand.rollback': 'Como reverte',
+  'dashboard.decisionBand.approve': 'Aprovar',
+  'dashboard.decisionBand.reject': 'Recusar',
+  'dashboard.decisionBand.reason': 'Razão',
+  'dashboard.decisionBand.reasonRequired': 'Uma razão é obrigatória para recusar.',
+  'dashboard.decisionBand.failed': 'A decisão não pôde ser registrada. Tente de novo.',
+  'dashboard.decisionBand.noPermission':
+    'Você não tem a permissão para decidir isto. Peça a quem tem.',
+  'dashboard.decisionBand.viewPlan': 'Ver plano →',
+  'dashboard.decisionBand.empty': 'Nada espera uma decisão agora.',
+  'dashboard.decisionBand.empty.action': 'Ver o histórico de decisões →',
+  'dashboard.decisionBand.more': '{count} a mais esperando →',
+
   'dashboard.attention.title': 'Precisa de você',
   'dashboard.attention.count': '{count} itens precisam de você',
   'dashboard.attention.count.one': '{count} item precisa de você',

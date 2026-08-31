@@ -8,12 +8,12 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { formatCount, formatDuration, formatNumber, timestamp } from '@/i18n/format';
+import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { ActivityFeed, type ActivityEntry } from '../activity';
-import { AttentionBlock, type AttentionRow } from '../attention';
+import { AttentionBlock, type DecisionCardData, type DecisionStep } from '../attention';
 import { readFailure } from '../failures';
 import { Figure } from '../figure';
 import { Panel } from '../panel';
@@ -47,10 +47,11 @@ import {
   TUTORIAL_REPLAY_VALUE,
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
-import { GuardianBand, type FlightRow } from '../guardian-band';
+import { RunBand, inFlightRuns, runCardOf, type RunCardData } from '../run-band';
 import { IncidentGroupList } from '../incident-group-list';
 import { groupBySubject } from '../incident-groups';
 import { viewerNode } from '../tree';
+import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -79,6 +80,40 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 
 /** How many activity entries the feed shows before it is a list rather than a narrative. */
 const FEED_LENGTH = 8;
+
+/** The permission the gateway requires to decide a remediation.
+ *
+ * `approval.review` (`Permission.APPROVAL_REVIEW`) -- the same right
+ * `POST /v1/approvals/{id}/decision` itself checks
+ * (`gateway/http/security/console_routes.py`), and the identical constant
+ * `screens/approvals.tsx` already gates its own decision controls on.
+ */
+const DECIDE = 'approval.review';
+
+/** One numbered step of a plan or its reversal, as the approval record serves it. */
+function decisionStepsOf(record: unknown, key: string): readonly DecisionStep[] {
+  return list(record, key).map((entry) => ({
+    ordinal: number(entry, 'ordinal'),
+    summary: text(entry, 'summary'),
+  }));
+}
+
+/** `record` (one `ApprovalView`), as the inline decision band reads it. */
+function decisionCardOf(
+  record: unknown,
+  locale: import('@/i18n/messages').Locale,
+  now: Date,
+  zone: string,
+): DecisionCardData {
+  return {
+    id: text(record, 'approval_id'),
+    title: text(record, 'title'),
+    riskClass: text(field(record, 'risk'), 'class'),
+    since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
+    steps: decisionStepsOf(record, 'steps'),
+    rollback: decisionStepsOf(record, 'rollback'),
+  };
+}
 
 /**
  * The incidents this screen asks for by name, rather than by hoping.
@@ -125,6 +160,18 @@ function attentionWeight(kind: string): number {
 }
 
 /** Return the attention row whose source timestamp is the earliest valid instant. */
+/** One thing waiting on a person, for the header's own count -- never rendered
+ * as a row itself since the decision band narrowed to pending approvals. */
+export interface AttentionRow {
+  readonly id: string;
+  readonly kind: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly href: string;
+  readonly since: string;
+  readonly at?: string;
+}
+
 export function oldestAttention(
   rows: readonly AttentionRow[],
 ): AttentionRow | undefined {
@@ -151,7 +198,6 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     proposals,
     runs,
     estate,
-    health,
     detectors,
     incidents,
     blocked,
@@ -165,7 +211,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     panelRead('/v1/proposals', () => read('/v1/proposals', init)),
     panelRead('/v1/runs', () => read('/v1/runs', init)),
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-    panelRead('/health/ready', () => read('/health/ready', init)),
+    // `/health/ready` is no longer read here: the redesigned Painel has no
+    // "is the guardian active" banner in its own content -- that indicator
+    // lives in the sidebar footer (shell-level, outside this feature's
+    // scope), and reading a source nothing renders is the recomputation
+    // this feature's own rule forbids in the other direction.
     panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
     // Two reads of one listing, because they are two questions. The narrative
     // below wants what happened lately, closures included; the attention band
@@ -293,7 +343,16 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     return Date.parse(left.at ?? '') - Date.parse(right.at ?? '');
   });
 
-  const oldest = oldestAttention(attention);
+  // The pending remediations the inline decision band reads -- oldest
+  // requested first, sorted on the raw instant before it is phrased into
+  // "since", over the same listing (never a second read of /v1/approvals).
+  const pendingDecisions: DecisionCardData[] = approvalRecords
+    .filter((record) => text(record, 'state') === 'pending')
+    .sort(
+      (left, right) =>
+        Date.parse(text(left, 'requested_at')) - Date.parse(text(right, 'requested_at')),
+    )
+    .map((record) => decisionCardOf(record, locale, now, zone));
 
   // --- The narrative ---------------------------------------------------------
   const feed: ActivityEntry[] = [];
@@ -365,18 +424,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     flag(record, 'enabled'),
   ).length;
 
-  // The runs the agent is working right now, named rather than counted. A
-  // run's own headline is the one sentence that names it; the listing always
-  // carries one, synthesised from the record when nothing was stored.
-  const flights: FlightRow[] = runRecords
-    .filter((record) => text(record, 'status') === 'running')
-    .map((record) => ({
-      id: text(record, 'run_id'),
-      headline: subjectOf(record, locale).text,
-      status: text(record, 'status'),
-      since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
-      href: `/runs?selected=${text(record, 'run_id')}`,
-    }));
+  // The runs the agent is working right now, named rather than counted.
+  // `inFlightRuns` is `!isSettled` -- {running, suspended} -- deliberately
+  // narrower than the literal "status NOT IN (completed,failed,cancelled)"
+  // reading, which still admits `interrupted`: a run a reaper marked that
+  // way days ago, with no title, is settled and does not belong here.
+  const runsInFlight: RunCardData[] = inFlightRuns(runRecords).map((record) =>
+    runCardOf(record, now),
+  );
 
   // What the product exists to do, measured rather than asserted: of the
   // incidents that ended, how many ended without anybody being involved. This
@@ -452,54 +507,23 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       {/* Is it working, before does it need you. An operator opening this page
           is asking the first question, and the second is only frightening
           when the first has no answer. */}
-      <GuardianBand
-        locale={locale}
-        ready={flag(dataOf(health), 'ready')}
-        posture={message(locale, 'shell.guardian.posture.propose')}
-        detectorsLive={liveDetectors}
-        detectorsTotal={detectorRecords.length}
-        watched={watched}
-        blocked={attention.length}
-        held={heldRecords.length}
-        flights={flights}
-      />
+      <div className="mb-5">
+        <RunBand
+          locale={locale}
+          runs={runsInFlight}
+          followedCount={heldRecords.length}
+          blockedCount={attention.length}
+          moreHref="/runs"
+        />
+      </div>
 
-      <AttentionBlock
-        heading={formatCount(
-          locale,
-          attention.length,
-          'dashboard.attention.count.one',
-          'dashboard.attention.count',
-        )}
-        oldest={message(locale, 'dashboard.attention.oldest', {
-          age: oldest === undefined ? '' : oldest.since,
-        })}
-        rows={attention}
-        openLabel={message(locale, 'surface.open')}
-        moreLabel={(over) =>
-          message(locale, 'dashboard.attention.more', {
-            count: formatNumber(locale, over),
-          })
-        }
-        moreHref="/decisions"
-      />
-
-      {attention.length === 0 ? (
-        <div className="mb-5">
-          <Panel
-            title={message(locale, 'dashboard.attention.title')}
-            state={stateOf(approvals, true)}
-            dependency={dependencyOf(approvals)}
-            labels={panelLabels(locale, message(locale, 'dashboard.attention.title'))}
-            empty={{
-              heading: message(locale, 'dashboard.attention.empty.heading'),
-              body: message(locale, 'dashboard.attention.empty.body'),
-              actionLabel: message(locale, 'dashboard.attention.empty.action'),
-              href: '/runs',
-            }}
-          />
-        </div>
-      ) : null}
+      <div className="mb-5">
+        <AttentionBlock
+          locale={locale}
+          decisions={pendingDecisions}
+          canDecide={may(viewer, DECIDE)}
+        />
+      </div>
 
       {/* While anything remains, finishing setup dominates the page rather
           than sitting in a small side card beside an empty centre. It is
