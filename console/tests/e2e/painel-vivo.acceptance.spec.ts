@@ -623,7 +623,16 @@ test(
       .evaluateAll((nodes) =>
         nodes.map((node) => {
           const style = getComputedStyle(node);
-          return [style.borderTopLeftRadius, style.transform, style.clipPath].join('|');
+          // `rotate` as well as `transform`: Tailwind v4 compiles `rotate-45`
+          // to the standalone `rotate` property, so a probe reading only
+          // `transform` is blind to exactly the rotation that turns the
+          // investigation mark from a square into a diamond.
+          return [
+            style.borderTopLeftRadius,
+            style.transform,
+            style.rotate,
+            style.clipPath,
+          ].join('|');
         }),
       );
     const drawn = new Map<string, string>();

@@ -719,7 +719,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             </div>
           </Panel>
         </div>
-        <div className="min-w-0" data-testid="live-activity">
+        <div className="lg:col-span-2 min-w-0" data-testid="live-activity">
           <Panel
             title={message(locale, 'dashboard.activity.title')}
             state={stateOf(runs, recent.length === 0)}
