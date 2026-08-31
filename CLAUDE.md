@@ -53,10 +53,15 @@ beats one that says where it came from. Where both help, write both.
 
 ## Writing style in committed files
 
-- Do not cite requirement identifiers (`FR-018`), success criteria (`SC-003`),
-  constitution article numbers, or feature numbers in committed code. Those
-  point at documents a contributor cloning the repository will not have. State
-  the substance instead.
+- Prefer the substance to the pointer. A comment that says what a mechanism
+  does teaches more than one naming the requirement that asked for it, and a
+  test whose name states the behaviour reads better than one that states an
+  identifier.
+- Citing an identifier is **allowed**, and this bullet used to forbid it on
+  grounds this file itself retired above: the planning material ships with the
+  clone now, so `FR-018` resolves. Where the identifier is also the handle
+  something selects by — the acceptance suites are run with `--grep` against
+  exactly these names — keeping it is the better call, not a lapse.
 
 ## Commits
 
