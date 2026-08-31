@@ -400,3 +400,25 @@ razão na própria linha. Um `[~]` nunca é um `[x]` envergonhado.
       T037's own new click-through test, which reaches this exact shape for
       real by discarding both expired decisions. See `controle.md` for why
       a genuinely-occurring scenario was not the ending chosen.
+- [x] T039 Visual-gate repair: the card's "why" section printed the same
+      sentence as step 1 of "what will happen", word for word, on real
+      staging data — both were reading the one `intent` field the store
+      carries in a remediation approval's arguments. Stop the duplicate,
+      keeping the sentence in the section it actually justifies and giving
+      the other section something it genuinely has of its own.
+      Feito — root cause was server-side, not the card: `remediation_payload`
+      (`platform/remediation/models.py`) wrote `action.intent` into both the
+      approval's top-level `intent` field (the card's "why") and into step
+      1's own description (the card's "what will happen"). `DecisionCard`
+      itself was never at fault — it renders whatever two independent
+      fields it is given. Fixed by sourcing the step's description from
+      `action.operation` (already computed, "capability(arguments)", the
+      exact operation a person could run instead) instead of `action.intent`,
+      falling back to `action.summary()` only for the rare action built
+      without one. `intent`/"why" is untouched. Two new contract tests in
+      `tests/unit/gateway/http/test_approvals_field_contract.py`, confirmed
+      red first with the real failure
+      (`assert 'checkout is saturating its replicas' != 'checkout is
+      saturating its replicas'`), green after the fix, and confirmed able to
+      fail again by cutting the wire back to `action.intent` by hand and
+      restoring it — see `controle.md`.

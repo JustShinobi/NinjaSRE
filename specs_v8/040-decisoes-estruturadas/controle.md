@@ -807,3 +807,162 @@ nunca sai da fila dentro de uma sessão de teste, e por isso o teste novo de
 T037 precisa reaproveitar/repropor em vez de decidir `apr-0001` — registrado
 aqui para quem um dia for cobrir o ramo `DecisionControls` com um clique
 real também, não descoberto por esta tarefa como um defeito a fechar agora.
+
+## T039 — o reparo do gate visual: "Por quê" repetia o passo 1
+
+Achado pelo gate visual do slot S2 (`evidence/visual/VEREDITO.md`): em
+`/decisions`, claro e escuro, a seção "Por quê" imprimia, palavra por
+palavra, o mesmo texto do passo 1 de "O que vai acontecer" — verificado
+contra o banco de staging real, não contra o mock (que já divergia por
+acidente, ver abaixo).
+
+**Causa, cravada antes de qualquer edição.** `DecisionCard`
+(`console/src/surfaces/proposal.tsx`) nunca teve o defeito — renderiza dois
+campos (`why`, `steps[0].summary`) genuinamente independentes, exatamente
+como os recebe. A raiz é do lado do servidor: `remediation_payload()`
+(`platform/remediation/models.py:727-759`, antes do reparo) gravava
+`action.intent` duas vezes no mesmo payload — uma vez no campo de topo
+`intent` (via `action.to_payload()`, `models.py:293`, que vira
+`ApprovalView.intent` em `gateway/http/routes/approvals.py:587`, lido pela
+tela como "why" em `console/src/surfaces/screens/approvals.tsx:264`) e de
+novo como a `description` do único passo do array `steps`
+(`models.py:745` antes do reparo — `"description": action.intent or
+action.summary()`), que vira `ApprovalView.steps[0].summary`, lido pela
+tela como "what will happen" (`approvals.tsx:261`). `action.intent` é o
+`approval_reason` que a metadata da capacidade declara
+(`core/capability/metadata.py:285`, "must say what the human is being
+asked to accept") — uma frase de justificativa, não uma descrição de
+execução — carregado até aqui via `platform/remediation/gating.py:501`
+(`intent=context.registered.metadata.approval_reason`). Genuinamente uma
+frase só, para um "porquê" genuíno — nunca dois campos que a implantação já
+carregava, exatamente como a mensagem do reparo cravou: não havia um
+segundo campo de "o que vai acontecer" para ler; a implantação nunca
+computou um a partir do `intent`.
+
+**Por que o mock não pegou isto.** `tools/mockplane/dataset/served.py`'s
+`_decision()` monta cada decisão do fixture campo por campo, nunca via
+`remediation_payload()` — o mock nunca passa pelo código real que tem o
+defeito. Nas cinco decisões construídas hoje, `intent` e `steps[0].summary`
+nunca colidem, por dois motivos diferentes conforme o caso: `_PENDING`
+(`apr-0001`, a única com os dois campos populados) já declara os dois como
+frases diferentes de propósito (`intent="The Redis probes fail..."` vs
+`steps[0].summary="Start the guest via Proxmox"`); `_EXPIRED`/
+`_EXPIRED_DEAD_ORIGIN` nunca passam `intent=` (fica `""`, o default do
+próprio `_decision()`), então não há como colidir com um `steps[0].summary`
+não vazio; `_APPROVED`/`_REJECTED` não passam `steps=` nem `intent=`. A
+suíte de aceite Playwright
+(`decisoes-estruturadas.acceptance.spec.ts`), que roda inteiramente contra
+o mock, já estava e continuaria verde antes e depois do reparo — por isso o
+teste vermelho-primeiro deste reparo não é um `.spec.ts`, e sim um teste de
+contrato Python contra o `RequestBuilder`/`ApprovalService`/`list_approvals`
+reais, a única camada onde o defeito de fato existe.
+
+**O reparo.** A descrição do passo passa a vir de `action.operation`
+(`platform/remediation/models.py:755`, campo que já existia — "the exact
+operation a person could run instead... what a proposal is for",
+`capacidade(argumentos)`, calculado em
+`platform/remediation/gating.py:556-565`/`_operation_of`) em vez de
+`action.intent`, com `action.summary()` como reserva só para a rara ação
+construída fora do gate (sem `operation` preenchido). `intent`/"Por quê"
+não muda. Nenhuma mudança no console: os dois campos já eram lidos
+separadamente (`why: text(record, 'intent')`, `steps: stepsOf(record,
+'steps')`) — só o servidor mandava o mesmo valor duas vezes.
+
+**Vermelho confirmado antes do reparo**, dois testes novos em
+`tests/unit/gateway/http/test_approvals_field_contract.py` (reaproveitando
+a fixture `_action()` já existente, que já carrega um `intent` genuíno —
+estendida com um parâmetro `operation` opcional, default `""`, sem afetar
+nenhuma das oito chamadas já existentes):
+
+```
+test_the_first_step_does_not_repeat_the_why_sentence FAILED
+AssertionError: assert 'checkout is saturating its replicas' != 'checkout is saturating its replicas'
+
+test_the_first_step_names_the_capability_and_its_own_arguments FAILED
+assert 'checkout is ... its replicas' == "scale_worklo..., replicas=4)"
+```
+
+Verde depois do reparo: `uv run pytest
+tests/unit/gateway/http/test_approvals_field_contract.py -q` → **9 passed**,
+EXIT=0.
+
+**Confirmado que pode falhar de novo — o fio cortado à mão e restaurado.**
+Linha cortada: `platform/remediation/models.py:755` — de
+`"description": action.operation or action.summary()"` de volta para
+`"description": action.intent or action.summary()"`, o defeito original,
+byte a byte. Rodado `uv run pytest
+tests/unit/gateway/http/test_approvals_field_contract.py -q -k
+does_not_repeat_the_why` → vermelho de novo, mesma mensagem
+(`AssertionError: assert 'checkout is saturating its replicas' !=
+'checkout is saturating its replicas'`), EXIT=1. Restaurado; `git diff
+platform/remediation/models.py` depois de restaurar confere exatamente com
+o reparo de antes do corte — só a docstring nova e a troca de
+`action.intent` por `action.operation` na linha da descrição, nada mais.
+
+**Blast radius, medido, não presumido.** `action.intent` só tinha quatro
+leitores em todo o repositório antes do reparo:
+`platform/remediation/request.py:155`, dentro de
+`RemediationRequest.rationale()` — uma terceira composição, para
+auditoria/notificação (`ApprovalService.queue(rationale=...)`, gravada sob
+a chave de topo `rationale`), que nunca chega a `ApprovalView` e por isso
+não muda; `models.py:293`, o campo de topo que vira "why" (continua);
+`models.py:745` antes do reparo, a descrição do passo (o único trocado —
+agora lê `action.operation`, linha 755 depois do reparo); `gating.py:543`,
+para o motor de política, também nunca servido à tela (continua). Nenhum
+outro leitor tocado. `REMEDIATION_PAYLOAD_STEPS` não é lido
+por nenhum teste fora deste arquivo com uma asserção sobre o conteúdo do
+passo (varredura confirmada). `RemediationAction.of_payload()` já regrava
+`operation` a partir do payload gravado (`models.py:321`), então a
+re-proposta (T031/`repropose_approval`, que reconstrói a ação via
+`RemediationAction.of_payload`) preserva a mesma `operation` na segunda
+volta, sem regressão.
+
+**Gates rodados, com saída real:**
+
+- `uv run pytest tests/unit/gateway/http/test_approvals_field_contract.py -q`
+  → 9 passed, EXIT=0.
+- `uv run pytest tests/unit/gateway/http/ -q` → 662 passed, EXIT=0 (rodado à
+  parte de `tests/unit/platform/remediation/`/`tests/contract/remediation/`
+  por causa de uma colisão pré-existente de `conftest.py` entre pastas
+  quando as três são passadas juntas ao `pytest` —
+  `ImportError: cannot import name 'TEAM_PAYMENTS' from 'conftest'`, nada a
+  ver com este reparo — cada pasta rodada separadamente em vez disso, todas
+  verdes).
+- `uv run pytest tests/unit/platform/remediation/ -q` → 127 passed, EXIT=0.
+- `uv run pytest tests/contract/remediation/ -q` → 317 passed, EXIT=0.
+- `uv run ruff check platform/remediation/models.py
+  tests/unit/gateway/http/test_approvals_field_contract.py` → "All checks
+  passed!", EXIT=0.
+- `uv run ruff format --check` nos dois mesmos arquivos → "2 files already
+  formatted", EXIT=0.
+- `uv run mypy` nos dois arquivos, separados → "Success: no issues found",
+  EXIT=0 nos dois.
+- `make check-constants` → EXIT=0 (nenhuma constante nova; `operation` e
+  `intent` continuam literais ad hoc dentro do payload, como já eram antes
+  do reparo).
+- `make check-imports` → "Contracts: 7 kept, 0 broken", EXIT=0.
+- `uv run python -m tools.console_gate static` → EXIT=0 (nenhum arquivo do
+  console tocado; rodado porque a instrução do slot pede antes de todo
+  commit).
+
+**Fora do escopo deste reparo, nomeado.** Nenhuma mudança no console
+(`proposal.tsx`, `approvals.tsx`) — não havia defeito ali. Nenhuma suíte
+Playwright nova — como o parágrafo acima registra, nenhuma das cinco
+decisões que o mock serve hoje (`served.py`) chega a colidir `intent` com
+`steps[0].summary`, então uma suíte de aceite contra o mock já estava e
+continuaria verde antes e depois deste reparo, e não seria um
+vermelho-primeiro honesto. A dívida de baseline
+visual (`console/visual/screens.json`, T032, pré-existente) e o vermelho
+esperado de `pt-BR.ts` (T029) continuam do líder/merge do slot, inalterados
+por este reparo.
+
+## Ledger de critérios — T039
+
+| Peça | Estado | Detalhe |
+|---|---|---|
+| Vermelho confirmado, mensagem real | FEITO | `test_approvals_field_contract.py`, ver acima |
+| Reparo — descrição do passo não repete `intent` | FEITO | `platform/remediation/models.py:755` |
+| Fio cortado e restaurado, confirmado | FEITO | `models.py:755`, ver acima |
+| Blast radius medido | FEITO | quatro leitores de `action.intent`, um só tocado |
+| Gates do domínio tocado | FEITO | pytest/ruff/mypy/check-constants/check-imports/console-static, todos EXIT=0 |
+| Console | Fora do escopo — sem defeito | `proposal.tsx`/`approvals.tsx` já liam os dois campos separados |
