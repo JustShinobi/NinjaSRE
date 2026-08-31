@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { stageRegime, toolSummary } from '@/surfaces/screens/agent-pipeline-metro';
+import {
+  STAGE_TREATMENT_CLASSES,
+  stageRegime,
+  stageTreatment,
+  toolSummary,
+} from '@/surfaces/screens/agent-pipeline-metro';
 
 describe('stageRegime', () => {
   it('names the bound model role when one is set', () => {
@@ -48,5 +53,67 @@ describe('toolSummary', () => {
       destructive: 0,
       enabled: 0,
     });
+  });
+});
+
+describe('stageTreatment', () => {
+  const order = [
+    'resolve_integrations',
+    'intake',
+    'plan_evidence',
+    'gather_evidence',
+    'diagnose',
+    'deliver',
+  ];
+
+  it('draws every stage not-reached when nothing names a current one', () => {
+    for (const stage of order) {
+      expect(stageTreatment(order, stage, undefined)).toBe('not-reached');
+    }
+  });
+
+  it('draws the current stage as running', () => {
+    expect(stageTreatment(order, 'gather_evidence', 'gather_evidence')).toBe('running');
+  });
+
+  it('draws every stage ahead of the current one as passed', () => {
+    expect(stageTreatment(order, 'resolve_integrations', 'gather_evidence')).toBe(
+      'passed',
+    );
+    expect(stageTreatment(order, 'intake', 'gather_evidence')).toBe('passed');
+    expect(stageTreatment(order, 'plan_evidence', 'gather_evidence')).toBe('passed');
+  });
+
+  it('draws every stage behind the current one as not-reached', () => {
+    expect(stageTreatment(order, 'diagnose', 'gather_evidence')).toBe('not-reached');
+    expect(stageTreatment(order, 'deliver', 'gather_evidence')).toBe('not-reached');
+  });
+
+  it('falls back to not-reached when the current stage is not one this pipeline names', () => {
+    expect(stageTreatment(order, 'intake', 'a_stage_this_order_does_not_have')).toBe(
+      'not-reached',
+    );
+  });
+});
+
+describe('STAGE_TREATMENT_CLASSES', () => {
+  it('rings a passed stage in the accent and grounds it on the success tint', () => {
+    expect(STAGE_TREATMENT_CLASSES.passed).toContain('border-accent');
+    expect(STAGE_TREATMENT_CLASSES.passed).toContain('bg-success-bg');
+    expect(STAGE_TREATMENT_CLASSES.passed).toContain('text-accent');
+  });
+
+  it('fills the running stage solid with the accent and sets its icon in the on-accent contrast', () => {
+    expect(STAGE_TREATMENT_CLASSES.running).toContain('bg-accent');
+    // Filled, not tinted -- the passed and running treatments must not share
+    // a ground, or a viewer could not tell "already ran" from "running now".
+    expect(STAGE_TREATMENT_CLASSES.running).not.toContain('bg-accent-bg');
+    expect(STAGE_TREATMENT_CLASSES.running).toContain('text-on-accent');
+  });
+
+  it('grounds a not-reached stage neutrally, ringed in the strong border, icon muted', () => {
+    expect(STAGE_TREATMENT_CLASSES['not-reached']).toContain('border-border-strong');
+    expect(STAGE_TREATMENT_CLASSES['not-reached']).toContain('bg-neutral-bg');
+    expect(STAGE_TREATMENT_CLASSES['not-reached']).toContain('text-muted');
   });
 });

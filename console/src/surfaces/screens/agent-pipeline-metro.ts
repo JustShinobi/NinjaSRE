@@ -1,8 +1,8 @@
 /**
- * Two derivations the Pipeline tab's metro line and Tools card need, neither
- * served directly: what regime a stage runs under, and how many enabled
- * tools fall into each of the three side-effect buckets the artboard's hero
- * card names.
+ * Derivations the Pipeline tab's metro line and Tools card need, none of
+ * them served directly: what regime a stage runs under, which of the three
+ * station treatments it draws in, and how many enabled tools fall into each
+ * of the three side-effect buckets the artboard's hero card names.
  */
 
 /** The one stage whose own step is deterministic rather than model-driven. */
@@ -17,6 +17,49 @@ export function stageRegime(stageName: string, modelRole: string): string {
   if (stageName === DETERMINISTIC_STAGE) return 'deterministic';
   return 'no model';
 }
+
+/**
+ * The one of three wells a stage's own station draws in the metro line: it
+ * already ran in this run, it is the one running right now, or nothing has
+ * reached it yet.
+ */
+export type StageTreatment = 'passed' | 'running' | 'not-reached';
+
+/**
+ * Which of the three `StageTreatment`s `stageName` draws in, given the
+ * pipeline's own order and the one stage (if any) a run is currently on.
+ *
+ * `currentStageName` is `undefined` whenever nothing names it -- no run in
+ * flight, or one in flight that nothing yet records the stage of. Both read
+ * the same way here: every station honestly draws not-reached rather than
+ * guessing which one is lit. A `currentStageName` this pipeline's own order
+ * does not contain degrades the same way, for the same reason.
+ */
+export function stageTreatment(
+  order: readonly string[],
+  stageName: string,
+  currentStageName: string | undefined,
+): StageTreatment {
+  if (currentStageName === undefined) return 'not-reached';
+  if (stageName === currentStageName) return 'running';
+  const current = order.indexOf(currentStageName);
+  const mine = order.indexOf(stageName);
+  if (current === -1 || mine === -1) return 'not-reached';
+  return mine < current ? 'passed' : 'not-reached';
+}
+
+/**
+ * The well each treatment draws its icon in, coloured by role rather than by
+ * a state-specific hex so a theme change reaches these for free. `passed`
+ * and `running` share the accent ring the board draws on both, and differ
+ * only in how filled the well is -- tinted for one, solid for the other --
+ * which is what keeps "already ran" legible beside "running now".
+ */
+export const STAGE_TREATMENT_CLASSES: Readonly<Record<StageTreatment, string>> = {
+  passed: 'border-accent bg-success-bg text-accent',
+  running: 'border-accent bg-accent text-on-accent',
+  'not-reached': 'border-border-strong bg-neutral-bg text-muted',
+};
 
 export interface ToolSummary {
   readonly read: number;

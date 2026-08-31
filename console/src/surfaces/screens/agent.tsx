@@ -6,6 +6,7 @@ import {
   ResolvedChip,
   SpecialistStateChip,
 } from '@/components/status';
+import { cx } from '@/design/cx';
 import {
   ActivityIcon,
   AlertCircleIcon,
@@ -51,7 +52,12 @@ import {
   text,
   type PanelData,
 } from '../read';
-import { stageRegime, toolSummary } from './agent-pipeline-metro';
+import {
+  STAGE_TREATMENT_CLASSES,
+  stageRegime,
+  stageTreatment,
+  toolSummary,
+} from './agent-pipeline-metro';
 import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
@@ -452,6 +458,15 @@ function PipelineMetro({
       ? list(dataOf(runs), 'runs').filter((run) => text(run, 'status') === 'running')
           .length
       : 0;
+  const stageNames = stages.map((stage) => text(stage, 'name'));
+  // A run's own summary says whether it is running at all (`inFlight`,
+  // above) but nothing on it yet names which of the six stages it is
+  // running -- so there is no honest way to light one station up over the
+  // rest. Every station draws not-reached until a field exists to read
+  // instead of guess; `stageTreatment` already carries the other two
+  // treatments, so wiring a real value in here is the only change a future
+  // reader needs to make.
+  const currentStageName: string | undefined = undefined;
   return (
     <div className="flex flex-col gap-5 rounded-3 edge border-border bg-raised p-5">
       <div className="flex items-baseline gap-3">
@@ -501,6 +516,7 @@ function PipelineMetro({
           const name = text(stage, 'name');
           const Icon = STAGE_ICON[name] ?? SettingsIcon;
           const regime = stageRegime(name, text(stage, 'model_role'));
+          const treatment = stageTreatment(stageNames, name, currentStageName);
           return (
             <div
               key={name}
@@ -508,7 +524,18 @@ function PipelineMetro({
               data-stage={name}
               className="flex flex-col items-center gap-2 text-center"
             >
-              <span className="flex size-6 items-center justify-center rounded-full bg-accent-bg text-accent">
+              <span
+                data-testid="pipeline-metro-station"
+                data-treatment={treatment}
+                className={cx(
+                  'flex size-7 items-center justify-center rounded-full edge-emphasis',
+                  STAGE_TREATMENT_CLASSES[treatment],
+                  treatment === 'running' && 'pulse-live',
+                )}
+              >
+                {treatment === 'running' ? (
+                  <span aria-hidden="true" className="pulse-live-ring text-accent" />
+                ) : null}
                 <Icon className="icon-head" />
               </span>
               <span
