@@ -1,0 +1,24 @@
+PYTHONPATH="/srv/workspaces/v8-s3-050" uv run python -m tests.harness      
+{"hook": "incident_window", "capability": "prometheus_metric_statistics", "reason": "The time range was narrowed to the incident window (2026-08-07T12:03:00+00:00 .. 2026-08-31T11:08:16.439711+00:00). Queries outside it answer a different question from the one this investigation is asking.", "event": "agent.tool_arguments_rewritten", "logger": "core.agent.hooks.registry", "level": "info", "timestamp": "2026-08-31T11:08:16.440575Z"}
+{"hook": "incident_window", "capability": "prometheus_metric_statistics", "reason": "The time range was narrowed to the incident window (2026-08-07T12:03:00+00:00 .. 2026-08-31T11:08:16.472374+00:00). Queries outside it answer a different question from the one this investigation is asking.", "event": "agent.tool_arguments_rewritten", "logger": "core.agent.hooks.registry", "level": "info", "timestamp": "2026-08-31T11:08:16.472868Z"}
+{"hook": "incident_window", "capability": "loki_sample_logs", "reason": "The time range was narrowed to the incident window (2026-08-07T12:03:00+00:00 .. 2026-08-31T11:08:16.472374+00:00). Queries outside it answer a different question from the one this investigation is asking.", "event": "agent.tool_arguments_rewritten", "logger": "core.agent.hooks.registry", "level": "info", "timestamp": "2026-08-31T11:08:16.473712Z"}
+  ran delivery/007-misleading-cpu-signal attempt 1 in 0.01s
+  ran kubernetes/001-oom-kill attempt 1 in 0.001s
+  ran kubernetes/002-liveness-probe-killing attempt 1 in 0.002s
+  ran kubernetes/003-rollout-regression attempt 1 in 0.002s
+  ran observability/005-dependency-timeout attempt 1 in 0.002s
+
+level solve rate  attempts  definition
+1     100%        1         A single obvious cause with corroborating evidence.
+2     100%        2         One planted confounder that must be explicitly ruled out.
+3     100%        1         Several plausible causes requiring evidence to discriminate.
+4     100%        1         The most prominent signal is misleading; the true cause is secondary.
+
+  ok   [1] kubernetes/001-oom-kill                         1/1     
+  ok   [2] kubernetes/002-liveness-probe-killing           1/1     
+  ok   [2] observability/005-dependency-timeout            1/1     
+  ok   [3] kubernetes/003-rollout-regression               1/1     
+  ok   [4] delivery/007-misleading-cpu-signal              1/1     
+
+5/5 attempts passed (100%) in 0.1s
+SYNTHETIC_EXIT=0
