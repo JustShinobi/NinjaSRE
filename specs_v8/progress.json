@@ -9,7 +9,7 @@
   "claimed_at": "2026-08-28T00:18:52+00:00",
   "baseline_commit": "a54174c07ea6b82fd0577d4da95850d02ab14c80",
   "baseline_status_empty": true,
-  "checkpoint_seq": 20
+  "checkpoint_seq": 25
  },
  "feature_order": [
   "specs_v8/000-fundacao-visual",
@@ -130,10 +130,18 @@
    ],
    "instruction": "decide by observing, not by reasoning -- click, do not reload, and look at what the screen shows. If a reload survives, the report and the code must both say why the screen legitimately cannot update in place.",
    "owner": "specs_v8/040-decisoes-estruturadas"
+  },
+  {
+   "id": "mitigated-and-false-positive-presentation",
+   "raised_at": "2026-08-31T05:30:00+00:00",
+   "question": "two declared episode outcomes have no drawing on the board: mitigated and false_positive.",
+   "implementer_recommendation": "declare mitigated as info with a dimmed circle, reusing an existing pair on the same epistemic footing -- something happened, not verified to the standard resolved means -- and note that with the corrected mapping two of five episodes in the dataset are mitigated, so it is not hypothetical. Do NOT declare false_positive: nothing in the repository produces it, the board never draws it, and the neutral unknown-word fallback is the honest answer until a real episode forces the question.",
+   "lead_position": "not applied. The board is the contract and says nothing about either, and the shared component already handles an untaught word deliberately, with the neutral role and its own label. Adding a presentation the board does not specify is the operator's call, not the lead's -- the same reasoning that added inconclusive, which the board does draw, and refused mitigated at the merge.",
+   "owner": "the operator"
   }
  ],
  "last_checkpoint": "2026-08-30T20:55:00+00:00",
- "next_action": "060 is done and converged: 31 done, 6 cut with reason, 0 open, all gates green, the inherited /incidents transversal debt closed by a real screen fix, and the one convergence gap repaired with a wire-cut that proved the test can fail. The slot now waits on 040 alone. Then: merge both branches, apply the declared pt-BR keys and the two missing status shapes, format the transversal suite, run boundary gates, deploy every component, create the slot run fixture staging still lacks, run the Orca visual gate on the route-theme pairs, and dispatch one verifier per feature against the merged tree.",
+ "next_action": "Repairs merged and green: console gate exit 0, make verify exit 0 at 13112 passed. Next: redeploy every component, warm the routes, recapture the affected route-theme pairs through the Orca browser and judge them against the artboards again, then dispatch one independent verifier per feature against the merged tree.",
  "fingerprint": "fc00020529f3f379",
  "features": [
   {
@@ -709,17 +717,17 @@
    "dependencies": [
     "specs_v8/000-fundacao-visual"
    ],
-   "phase": "converge",
-   "status": "running",
+   "phase": "merged",
+   "status": "implementation_complete",
    "runtime": null,
    "last_checkpoint": "2026-08-30T21:15:00+00:00",
-   "next_action": "closing the two appended tasks; the reload in the new click test must be justified or replaced before it can be accepted.",
+   "next_action": "bounded repair of the visual deviations, then re-merge, re-gate, recapture, and the independent verifier.",
    "worktree": {
     "mode": "isolated",
     "path": "/srv/workspaces/v8-s2-040",
     "branch": "wt/v8-040-decisoes-estruturadas",
     "base_commit": "a54174c0",
-    "commit": "7ed9972c"
+    "commit": "aa618531"
    },
    "lifecycle_results": {
     "analyze": {
@@ -868,7 +876,7 @@
      "registry_finding": "the two decisions entries already exist and were not edited, per the ownership rule, but both are stale: their recorded reason describes the eight-field card this feature replaced, and one of them names the very defect this feature fixes as an open question. They need a new reason and a fresh capture at merge, not merely acceptance of a new image. Separately, both artboards draw only the expired state as the hero card, so a genuine pending-hero capture would need a scenario with no expired decision, which does not exist today."
     },
     "converge": {
-     "status": "GAPS_APPENDED",
+     "status": "CONVERGED",
      "rounds_used": 1,
      "at": "2026-08-31T02:35:00+00:00",
      "commit": "42e0094b",
@@ -909,9 +917,37 @@
        "round": 1,
        "result": "GAPS_APPENDED",
        "appended": 2,
-       "follow_up_implement": "in progress, rescued at 7ed9972c"
+       "follow_up_implement": "aa618531"
       }
-     ]
+     ],
+     "gaps_closed": {
+      "T037": {
+       "commit": "aa618531",
+       "mock_endpoint": "mirrors the real decide handler at three points -- the endpoint declaration, one success fixture shaped like the real result, and a write case that moves the id out of the pending buckets into decided with the actual verdict, which is what makes the effect observable on the next read. Console endpoint coverage went from 84 of 85 to 85 of 85.",
+       "test": "a real click: it reaches a pending, interaction-less card by discarding both fixture expired decisions through the same courier the expired footer posts to, types a reason, clicks Reject, awaits the real response, and asserts the card left the queue and appears in the decided list with its verdict.",
+       "wire_cuts": [
+        {
+         "cut": "the whole endpoint declaration",
+         "red": "the mock does not even boot -- the scenario answers a slug that is not an endpoint"
+        },
+        {
+         "cut": "the write case label, so it falls through to the no-op",
+         "red": "the POST still answers 200 and the assertion goes red for real -- expected 0, received 1, after the full retry window. Exactly the click-succeeds-nothing-happens defect the task exists to catch."
+        }
+       ]
+      },
+      "T038": {
+       "ending": "corrected reason, not a new scenario",
+       "why": "the condition is structural -- the queue is built expired-first and only the first item expands -- and true in all six built scenarios, so the old reason implied a data accident that could resolve on a rerun. A new committed scenario would widen shared fixture surface beyond what two bounded repairs should touch, and the same state is now reachable for real through the discard courier, which is what the new click test does."
+      }
+     },
+     "reload_question_resolved": {
+      "verdict": "World 1, but not for the reason either of us assumed.",
+      "what_it_found": "removing the reload and watching the screen showed the test failing for a real reason: before the click, the approval id already resolved to TWO elements. An earlier test in the same file had reproposed the same origin, and the mock hands back a fixed id however many times repropose is called, so the second repropose queued an entry under an id already in the list. A duplicate key, not a stale screen.",
+      "how_established": "by elimination rather than supposition -- driving the same two repropose calls directly against the mock, with no browser, showed the server-side removal working correctly both times; only the screen was confused.",
+      "fix": "the arrange step reuses the earlier leftover instead of creating a second one. The reload is gone entirely, the test relies on the assertion own retrying, and its duration fell from about six seconds to under one."
+     },
+     "found_not_fixed": "the interaction approve and reject write cases patch only the interactions bucket, never approvals, so a decision made through the interaction path never leaves the mock pending list within a session. Named in the control file, out of scope, belongs to whoever composed that case."
     }
    },
    "playwright_result": {
@@ -920,12 +956,29 @@
     "tests": []
    },
    "visual_result": {
-    "status": "pending",
+    "status": "FAIL",
     "reviewer": "orca-browser",
-    "runtime": null,
-    "routes": [],
-    "viewports": [],
-    "evidence": []
+    "at": "2026-08-31T02:20:00+00:00",
+    "themes": [
+     "dark",
+     "light"
+    ],
+    "verdict_file": "specs_v8/040-decisoes-estruturadas/evidence/visual/VEREDITO.md",
+    "repair": {
+     "commits": [
+      "09ade6cb",
+      "e3308257"
+     ],
+     "at": "2026-08-31T03:00:00+00:00",
+     "corrected_the_lead": "the lead framed it as 'there is no second field, so stop printing one twice'. That was wrong in a way that mattered: the deployment does compute a second field. The card was never at fault either -- it renders two independent props exactly as given.",
+     "root_cause": "the payload builder wrote the capability's declared approval reason into BOTH the approval's top-level intent, which the console reads as Why, and into step one's own description, which it reads as What will happen. One value, written to two places, server-side.",
+     "fix": "the step's description now comes from the action's operation -- an already-computed field holding the exact operation a person could run instead -- falling back to the action summary only for an action built outside the gate. Why is untouched. No console change was needed or made.",
+     "red_first": "a new contract test queuing a real approval through the real builder, red with 'assert <the same sentence> != <the same sentence>', exit 1.",
+     "wire_cut": "the fixed line was cut back to the original defect byte for byte, the test went red again with the identical message, and the restore was confirmed by diff.",
+     "why_no_browser_test": "stated rather than skipped: the mock fixtures already declare the two fields as deliberately distinct strings, so a browser spec would have been green before and after. The contract test against the real payload builder is the only place the defect lives.",
+     "blast_radius_checked": "the intent value is read in four places; the fix touches one. A third composed sentence stored for audit never reaches the view, and the action round-trips its operation, so repropose carries the fix through.",
+     "found_in_passing": "a pre-existing conftest module-name collision between two test directories, reproduced before the change, which makes one combined invocation exit 1 while each file alone passes."
+    }
    },
    "verifier_result": {
     "status": "pending",
@@ -991,7 +1044,7 @@
    "status": "implementation_complete",
    "runtime": null,
    "last_checkpoint": "2026-08-30T21:15:00+00:00",
-   "next_action": "waits for 040 to finish, then the slot merge, boundary gates, staging, the Orca visual gate, and its verifier.",
+   "next_action": "a fresh implementer is finishing the knowledge outcome and the agent hero; the previous one lost its session with everything committed.",
    "worktree": {
     "mode": "isolated",
     "path": "/srv/workspaces/v8-s2-060",
@@ -1182,22 +1235,45 @@
     "tests": []
    },
    "visual_result": {
-    "status": "before_captured",
+    "status": "FAIL",
     "reviewer": "orca-browser",
-    "routes": [
-     "/incidents",
-     "/resources",
-     "/knowledge",
-     "/agent"
-    ],
+    "at": "2026-08-31T02:20:00+00:00",
     "themes": [
      "dark",
      "light"
     ],
-    "evidence": [
-     "specs_v8/060-telas-de-area/evidence/visual/antes/"
-    ],
-    "note": "this is the before pair only. The gate itself runs after the slot deploy, against the artboards."
+    "verdict_file": "specs_v8/060-telas-de-area/evidence/visual/VEREDITO.md",
+    "repair": {
+     "status": "complete",
+     "commits": [
+      "5ad31109",
+      "9bfe7532",
+      "4ebdbee5",
+      "150817ba",
+      "ae416148",
+      "322784bf",
+      "c20a69ba"
+     ],
+     "incidents": "the name comes from a read the screen already made; a subject the estate does not hold still renders its id rather than inventing one.",
+     "resources": {
+      "cap": "one row per node when nothing there is unhealthy, two when something is -- the board's own two examples -- with a see-all that is a real filtered destination, uncapped once there, with a way back.",
+      "page_height": "3230px before, 1103px after, read the same way the committed spec reads it. The inherited uncapturable-baseline debt is closed, not moved."
+     },
+     "knowledge": {
+      "two_defects_not_one": [
+       "the card computed its mark from a hand-rolled boolean that only ever asked whether the outcome was resolved, and drew no chip at all. It now takes its role and shape from the shared vocabulary and carries the chip the board draws, falling back to the raw word for anything the map has not been taught.",
+       "the predecessor's fix had closed the vocabulary violation but not the translation: it flattened both invented words to inconclusive. The demo seeder already declares the real mapping -- acknowledged means mitigated -- so two episodes now serve mitigated. Found by reading the seeder, not the console or the mock."
+      ],
+      "generator": "the scenarios were rebuilt with the mockplane build command and verified clean; the fixture was never hand-edited."
+     },
+     "agent": {
+      "tab": "the URL slug was NOT the defect -- renaming it would have moved the URL contract nothing asked to move. The defect was one message value. The slug and label split is now documented in the code so a later cleanup does not collapse them and break a deep link.",
+      "rail": "drawn behind the row in DOM order so each icon occludes the segment behind it, the way the board does it, at the breakpoint whose single-row layout the geometry assumes, with its insets computed from the stage count and the same spacing token the gap draws from.",
+      "left_alone": "the in-flight chip, because staging has no running run; and the enlarged live stage, because there is no honest way to draw one run's progress with zero running investigations. Declared rather than fabricated."
+     },
+     "bug_its_own_test_caught": "the first rail used a class that sets width as well as height, and an absolutely positioned element with an explicit width ignores its end inset entirely -- so the rail was pinned at 24px and never reached the far side. The reach assertion caught it on the first real run, which is what a test that can fail is for.",
+     "wire_cuts": "four, each restored and confirmed by diff: the message value, the rail geometry, the status derivation, and the earlier grid cap."
+    }
    },
    "verifier_result": {
     "status": "pending",
@@ -2039,6 +2115,98 @@
     "create the live run staging has never had, read the store counts from inside the cluster, run the Orca visual gate on both features routes in both themes",
     "one independent verifier per feature against the merged tree, in a fresh context"
    ]
+  },
+  "merge_done": {
+   "at": "2026-08-31T04:00:00+00:00",
+   "merge_commits": [
+    "173d2a17",
+    "de65a356"
+   ],
+   "reconciliation_commit": "d3dcf59d",
+   "conflicts": "none. Git auto-merged all three intersecting files.",
+   "generated_files_checked": "the two generated files auto-merged, which is the hazard -- an automerge produces a file no generator would produce. Regenerated both from the merged sources and confirmed byte-identical to the automerge, so it happened to be right. Checked rather than assumed.",
+   "applied_at_merge": [
+    "the 27 pt-BR keys 040 declared, which closes the gate failure that had held its last task open",
+    "the inconclusive status shape, amber and hollow, grounded in the board own drawing of it. NOT mitigated: the board says nothing about it, so nothing was invented.",
+    "both decisions visual baselines flipped to pending with reasons -- their images show the eight-field card that no longer exists, and one froze as an open question the very thing this slot answered."
+   ],
+   "formatting": "the console gate caught one drifted file after the merge -- the exact hazard the wave records -- fixed before the gate was believed.",
+   "gate": {
+    "command": "make verify",
+    "exit": 0,
+    "read_from": "the log, after confirming the process had really exited: the background notification reported completion, and exit 0, while make verify was still running and the log still growing.",
+    "totals": "13110 passed, 31 skipped; console 197 files / 3173 tests; 38 benchmarks. Every one of the 220 log lines matching failed is a test name containing the word, all passed."
+   }
+  },
+  "staging": {
+   "at": "2026-08-31T01:45:00+00:00",
+   "deploy": "make deploy-stg with no component argument, which carries every component in the descriptor -- app, proxy and web. Real exit 0 read from the log.",
+   "synced_healthy_is_not_answered": "Argo reported Synced/Healthy while the new pods were still not ready and the old ones were still serving. Waited on the actual rollout of all three deployments, then warmed every route the slot would measure: 2.0 to 4.5 seconds each on the cold pass.",
+   "measured_against_the_before": {
+    "approvals": "pending 1 -> 0, expired 0 -> 1, total unchanged at 4. The swept row is the one that lapsed on 2026-08-27 and it now carries a decided_at of 2026-08-31T01:39:20 -- the moment the warm pass first read the list. Exactly what the feature predicted.",
+    "badge": "the sidebar read \"Decisions 1 decisions waiting\" before and reads \"Decisions\" now: 1 -> 0.",
+    "expired_controls": "the expired decision carries both Propose again and Discard in the real deployment, which is the dead end the wave opened by naming."
+   }
+  },
+  "visual_gate": {
+   "status": "FAIL",
+   "reviewer": "orca-browser",
+   "at": "2026-08-31T02:20:00+00:00",
+   "pairs": 12,
+   "method": "each capture had its theme confirmed twice before it counted -- the choice the control itself reports, and the measured ground colour -- because the control is tri-state and one click is not the other theme.",
+   "evidence": [
+    "specs_v8/040-decisoes-estruturadas/evidence/visual/",
+    "specs_v8/060-telas-de-area/evidence/visual/"
+   ],
+   "deviations": [
+    {
+     "screen": "/decisions",
+     "what": "the Why section prints the same string, word for word, as the first step of What will happen.",
+     "cause": "established against the staging database: the store holds one rationale field and the card renders it twice. Not the screen inventing, and there is no second field to read.",
+     "destination": "fix"
+    },
+    {
+     "screen": "/incidents",
+     "what": "the subtitle is still an identifier where the board draws a human phrase with the id trailing.",
+     "cause": "the code shortens opaque ids rather than printing them whole, which is better than it was, but a shortened id is still an id. The names exist: every id sampled resolves in the estate -- runner-orchestrator, pve02, troubleshooting-lab, alpine-postgresql -- so it is one lookup away.",
+     "destination": "fix"
+    },
+    {
+     "screen": "/resources",
+     "what": "the card grid never ends -- 59 cards for one node, a page 3230px tall -- where the board caps it and offers see-all.",
+     "cause": "the same fact as the inherited uncapturable baseline. Replacing the table with a grid did not close that debt; capping the grid does.",
+     "destination": "fix"
+    },
+    {
+     "screen": "/knowledge",
+     "what": "the episode outcome carries no chip and no role, where the board draws an amber inconclusivo chip.",
+     "measured": "no element on the page carries data-role at all, so nothing there renders through the shared status component.",
+     "lead_note": "the inconclusive shape was added to the frozen map at merge, grounded in the board own drawing, and has NO effect here because this screen does not consume that map. Applying is not verifying.",
+     "destination": "fix"
+    },
+    {
+     "screen": "/agent",
+     "what": "the first tab is named Topology where the board names it Pipeline, and the metro line draws no rail between its six stages.",
+     "not_a_defect": "the in-flight chip is absent because staging has no running run -- 682 completed, 11 interrupted, none running. Data, measured.",
+     "destination": "fix"
+    }
+   ],
+   "no_operator_ruling_needed": "all five are fixable against data the deployment already has, so none goes to DIVERGENCIAS.md. The one that looked like an operator call -- whether the incidents subtitle could show a name -- was settled by resolving the ids against the estate rather than by asking."
+  },
+  "lost_sessions": {
+   "count": 3,
+   "cost": "nothing, three times over. Every one had committed its work and written its control file, so each handover was a commit range and a message rather than a reconstruction.",
+   "lesson": "the commit-often rule was argued for as insurance against a turn ceiling. It turned out to be what makes a lost session survivable at all, which is a stronger reason than the one it was introduced with."
+  },
+  "post_repair_gate": {
+   "console_gate static": "exit 0 -- 197 files, 3181 tests, budgets within limits",
+   "generated artefacts": "regenerated after the merge and byte-identical: the automerge was right again, checked rather than assumed",
+   "make verify": {
+    "first_run": "exit 2 -- one failure, in a certificate-trust contract test that nothing in this slot touches, on a parallel worker",
+    "diagnosis": "passes alone three times, passes as a whole file, passes as a whole directory under the same parallelism. It only failed inside the full-suite parallel run.",
+    "second_run": "exit 0 -- 13112 passed, 31 skipped, 38 benchmarks",
+    "conclusion": "intermittent under full-suite parallelism and not attributable to this slot; recorded rather than dismissed. Not called a flake on the strength of one rerun -- called intermittent, with the four measurements that separate it from a regression."
+   }
   }
  }
 }
