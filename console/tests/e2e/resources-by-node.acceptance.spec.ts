@@ -191,6 +191,114 @@ test.describe('AN-R4/AN-R6 — resources group by node, worst node and worst res
 });
 
 // =============================================================================
+// S2 repair — the grid caps per node instead of drawing every resource
+// =============================================================================
+
+test.describe('the grid caps per node section instead of drawing every resource on it', () => {
+  test('no section ever draws more than two rows (eight cards) of the grid', async ({
+    page,
+  }) => {
+    await openResources(page);
+    const sections = page.getByTestId('node-section');
+    const total = await sections.count();
+    expect(total).toBeGreaterThan(0);
+    for (let index = 0; index < total; index += 1) {
+      const shown = await sections.nth(index).getByTestId('resource-card').count();
+      expect(shown).toBeLessThanOrEqual(8);
+    }
+  });
+
+  test('a node with more unhealthy than the cap offers to see the unhealthy total, not the node total', async ({
+    page,
+  }) => {
+    // node02 in the local fixture: 32 resources, 11 unhealthy -- more
+    // unhealthy alone than the two-row cap, so the honest link names the
+    // unhealthy total (11), never the node's whole count (32). Found by the
+    // link's own attribute, not by the section's "has any unhealthy" flag --
+    // node01 also carries that flag (3 unhealthy, under the cap) and sorts
+    // before node02, so deriving the link from the section would find the
+    // wrong one.
+    await openResources(page);
+    const more = page.locator(
+      '[data-testid="node-section-more"][data-only-unhealthy="true"]',
+    );
+    const count = await more.count();
+    test.skip(count === 0, 'no node in this dataset has more unhealthy than the cap');
+    if (count === 0) return;
+    await expect(more.first()).not.toContainText('32');
+  });
+
+  test('clicking "see the unhealthy of <node>" shows every one of them, uncapped, with a way back', async ({
+    page,
+  }) => {
+    await openResources(page);
+    const link = page
+      .locator('[data-testid="node-section-more"][data-only-unhealthy="true"]')
+      .first();
+    const count = await link.count();
+    test.skip(count === 0, 'no node in this dataset has more unhealthy than the cap');
+    if (count === 0) return;
+
+    const href = await link.getAttribute('href');
+    expect(href).toMatch(/node=/);
+    expect(href).toMatch(/health=problem/);
+    await link.click();
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+
+    const sections = page.getByTestId('node-section');
+    await expect(sections).toHaveCount(1);
+    const cards = sections.first().getByTestId('resource-card');
+    const shown = await cards.count();
+    expect(shown).toBeGreaterThan(8);
+    for (let index = 0; index < shown; index += 1) {
+      await expect(cards.nth(index)).toHaveAttribute('data-health', 'unhealthy');
+    }
+    // Never capped again once drilled in, and never stranded there.
+    await expect(sections.first().getByTestId('node-section-more')).toHaveCount(0);
+    await expect(page.getByTestId('node-section-back')).toBeVisible();
+  });
+
+  test('clicking "see all resources of <node>" shows every one of them, uncapped, with a way back', async ({
+    page,
+  }) => {
+    await openResources(page);
+    const link = page
+      .locator('[data-testid="node-section-more"][data-only-unhealthy="false"]')
+      .first();
+    const count = await link.count();
+    test.skip(
+      count === 0,
+      'no node in this dataset is capped without exceeding it on unhealthy alone',
+    );
+    if (count === 0) return;
+
+    const before = await link.innerText();
+    const totalNamed = Number((/\d+/.exec(before) ?? ['0'])[0]);
+    await link.click();
+    await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
+
+    const sections = page.getByTestId('node-section');
+    await expect(sections).toHaveCount(1);
+    const shown = await sections.first().getByTestId('resource-card').count();
+    expect(shown).toBe(totalNamed);
+    expect(shown).toBeGreaterThan(8);
+    await expect(page.getByTestId('node-section-back')).toBeVisible();
+  });
+
+  test('the default listing fits in a bounded height now that the grid stops', async ({
+    page,
+  }) => {
+    await openResources(page);
+    const height = await page.evaluate(() => document.body.scrollHeight);
+    // The board's own inherited debt: an uncapped grid measured 3230px on
+    // this exact dataset shape. A generous ceiling well under that, not a
+    // pixel-exact figure -- this is a regression guard against the grid
+    // going unbounded again, not a visual comparison.
+    expect(height).toBeLessThan(2200);
+  });
+});
+
+// =============================================================================
 // AN-R5 / AN-R9 — cards, not rows; shape by state; duration since unhealthy
 // =============================================================================
 

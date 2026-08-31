@@ -5,6 +5,7 @@ import {
   groupByNode,
   healthSegments,
   unhealthySynthesis,
+  type NodeGroup,
 } from '@/surfaces/screens/resources-grouping';
 
 function resource(overrides: Record<string, unknown> = {}): unknown {
@@ -195,17 +196,24 @@ function nodeOf(count: number, unhealthy = 0): unknown[] {
   return made;
 }
 
+/** `resources` grouped and narrowed to its one section -- these fixtures always carry exactly one node. */
+function firstSection(resources: readonly unknown[]): NodeGroup {
+  const [section] = groupByNode(resources);
+  if (section === undefined) {
+    throw new Error('expected groupByNode to return at least one section');
+  }
+  return section;
+}
+
 describe('capNodeSection', () => {
   it('shows every resource of an all-healthy section at or under one row, no link', () => {
-    const [section] = groupByNode(nodeOf(4));
-    const capped = capNodeSection(section!);
+    const capped = capNodeSection(firstSection(nodeOf(4)));
     expect(capped.shown).toHaveLength(4);
     expect(capped.more).toBeUndefined();
   });
 
   it('shows every resource of a section with unhealthy ones at or under two rows, no link', () => {
-    const [section] = groupByNode(nodeOf(8, 2));
-    const capped = capNodeSection(section!);
+    const capped = capNodeSection(firstSection(nodeOf(8, 2)));
     expect(capped.shown).toHaveLength(8);
     expect(capped.more).toBeUndefined();
   });
@@ -213,8 +221,7 @@ describe('capNodeSection', () => {
   it('caps an all-healthy section at one row and points at every resource on the node', () => {
     // pve01 in the board: 58 resources, none unhealthy -- one row (4) shown,
     // "see all 58 resources of pve01" rather than an unhealthy count of zero.
-    const [section] = groupByNode(nodeOf(58));
-    const capped = capNodeSection(section!);
+    const capped = capNodeSection(firstSection(nodeOf(58)));
     expect(capped.shown).toHaveLength(4);
     expect(capped.more).toEqual({ count: 58, onlyUnhealthy: false });
   });
@@ -223,12 +230,13 @@ describe('capNodeSection', () => {
     // pve02 in the board: 41 resources, 14 unhealthy -- two rows (8, all
     // unhealthy since they sort first) shown, "see the 14 unhealthy of
     // pve02" rather than the node's whole resource count.
-    const [section] = groupByNode(nodeOf(41, 14));
-    const capped = capNodeSection(section!);
+    const capped = capNodeSection(firstSection(nodeOf(41, 14)));
     expect(capped.shown).toHaveLength(8);
-    expect(capped.shown.every((entry) => (entry as { health: string }).health === 'unhealthy')).toBe(
-      true,
-    );
+    expect(
+      capped.shown.every(
+        (entry) => (entry as { health: string }).health === 'unhealthy',
+      ),
+    ).toBe(true);
     expect(capped.more).toEqual({ count: 14, onlyUnhealthy: true });
   });
 
@@ -236,8 +244,7 @@ describe('capNodeSection', () => {
     // Exactly a full two rows unhealthy, and nothing unhealthy left hidden:
     // the honest link is "see all", not "see the 8 unhealthy" -- there is
     // no additional unhealthy one waiting behind it.
-    const [section] = groupByNode(nodeOf(20, 8));
-    const capped = capNodeSection(section!);
+    const capped = capNodeSection(firstSection(nodeOf(20, 8)));
     expect(capped.shown).toHaveLength(8);
     expect(capped.more).toEqual({ count: 20, onlyUnhealthy: false });
   });

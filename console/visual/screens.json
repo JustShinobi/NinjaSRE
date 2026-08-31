@@ -294,7 +294,7 @@
         "against": "05-screen-estate.png",
         "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
       },
-      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows."
+      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows. Each node section is capped at one row (nothing unhealthy) or two (something is), with a 'see all'/'see the unhealthy' link past the cap, so the page has a bounded height to capture in the first place."
     },
     {
       "id": "resources-320-light",
@@ -306,7 +306,7 @@
         "against": null,
         "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
       },
-      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width -- and this is also where the S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid does not have that problem, but still needs a first real capture of the new layout."
+      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width. The S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid inherited the same failure for a different reason -- it drew every resource on every node with no cap, 59 cards for one node alone, 3230px tall, so nothing fit in a capture window here either. Closed by capping each node section at one row when nothing on it is unhealthy and two when something is, with a 'see all'/'see the unhealthy' link where the board draws one. Still needs its first real capture of the capped layout."
     },
     {
       "id": "run-detail-1440-dark",

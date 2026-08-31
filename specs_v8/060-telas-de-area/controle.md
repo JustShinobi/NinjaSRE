@@ -146,6 +146,7 @@ de uma tarefa planejada antes da execução.
 | Desvio | Estado | Detalhe |
 |---|---|---|
 | 1. Incidentes — subtítulo é identificador, não nome (T035) | FEITO | `console/src/surfaces/incident-group-list.tsx`: `SubjectLine` e `subjectTitle` agora resolvem o nome da estante por `resolvedName` (novo), que só aceita um nome quando ele difere do próprio id — a queda do gateway para `display_name or resource_id` (`gateway/http/routes/estate.py`, `_row`) não conta como nome ganho. `console/src/surfaces/screens/incidents.tsx`: mapa `subjectNames` (`resource_id -> display_name`) construído uma vez por página a partir da MESMA leitura de `/v1/estate/resources` que o cartão de cobertura de detector já fazia (linha ~183) — nenhuma segunda requisição, nenhuma mudança de gateway. Um assunto que a estante genuinamente não tem (`cluster`, um datastore, um job de backup, no dado local) não ganha entrada no mapa e continua a mostrar o id encurtado, nunca em branco — comportamento herdado, não reescrito. |
+| 2. Recursos — a grade nunca termina (T036) | FEITO | `console/src/surfaces/screens/resources-grouping.ts`: `capNodeSection`, nova, testada (13 casos) — uma linha (4 cartões) quando a seção não tem nada não saudável, duas (8) quando tem; reproduz os dois exemplos do próprio board exatamente (pve01: 58/0 → 4 + "ver todos"; pve02: 41/14 → 8 + "ver os não saudáveis"). `resources.tsx`: grade renderiza `capped.shown`; filtro `node` novo em `RESOURCE_FILTERS` (mesmo padrão de `zone`/`kind`/etc., `FilterName` já é `string`) para que os dois links levem a algo real — `?node=<id>` (mais `health=problem` para "ver os não saudáveis") — em vez de um `href="#"` decorativo; uma seção alcançada assim (`drilledIntoNode`) nunca é recortada de novo e ganha um link "voltar" (`action` do `Panel`). Sentinela `NO_NODE_FILTER_VALUE='none'` para a seção "sem nó declarado", cujo `nodeId` é `''` — que `withFilter` trata como "filtro ausente" e apagaria da URL. Prova: cinco testes novos em `resources-by-node.acceptance.spec.ts`; vermelho confirmado contra o build sem o corte (52 cartões numa seção só, altura 2423px no dataset local), verde depois — **altura capturada: 1103px** (o board cita 3230px em staging antes desta correção). `console/visual/screens.json`: os dois registros de `/resources` já estavam `pending`; motivo corrigido para não afirmar mais que a grade em cartões "não tem esse problema" — ela tinha, por um motivo diferente do da tabela antiga. |
 
 ## Achados do slot, registrados para não se perderem (continuação)
 
@@ -156,3 +157,13 @@ de uma tarefa planejada antes da execução.
    sob dois rótulos diferentes em vez de uma vez só — `resolvedName` em
    `incident-group-list.tsx` existe por isso: só conta como nome quando
    `display_name !== resource_id`.
+8. **O primeiro teste de `capNodeSection` que localizava o link "ver os N
+   não saudáveis" pelo `data-has-unhealthy` da seção, não pelo próprio
+   link, achava o nó errado.** node01 e node02 no dataset local carregam os
+   dois `data-has-unhealthy="true"` (node01 tem 3 não saudáveis, abaixo do
+   corte; node02 tem 11, acima) e `groupByNode` desempata por nome quando o
+   `hasUnhealthy` empata — node01 vem primeiro. `.first()` sobre "toda
+   seção não saudável" pegava o link errado (`data-only-unhealthy="false"`)
+   antes mesmo de chegar em node02. Corrigido para localizar
+   `[data-testid="node-section-more"][data-only-unhealthy="true"]`
+   diretamente — o mesmo padrão que o teste vizinho já usava.

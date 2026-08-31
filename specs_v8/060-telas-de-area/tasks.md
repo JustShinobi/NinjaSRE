@@ -347,7 +347,31 @@ contra o build real antes da correção.
       o build sem o wiring (`element(s) not found` no locator
       `incident-subject-name`), verde depois.
 
-## Phase 10: Reparos ainda pendentes desta rodada
+- [x] T036 [US2] Recursos: limitar a grade por seção de nó, com o link
+      "ver todos"/"ver os não saudáveis" que o board desenha
+      (`console/src/surfaces/screens/resources-grouping.ts`:
+      `capNodeSection`, novo, testado — uma linha (`NODE_SECTION_ROW`) quando
+      nada na seção é não saudável, duas quando algo é; `console/src/surfaces/screens/resources.tsx`:
+      grade renderiza `capped.shown`, não mais `section.resources` inteiro).
+      A regra reproduz os dois exemplos do próprio board exatamente: pve01
+      (58 recursos, 0 não saudáveis) mostra 4 e "ver os 58 recursos de
+      pve01 →"; pve02 (41, 14 não saudáveis) mostra 8 e "ver os 14 não
+      saudáveis de pve02 →" — o link nomeia o total de não saudáveis, nunca
+      o total do nó, sempre que ainda sobra um não saudável escondido atrás
+      do corte. Filtro `node` novo (`RESOURCE_FILTERS`, `FilterName = string`
+      já suporta), com um valor-sentinela (`NO_NODE_FILTER_VALUE =
+      'none'`) para a seção "sem nó declarado", cujo `nodeId` é a string
+      vazia que `withFilter` trataria como "filtro ausente". Uma seção
+      alcançada por esse filtro (`drilledIntoNode`) nunca é recortada de
+      novo — foi pedida por inteiro — e ganha um link "voltar" no cabeçalho
+      do painel (`action` do `Panel`, mesmo padrão do "voltar à lista" que a
+      seleção de um recurso já usa). Prova: cinco testes novos em
+      `resources-by-node.acceptance.spec.ts`; confirmado vermelho contra o
+      build sem o corte (52 cartões numa seção, 2423px de altura no dataset
+      local — o board cita 3230px em staging), verde depois (altura
+      capturada: 1103px). `console/visual/screens.json`: os dois registros
+      de `/resources` (1440/320) já estavam `pending`; motivo atualizado
+      para não afirmar mais que a grade "não tem esse problema".
 
 Registrados aqui à medida que cada um fecha; ver a seção "O que fica
 pendente" no `controle.md` para o estado agregado no meio da execução.

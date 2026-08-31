@@ -40,6 +40,7 @@ import {
   capNodeSection,
   groupByNode,
   healthSegments,
+  NO_NODE,
   unhealthySynthesis,
 } from './resources-grouping';
 
@@ -73,10 +74,19 @@ export const RESOURCE_FILTERS: readonly FilterName[] = [
   'health',
   'kind',
   'q',
+  'node',
 ];
 
 /** The two states represented by the legend's own "unhealthy" entry. */
 const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
+
+/**
+ * What the `node` filter carries in the address for the "no node declared"
+ * section — never the empty string itself, because `withFilter` reads an
+ * empty value as "this filter is unset" and would drop it rather than
+ * carry it.
+ */
+const NO_NODE_FILTER_VALUE = 'none';
 
 /**
  * The message key naming what connects a change to this resource.
@@ -315,10 +325,20 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       return false;
     if (query !== '' && !text(record, 'display_name').toLowerCase().includes(query))
       return false;
+    if (state.filters.node !== undefined) {
+      const wantedNode =
+        state.filters.node === NO_NODE_FILTER_VALUE ? NO_NODE : state.filters.node;
+      if (text(record, 'parent_id') !== wantedNode) return false;
+    }
     return true;
   });
 
   const sections = groupByNode(filtered);
+  // The one door the "see all"/"see the unhealthy" link opens: asking for a
+  // single node by id leaves exactly one section, and a section somebody
+  // explicitly asked to see in full is not the "everything on one page"
+  // problem the cap exists for -- it is shown whole.
+  const drilledIntoNode = state.filters.node !== undefined;
   const synthesis = unhealthySynthesis(filtered);
   const hasZone = records.some((record) => zoneOf(record) !== UNPLACED);
   const hasCriticality = records.some((record) => criticalityOf(record) !== '');
@@ -599,6 +619,20 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         <Panel
           title={message(locale, 'resources.list.title')}
           titleHidden
+          action={
+            drilledIntoNode ? (
+              <Link
+                href={hrefFor(
+                  '/resources',
+                  withFilter(state, 'node', ''),
+                  RESOURCE_FILTERS,
+                )}
+                data-testid="node-section-back"
+              >
+                {message(locale, 'resources.detail.back')}
+              </Link>
+            ) : undefined
+          }
           state={stateOf(resources, sections.length === 0)}
           dependency={dependencyOf(resources)}
           labels={panelLabels(locale, message(locale, 'resources.list.title'))}
@@ -611,7 +645,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         >
           <div className="flex flex-col gap-5">
             {sections.map((section) => {
-              const capped = capNodeSection(section);
+              const capped = drilledIntoNode
+                ? { shown: section.resources }
+                : capNodeSection(section);
               const nodeName =
                 section.nodeName || message(locale, 'resources.node.none');
               return (
@@ -665,11 +701,25 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                     <NextLink
                       href={hrefFor(
                         '/resources',
-                        withFilter(
-                          state,
-                          'health',
-                          capped.more.onlyUnhealthy ? 'problem' : state.filters.health,
-                        ),
+                        capped.more.onlyUnhealthy
+                          ? withFilter(
+                              withFilter(
+                                state,
+                                'node',
+                                section.nodeId === NO_NODE
+                                  ? NO_NODE_FILTER_VALUE
+                                  : section.nodeId,
+                              ),
+                              'health',
+                              'problem',
+                            )
+                          : withFilter(
+                              state,
+                              'node',
+                              section.nodeId === NO_NODE
+                                ? NO_NODE_FILTER_VALUE
+                                : section.nodeId,
+                            ),
                         RESOURCE_FILTERS,
                       )}
                       prefetch={false}
