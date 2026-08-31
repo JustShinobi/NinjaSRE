@@ -254,8 +254,6 @@ test('AN-07: approving from the band closes the approval and the band reflects i
     .toBeLessThan(before);
 });
 
-
-
 // =============================================================================
 // AN-09 — every KPI shows number, sparkline and a decomposed legend
 // =============================================================================
