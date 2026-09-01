@@ -431,6 +431,15 @@ export function StopIcon(props: IconProps): ReactNode {
   );
 }
 
+/** The launcher's own verb: start the investigation, now. */
+export function PlayIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M5 4l11 6-11 6V4z" />
+    </Glyph>
+  );
+}
+
 /** Every icon this set ships, for the gallery and for the coverage test. */
 export const ICON_NAMES = [
   'CheckIcon',
@@ -468,4 +477,5 @@ export const ICON_NAMES = [
   'CompassIcon',
   'MenuIcon',
   'StopIcon',
+  'PlayIcon',
 ] as const;

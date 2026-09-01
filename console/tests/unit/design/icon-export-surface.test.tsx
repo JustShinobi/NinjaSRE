@@ -60,6 +60,7 @@ const EXPECTED_ICON_NAMES = [
   // Added after the redesign, not renamed from anything: the board draws a
   // stop mark on "Parar automação" and the set had no glyph for stopping.
   'StopIcon',
+  'PlayIcon',
 ] as const;
 
 describe('the icon module export surface', () => {

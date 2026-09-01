@@ -2080,7 +2080,20 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'live.investigate.title': 'Iniciar uma investigação',
   'live.investigate.objective': 'O que deve ser investigado?',
-  'live.investigate.start': 'Iniciar',
+  'live.investigate.start': 'Investigar',
+  'live.investigate.cancel': 'Cancelar',
+  'live.investigate.hint':
+    'O objetivo diz do que a investigação trata — o agente decide o caminho.',
+  'live.investigate.ctrlEnter': 'Ctrl ↵ para iniciar',
+  'live.investigate.suggestions': 'Ou comece de onde o ambiente está',
+  'live.investigate.suggestion.recurring':
+    'Por que {subject} insiste em voltar? {count} disparos',
+  'live.investigate.suggestion.unhealthy': 'O que derrubou {count} recursos?',
+  'live.investigate.suggestion.audit': 'Auditar a saúde geral do cluster {name}',
+  'live.investigate.footer.team': 'Vai rodar com o time {team} · {posture}',
+  'live.investigate.footer.postureOnly': 'Vai rodar · {posture}',
+  'live.investigate.footer.stages':
+    '6 estágios · você acompanha ao vivo, evento a evento',
   'live.investigate.required': 'Um objetivo é aquilo de que a investigação trata.',
   'live.investigate.started': 'A investigação foi iniciada.',
   'live.investigate.close': 'Fechar',

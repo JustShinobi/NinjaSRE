@@ -303,6 +303,96 @@ async function readSetupState(credential: string): Promise<SetupState> {
   }
 }
 
+/**
+ * What the investigate launcher offers before anything is typed: where the
+ * environment already is.
+ *
+ * Derived from what the console already carries — the incident listing and
+ * the estate's own summary — never invented. A deployment where neither read
+ * answers offers only the always-true audit suggestion, which is the honest
+ * floor rather than a failure.
+ */
+export interface LauncherBriefing {
+  /** The viewer's own team, named by the organisation tree. Empty when unnamed. */
+  readonly teamName: string;
+  /** The open subject that keeps firing, when one does. */
+  readonly recurring: { readonly subject: string; readonly count: number } | null;
+  /** The estate's own count of unhealthy resources right now. */
+  readonly unhealthy: number;
+}
+
+const EMPTY_BRIEFING: LauncherBriefing = {
+  teamName: '',
+  recurring: null,
+  unhealthy: 0,
+};
+
+/** How many rows one subject needs before "keeps coming back" is a fact. */
+const RECURRING_FLOOR = 2;
+
+export async function loadLauncher(
+  credential: string,
+  teamNodeId: string,
+): Promise<LauncherBriefing> {
+  return withDeadline(readLauncher(credential, teamNodeId), EMPTY_BRIEFING);
+}
+
+async function readLauncher(
+  credential: string,
+  teamNodeId: string,
+): Promise<LauncherBriefing> {
+  const init = authorised(credential);
+  const [incidents, estate, tree] = await Promise.all([
+    read('/v1/incidents', init).catch(() => null),
+    read('/v1/estate/summary', init).catch(() => null),
+    read('/v1/config', init).catch(() => null),
+  ]);
+
+  // The open subject with the most rows behind it. Grouped by the
+  // deployment's own correlation key — the same identity the incidents
+  // screen groups by — and titled by the newest row's own human sentence.
+  let recurring: LauncherBriefing['recurring'] = null;
+  if (incidents !== null) {
+    const open = records(incidents, 'incidents').filter(
+      (row) => !['resolved', 'closed', 'suppressed'].includes(text(row, 'state')),
+    );
+    const grouped = new Map<string, { count: number; title: string }>();
+    for (const row of open) {
+      const key = text(row, 'correlation_key') || text(row, 'title');
+      if (key === '') continue;
+      const held = grouped.get(key);
+      grouped.set(key, {
+        count: (held?.count ?? 0) + 1,
+        title: held?.title ?? (text(row, 'title') || key),
+      });
+    }
+    for (const { count, title } of grouped.values()) {
+      if (count >= RECURRING_FLOOR && count > (recurring?.count ?? 0)) {
+        recurring = { subject: title, count };
+      }
+    }
+  }
+
+  const byHealth: unknown =
+    estate === null ? undefined : Reflect.get(Object(estate), 'by_health');
+  const unhealthyFound: unknown =
+    byHealth === undefined ? undefined : Reflect.get(Object(byHealth), 'unhealthy');
+  const unhealthy =
+    typeof unhealthyFound === 'number' && Number.isFinite(unhealthyFound)
+      ? unhealthyFound
+      : 0;
+
+  const teamName =
+    tree === null
+      ? ''
+      : text(
+          records(tree, 'nodes').find((node) => text(node, 'node_id') === teamNodeId),
+          'name',
+        );
+
+  return { teamName, recurring, unhealthy };
+}
+
 /** How many items of each area's kind are waiting, for the sidebar's counts. */
 export function countsFrom(
   attention: readonly AttentionItem[],
