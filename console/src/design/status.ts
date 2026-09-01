@@ -280,7 +280,10 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   // outside the enumeration by name, so every screen comparing against
   // `closed` was comparing against a word that cannot arrive.
   open: { role: 'danger', shape: 'square' },
-  investigating: { role: 'info', shape: 'rotated-square' },
+  // Green, as the board draws it: work in progress rather than an aside —
+  // the agent is on it, which is the product doing its job. The shape stays
+  // its own, so it is never mistaken for a settled state.
+  investigating: { role: 'success', shape: 'rotated-square' },
   // Waiting on a person, which is the same fact `suspended` carries for a run
   // and is drawn the same way for that reason.
   awaiting_human: { role: 'warning', shape: 'triangle' },

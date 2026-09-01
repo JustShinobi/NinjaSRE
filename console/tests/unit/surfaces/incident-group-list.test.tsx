@@ -197,4 +197,34 @@ describe('the row still says everything it said before', () => {
       /resolved/i,
     );
   });
+
+  it('says the count as the board does: the number and ×, never a sentence', () => {
+    list([group({ count: 1 }), group({ key: 'ck-2', count: 8 })]);
+
+    const counts = screen
+      .getAllByTestId('incident-group-count')
+      .map((cell) => cell.textContent?.trim());
+    expect(counts).toEqual(['1×', '8×']);
+  });
+});
+
+describe('the first subject still critical is born expanded', () => {
+  it('opens exactly the first live critical row, and no other', () => {
+    list([
+      group({ key: 'ck-quiet', live: false }),
+      group({ key: 'ck-live-1', live: true, severity: 'critical', state: 'open' }),
+      group({ key: 'ck-live-2', live: true, severity: 'critical', state: 'open' }),
+    ]);
+
+    const rows = screen.getAllByTestId('incident-group');
+    expect(rows.map((row) => row.hasAttribute('open'))).toEqual([false, true, false]);
+  });
+
+  it('opens nothing when no live critical subject exists', () => {
+    list([group(), group({ key: 'ck-2', live: true, severity: 'medium' })]);
+
+    for (const row of screen.getAllByTestId('incident-group')) {
+      expect(row.hasAttribute('open')).toBe(false);
+    }
+  });
 });

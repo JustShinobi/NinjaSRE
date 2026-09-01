@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { Badge, statusLabel } from '@/components/status';
 import { cx } from '@/design/cx';
-import { formatCount, formatNumber, timestamp } from '@/i18n/format';
+import { formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import type { IncidentGroup } from './incident-groups';
 import { DEFAULT_TIMELINE_WINDOW_HOURS, positionOnTimeline } from './incident-timeline';
@@ -416,9 +416,18 @@ export function IncidentGroupList({
         })}
       </p>
       <ul className="flex flex-col">
-        {groups.map((group) => {
+        {groups.map((group, index) => {
           const last = timestamp(locale, group.lastAt, now, zone);
           const first = timestamp(locale, group.firstAt, now, zone);
+          // The first subject still critical is born expanded: its timeline,
+          // last cause found and live-investigation link are the reason the
+          // screen was opened, and hiding them behind a click on exactly
+          // that row made the loudest subject the quietest.
+          const bornOpen =
+            group.live &&
+            group.severity === 'critical' &&
+            groups.findIndex((each) => each.live && each.severity === 'critical') ===
+              index;
           return (
             <li
               key={group.key}
@@ -431,6 +440,7 @@ export function IncidentGroupList({
                 data-testid="incident-group"
                 data-live={group.live ? 'true' : 'false'}
                 data-count={group.count}
+                open={bornOpen || undefined}
               >
                 <summary
                   data-testid="incident-group-summary"
@@ -487,7 +497,13 @@ export function IncidentGroupList({
                       <SubjectLine group={group} subjectNames={subjectNames} />
                     </span>
                   </span>
-                  <RecurrenceStrip group={group} />
+                  {/* Its own right-aligned column before the chips, on a
+                      fixed axis and a fixed height — a strip that sat glued
+                      to the title at whatever width its firing count needed
+                      put every row's bars on a different scale. */}
+                  <span className="ml-auto flex w-column-instant shrink-0 justify-end">
+                    <RecurrenceStrip group={group} width={64} />
+                  </span>
                   {/* Severity yields to state once a cause is over. Fifteen
                       rows reading "Critical" in danger red beside a quiet green
                       "Resolved" made the alarm the loudest thing on a screen
@@ -497,7 +513,7 @@ export function IncidentGroupList({
                   <span
                     data-testid="incident-group-severity"
                     data-past={group.live ? 'false' : 'true'}
-                    className="ml-auto shrink-0"
+                    className="shrink-0"
                   >
                     {group.live ? (
                       <Badge status={group.severity} locale={locale} />
@@ -522,16 +538,15 @@ export function IncidentGroupList({
                   <span data-testid="incident-group-state" className="shrink-0">
                     <Badge status={group.state} locale={locale} />
                   </span>
+                  {/* The board's compact count: 1×, 2×, 8× in mono, one
+                      narrow column — never a sentence that wraps onto two
+                      lines. The same reading the Painel's subject strip
+                      already uses. */}
                   <span
                     data-testid="incident-group-count"
-                    className="text-small tabular-nums text-right shrink-0 w-column-measure font-mono"
+                    className="text-small tabular-nums text-right shrink-0 w-column-badge font-mono"
                   >
-                    {formatCount(
-                      locale,
-                      group.count,
-                      'incidents.group.count.one',
-                      'incidents.group.count',
-                    )}
+                    {formatNumber(locale, group.count)}×
                   </span>
                   <span className="text-small text-muted tabular-nums text-right shrink-0 w-column-instant">
                     <time dateTime={group.lastAt} title={last.absolute}>
