@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import NextLink from 'next/link';
 
+import { statusLabel } from '@/components/status';
 import { cx } from '@/design/cx';
 import { isLiveRun } from '@/design/status';
 import { formatCount, formatDuration } from '@/i18n/format';
@@ -40,6 +41,7 @@ import {
   hrefFor,
   readViewState,
   withFilter,
+  withPage,
   withSelection,
   type FilterName,
   type ViewState,
@@ -133,6 +135,21 @@ function FilterChips({
   );
 }
 
+/** How many settled runs one page holds. The 5,700px single page is dead. */
+const RUNS_PAGE_SIZE = 20;
+
+/**
+ * Which page numbers the bar offers: all of them up to seven, and a window
+ * around the current one — first and last always reachable — past that.
+ */
+export function pageNumbers(current: number, total: number): readonly number[] {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const around = [1, current - 1, current, current + 1, total]
+    .filter((page) => page >= 1 && page <= total)
+    .sort((left, right) => left - right);
+  return [...new Set(around)];
+}
+
 /** How long a run took, in seconds, or nought while it is still going. */
 function durationOf(record: unknown): number {
   const started = Date.parse(text(record, 'started_at'));
@@ -180,9 +197,18 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   // longer see, and reading it would render a body under no card. Only a
   // settled run ever expands in place — a live one's own page is one line
   // away and is where its stream actually lives.
+  // The page, from the address — the board's own '← Anteriores 1 2 3
+  // Próximas →', at twenty rows a page.
+  const pageCount = Math.max(1, Math.ceil(settledRecords.length / RUNS_PAGE_SIZE));
+  const page = Math.min(state.page, pageCount);
+  const pageRecords = settledRecords.slice(
+    (page - 1) * RUNS_PAGE_SIZE,
+    page * RUNS_PAGE_SIZE,
+  );
+
   const openId =
     state.selection !== null &&
-    settledRecords.some((record) => text(record, 'run_id') === state.selection)
+    pageRecords.some((record) => text(record, 'run_id') === state.selection)
       ? state.selection
       : null;
 
@@ -249,7 +275,7 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
     }),
   );
 
-  const cards = settledRecords.map((record) => {
+  const cards = pageRecords.map((record) => {
     const id = text(record, 'run_id');
     const subject = subjectOf(record, locale);
     const open = id === openId;
@@ -298,7 +324,12 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           {
             name: 'status',
             label: message(locale, 'runs.filter.status'),
-            options: statuses.map((status) => ({ value: status, label: status })),
+            options: statuses.map((status) => ({
+              value: status,
+              // The declared label for a state the product knows — the raw
+              // word only for one it does not, the same rule Badge holds.
+              label: statusLabel(locale, status) ?? status,
+            })),
           },
           {
             name: 'trigger',
@@ -365,6 +396,51 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
             })}
           </p>
           {cards}
+          {pageCount <= 1 ? null : (
+            <nav
+              aria-label={message(locale, 'runs.page.label')}
+              data-testid="runs-pagination"
+              className="flex flex-wrap items-center justify-center gap-2 pt-2"
+            >
+              {page <= 1 ? null : (
+                <NextLink
+                  prefetch={false}
+                  data-testid="runs-page-previous"
+                  href={hrefFor('/runs', withPage(state, page - 1), RUN_FILTERS)}
+                  className="text-small text-muted hover:text-text motion-hover"
+                >
+                  ← {message(locale, 'runs.page.previous')}
+                </NextLink>
+              )}
+              {pageNumbers(page, pageCount).map((offered) => (
+                <NextLink
+                  key={offered}
+                  prefetch={false}
+                  data-testid="runs-page-number"
+                  aria-current={offered === page ? 'page' : undefined}
+                  href={hrefFor('/runs', withPage(state, offered), RUN_FILTERS)}
+                  className={cx(
+                    'inline-flex items-center rounded-full px-3 py-1 font-mono text-small motion-hover',
+                    offered === page
+                      ? 'edge border-accent bg-accent-bg text-accent'
+                      : 'text-muted hover:text-text hover:bg-hover',
+                  )}
+                >
+                  {offered}
+                </NextLink>
+              ))}
+              {page >= pageCount ? null : (
+                <NextLink
+                  prefetch={false}
+                  data-testid="runs-page-next"
+                  href={hrefFor('/runs', withPage(state, page + 1), RUN_FILTERS)}
+                  className="text-small text-muted hover:text-text motion-hover"
+                >
+                  {message(locale, 'runs.page.next')} →
+                </NextLink>
+              )}
+            </nav>
+          )}
         </div>
       </Panel>
     </>

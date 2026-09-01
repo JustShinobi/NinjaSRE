@@ -707,6 +707,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'runs.column.started': 'Início',
   'runs.column.duration': 'Duração',
   'runs.column.cost': 'Custo',
+  'runs.page.label': 'Páginas',
+  'runs.page.previous': 'Anteriores',
+  'runs.page.next': 'Próximas',
   'runs.filter.status': 'Estado',
   'runs.filter.trigger': 'Origem',
   'runs.list.title': 'Investigações',
@@ -762,7 +765,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'runs.row.opening': 'Abrindo esta investigação…',
   'runs.row.close': 'Fechar esta investigação',
   'runs.row.openPage': 'Abrir na página dela',
-  'run.evidence.backed': '{backed} de {claims} afirmações sustentadas',
+  'run.evidence.backed': '{backed} de {claims} com evidência',
   'run.evidence.unassessed': 'nada a sustentar',
   'run.evidence.unassessed.explain':
     'Esta investigação nunca avaliou a própria evidência, o que não é o mesmo que não ter achado nada.',

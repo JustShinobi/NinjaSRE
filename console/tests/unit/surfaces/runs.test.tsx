@@ -173,6 +173,82 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('the list paginates, and each outcome carries its shape', () => {
+  function serveManyRuns(count: number): void {
+    const runs = Array.from({ length: count }, (_, index) => ({
+      run_id: `run-${String(index).padStart(4, '0')}`,
+      trigger: 'alert',
+      status: index % 7 === 0 ? 'failed' : 'completed',
+      headline: `subject ${String(index)}`,
+      summary: `subject ${String(index)}`,
+      report: '',
+      started_at: new Date(Date.UTC(2026, 7, 1, 0, count - index)).toISOString(),
+      finished_at: new Date(Date.UTC(2026, 7, 1, 0, count - index + 1)).toISOString(),
+    }));
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), FIXTURE_ORIGIN).pathname;
+      const body = path === '/v1/runs' ? { runs } : {};
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+  }
+
+  it('caps a page at twenty rows, with the page in the address', async () => {
+    serveManyRuns(45);
+    render(await RunsScreen(contextFor(datasetViewer())));
+
+    expect(screen.getAllByTestId('run-card').length).toBe(20);
+    const pagination = screen.getByTestId('runs-pagination');
+    expect(pagination).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId('runs-page-number').map((link) => link.textContent),
+    ).toEqual(['1', '2', '3']);
+    expect(screen.getByTestId('runs-page-next').getAttribute('href')).toContain(
+      'page=2',
+    );
+    expect(screen.queryByTestId('runs-page-previous')).toBeNull();
+  });
+
+  it('shows the page the address names, previous and next both offered', async () => {
+    serveManyRuns(45);
+    render(await RunsScreen(contextFor(datasetViewer(), 'page=2')));
+
+    expect(screen.getAllByTestId('run-card').length).toBe(20);
+    expect(screen.getByTestId('runs-page-previous')).toBeInTheDocument();
+    expect(screen.getByTestId('runs-page-next')).toBeInTheDocument();
+    const current = screen
+      .getAllByTestId('runs-page-number')
+      .find((link) => link.getAttribute('aria-current') === 'page');
+    expect(current?.textContent).toBe('2');
+  });
+
+  it('offers no pagination at all when one page holds everything', async () => {
+    serveManyRuns(5);
+    render(await RunsScreen(contextFor(datasetViewer())));
+
+    expect(screen.queryByTestId('runs-pagination')).toBeNull();
+  });
+
+  it('marks each card with its outcome’s own shape, not a repeated document glyph', async () => {
+    serveManyRuns(3);
+    render(await RunsScreen(contextFor(datasetViewer())));
+
+    const marks = screen.getAllByTestId('run-card-outcome-mark');
+    expect(marks.length).toBe(3);
+    // The foundation's shapes: a completed run's mark is the filled circle,
+    // a failed one's the square — legible before any word is read.
+    const shapes = marks.map((mark) =>
+      mark.querySelector('[data-shape]')?.getAttribute('data-shape'),
+    );
+    expect(shapes).toContain('filled-circle');
+    expect(shapes).toContain('square');
+  });
+});
+
 describe('the runs list language', () => {
   it('uses investigations in visible copy and translates trigger slugs', async () => {
     render(await RunsScreen(contextFor(datasetViewer())));

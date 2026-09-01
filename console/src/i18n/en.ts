@@ -896,6 +896,9 @@ export const EN = {
   'runs.column.started': 'Started',
   'runs.column.duration': 'Duration',
   'runs.column.cost': 'Cost',
+  'runs.page.label': 'Pages',
+  'runs.page.previous': 'Previous',
+  'runs.page.next': 'Next',
   'runs.filter.status': 'Status',
   'runs.filter.trigger': 'Trigger',
   'runs.list.title': 'Investigations',
@@ -954,7 +957,7 @@ export const EN = {
   'runs.row.opening': 'Opening this investigation…',
   'runs.row.close': 'Close this investigation',
   'runs.row.openPage': 'Open on its own page',
-  'run.evidence.backed': '{backed} of {claims} claims backed',
+  'run.evidence.backed': '{backed} of {claims} with evidence',
   'run.evidence.unassessed': 'no claim to back',
   'run.evidence.unassessed.explain':
     'This investigation never assessed its own evidence, which is not the same as having found nothing.',

@@ -350,7 +350,7 @@ describe('a run whose own record says its evidence was assessed', () => {
     render(await RunDetailScreen(await surfaceContext({}), ASSESSED_RUN));
 
     const bar = screen.getByTestId('findings-evidence-progress');
-    expect(within(bar).getByText('3 of 4 claims backed')).toBeInTheDocument();
+    expect(within(bar).getByText('3 of 4 with evidence')).toBeInTheDocument();
   });
 
   it('never draws the bar for a run whose record never assessed anything', async () => {

@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
-import { Badge, ResolvedChip } from '@/components/status';
-import { ListIcon } from '@/design/icons';
+import { Badge, ResolvedChip, StatusDot } from '@/components/status';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { CopyReport } from './copy-report';
@@ -553,8 +552,15 @@ export function RunCard({
         <span className="sr-only">
           {open ? message(locale, 'runs.row.close') : message(locale, 'runs.row.open')}
         </span>
-        <span className="shrink-0 rounded-2 edge border-border bg-sunken p-2 flex items-center justify-center">
-          <ListIcon size="nav" className="text-muted" />
+        {/* The outcome's own shape, not a document glyph repeated down the
+            column: a green dot for completed, a red square for failed, the
+            foundation's shape for anything else — forty-nine identical file
+            icons distinguished nothing. */}
+        <span
+          data-testid="run-card-outcome-mark"
+          className="shrink-0 flex items-center justify-center p-2"
+        >
+          <StatusDot status={head.status} />
         </span>
         <span className="min-w-0 grow flex flex-col gap-1">
           {/* One line, in one type, in both states. This row is the handle

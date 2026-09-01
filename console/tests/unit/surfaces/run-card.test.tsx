@@ -124,7 +124,7 @@ describe('the evidence a run says it had', () => {
     );
 
     const chip = screen.getByTestId('run-evidence');
-    expect(chip).toHaveTextContent('2 of 3 claims backed');
+    expect(chip).toHaveTextContent('2 of 3 with evidence');
     expect(chip).toHaveAttribute('data-role', 'warning');
   });
 
