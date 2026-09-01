@@ -161,7 +161,7 @@ describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
     const statuses = screen.getAllByTestId('advanced-section-status');
     expect(statuses.length).toBe(4);
     for (const status of statuses) {
-      expect(status.textContent?.trim()).toBeTruthy();
+      expect(status.textContent.trim()).toBeTruthy();
     }
   });
 

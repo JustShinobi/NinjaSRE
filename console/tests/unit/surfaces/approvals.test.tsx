@@ -252,7 +252,7 @@ describe('the autonomy line of a pending decision', () => {
     // dash ("… cannot be undone. — queued …").
     expect(autonomy).toHaveTextContent(/irreversible/i);
     expect(autonomy).toHaveTextContent(/queued/i);
-    expect((autonomy?.textContent?.match(/—/g) ?? []).length).toBe(1);
+    expect((autonomy?.textContent.match(/—/g) ?? []).length).toBe(1);
   });
 
   it('prints a bare call signature as code, never dressed as prose', async () => {

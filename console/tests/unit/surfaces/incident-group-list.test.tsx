@@ -203,7 +203,7 @@ describe('the row still says everything it said before', () => {
 
     const counts = screen
       .getAllByTestId('incident-group-count')
-      .map((cell) => cell.textContent?.trim());
+      .map((cell) => cell.textContent.trim());
     expect(counts).toEqual(['1×', '8×']);
   });
 });
