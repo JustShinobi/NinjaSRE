@@ -120,7 +120,9 @@ describe('SubjectStrip', () => {
       />,
     );
     const row = screen.getByTestId('subject-row');
-    expect(within(row).getByText('investigating')).toBeInTheDocument();
+    // The declared label for a state the product knows — the raw word is the
+    // fallback for a state nobody declared, not the steady rendering.
+    expect(within(row).getByText('Investigating')).toBeInTheDocument();
   });
 
   it("links the row to the newest firing's own public address, when nothing is running against it", () => {

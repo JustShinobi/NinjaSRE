@@ -311,7 +311,7 @@ function Remembered({
   return (
     <div data-testid="run-episode" className="flex flex-col gap-2">
       <div className="flex items-start gap-2">
-        <Badge status={written.outcome} className="shrink-0" />
+        <Badge status={written.outcome} locale={locale} className="shrink-0" />
         <span className="text-small grow">{written.title}</span>
       </div>
       {written.summary === '' ? null : (
@@ -347,7 +347,7 @@ function CallRow({
       data-testid="run-call"
       className="flex items-center gap-3 px-3 py-2 edge border-border border-x-0 border-t-0 last:border-b-0"
     >
-      <Badge status={call.status} className="shrink-0" />
+      <Badge status={call.status} locale={locale} className="shrink-0" />
       <span className="font-mono text-meta grow min-w-0 break-all">{call.name}</span>
       {call.error === '' ? null : (
         <span className="text-meta text-danger min-w-0 break-words">{call.error}</span>
@@ -404,7 +404,9 @@ function StageRow({
             ? message(locale, 'run.stage.noFinding')
             : stage.finding}
         </p>
-        {stage.failed ? <Badge status="failed" className="shrink-0" /> : null}
+        {stage.failed ? (
+          <Badge status="failed" locale={locale} className="shrink-0" />
+        ) : null}
         {calls.length === 0 && stage.llmCalls > 0 ? (
           <span className="text-meta text-muted shrink-0">
             {message(locale, 'run.stage.modelCalls', { calls: String(stage.llmCalls) })}
@@ -577,7 +579,7 @@ export function RunCard({
             <span className="font-mono">{`#${head.runId.slice(0, 8)}`}</span>
           </span>
         </span>
-        <Badge status={head.status} className="shrink-0" />
+        <Badge status={head.status} locale={locale} className="shrink-0" />
         <EvidenceChip locale={locale} evidence={head.evidence} className="shrink-0" />
         <span className="text-meta text-muted tabular-nums shrink-0 w-column-measure text-right">
           {head.seconds === 0 ? none : formatDuration(locale, head.seconds)}
@@ -778,7 +780,7 @@ export function RunCard({
                       className="edge border-warning rounded-2 bg-warning-bg p-3 text-small flex flex-col gap-3"
                     >
                       <span className="flex items-start gap-2">
-                        <Badge status="waiting" className="shrink-0" />
+                        <Badge status="waiting" locale={locale} className="shrink-0" />
                         <span className="grow">{decision.text}</span>
                       </span>
                       <DecisionControls

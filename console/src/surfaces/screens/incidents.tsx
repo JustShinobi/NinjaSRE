@@ -97,8 +97,8 @@ function IncidentPreview({ locale }: Pick<SurfaceContext, 'locale'>): ReactNode 
         {message(locale, 'incidents.preview.example.title')}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <Badge status="critical" />
-        <Badge status="open" />
+        <Badge status="critical" locale={locale} />
+        <Badge status="open" locale={locale} />
       </div>
       <dl className="flex flex-col gap-2 text-small">
         <div className="flex flex-wrap gap-x-3 gap-y-1">

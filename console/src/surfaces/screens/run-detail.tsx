@@ -213,7 +213,7 @@ export async function RunDetailScreen(
           titleTooltip={subject.truncated ? subject.full : undefined}
           context={subtitle}
           icon={<Icon size="head" />}
-          actions={<Badge status={text(run, 'status')} />}
+          actions={<Badge status={text(run, 'status')} locale={locale} />}
         />
       </div>
 
@@ -368,6 +368,7 @@ export async function RunDetailScreen(
               <Transcript
                 events={events}
                 labels={transcriptLabels(locale, events)}
+                locale={locale}
                 times={eventTimes(locale, events, now, zone)}
                 narrations={narrations(locale, events)}
               />

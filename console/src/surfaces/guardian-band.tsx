@@ -188,7 +188,7 @@ export function GuardianBand({
                   href={flight.href}
                   className="flex items-center gap-3 px-4 py-3 motion-hover hover:bg-hover"
                 >
-                  <Badge status={flight.status} className="shrink-0" />
+                  <Badge status={flight.status} locale={locale} className="shrink-0" />
                   <span className="min-w-0 truncate text-small">{flight.headline}</span>
                   <span className="ml-auto shrink-0 text-meta text-muted tabular-nums">
                     {message(locale, 'dashboard.band.started', { since: flight.since })}

@@ -110,7 +110,7 @@ export function NotificationCentre({
                   data-oldest={item.id === first?.id ? 'true' : undefined}
                   className="flex items-start gap-3 p-3 edge border-x-0 border-t-0 border-border motion-hover hover:bg-hover"
                 >
-                  <Badge status={item.kind} />
+                  <Badge status={item.kind} locale={locale} />
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-small">{said.title}</span>
                     <span className="truncate text-meta text-muted">{said.detail}</span>

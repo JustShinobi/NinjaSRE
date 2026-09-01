@@ -242,6 +242,7 @@ function cardPropsFrom(
   const originHeadline = text(origin, 'headline');
   return {
     approvalId: text(record, 'approval_id'),
+    locale,
     state,
     title: text(record, 'title') || text(record, 'summary'),
     requester: text(record, 'requester'),

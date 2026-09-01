@@ -83,6 +83,18 @@ export function message(
   return interpolate(found, params);
 }
 
+/**
+ * Whether the source catalogue declares `key` at all.
+ *
+ * For the one legitimate case of a computed key: a status word the deployment
+ * sent, normalised and probed for a declared label. `message` throws for a key
+ * nobody declared — the right behaviour for a key a programmer wrote — so a
+ * caller composing a key from data needs this to ask before it looks up.
+ */
+export function isMessageKey(key: string): key is MessageKey {
+  return (EN as Readonly<Record<string, string | undefined>>)[key] !== undefined;
+}
+
 /** Whether `value` names a locale this console carries. */
 export function isLocale(value: string | null | undefined): value is Locale {
   return (

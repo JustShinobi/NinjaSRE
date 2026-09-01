@@ -300,7 +300,10 @@ export function eventFromStream(streamed: StreamedEvent): TranscriptEvent {
   // (`platform/runs/recorder.py`). Falling through them in order, with the
   // raw kind last, keeps the meta line honest for an event that named nothing.
   const title =
-    text(payload, 'name') || text(payload, 'capability') || text(payload, 'stage') || name;
+    text(payload, 'name') ||
+    text(payload, 'capability') ||
+    text(payload, 'stage') ||
+    name;
   // Likewise the prose: a stage boundary carries what it established as
   // `finding`, and the mock dataset's hypothesis carries its `text`.
   const detail =

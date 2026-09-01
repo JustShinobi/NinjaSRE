@@ -21,6 +21,8 @@ import {
   ShieldIcon,
   type IconProps,
 } from '@/design/icons';
+import type { Locale } from '@/i18n/messages';
+
 import { BoundedPayload, type PayloadLabels } from './payload';
 import { renderReport } from './report';
 import { KIND_ROLE, type TranscriptEvent, type TranscriptKind } from './transcript';
@@ -144,6 +146,8 @@ export interface TranscriptViewLabels {
 export interface TranscriptProps {
   readonly events: readonly TranscriptEvent[];
   readonly labels: TranscriptLabels;
+  /** The viewer's language, for the call statuses the product knows. */
+  readonly locale?: Locale | undefined;
   /** Each event's instant, already formatted, keyed by event id. */
   readonly times: Readonly<Record<string, EventTime>>;
   /** Each event's narrated sentence, already composed, keyed by event id. */
@@ -156,6 +160,7 @@ type TranscriptView = 'narrated' | 'raw';
 function Entry({
   event,
   labels,
+  locale,
   time,
   narration,
   view,
@@ -163,6 +168,7 @@ function Entry({
 }: {
   readonly event: TranscriptEvent;
   readonly labels: TranscriptLabels;
+  readonly locale?: Locale | undefined;
   readonly time: EventTime | undefined;
   readonly narration: string;
   readonly view: TranscriptView;
@@ -221,7 +227,7 @@ function Entry({
           >
             {labels.kinds[event.kind]}
           </span>
-          {event.status === '' ? null : <Badge status={event.status} />}
+          {event.status === '' ? null : <Badge status={event.status} locale={locale} />}
           {time === undefined || time.duration === '' ? null : (
             <span className="tabular-nums">{time.duration}</span>
           )}
@@ -301,6 +307,7 @@ function Entry({
 export function Transcript({
   events,
   labels,
+  locale,
   times,
   narrations,
 }: TranscriptProps): ReactNode {
@@ -497,6 +504,7 @@ export function Transcript({
             key={event.id}
             event={event}
             labels={labels}
+            locale={locale}
             time={times[event.id]}
             narration={narrations[event.id] ?? ''}
             view={view}

@@ -9,7 +9,7 @@ import {
 } from '@/design/status';
 import type { SemanticRole } from '@/design/tokens';
 import type { MessageKey } from '@/i18n/en';
-import { message, type Locale } from '@/i18n/messages';
+import { isMessageKey, message, type Locale } from '@/i18n/messages';
 
 /**
  * Status, drawn twice.
@@ -168,36 +168,69 @@ function ShapeMark({ shape, role, name, className }: ShapeMarkProps): ReactNode 
   );
 }
 
+/**
+ * The declared label for a status word the product knows, or `undefined`.
+ *
+ * The set of labelled states is whatever `status.<word>` keys the catalogue
+ * declares — a closed enumeration the product itself carries, which is a
+ * different thing from the open vocabulary a deployment may extend. A word
+ * outside it stays exactly as it arrived, so the contract that an unknown
+ * status is never translated and never trimmed away holds by construction:
+ * translation only ever happens when this returns a string.
+ *
+ * Exported for the one composed phrase that says a status in running prose
+ * ("was critical", incidents) — the phrase and the chip must agree on the
+ * word, and they can only agree by asking the same table.
+ */
+export function statusLabel(locale: Locale, status: string): string | undefined {
+  const key = `status.${status
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/gu, '_')}`;
+  return isMessageKey(key) ? message(locale, key) : undefined;
+}
+
 export interface BadgeProps {
-  /** The status as the API reported it. Never translated, never trimmed away. */
+  /** The status as the API reported it. Never trimmed away. */
   readonly status: string;
+  /**
+   * The viewer's language, for the enumerations the product knows.
+   *
+   * Without it the chip shows the raw word, which is also what it shows for
+   * a word the catalogue has no label for — a provider one version ahead is
+   * not a fault, and its new word arrives untranslated rather than blank.
+   */
+  readonly locale?: Locale | undefined;
   readonly className?: string;
 }
 
 /**
  * A status, as a chip: shape, then the word.
  *
- * The word is always the status the API sent. A status the console has never
- * heard of gets the neutral role and its own text — never blank, never an
- * error, because a provider one version ahead is not a fault.
+ * The word is the declared label for a state the product knows, in the
+ * viewer's language, and otherwise exactly the status the API sent. A status
+ * the console has never heard of gets the neutral role and its own text —
+ * never blank, never an error.
  */
-export function Badge({ status, className }: BadgeProps): ReactNode {
+export function Badge({ status, locale, className }: BadgeProps): ReactNode {
   const presented = statusPresentation(status);
+  const labelled = locale === undefined ? undefined : statusLabel(locale, status);
   return (
     <span
       data-role={presented.role}
       data-known={presented.known}
       className={cx(
         CHIP_SHAPE,
-        // The one chip carrying a word the deployment wrote rather than one
-        // this console chose, so it is the one that needs casing at all.
-        'capitalize',
+        // A raw word is the one chip text the deployment wrote rather than
+        // one this console chose, so it is the one that needs casing; a
+        // declared label already carries its own.
+        labelled === undefined ? 'capitalize' : '',
         ROLE_SKIN[presented.role],
         className,
       )}
     >
       <ShapeMark shape={presented.shape} role={presented.role} />
-      {presented.label}
+      {labelled ?? presented.label}
     </span>
   );
 }
@@ -724,7 +757,13 @@ export function SideEffectChip({
     ? (level as SideEffectLevel)
     : undefined;
   if (known === undefined) {
-    return <Badge status={level} {...(className === undefined ? {} : { className })} />;
+    return (
+      <Badge
+        status={level}
+        locale={locale}
+        {...(className === undefined ? {} : { className })}
+      />
+    );
   }
   return (
     <ResolvedChip

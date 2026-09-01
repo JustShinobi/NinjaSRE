@@ -196,6 +196,7 @@ export function LiveRun({
         <Transcript
           events={events}
           labels={transcriptLabels(locale, events)}
+          locale={locale}
           times={eventTimes(locale, events, new Date(now), zone)}
           narrations={narrations(locale, events)}
         />

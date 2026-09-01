@@ -677,7 +677,7 @@ function AutonomySummaryCard({
               {humaniseIdentifier(text(entry, 'risk_class'))}
             </span>
             <span data-testid="autonomy-summary-decision" className="ml-auto">
-              <Badge status={text(entry, 'decision')} />
+              <Badge status={text(entry, 'decision')} locale={locale} />
             </span>
           </li>
         ))}
@@ -887,7 +887,7 @@ function TopologyTab({
                     </span>
                   )}
                   {flag(stage, 'dispatches_subagents') ? (
-                    <Badge status="active" />
+                    <Badge status="active" locale={locale} />
                   ) : null}
                 </span>
                 {/* Capped at a reading measure. The page cap stops a screen at
@@ -1701,7 +1701,7 @@ function AutonomyTab({
                   riskClass={text(entry, 'risk_class')}
                   label={humaniseIdentifier(text(entry, 'risk_class'))}
                 />
-                <Badge status={text(entry, 'decision')} />
+                <Badge status={text(entry, 'decision')} locale={locale} />
                 {text(entry, 'refused_by') === '' ? null : (
                   <span className="text-meta text-muted" data-testid="outlook-bound">
                     {message(locale, 'agent.outlook.bound', {

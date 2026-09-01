@@ -69,6 +69,38 @@ describe('Badge', () => {
   });
 });
 
+describe('Badge given a locale', () => {
+  it('labels an enumeration the product knows in the viewer’s language', () => {
+    render(<Badge status="running" locale="pt-BR" />);
+    expect(screen.getByText('Rodando')).toBeInTheDocument();
+  });
+
+  it('normalises the spelling the deployment sent before looking it up', () => {
+    render(<Badge status="Awaiting_Human" locale="pt-BR" />);
+    expect(screen.getByText('Esperando alguém')).toBeInTheDocument();
+  });
+
+  it('keeps the raw word and the neutral role for a state nobody declared', () => {
+    // The §12 contract by construction: an unknown word from the deployment
+    // is never translated, never trimmed away — exactly the pre-locale
+    // behaviour.
+    const { container } = render(<Badge status="quiesced" locale="pt-BR" />);
+    expect(screen.getByText('quiesced')).toBeInTheDocument();
+    expect(container.querySelector('[data-role]')).toHaveAttribute(
+      'data-role',
+      'neutral',
+    );
+  });
+
+  it('keeps the role and shape of the status itself, whatever the label says', () => {
+    const { container } = render(<Badge status="running" locale="pt-BR" />);
+    expect(container.querySelector('[data-shape]')).toHaveAttribute(
+      'data-shape',
+      statusPresentation('running').shape,
+    );
+  });
+});
+
 describe('StatusDot', () => {
   it('is never announced on its own, because it is never on its own', () => {
     render(<StatusDot status="healthy" />);

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
+import { Badge, statusLabel } from '@/components/status';
 import { cx } from '@/design/cx';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -500,20 +500,27 @@ export function IncidentGroupList({
                     className="ml-auto shrink-0"
                   >
                     {group.live ? (
-                      <Badge status={group.severity} />
+                      <Badge status={group.severity} locale={locale} />
                     ) : (
                       // No `capitalize`: it title-cases every word, and "Was
                       // Critical" reads as a proper noun rather than as the
                       // aside it is.
                       <span className="text-meta text-muted">
                         {message(locale, 'incidents.group.wasSeverity', {
-                          severity: group.severity,
+                          // The same table the chip reads, so the phrase and
+                          // the chip never disagree about the word — and the
+                          // label already carries its own casing, which is
+                          // why the raw word stays the lowercased fallback.
+                          severity:
+                            statusLabel(locale, group.severity)?.toLocaleLowerCase(
+                              locale,
+                            ) ?? group.severity,
                         })}
                       </span>
                     )}
                   </span>
                   <span data-testid="incident-group-state" className="shrink-0">
-                    <Badge status={group.state} />
+                    <Badge status={group.state} locale={locale} />
                   </span>
                   <span
                     data-testid="incident-group-count"

@@ -138,7 +138,7 @@ function SubjectRow({
         data-role={statusPresentation(group.state).role}
         className="shrink-0"
       >
-        <Badge status={group.state} />
+        <Badge status={group.state} locale={locale} />
       </span>
       <span
         className="font-mono text-meta text-muted shrink-0"

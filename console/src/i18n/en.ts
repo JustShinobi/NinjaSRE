@@ -409,6 +409,24 @@ export const EN = {
   // The one word `StatusChip` renders for each of the five states declared in
   // `design/status.ts`, whatever backend spelling — a resource's health, an
   // integration's health, a checklist's readiness — it was translated from.
+  // The status enumerations the product itself knows, labelled — `Badge`
+  // probes `status.<normalised word>` and falls back to the raw word for
+  // anything the deployment invented. Flat keys, one per state.
+  'status.running': 'Running',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.succeeded': 'Succeeded',
+  'status.expired': 'Expired',
+  'status.investigating': 'Investigating',
+  'status.resolved': 'Resolved',
+  'status.remediating': 'Remediating',
+  'status.open': 'Open',
+  'status.awaiting_human': 'Awaiting a person',
+  'status.critical': 'Critical',
+  'status.medium': 'Medium',
+  'status.active': 'Active',
+  'status.propose': 'Propose',
+  'status.proposed': 'Proposed',
   'status.credential.notConnected': 'Not connected',
   'status.credential.stored': 'Stored',
   'status.credential.verified': 'Verified',

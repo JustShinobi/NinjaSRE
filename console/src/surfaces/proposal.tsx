@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
+import type { Locale } from '@/i18n/messages';
 import { AlertTriangleIcon } from '@/design/icons';
 import { Link } from '@/components/action';
 import type { ExpiredFooterProps } from './expired-footer';
@@ -74,6 +75,8 @@ export interface DecisionCardLabels {
 
 export interface DecisionCardProps {
   readonly approvalId: string;
+  /** The viewer's language, for the states and verdicts the product knows. */
+  readonly locale?: Locale | undefined;
   readonly state: DecisionState;
   readonly title: string;
   readonly requester: string;
@@ -273,16 +276,18 @@ function RiskGauge({
 function Outcome({
   outcome,
   labels,
+  locale,
 }: {
   readonly outcome: DecisionOutcome;
   readonly labels: DecisionCardLabels;
+  readonly locale?: Locale | undefined;
 }): ReactNode {
   return (
     <footer
       data-testid="decision-outcome"
       className="flex items-center gap-2 px-5 py-3 rounded-b-3 edge border-border border-b-0 border-x-0"
     >
-      <Badge status={outcome.verdict} />
+      <Badge status={outcome.verdict} locale={locale} />
       <span className="text-small text-muted">
         {labels.outcome} — {outcome.decidedBy}
         {outcome.appliedAndVerified ? ` ${labels.appliedAndVerified}` : ''} ·{' '}
@@ -294,6 +299,7 @@ function Outcome({
 
 export function DecisionCard({
   approvalId,
+  locale,
   state,
   title,
   requester,
@@ -355,7 +361,7 @@ export function DecisionCard({
         <div className="ml-auto flex items-center gap-3 shrink-0">
           <RiskGauge risk={risk} label={riskLabel} />
           <span data-testid="decision-state">
-            <Badge status={state} />
+            <Badge status={state} locale={locale} />
           </span>
         </div>
       </header>
@@ -433,7 +439,7 @@ export function DecisionCard({
       {state === 'expired' && expiredFooter !== undefined ? (
         <ExpiredFooterControls {...expiredFooter} />
       ) : outcome !== undefined ? (
-        <Outcome outcome={outcome} labels={labels} />
+        <Outcome outcome={outcome} labels={labels} locale={locale} />
       ) : decision === undefined ? null : (
         <footer
           data-testid="decision-controls-footer"
