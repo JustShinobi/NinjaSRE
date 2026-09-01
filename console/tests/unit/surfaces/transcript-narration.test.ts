@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { LOCALES } from '@/i18n/messages';
@@ -52,13 +55,113 @@ describe('every raw kind the stream declares has a narrated phrase, in every loc
   }
 });
 
+/**
+ * The vocabulary the deployment actually emits: `TraceEventKind` in
+ * `platform/runs/events.py`, the closed set the recorder writes and the run
+ * stream delivers. Spelled out here rather than read from the fixtures,
+ * because the fixtures still carry the older spellings alongside it — and it
+ * was exactly these kinds that a live run on staging narrated as "an event of
+ * an unrecognised kind arrived", every entry labelled reasoning.
+ */
+const DEPLOYMENT_KINDS = [
+  'run_started',
+  'stage_completed',
+  'turn_completed',
+  'capability_called',
+  'evidence_observed',
+  'subagent_dispatched',
+  'guardrail_action',
+  'masking_applied',
+  'budget_eviction',
+  'approval_requested',
+  'attention_changed',
+  'report_delivered',
+  'notification_decided',
+  'run_interrupted',
+  'run_finished',
+] as const;
+
+/** Every kind the committed stream fixture actually carries, read from disk. */
+function fixtureKinds(): readonly string[] {
+  const path = join(
+    process.cwd(),
+    '..',
+    'fixtures',
+    'scenarios',
+    'populated',
+    'run-stream.json',
+  );
+  const loaded: unknown = JSON.parse(readFileSync(path, 'utf8'));
+  const responses: unknown = Reflect.get(Object(loaded), 'responses');
+  const first: unknown = Array.isArray(responses) ? responses[0] : undefined;
+  const body: unknown = Reflect.get(Object(first), 'body');
+  const events: unknown = Reflect.get(Object(body), 'events');
+  if (!Array.isArray(events)) throw new Error('run-stream fixture carries no events');
+  return events.map((event) => String(Reflect.get(Object(event), 'kind')));
+}
+
+describe('every kind the deployment emits narrates as itself, never as the unknown-kind sentence', () => {
+  const kinds = [...new Set([...DEPLOYMENT_KINDS, ...fixtureKinds()])];
+  for (const kind of kinds) {
+    for (const locale of LOCALES) {
+      it(`${kind} narrates in ${locale}`, () => {
+        const streamed = eventFromStream({
+          runId: 'run-v',
+          kind,
+          sequence: 1,
+          occurredAt: '2026-09-01T12:00:00+00:00',
+          payload: {},
+        });
+        const sentence = narrate(streamed, locale);
+        expect(sentence.trim()).not.toBe('');
+        expect(sentence).not.toContain('unrecognised');
+        expect(sentence).not.toContain('não reconhecido');
+        expect(sentence).not.toMatch(/\{[a-z][a-z0-9]*\}/iu);
+      });
+    }
+  }
+
+  it("capability_called names the capability from the payload's own field", () => {
+    // The recorder writes the name under `capability`, not `name`
+    // (`platform/runs/recorder.py`, `record_call`) — the extraction has to
+    // read the deployment's field or every live call narrates as "a
+    // capability".
+    const streamed = eventFromStream({
+      runId: 'run-v',
+      kind: 'capability_called',
+      sequence: 2,
+      occurredAt: '2026-09-01T12:00:01+00:00',
+      payload: { capability: 'estate.failed_units', status: 'succeeded' },
+    });
+    for (const locale of LOCALES) {
+      expect(narrate(streamed, locale)).toContain('estate.failed_units');
+    }
+    expect(streamed.status).toBe('succeeded');
+  });
+
+  it('stage_completed names the stage and carries its finding', () => {
+    const streamed = eventFromStream({
+      runId: 'run-v',
+      kind: 'stage_completed',
+      sequence: 3,
+      occurredAt: '2026-09-01T12:00:02+00:00',
+      payload: { stage: 'intake', finding: 'a new incident, not a repeat' },
+    });
+    for (const locale of LOCALES) {
+      const sentence = narrate(streamed, locale);
+      expect(sentence).toContain('intake');
+      expect(sentence).toContain('a new incident, not a repeat');
+    }
+  });
+});
+
 describe('a kind outside the declared vocabulary still narrates, and never as JSON', () => {
   for (const locale of LOCALES) {
     it(`names the raw kind in ${locale} rather than falling silent`, () => {
       const event: TranscriptEvent = {
         id: 'evt-2',
         kind: 'reasoning',
-        rawKind: 'stage_completed',
+        rawKind: 'telemetry_reweighted',
         at: '',
         title: '',
         detail: '',
@@ -68,7 +171,7 @@ describe('a kind outside the declared vocabulary still narrates, and never as JS
         durationMs: 0,
       };
       const sentence = narrate(event, locale);
-      expect(sentence).toContain('stage_completed');
+      expect(sentence).toContain('telemetry_reweighted');
       expect(sentence.trim().startsWith('{')).toBe(false);
     });
   }

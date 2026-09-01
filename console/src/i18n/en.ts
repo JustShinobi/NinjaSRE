@@ -495,6 +495,19 @@ export const EN = {
   // and the event's own `detail` is appended after the lead by `narrate`,
   // never folded into the template itself.
   'transcript.narration.runStarted': 'Objective accepted',
+  'transcript.narration.stageCompleted': 'Stage completed — {name}',
+  'transcript.narration.turnCompleted': 'The turn concluded',
+  'transcript.narration.evidenceObserved': 'Evidence was noted',
+  'transcript.narration.maskingApplied': 'Sensitive content was masked',
+  'transcript.narration.budgetEviction': 'Context beyond the budget was evicted',
+  'transcript.narration.approvalRequested': 'An approval was requested',
+  'transcript.narration.attentionChanged':
+    'The investigation started or stopped waiting on a person',
+  'transcript.narration.reportDelivered': 'A report was delivered',
+  'transcript.narration.notificationDecided': 'A notification policy decided',
+  'transcript.narration.runInterrupted': 'The investigation was interrupted',
+  'transcript.narration.runFinished': 'The investigation finished',
+  'transcript.narration.hypothesisFormed': 'A hypothesis formed',
   'transcript.narration.turnStarted': 'A new turn began',
   'transcript.narration.modelReasoned': 'The model reasoned',
   'transcript.narration.toolCalled': 'Called {name}',
@@ -516,6 +529,7 @@ export const EN = {
   'transcript.narration.unknown': 'An event of an unrecognised kind arrived: {kind}',
   'transcript.narration.unnamedCapability': 'a capability',
   'transcript.narration.unnamedSubagent': 'a sub-agent',
+  'transcript.narration.unnamedStage': 'a stage',
 
   // --- The run's pipeline rail -----------------------------------------------------
   'run.stage.rail.title': 'Pipeline',

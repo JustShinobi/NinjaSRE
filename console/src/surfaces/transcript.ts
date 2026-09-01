@@ -130,7 +130,29 @@ function payloadOf(value: unknown): string {
  * has a phrase in every locale this console carries.
  */
 export const STREAM_KINDS: Readonly<Record<string, TranscriptKind>> = {
+  // The vocabulary the deployment emits — `TraceEventKind` in
+  // `platform/runs/events.py`, the closed set the recorder actually writes.
+  // A live run on staging narrated every one of these as "an unrecognised
+  // kind arrived" while the table below carried only the older spellings.
   run_started: 'objective',
+  stage_completed: 'reasoning',
+  turn_completed: 'reasoning',
+  capability_called: 'call',
+  evidence_observed: 'evidence',
+  subagent_dispatched: 'dispatch',
+  guardrail_action: 'guardrail',
+  masking_applied: 'guardrail',
+  budget_eviction: 'guardrail',
+  approval_requested: 'interaction',
+  attention_changed: 'interaction',
+  report_delivered: 'report',
+  notification_decided: 'reasoning',
+  run_interrupted: 'report',
+  run_finished: 'report',
+  // The mock dataset's own extra: a formed hypothesis is the model thinking.
+  hypothesis_formed: 'reasoning',
+  // Older spellings, kept as synonyms: they cost nothing and a replay
+  // recorded before the vocabulary settled still renders under them.
   turn_started: 'reasoning',
   model_reasoned: 'reasoning',
   tool_called: 'call',
@@ -139,7 +161,6 @@ export const STREAM_KINDS: Readonly<Record<string, TranscriptKind>> = {
   observation_recorded: 'evidence',
   evidence_retained: 'evidence',
   memory_recalled: 'recall',
-  subagent_dispatched: 'dispatch',
   subagent_returned: 'return',
   guardrail_withheld: 'guardrail',
   guardrail_applied: 'guardrail',
@@ -274,15 +295,25 @@ export interface StreamedEvent {
  */
 export function eventFromStream(streamed: StreamedEvent): TranscriptEvent {
   const { kind: name, payload } = streamed;
+  // The field a name arrives under is the kind's own: the recorder writes a
+  // call's name as `capability` and a stage boundary's as `stage`
+  // (`platform/runs/recorder.py`). Falling through them in order, with the
+  // raw kind last, keeps the meta line honest for an event that named nothing.
+  const title =
+    text(payload, 'name') || text(payload, 'capability') || text(payload, 'stage') || name;
+  // Likewise the prose: a stage boundary carries what it established as
+  // `finding`, and the mock dataset's hypothesis carries its `text`.
+  const detail =
+    text(payload, 'detail') ||
+    text(payload, 'objective') ||
+    text(payload, 'finding') ||
+    text(payload, 'text');
   return event(`${streamed.runId}-${String(streamed.sequence)}`, {
     kind: kindOf(name),
     rawKind: name,
     at: streamed.occurredAt,
-    title: text(payload, 'name') === '' ? name : text(payload, 'name'),
-    detail:
-      text(payload, 'detail') === ''
-        ? text(payload, 'objective')
-        : text(payload, 'detail'),
+    title,
+    detail,
     payload: payloadOf(payload),
     status: text(payload, 'status'),
     durationMs: count(payload, 'duration_ms'),
@@ -307,6 +338,22 @@ export function eventFromStream(streamed: StreamedEvent): TranscriptEvent {
  */
 const NARRATION_LEAD: Readonly<Record<string, MessageKey>> = {
   run_started: 'transcript.narration.runStarted',
+  stage_completed: 'transcript.narration.stageCompleted',
+  turn_completed: 'transcript.narration.turnCompleted',
+  // A live call names its capability under `capability`; the extraction above
+  // already put it in `title`, so the stream's own lead phrase serves both.
+  capability_called: 'transcript.narration.toolCalled',
+  evidence_observed: 'transcript.narration.evidenceObserved',
+  guardrail_action: 'transcript.narration.guardrailApplied',
+  masking_applied: 'transcript.narration.maskingApplied',
+  budget_eviction: 'transcript.narration.budgetEviction',
+  approval_requested: 'transcript.narration.approvalRequested',
+  attention_changed: 'transcript.narration.attentionChanged',
+  report_delivered: 'transcript.narration.reportDelivered',
+  notification_decided: 'transcript.narration.notificationDecided',
+  run_interrupted: 'transcript.narration.runInterrupted',
+  run_finished: 'transcript.narration.runFinished',
+  hypothesis_formed: 'transcript.narration.hypothesisFormed',
   turn_started: 'transcript.narration.turnStarted',
   model_reasoned: 'transcript.narration.modelReasoned',
   tool_called: 'transcript.narration.toolCalled',
@@ -339,7 +386,11 @@ const NAMES_A_CAPABILITY: ReadonlySet<string> = new Set([
   'tool_succeeded',
   'tool_failed',
   'tool_returned',
+  'capability_called',
 ]);
+
+/** The raw kinds whose lead names a pipeline stage, read from `event.title`. */
+const NAMES_A_STAGE: ReadonlySet<string> = new Set(['stage_completed']);
 
 /** The raw kinds whose lead names a sub-agent, read from `event.title`. */
 const NAMES_A_SUBAGENT: ReadonlySet<string> = new Set([
@@ -362,12 +413,11 @@ const NAMES_A_SUBAGENT: ReadonlySet<string> = new Set([
 function namedOrFallback(event: TranscriptEvent, locale: Locale): string {
   const real = event.title !== '' && event.title !== event.rawKind;
   if (real) return event.title;
-  return message(
-    locale,
-    NAMES_A_SUBAGENT.has(event.rawKind)
-      ? 'transcript.narration.unnamedSubagent'
-      : 'transcript.narration.unnamedCapability',
-  );
+  if (NAMES_A_SUBAGENT.has(event.rawKind))
+    return message(locale, 'transcript.narration.unnamedSubagent');
+  if (NAMES_A_STAGE.has(event.rawKind))
+    return message(locale, 'transcript.narration.unnamedStage');
+  return message(locale, 'transcript.narration.unnamedCapability');
 }
 
 /**
@@ -394,7 +444,9 @@ export function narrate(event: TranscriptEvent, locale: Locale): string {
       : message(
           locale,
           key,
-          NAMES_A_CAPABILITY.has(event.rawKind) || NAMES_A_SUBAGENT.has(event.rawKind)
+          NAMES_A_CAPABILITY.has(event.rawKind) ||
+            NAMES_A_SUBAGENT.has(event.rawKind) ||
+            NAMES_A_STAGE.has(event.rawKind)
             ? { name: namedOrFallback(event, locale) }
             : {},
         );

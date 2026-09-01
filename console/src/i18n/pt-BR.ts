@@ -518,6 +518,19 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // — e o `detail` do próprio evento é acrescentado depois da frase por
   // `narrate`, nunca embutido no modelo.
   'transcript.narration.runStarted': 'Objetivo aceito',
+  'transcript.narration.stageCompleted': 'Estágio concluído — {name}',
+  'transcript.narration.turnCompleted': 'O turno terminou',
+  'transcript.narration.evidenceObserved': 'Uma evidência foi anotada',
+  'transcript.narration.maskingApplied': 'Conteúdo sensível foi mascarado',
+  'transcript.narration.budgetEviction': 'Contexto além do orçamento foi descartado',
+  'transcript.narration.approvalRequested': 'Uma aprovação foi pedida',
+  'transcript.narration.attentionChanged':
+    'A investigação começou ou parou de esperar uma pessoa',
+  'transcript.narration.reportDelivered': 'Um relatório foi entregue',
+  'transcript.narration.notificationDecided': 'Uma política de notificação decidiu',
+  'transcript.narration.runInterrupted': 'A investigação foi interrompida',
+  'transcript.narration.runFinished': 'A investigação terminou',
+  'transcript.narration.hypothesisFormed': 'Uma hipótese se formou',
   'transcript.narration.turnStarted': 'Um novo turno começou',
   'transcript.narration.modelReasoned': 'O modelo raciocinou',
   'transcript.narration.toolCalled': 'Chamou {name}',
@@ -539,6 +552,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.narration.unknown': 'Chegou um evento de tipo não reconhecido: {kind}',
   'transcript.narration.unnamedCapability': 'uma capacidade',
   'transcript.narration.unnamedSubagent': 'um subagente',
+  'transcript.narration.unnamedStage': 'um estágio',
 
   // --- O rail de estágios do run ---------------------------------------------------
   'run.stage.rail.title': 'Pipeline',
