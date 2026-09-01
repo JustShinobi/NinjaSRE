@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import { Badge, Link, TabLinks } from '@/components';
+import { Input } from '@/components/form';
 import {
   BridgedServerStateChip,
+  CapabilityAvailabilityChip,
+  CHIP_SHAPE,
   ResolvedChip,
+  SideEffectChip,
   SpecialistStateChip,
 } from '@/components/status';
 import { cx } from '@/design/cx';
@@ -29,11 +35,11 @@ import {
   advancedConfigSectionId,
 } from '../advanced-config-section';
 import {
-  CapabilityBrowser,
-  type BrowsableSkill,
-  type BrowsableTool,
-} from '../capability-browser';
-import { bridgedServers, capabilityRows, type CapabilityRow } from '../capability-rows';
+  bridgedServers,
+  capabilityRows,
+  readsOnly,
+  type CapabilityRow,
+} from '../capability-rows';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
@@ -63,7 +69,14 @@ import {
   type StageRegime,
 } from './agent-pipeline-metro';
 import { placedTree } from '../tree';
-import { readViewState, resolveNode, type FilterName } from '../url-state';
+import {
+  hrefFor,
+  readViewState,
+  resolveNode,
+  withFilter,
+  type FilterName,
+  type ViewState,
+} from '../url-state';
 import { TeamTab } from './team-context';
 
 /**
@@ -115,7 +128,14 @@ export const AGENT_TABS = ['topology', 'tools', 'autonomy', 'team'] as const;
 
 export type AgentTab = (typeof AGENT_TABS)[number];
 
-export const AGENT_FILTERS: readonly FilterName[] = ['node', 'tab'];
+export const AGENT_FILTERS: readonly FilterName[] = [
+  'node',
+  'tab',
+  'domain',
+  'effect',
+  'q',
+  'all',
+];
 
 /** The tab the address names, and the first one when it names nothing known. */
 export function tabFrom(value: string): AgentTab {
@@ -392,6 +412,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             fields={fields}
             node={node}
             writable={may(viewer, WRITE)}
+            state={state}
           />
         ) : null}
         {tab === 'autonomy' ? (
@@ -1439,46 +1460,137 @@ function DocumentPanel({
 
 // --- What it can do --------------------------------------------------------------
 
-/** `rows`, restricted to the tools this node has an opinion about and blocking, rendered once. */
-function browsableTools(
-  rows: readonly CapabilityRow[],
-  locale: Locale,
-  none: string,
-): readonly BrowsableTool[] {
-  return rows
-    .filter((row) => row.kind === 'tool')
-    .map((row) => {
-      if (!row.known || row.available) {
-        return {
-          name: row.name,
-          domain: row.domain,
-          sideEffect: row.sideEffect,
-          known: row.known,
-          available: row.available,
-          blockedText: '',
-          blockedLinked: false,
-        };
-      }
-      // Structured data leads: what the node actually declares this tool
-      // needs, not a parse of the deployment's own free-text reason.
-      const linked = row.requiredIntegrations.length > 0;
-      const blockedText = linked
-        ? message(locale, 'catalogue.blocked', {
-            integration: row.requiredIntegrations.join(', '),
-          })
-        : row.reason === ''
-          ? none
-          : row.reason;
-      return {
-        name: row.name,
-        domain: row.domain,
-        sideEffect: row.sideEffect,
-        known: row.known,
-        available: row.available,
-        blockedText,
-        blockedLinked: linked,
-      };
-    });
+/**
+ * The board's own set of domains, worded — the catalogue's closed vocabulary,
+ * not the open case §11 protects. A domain outside it (an anonymised dataset,
+ * a bridged server's own grouping) falls back to its humanised identifier.
+ */
+const TOOL_DOMAIN_LABEL: Readonly<Record<string, MessageKey>> = {
+  remediation: 'agent.tools.domain.remediation',
+  cloud_control_plane: 'agent.tools.domain.cloud_control_plane',
+  skills: 'agent.tools.domain.skills',
+  methodology: 'agent.tools.domain.methodology',
+  logstore: 'agent.tools.domain.logstore',
+  communication: 'agent.tools.domain.communication',
+  metrics: 'agent.tools.domain.metrics',
+  incident: 'agent.tools.domain.incident',
+  cicd: 'agent.tools.domain.cicd',
+  vcs: 'agent.tools.domain.vcs',
+  database: 'agent.tools.domain.database',
+  tracing: 'agent.tools.domain.tracing',
+  changes: 'agent.tools.domain.changes',
+  model_provider: 'agent.tools.domain.model_provider',
+  observability: 'agent.tools.domain.observability',
+  topology: 'agent.tools.domain.topology',
+  estate: 'agent.tools.domain.estate',
+  other: 'agent.tools.domain.other',
+};
+
+function domainLabel(locale: Locale, slug: string): string {
+  const key = TOOL_DOMAIN_LABEL[slug];
+  return key === undefined ? humaniseIdentifier(slug) : message(locale, key);
+}
+
+/** The rail's bucket for `row`: its own domain, skills, or the leftover bucket. */
+function domainOf(row: CapabilityRow): string {
+  if (row.kind === 'skill') return 'skills';
+  return row.domain === '' ? 'other' : row.domain;
+}
+
+/** The four effect filters the band offers, beyond "all". */
+const EFFECT_FILTERS = [
+  'read',
+  'write_reversible',
+  'write_irreversible',
+  'destructive',
+] as const;
+
+const EFFECT_LABEL: Readonly<Record<(typeof EFFECT_FILTERS)[number], MessageKey>> = {
+  read: 'agent.tools.effect.read',
+  write_reversible: 'agent.tools.effect.write_reversible',
+  write_irreversible: 'agent.tools.effect.write_irreversible',
+  destructive: 'agent.tools.effect.destructive',
+};
+
+/** Whether `row` falls under `effect` — "read" folds the sensitive read in. */
+function matchesEffect(row: CapabilityRow, effect: string): boolean {
+  if (effect === '') return true;
+  if (effect === 'read') return readsOnly(row.sideEffect);
+  return row.sideEffect === effect;
+}
+
+/** How many capability cards show before "see all" is the way to the rest. */
+const CAPABILITY_CARD_LIMIT = 8;
+
+/** One capability, as the board's card: face always, prose one disclosure away. */
+function CapabilityCard({
+  locale,
+  row,
+}: {
+  readonly locale: Locale;
+  readonly row: CapabilityRow;
+}): ReactNode {
+  const destructive = row.sideEffect === 'destructive';
+  const off = row.known && !row.available;
+  return (
+    <details
+      data-testid="capability-card"
+      data-capability={row.name}
+      data-available={!row.known ? 'unknown' : row.available ? 'true' : 'false'}
+      className={cx(
+        'rounded-3 edge bg-raised p-3',
+        destructive ? 'border-danger' : 'border-border',
+        off && 'opacity-60',
+      )}
+    >
+      <summary className="flex cursor-pointer select-none list-none flex-wrap items-center gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-mono text-small text-strong break-all">{row.name}</span>
+          {row.kind === 'skill' ? null : (
+            <span className="self-start">
+              <SideEffectChip locale={locale} level={row.sideEffect} />
+            </span>
+          )}
+        </span>
+        {row.known ? (
+          <CapabilityAvailabilityChip locale={locale} available={row.available} />
+        ) : null}
+      </summary>
+      {/* The prose that used to repeat in two page-length sections lives
+          here, on the card it describes. */}
+      <div className="flex flex-col gap-1 pt-2" data-testid="capability-card-detail">
+        {row.summary === '' ? null : (
+          <span className="text-meta text-muted">{row.summary}</span>
+        )}
+        {row.origin === '' ? null : (
+          <span className="text-meta text-muted" data-testid="tool-origin">
+            {message(locale, 'agent.tools.origin', { server: row.origin })}
+          </span>
+        )}
+        {!row.known ? (
+          <span className="text-meta text-muted">
+            {message(locale, 'agent.tools.unknown')}
+          </span>
+        ) : row.available ? null : row.requiredIntegrations.length > 0 ? (
+          // Structured data leads: what the node actually declares this tool
+          // needs, not a parse of the deployment's own free-text reason —
+          // and the integration is the thing somebody can go and connect.
+          <span className="text-meta text-muted" data-testid="tool-blocked">
+            {message(locale, 'catalogue.blocked', {
+              integration: row.requiredIntegrations.join(', '),
+            })}{' '}
+            <Link href="/integrations">
+              {message(locale, 'catalogue.blocked.action')}
+            </Link>
+          </span>
+        ) : (
+          <span className="text-meta text-muted" data-testid="tool-blocked">
+            {row.reason === '' ? message(locale, 'surface.none') : row.reason}
+          </span>
+        )}
+      </div>
+    </details>
+  );
 }
 
 function ToolsTab({
@@ -1489,6 +1601,7 @@ function ToolsTab({
   fields,
   node,
   writable,
+  state,
 }: {
   readonly locale: Locale;
   readonly capabilities: PanelData<unknown>;
@@ -1497,41 +1610,60 @@ function ToolsTab({
   readonly fields: PanelData<unknown>;
   readonly node: string;
   readonly writable: boolean;
+  readonly state: ViewState;
 }): ReactNode {
   const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
   const tools = rows.filter((row) => row.kind === 'tool');
-  const reads = tools.filter((row) => !row.writes);
-  const writes = tools.filter((row) => row.writes);
   const servers = bridgedServers(field(dataOf(effective), 'values'));
   // One panel, two reads: a failed capability read must not render as "no tool
   // is blocked" beside a list that is itself empty for another reason.
   const source = capabilities.status === 'error' ? capabilities : entries;
 
-  // The catalogue's own read half, absorbed whole: every tool and skill this
-  // deployment declares, searchable, grouped by domain — beside the risk
-  // grouping above rather than instead of it. The two answer different
-  // questions ("what exists, and where do I find it" versus "what could
-  // this actually do, and at what risk") and this screen is where both of
-  // them now live.
-  const none = message(locale, 'surface.none');
-  const skills: readonly BrowsableSkill[] = rows
-    .filter((row) => row.kind === 'skill')
-    .map((row) => ({ name: row.name, summary: row.summary }));
+  // Selection lives in the address, the way the tabs already do — a filtered
+  // view is a link somebody can send, never component state.
+  const linkFor = (changes: readonly (readonly [string, string])[]): string => {
+    let next = state;
+    for (const [name, value] of changes) next = withFilter(next, name, value);
+    return hrefFor('/agent', next, AGENT_FILTERS);
+  };
+  const effect = state.filters.effect ?? '';
+  const query = (state.filters.q ?? '').trim().toLowerCase();
+
+  // The rail: every bucket with its full count, most capabilities first, so
+  // the list reads as the shape of what this deployment can do.
+  const byDomain = new Map<string, CapabilityRow[]>();
+  for (const row of rows) {
+    const bucket = domainOf(row);
+    byDomain.set(bucket, [...(byDomain.get(bucket) ?? []), row]);
+  }
+  const rail = [...byDomain.entries()].sort(
+    ([, left], [, right]) => right.length - left.length,
+  );
+  const selectedDomain = state.filters.domain ?? rail[0]?.[0] ?? '';
+  const domainRows = byDomain.get(selectedDomain) ?? [];
+  const filtered = domainRows.filter(
+    (row) =>
+      matchesEffect(row, effect) &&
+      (query === '' ||
+        row.name.toLowerCase().includes(query) ||
+        row.domain.toLowerCase().includes(query) ||
+        row.summary.toLowerCase().includes(query)),
+  );
+  const showAll = state.filters.all === '1';
+  const shown = showAll ? filtered : filtered.slice(0, CAPABILITY_CARD_LIMIT);
+
   const enabledCount = tools.filter((row) => row.known && row.available).length;
-  const count = message(locale, 'catalogue.count', {
-    enabled: enabledCount,
-    total: tools.length,
-  });
-  // Named for what it actually does: a blocked tool's own reason names the
-  // integration that would unblock it, and connecting one has always been
-  // the catalogue's job, never the retired editor's.
-  const blockedIntegrationHref = '/integrations';
+  const destructiveCount = tools.filter(
+    (row) => row.sideEffect === 'destructive',
+  ).length;
+  const domainEnabled = domainRows.filter((row) => row.known && row.available).length;
+  const ratioPercent = tools.length === 0 ? 0 : (enabledCount / tools.length) * 100;
 
   return (
     <>
       <Panel
         title={message(locale, 'agent.tools.browse')}
-        state={stateOf(source, tools.length === 0 && skills.length === 0)}
+        state={stateOf(source, rows.length === 0)}
         dependency={dependencyOf(source)}
         labels={panelLabels(locale, message(locale, 'agent.tools.browse'))}
         empty={{
@@ -1541,43 +1673,166 @@ function ToolsTab({
           href: CAPABILITIES_ADVANCED_HREF,
         }}
       >
-        <CapabilityBrowser
-          tools={browsableTools(rows, locale, none)}
-          skills={skills}
-          count={count}
-          configurationHref={blockedIntegrationHref}
-          locale={locale}
-          labels={{
-            tableCaption: message(locale, 'agent.tools.browse'),
-            search: message(locale, 'catalogue.search'),
-            searchEmpty: message(locale, 'catalogue.search.empty'),
-            domainsNav: message(locale, 'catalogue.domains.nav'),
-            skillsHeading: message(locale, 'catalogue.skills'),
-            columnName: message(locale, 'catalogue.column.name'),
-            columnEffect: message(locale, 'catalogue.column.effect'),
-            columnEnabled: message(locale, 'catalogue.column.enabled'),
-            none,
-            blockedAction: message(locale, 'catalogue.blocked.action'),
-          }}
-        />
-      </Panel>
+        {/* The band: how much of the catalogue is on, the search, and the
+            effect filters — the one row that frames everything below it. */}
+        <div
+          data-testid="tools-band"
+          className="flex flex-wrap items-center gap-4 pb-4"
+        >
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-small" data-testid="tools-ratio">
+              {message(locale, 'catalogue.count', {
+                enabled: enabledCount,
+                total: tools.length,
+              })}
+            </span>
+            <span className="flex h-1 w-column-measure overflow-hidden rounded-full bg-sunken">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${String(ratioPercent)}%` }}
+              />
+            </span>
+          </div>
+          <form action="/agent" method="get" className="flex min-w-0 items-center">
+            <input type="hidden" name="tab" value="tools" />
+            {node === '' ? null : <input type="hidden" name="node" value={node} />}
+            {selectedDomain === '' ? null : (
+              <input type="hidden" name="domain" value={selectedDomain} />
+            )}
+            {effect === '' ? null : (
+              <input type="hidden" name="effect" value={effect} />
+            )}
+            <Input
+              type="search"
+              name="q"
+              label={message(locale, 'catalogue.search')}
+              defaultValue={state.filters.q ?? ''}
+            />
+          </form>
+          <nav
+            aria-label={message(locale, 'catalogue.column.effect')}
+            className="ml-auto flex flex-wrap items-center gap-2"
+          >
+            <NextLink
+              prefetch={false}
+              data-testid="tools-effect-chip"
+              data-effect=""
+              aria-current={effect === '' ? 'true' : undefined}
+              className={cx(
+                CHIP_SHAPE,
+                effect === ''
+                  ? 'bg-accent-bg text-accent edge border-accent'
+                  : 'bg-sunken text-muted edge border-border',
+              )}
+              href={linkFor([
+                ['effect', ''],
+                ['all', ''],
+              ])}
+            >
+              {message(locale, 'agent.tools.effect.all')}
+            </NextLink>
+            {EFFECT_FILTERS.map((each) => (
+              <NextLink
+                key={each}
+                prefetch={false}
+                data-testid="tools-effect-chip"
+                data-effect={each}
+                aria-current={effect === each ? 'true' : undefined}
+                className={cx(
+                  CHIP_SHAPE,
+                  effect === each
+                    ? 'bg-accent-bg text-accent edge border-accent'
+                    : 'bg-sunken text-muted edge border-border',
+                )}
+                href={linkFor([
+                  ['effect', each],
+                  ['all', ''],
+                ])}
+              >
+                {message(locale, EFFECT_LABEL[each])}
+                {each === 'destructive' ? (
+                  <span className="font-mono text-micro">{destructiveCount}</span>
+                ) : null}
+              </NextLink>
+            ))}
+          </nav>
+        </div>
 
-      <ToolGroup
-        locale={locale}
-        source={source}
-        title={message(locale, 'agent.tools.reads')}
-        body={message(locale, 'agent.tools.reads.body')}
-        group="read"
-        rows={reads}
-      />
-      <ToolGroup
-        locale={locale}
-        source={source}
-        title={message(locale, 'agent.tools.writes')}
-        body={message(locale, 'agent.tools.writes.body')}
-        group="write"
-        rows={writes}
-      />
+        {/* Master-detail: the domain rail, then the selected domain's cards. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <nav
+            aria-label={message(locale, 'catalogue.domains.nav')}
+            data-testid="tools-domain-rail"
+            className="flex flex-col gap-1 self-start rounded-3 edge border-border bg-raised p-2 lg:col-span-1"
+          >
+            {rail.map(([slug, bucket]) => (
+              <NextLink
+                key={slug}
+                prefetch={false}
+                data-testid="tools-domain"
+                data-domain={slug}
+                aria-current={slug === selectedDomain ? 'true' : undefined}
+                className={cx(
+                  'flex items-center gap-2 rounded-2 px-2 py-1 text-small',
+                  slug === selectedDomain
+                    ? 'bg-accent-bg text-accent'
+                    : 'text-muted hover:bg-hover motion-hover',
+                )}
+                href={linkFor([
+                  ['domain', slug],
+                  ['all', ''],
+                ])}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {domainLabel(locale, slug)}
+                </span>
+                <span className="font-mono text-micro">{bucket.length}</span>
+              </NextLink>
+            ))}
+          </nav>
+
+          <div className="flex min-w-0 flex-col gap-3 lg:col-span-3">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-strong" data-testid="tools-domain-title">
+                {domainLabel(locale, selectedDomain)}
+              </span>
+              <span className="text-meta text-muted">
+                {message(locale, 'agent.tools.domainMeta', {
+                  count: domainRows.length,
+                  enabled: domainEnabled,
+                })}
+              </span>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="text-small text-muted" data-testid="tools-none-match">
+                {message(locale, 'catalogue.search.empty')}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+                {shown.map((row) => (
+                  <CapabilityCard key={row.name} locale={locale} row={row} />
+                ))}
+              </div>
+            )}
+            {filtered.length <= shown.length ? null : (
+              <p className="text-meta text-muted" data-testid="tools-showing">
+                {message(locale, 'agent.tools.showing', {
+                  shown: shown.length,
+                  total: filtered.length,
+                })}{' '}
+                <Link href={linkFor([['all', '1']])}>
+                  {message(locale, 'agent.tools.showAll', {
+                    domain: domainLabel(locale, selectedDomain),
+                  })}
+                </Link>
+              </p>
+            )}
+            <p className="text-meta text-muted edge border-border border-x-0 border-b-0 pt-3">
+              {message(locale, 'agent.tools.footer')}
+            </p>
+          </div>
+        </div>
+      </Panel>
 
       <Panel
         title={message(locale, 'agent.bridged.title')}
@@ -1624,83 +1879,6 @@ function ToolsTab({
         />
       </div>
     </>
-  );
-}
-
-function ToolGroup({
-  locale,
-  source,
-  title,
-  body,
-  group,
-  rows,
-}: {
-  readonly locale: Locale;
-  readonly source: PanelData<unknown>;
-  readonly title: string;
-  readonly body: string;
-  readonly group: 'read' | 'write';
-  readonly rows: readonly CapabilityRow[];
-}): ReactNode {
-  const none = message(locale, 'surface.none');
-  return (
-    <Panel
-      title={title}
-      state={stateOf(source, rows.length === 0)}
-      dependency={dependencyOf(source)}
-      labels={panelLabels(locale, title)}
-      empty={{
-        heading: message(locale, 'agent.tools.empty.heading'),
-        body: message(locale, 'agent.tools.empty.body'),
-        actionLabel: message(locale, 'agent.tools.empty.action'),
-        href: CAPABILITIES_ADVANCED_HREF,
-      }}
-    >
-      <p className="text-meta text-muted pb-3">{body}</p>
-      <ul className="flex flex-col gap-3" data-testid="tool-group" data-group={group}>
-        {rows.map((row) => (
-          <li
-            key={row.name}
-            data-testid="agent-tool"
-            data-tool={row.name}
-            data-group={group}
-            data-available={!row.known ? 'unknown' : row.available ? 'true' : 'false'}
-            data-origin={row.origin}
-            className={
-              row.known && !row.available
-                ? 'flex flex-col gap-1 opacity-60'
-                : 'flex flex-col gap-1'
-            }
-          >
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-small text-strong break-all">
-                {row.name}
-              </span>
-              <Badge status={row.sideEffect} />
-              {row.origin === '' ? null : (
-                <span className="text-meta text-muted" data-testid="tool-origin">
-                  {message(locale, 'agent.tools.origin', { server: row.origin })}
-                </span>
-              )}
-            </span>
-            <span className="text-meta text-muted">{row.summary}</span>
-            {!row.known ? (
-              <span className="text-meta text-muted">
-                {message(locale, 'agent.tools.unknown')}
-              </span>
-            ) : row.available ? null : (
-              <span className="text-meta text-muted" data-testid="tool-blocked">
-                {message(locale, 'agent.tools.blocked', {
-                  integration:
-                    row.requiredIntegrations.join(', ') ||
-                    (row.reason === '' ? none : row.reason),
-                })}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </Panel>
   );
 }
 

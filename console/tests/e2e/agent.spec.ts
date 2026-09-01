@@ -44,13 +44,14 @@ test('the second question: which tools exist, split by risk, with blockers named
 }) => {
   await page.goto('/agent?tab=tools');
 
-  const groups = page.getByTestId('tool-group');
-  await expect(groups).toHaveCount(2);
-  await expect(groups.nth(0)).toHaveAttribute('data-group', 'read');
-  await expect(groups.nth(1)).toHaveAttribute('data-group', 'write');
+  // Master-detail: the domain rail on the left, the selected domain's cards
+  // on the right, and the band's effect filters framing both.
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
+  const chips = page.getByTestId('tools-effect-chip');
+  await expect(chips).toHaveCount(5);
 
-  const tools = page.getByTestId('agent-tool');
-  await expect(tools.first()).toBeVisible();
+  const cards = page.getByTestId('capability-card');
+  await expect(cards.first()).toBeVisible();
 });
 
 test('the third question: what each class of action would do under this policy', async ({
@@ -79,11 +80,11 @@ test('the three sections are addresses, so one can be sent to a colleague', asyn
   await page.goto('/agent');
 
   await page.getByTestId('tab-link').filter({ hasText: 'Tools' }).click();
-  await expect(page.getByTestId('tool-group').first()).toBeVisible();
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
   expect(new URL(page.url()).searchParams.get('tab')).toBe('tools');
 
   await page.reload();
-  await expect(page.getByTestId('tool-group').first()).toBeVisible();
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
 });
 
 test('no configuration document is shown outside the panel that is one', async ({

@@ -210,7 +210,7 @@ describe('a viewer who may act', () => {
     serveScenario('populated', principalHolding(['config.read', 'integration.manage']));
     await renderArea('agent', { tab: 'tools' });
 
-    expect(screen.getAllByTestId('capability').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('capability-card').length).toBeGreaterThan(0);
   });
 
   it('is offered the connected and catalogue sections on integrations', async () => {
