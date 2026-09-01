@@ -734,6 +734,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.calls': 'Chamadas',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Custo',
+  'run.usage.unrecorded': 'sem registro de custo para este run',
   'run.usage.unpriced': 'Sem preço publicado para este modelo',
   'run.usage.unpriced.short': 'sem preço',
   'run.usage.apportioned':
@@ -750,6 +751,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.links.title': 'O que esta investigação tocou',
   'run.links.resources': 'Recursos',
   'run.links.incident': 'Incidente',
+  'run.links.readOnly': 'só leitura até aqui · nenhuma escrita proposta ainda',
   'run.links.empty.heading': 'Ainda nada ligado',
   'run.links.empty.body':
     'Recursos e incidentes são ligados à medida que a investigação os nomeia. Esta não nomeou nenhum.',

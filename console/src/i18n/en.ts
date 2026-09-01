@@ -923,6 +923,7 @@ export const EN = {
   'run.usage.calls': 'Calls',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Cost',
+  'run.usage.unrecorded': 'no cost recorded for this run',
   'run.usage.unpriced': 'No published price for this model',
   'run.usage.unpriced.short': 'unpriced',
   'run.usage.apportioned':
@@ -939,6 +940,7 @@ export const EN = {
   'run.links.title': 'What this investigation touched',
   'run.links.resources': 'Resources',
   'run.links.incident': 'Incident',
+  'run.links.readOnly': 'read-only so far · no write proposed yet',
   'run.links.empty.heading': 'Nothing linked yet',
   'run.links.empty.body':
     'Resources and incidents are linked as the investigation names them. This one has named none.',

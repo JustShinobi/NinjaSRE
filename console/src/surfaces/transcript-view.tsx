@@ -228,13 +228,23 @@ function Entry({
             {labels.kinds[event.kind]}
           </span>
           {event.status === '' ? null : <Badge status={event.status} locale={locale} />}
-          {time === undefined || time.duration === '' ? null : (
-            <span className="tabular-nums">{time.duration}</span>
-          )}
-          {time === undefined || time.relative === '' ? null : (
-            <time dateTime={time.iso} title={time.absolute}>
-              {time.relative}
-            </time>
+          {/* The instant and the duration, right-aligned in mono — the
+              board's own "agora · 1,1s" at the end of the line, not folded
+              into the middle of the entry's header. */}
+          {time === undefined ||
+          (time.relative === '' && time.duration === '') ? null : (
+            <span
+              data-testid="event-time"
+              className="ml-auto shrink-0 font-mono tabular-nums"
+            >
+              {time.relative === '' ? null : (
+                <time dateTime={time.iso} title={time.absolute}>
+                  {time.relative}
+                </time>
+              )}
+              {time.relative !== '' && time.duration !== '' ? ' · ' : ''}
+              {time.duration === '' ? null : <span>{time.duration}</span>}
+            </span>
           )}
         </span>
         {/* The narrated sentence is the primary content of every event but a

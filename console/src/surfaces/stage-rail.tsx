@@ -164,7 +164,9 @@ function Connector({
     <span aria-hidden="true" className="flex-1 flex items-center size-7">
       <span
         className={cx(
-          'w-full h-px',
+          // `motion-toast` gives the fill a declared transition, so a stage
+          // boundary slides into the next state rather than jumping.
+          'w-full h-px motion-toast',
           settled(before) && settled(after)
             ? 'bg-success'
             : settled(before) && after === 'active'
@@ -198,7 +200,7 @@ export function StageBar({ locale, stages, running }: StageRailProps): ReactNode
           data-state={item.state}
           title={stageLabel(locale, item.stage)}
           className={cx(
-            'flex-1 h-1 rounded-full',
+            'flex-1 h-1 rounded-full motion-toast',
             item.state === 'done'
               ? 'bg-success'
               : item.state === 'failed'

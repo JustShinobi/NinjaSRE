@@ -213,7 +213,17 @@ export async function RunDetailScreen(
           titleTooltip={subject.truncated ? subject.full : undefined}
           context={subtitle}
           icon={<Icon size="head" />}
-          actions={<Badge status={text(run, 'status')} locale={locale} />}
+          actions={
+            <span className="flex flex-wrap items-center gap-3">
+              <Badge status={text(run, 'status')} locale={locale} />
+              {/* The controls sit beside the title, as the board draws them:
+                  taking over and interrupting are decisions about the run as
+                  a whole, not a panel of their own. */}
+              {steerable && running ? (
+                <TakeoverControls runId={runId} locale={locale} running={running} />
+              ) : null}
+            </span>
+          }
         />
       </div>
 
@@ -245,22 +255,30 @@ export async function RunDetailScreen(
           grid until that exists. */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
-          <Panel
-            title={message(locale, 'run.summary.title')}
-            state={stateOf(
-              detail,
-              !said.known && reportText === '' && headlineSentence === '',
-            )}
-            dependency={dependencyOf(detail)}
-            labels={panelLabels(locale, message(locale, 'run.summary.title'))}
-            empty={{
-              heading: message(locale, 'transcript.empty.heading'),
-              body: message(locale, 'transcript.empty.body'),
-              actionLabel: message(locale, 'transcript.empty.action'),
-              href: '/runs',
-            }}
-          >
-            {/* A recognised failure always wins this panel, even when the
+          {/* No finding, no panel: while a run has no headline, no report and
+              no recognised failure, this panel could only echo the title and
+              metadata the page header already says — so it is not drawn at
+              all, and comes back exactly as it was once there is a finding. */}
+          {detail.status === 'ready' &&
+          !said.known &&
+          reportText === '' &&
+          headlineSentence === '' ? null : (
+            <Panel
+              title={message(locale, 'run.summary.title')}
+              state={stateOf(
+                detail,
+                !said.known && reportText === '' && headlineSentence === '',
+              )}
+              dependency={dependencyOf(detail)}
+              labels={panelLabels(locale, message(locale, 'run.summary.title'))}
+              empty={{
+                heading: message(locale, 'transcript.empty.heading'),
+                body: message(locale, 'transcript.empty.body'),
+                actionLabel: message(locale, 'transcript.empty.action'),
+                href: '/runs',
+              }}
+            >
+              {/* A recognised failure always wins this panel, even when the
                 deployment's `report` field happens to carry the same raw
                 exception text — the translation is the better reading of it.
                 Otherwise the rendered document, when there is one; otherwise
@@ -268,25 +286,25 @@ export async function RunDetailScreen(
                 is not left blank; otherwise nothing, which is the empty
                 state above. The header already says the name once, so this
                 panel never repeats it next to the document. */}
-            {said.known ? (
-              <>
-                <p className="text-small">{said.title}</p>
-                {said.action === '' ? null : (
-                  <p className="text-small text-muted mt-1">{said.action}</p>
-                )}
-                <details className="mt-2" data-testid="run-technical-detail">
-                  <summary className="text-meta text-muted cursor-pointer">
-                    {message(locale, 'failure.technical')}
-                  </summary>
-                  <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
-                    {said.technical}
-                  </p>
-                </details>
-              </>
-            ) : reportText !== '' ? (
-              <>
-                <Report text={reportText} />
-                {/* What used to sit here was a disclosure holding the Markdown
+              {said.known ? (
+                <>
+                  <p className="text-small">{said.title}</p>
+                  {said.action === '' ? null : (
+                    <p className="text-small text-muted mt-1">{said.action}</p>
+                  )}
+                  <details className="mt-2" data-testid="run-technical-detail">
+                    <summary className="text-meta text-muted cursor-pointer">
+                      {message(locale, 'failure.technical')}
+                    </summary>
+                    <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
+                      {said.technical}
+                    </p>
+                  </details>
+                </>
+              ) : reportText !== '' ? (
+                <>
+                  <Report text={reportText} />
+                  {/* What used to sit here was a disclosure holding the Markdown
                     source of the document rendered directly above it — the same
                     sentences twice, once as prose and once as `###` headings, on
                     every run page in the console. The reason it was kept is
@@ -294,27 +312,22 @@ export async function RunDetailScreen(
                     into a ticket, and what they want is the Markdown. A button
                     does that in one gesture and costs one line instead of the
                     document's height. */}
-                <div className="mt-2">
-                  <CopyReport
-                    text={reportText}
-                    labels={{
-                      copy: message(locale, 'run.report.copy'),
-                      copied: message(locale, 'run.report.copied'),
-                      refused: message(locale, 'run.report.copyRefused'),
-                    }}
-                  />
-                </div>
-              </>
-            ) : headlineSentence !== '' ? (
-              <p className="text-small">{headlineSentence}</p>
-            ) : null}
-            <p className="text-meta text-muted mt-2">
-              <time dateTime={started.iso} title={started.absolute}>
-                {started.relative}
-              </time>{' '}
-              · {trigger}
-            </p>
-          </Panel>
+                  <div className="mt-2">
+                    <CopyReport
+                      text={reportText}
+                      labels={{
+                        copy: message(locale, 'run.report.copy'),
+                        copied: message(locale, 'run.report.copied'),
+                        refused: message(locale, 'run.report.copyRefused'),
+                      }}
+                    />
+                  </div>
+                </>
+              ) : headlineSentence !== '' ? (
+                <p className="text-small">{headlineSentence}</p>
+              ) : null}
+            </Panel>
+          )}
 
           {/* One card, one source. The header counts and the body lists, and
               which of them a reader believes must never depend on which of
@@ -373,34 +386,18 @@ export async function RunDetailScreen(
                 narrations={narrations(locale, events)}
               />
             )}
+            {/* At the foot of what it feeds: telling the investigation
+                something belongs under the conversation it joins, not in a
+                side panel of its own. */}
+            {steerable && running ? (
+              <div className="mt-4 edge border-border border-x-0 border-b-0 pt-4">
+                <AddContext runId={runId} locale={locale} />
+              </div>
+            ) : null}
           </Panel>
         </div>
 
         <div className="flex flex-col gap-5 min-w-0">
-          {/* Only while there is something to steer. A run that has finished is
-              steered by nobody, and a panel of disabled controls on every
-              completed run would change the resting shape of a screen that was
-              already right. */}
-          {steerable && running ? (
-            <Panel
-              title={message(locale, 'live.takeover.title')}
-              state={stateOf(detail, false)}
-              dependency={dependencyOf(detail)}
-              labels={panelLabels(locale, message(locale, 'live.takeover.title'))}
-              empty={{
-                heading: message(locale, 'live.ended.completed'),
-                body: message(locale, 'run.links.empty.body'),
-                actionLabel: message(locale, 'transcript.empty.action'),
-                href: '/runs',
-              }}
-            >
-              <div className="flex flex-col gap-4">
-                <TakeoverControls runId={runId} locale={locale} running={running} />
-                <AddContext runId={runId} locale={locale} />
-              </div>
-            </Panel>
-          ) : null}
-
           {open.map((interaction) => (
             <Panel
               key={text(interaction, 'interaction_id')}
@@ -520,28 +517,41 @@ export async function RunDetailScreen(
               </p>
             ) : (
               <div className="flex flex-col gap-4 text-small">
-                <div className="flex items-center gap-3">
-                  <span className="text-muted">
-                    {message(locale, 'run.usage.tokens')}
-                  </span>
-                  <span data-testid="usage-tokens" className="ml-auto tabular-nums">
-                    {formatNumber(locale, usage.tokens)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-muted">
-                    {message(locale, 'run.usage.cost')}
-                  </span>
-                  <span data-testid="run-cost" className="ml-auto tabular-nums">
-                    {/* "$0.00" over thirty-six thousand tokens is not a
-                        measurement, it is the absence of one wearing a
-                        number. The gateway distinguishes the two and this
-                        reads which it is. */}
-                    {usage.priced
-                      ? formatCurrency(locale, usage.cost, CURRENCY)
-                      : message(locale, 'run.usage.unpriced')}
-                  </span>
-                </div>
+                {usage.tokens === 0 && !usage.priced ? (
+                  // "0 Tokens" beside a thirteen-step run is not a
+                  // measurement, it is the recorder not having composed one.
+                  // A recorded zero — turns carrying a priced zero — still
+                  // prints 0 below: the omitted/zero distinction the
+                  // deployment's own summary already draws.
+                  <p data-testid="run-cost-unrecorded" className="text-muted">
+                    {message(locale, 'run.usage.unrecorded')}
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <span className="text-muted">
+                        {message(locale, 'run.usage.tokens')}
+                      </span>
+                      <span data-testid="usage-tokens" className="ml-auto tabular-nums">
+                        {formatNumber(locale, usage.tokens)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-muted">
+                        {message(locale, 'run.usage.cost')}
+                      </span>
+                      <span data-testid="run-cost" className="ml-auto tabular-nums">
+                        {/* "$0.00" over thirty-six thousand tokens is not a
+                            measurement, it is the absence of one wearing a
+                            number. The gateway distinguishes the two and this
+                            reads which it is. */}
+                        {usage.priced
+                          ? formatCurrency(locale, usage.cost, CURRENCY)
+                          : message(locale, 'run.usage.unpriced')}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 <table className="w-full text-meta">
                   <caption className="sr-only">
@@ -707,6 +717,12 @@ export async function RunDetailScreen(
                       {touchedResources.map((resource) => (
                         <TouchedChip key={resource} resource={resource} />
                       ))}
+                    </dd>
+                    <dd
+                      data-testid="run-links-read-only"
+                      className="text-micro text-muted"
+                    >
+                      {message(locale, 'run.links.readOnly')}
                     </dd>
                   </div>
                 )}

@@ -79,10 +79,15 @@ export function LiveTouched({ runId, locale, seed, store }: LiveRailProps): Reac
     );
   }
   return (
-    <div className="flex flex-wrap gap-2">
-      {touched.map((resource) => (
-        <TouchedChip key={resource} resource={resource} />
-      ))}
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-2">
+        {touched.map((resource) => (
+          <TouchedChip key={resource} resource={resource} />
+        ))}
+      </div>
+      <p data-testid="run-links-read-only" className="text-micro text-muted">
+        {message(locale, 'run.links.readOnly')}
+      </p>
     </div>
   );
 }

@@ -152,7 +152,7 @@ function StageSegment({ state }: { readonly state: StageState }): ReactNode {
       data-testid="run-card-stage"
       data-state={state}
       className={cx(
-        'h-1 flex-1 rounded-1',
+        'h-1 flex-1 rounded-1 motion-toast',
         state === 'completed'
           ? 'bg-accent'
           : state === 'current'
