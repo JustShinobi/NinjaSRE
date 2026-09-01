@@ -3,7 +3,14 @@ import NextLink from 'next/link';
 
 import { Link } from '@/components/action';
 import { Input } from '@/components/form';
-import { humaniseIdentifier, timestamp } from '@/i18n/format';
+import {
+  ActivityIcon,
+  DatabaseIcon,
+  GridIcon,
+  LayersIcon,
+  ServerIcon,
+} from '@/design/icons';
+import { formatDuration, humaniseIdentifier, timestamp } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -75,7 +82,27 @@ export const RESOURCE_FILTERS: readonly FilterName[] = [
   'kind',
   'q',
   'node',
+  'order',
 ];
+
+/**
+ * The glyph a card leads with, by the estate's own kind word — a closed map
+ * over the kinds the estate reports today, with the server glyph as the
+ * honest default for one it has not met.
+ */
+const KIND_ICON: Readonly<
+  Record<string, (props: { className?: string }) => ReactNode>
+> = {
+  node: ServerIcon,
+  container: LayersIcon,
+  'virtual-machine': GridIcon,
+  service: ActivityIcon,
+  datastore: DatabaseIcon,
+  nfs: DatabaseIcon,
+  cifs: DatabaseIcon,
+  dir: DatabaseIcon,
+  lvmthin: DatabaseIcon,
+};
 
 /** The two states represented by the legend's own "unhealthy" entry. */
 const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
@@ -204,6 +231,10 @@ function ResourceCard({
   const health = text(resource, 'health');
   const id = text(resource, 'resource_id');
   const unhealthySince = text(resource, 'unhealthy_since');
+  const KindIcon = KIND_ICON[text(resource, 'kind')] ?? ServerIcon;
+  // The duration itself, through the shared formatter — never a calendar
+  // adverb: "2 d fora", not "anteontem fora".
+  const outSeconds = (now.getTime() - Date.parse(unhealthySince)) / 1000;
   return (
     <NextLink
       href={hrefFor('/resources', withSelection(state, id), filters)}
@@ -213,6 +244,9 @@ function ResourceCard({
       className={`flex flex-col gap-2 rounded-3 edge p-3 motion-hover hover:border-strong ${health === 'unhealthy' ? 'border-danger' : 'border-border'}`}
     >
       <span className="flex items-center gap-2">
+        <span aria-hidden="true" className="shrink-0 text-muted">
+          <KindIcon className="icon-inline" />
+        </span>
         <span
           className="text-small font-medium min-w-0 truncate"
           data-testid="resource-card-name"
@@ -223,21 +257,25 @@ function ResourceCard({
           <HealthMark health={health} />
         </span>
       </span>
-      <span className="flex items-center gap-2 text-micro text-muted">
-        <span>{humaniseIdentifier(text(resource, 'kind'))}</span>
-        <span>·</span>
-        <span>
+      {/* One line, truncated — never three. The kind and the sighting share
+          a truncating span; the out-duration keeps its own right edge. */}
+      <span className="flex min-w-0 items-center gap-2 text-micro text-muted">
+        <span className="min-w-0 truncate">
+          {humaniseIdentifier(text(resource, 'kind'))} ·{' '}
           {message(locale, 'resources.card.lastSeen', {
             when: timestamp(locale, text(resource, 'last_seen_at'), now, zone).relative,
           })}
         </span>
-        {health === 'unhealthy' && unhealthySince !== '' ? (
+        {health === 'unhealthy' &&
+        unhealthySince !== '' &&
+        Number.isFinite(outSeconds) &&
+        outSeconds > 0 ? (
           <span
             className="ml-auto shrink-0 text-danger"
             data-testid="resource-unhealthy-duration"
           >
             {message(locale, 'resources.card.unhealthySince', {
-              since: timestamp(locale, unhealthySince, now, zone).relative,
+              since: formatDuration(locale, outSeconds),
             })}
           </span>
         ) : null}
@@ -333,7 +371,8 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
     return true;
   });
 
-  const sections = groupByNode(filtered);
+  const worstFirst = state.filters.order === 'worst';
+  const sections = groupByNode(filtered, worstFirst);
   // The one door the "see all"/"see the unhealthy" link opens: asking for a
   // single node by id leaves exactly one section, and a section somebody
   // explicitly asked to see in full is not the "everything on one page"
@@ -407,6 +446,22 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                 </span>
               </NextLink>
             ))}
+            {/* The ordering is a view, so it lives in the address like every
+                other narrowing here — a link somebody sends shows the same
+                worst-first reading they were looking at. */}
+            <NextLink
+              href={hrefFor(
+                '/resources',
+                withFilter(state, 'order', worstFirst ? '' : 'worst'),
+                RESOURCE_FILTERS,
+              )}
+              prefetch={false}
+              data-testid="order-worst-chip"
+              aria-pressed={worstFirst ? 'true' : 'false'}
+              className={`rounded-full px-3 py-1 text-small edge ${worstFirst ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
+            >
+              {message(locale, 'resources.order.worst')}
+            </NextLink>
           </div>
         </div>
 

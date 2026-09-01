@@ -57,7 +57,28 @@ export interface NodeGroup {
 }
 
 /** `resources`, sectioned by hosting node — unhealthy sections first. */
-export function groupByNode(resources: readonly unknown[]): readonly NodeGroup[] {
+/**
+ * Worse before better — the whole scale, not the binary `isUnhealthy` split
+ * the default order uses. What the "worst first" chip sorts by.
+ */
+const WORST_RANK: Readonly<Record<string, number>> = {
+  unhealthy: 0,
+  degraded: 1,
+  stale: 2,
+  unknown: 3,
+  absent: 4,
+  maintenance: 5,
+  healthy: 6,
+};
+
+function worstRank(resource: unknown): number {
+  return WORST_RANK[text(resource, 'health')] ?? 3;
+}
+
+export function groupByNode(
+  resources: readonly unknown[],
+  worstFirst = false,
+): readonly NodeGroup[] {
   const byNode = new Map<string, unknown[]>();
   const names = new Map<string, string>();
   for (const resource of resources) {
@@ -71,7 +92,9 @@ export function groupByNode(resources: readonly unknown[]): readonly NodeGroup[]
   const groups: NodeGroup[] = [];
   for (const [nodeId, members] of byNode) {
     const sorted = [...members].sort((left, right) => {
-      const byHealth = Number(isUnhealthy(right)) - Number(isUnhealthy(left));
+      const byHealth = worstFirst
+        ? worstRank(left) - worstRank(right)
+        : Number(isUnhealthy(right)) - Number(isUnhealthy(left));
       if (byHealth !== 0) return byHealth;
       return text(left, 'display_name').localeCompare(text(right, 'display_name'));
     });

@@ -1065,6 +1065,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.summary.unaccounted': 'sem estado',
   'resources.summary.watched.count': '{count} vigiados',
   'resources.summary.legend': '{count} {health}',
+  'resources.order.worst': 'Piores primeiro',
   'resources.card.lastSeen': 'visto {when}',
   'resources.card.unhealthySince': '{since} fora',
   'resources.filter.kind.any': 'Todos',

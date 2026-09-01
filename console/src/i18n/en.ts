@@ -1297,6 +1297,7 @@ export const EN = {
   'resources.summary.unaccounted': 'unaccounted for',
   'resources.summary.watched.count': '{count} watched',
   'resources.summary.legend': '{count} {health}',
+  'resources.order.worst': 'Worst first',
   'resources.card.lastSeen': 'seen {when}',
   'resources.card.unhealthySince': '{since} out',
   'resources.filter.kind.any': 'All',

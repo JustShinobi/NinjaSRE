@@ -164,6 +164,81 @@ const CHARLIE = {
   attributes: { zone: 'core', criticality: 'critical' },
 };
 
+describe('resources: the card as the board draws it', () => {
+  const CARD = {
+    resource_id: 'res-1',
+    display_name: 'runner-orchestrator',
+    kind: 'container',
+    health: 'unhealthy',
+    last_seen_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+    unhealthy_since: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+    parent_id: 'node-pve01',
+    parent_name: 'pve01',
+  };
+
+  it('says the out-duration through the shared formatter, never a calendar adverb', async () => {
+    serve({ resources: [CARD] });
+    await resources();
+
+    const out = screen.getByTestId('resource-unhealthy-duration');
+    // "2d out", not "the day before yesterday out": the `X fora` pattern
+    // takes a duration, and only a duration.
+    expect(out.textContent).toMatch(/2\s?d/);
+    expect(out.textContent).not.toMatch(/yesterday|anteontem|ontem/i);
+  });
+
+  it('leads with the kind glyph and keeps the meta on one truncating line', async () => {
+    serve({ resources: [CARD] });
+    await resources();
+
+    const card = resourceCard('runner-orchestrator');
+    expect(card.querySelector('svg')).not.toBeNull();
+    const meta = card.querySelector('.truncate:not([data-testid])');
+    expect(meta?.textContent).toContain('Container');
+  });
+});
+
+describe('resources: worst first is a view, carried in the address', () => {
+  const cardOf = (id: string, health: string): unknown => ({
+    resource_id: id,
+    display_name: id,
+    kind: 'container',
+    health,
+    last_seen_at: new Date().toISOString(),
+    parent_id: 'node-pve01',
+    parent_name: 'pve01',
+  });
+
+  it('offers the chip beside the type filters, linking the ordering into the address', async () => {
+    serve({ resources: [cardOf('a-ok', 'healthy'), cardOf('b-bad', 'degraded')] });
+    await resources();
+
+    const chip = screen.getByTestId('order-worst-chip');
+    expect(chip.getAttribute('href')).toContain('order=worst');
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('orders the whole health scale worse-first when the address says so', async () => {
+    serve({
+      resources: [
+        cardOf('a-ok', 'healthy'),
+        cardOf('b-stale', 'stale'),
+        cardOf('c-degraded', 'degraded'),
+      ],
+    });
+    await resources({ order: 'worst' });
+
+    const names = screen
+      .getAllByTestId('resource-card-name')
+      .map((name) => name.textContent);
+    expect(names).toEqual(['c-degraded', 'b-stale', 'a-ok']);
+    expect(screen.getByTestId('order-worst-chip')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+});
+
 describe('resources: the two divergence findings', () => {
   it('surfaces what the provider reports and the inventory does not, in its own panel', async () => {
     serve({
