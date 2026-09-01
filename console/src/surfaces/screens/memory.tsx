@@ -24,7 +24,11 @@ import {
   text,
 } from '../read';
 import { hrefFor, readViewState, withFilter, type FilterName } from '../url-state';
-import { normaliseComponents, type ComponentType } from './component-normalisation';
+import {
+  displayComponent,
+  normaliseComponents,
+  type ComponentType,
+} from './component-normalisation';
 
 /**
  * The "Learned" tab of Knowledge: what past investigations left behind, and
@@ -73,6 +77,53 @@ const EPISODE_OUTCOME_LABEL: Readonly<Record<string, MessageKey>> = {
   false_positive: 'memory.episode.outcome.falsePositive',
 };
 
+/** `outcome`, worded for the filter the same way the chip words it. */
+function outcomeWord(locale: SurfaceContext['locale'], outcome: string): string {
+  const declared = EPISODE_OUTCOME_LABEL[outcome];
+  return declared === undefined ? outcome : message(locale, declared);
+}
+
+/**
+ * The episode store's own machine vocabulary — `IssueType`,
+ * `platform/memory/models.py`. What decides whether a title's `prefix:` is a
+ * machine word to move into the meta line, or part of the human phrase.
+ */
+const EPISODE_MACHINE_WORDS: ReadonlySet<string> = new Set([
+  'oom_kill',
+  'crash_loop',
+  'workload_stopped',
+  'deploy_regression',
+  'configuration_error',
+  'resource_saturation',
+  'disk_pressure',
+  'connection_pool_exhaustion',
+  'network_failure',
+  'dependency_failure',
+  'certificate_expiry',
+  'authentication_failure',
+  'data_integrity',
+  'scheduled_job_failure',
+  'latency_regression',
+  'other',
+]);
+
+/**
+ * `title`, split at its first `:` when the prefix is a known machine word —
+ * the human phrase leads the card, and the machine word moves to the meta
+ * line. A title with no such prefix comes back whole.
+ */
+export function splitEpisodeTitle(title: string): {
+  readonly machine: string;
+  readonly human: string;
+} {
+  const cut = title.indexOf(':');
+  if (cut === -1) return { machine: '', human: title };
+  const prefix = title.slice(0, cut).trim();
+  if (!EPISODE_MACHINE_WORDS.has(prefix)) return { machine: '', human: title };
+  const rest = title.slice(cut + 1).trim();
+  return rest === '' ? { machine: '', human: title } : { machine: prefix, human: rest };
+}
+
 /** The right-hand chip the board draws beside every episode: the outcome, in role, shape and word. */
 function OutcomeChip({
   locale,
@@ -109,6 +160,8 @@ function EpisodeCard({
   const outcome = text(episode, 'outcome');
   const runId = text(episode, 'run_id');
   const components = list(episode, 'components').map(String);
+  const split = splitEpisodeTitle(text(episode, 'title'));
+  const target = components[0] === undefined ? '' : displayComponent(components[0]);
   return (
     <li
       data-testid="episode-card"
@@ -118,8 +171,28 @@ function EpisodeCard({
       <div className="flex items-start gap-3">
         <StatusDot status={outcome} className="mt-1" />
         <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <span className="text-small font-medium">{text(episode, 'title')}</span>
-          <span className="text-meta text-muted">{text(episode, 'summary')}</span>
+          {/* The human phrase leads; the machine key never does. What used
+              to read "workload_stopped: the guest stopped" now leads with
+              the sentence, and the key lives on the meta line below, as the
+              board draws it. */}
+          <span className="text-small font-medium" data-testid="episode-title">
+            {split.human}
+          </span>
+          <span
+            className="flex min-w-0 items-center text-meta text-muted"
+            data-testid="episode-meta"
+          >
+            <span className="min-w-0 truncate">
+              {split.machine === '' ? null : (
+                <>
+                  <span className="font-mono">{split.machine}</span>
+                  {' · '}
+                </>
+              )}
+              {target === '' ? null : <>{target} · </>}
+              {text(episode, 'summary')}
+            </span>
+          </span>
         </div>
         <OutcomeChip locale={locale} outcome={outcome} />
       </div>
@@ -135,8 +208,9 @@ function EpisodeCard({
             data-testid="episode-component-chip"
             data-active={component === activeComponent ? 'true' : 'false'}
             className={`rounded-full px-2 py-1 text-micro edge font-mono ${component === activeComponent ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
+            title={component}
           >
-            {component}
+            {displayComponent(component)}
           </a>
         ))}
         <span
@@ -407,7 +481,7 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
                       },
                       ...outcomes.map((outcome) => ({
                         id: outcome,
-                        label: outcome,
+                        label: outcomeWord(locale, outcome),
                         href: hrefFor(
                           '/knowledge',
                           withFilter(state, 'outcome', outcome),

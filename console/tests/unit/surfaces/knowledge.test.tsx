@@ -151,6 +151,20 @@ describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
     render(await Page({ searchParams: Promise.resolve({ tab }) }));
   }
 
+  it('says each advanced card’s own state on its closed face', async () => {
+    serveScenario('populated');
+    await renderTab('documents');
+
+    // The board's summary cards: title plus one status line, the accordion
+    // content a click away rather than stacked on the page. Four cards,
+    // four statuses — none of them blank.
+    const statuses = screen.getAllByTestId('advanced-section-status');
+    expect(statuses.length).toBe(4);
+    for (const status of statuses) {
+      expect(status.textContent?.trim()).toBeTruthy();
+    }
+  });
+
   it('names the area Knowledge, whichever tab is open', async () => {
     serveScenario('populated');
     await renderTab('learned');

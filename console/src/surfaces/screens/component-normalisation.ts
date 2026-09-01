@@ -96,6 +96,16 @@ const TYPE_ORDER: readonly ComponentType[] = ['service', 'node', 'guest', 'clust
  * a fixed, readable order. Every option's `canonical` is a value this
  * function saw in `components`, never one it built.
  */
+/**
+ * `component`'s own short name — the id without its type prefix, which is
+ * what a chip prints in place of the raw `service:runner-orchestrator`
+ * spelling. The same resolution `normaliseComponents` uses per option.
+ */
+export function displayComponent(component: string): string {
+  const resolved = prefixed(component) ?? classified(component);
+  return resolved.id;
+}
+
 export function normaliseComponents(
   components: readonly string[],
 ): readonly ComponentGroup[] {

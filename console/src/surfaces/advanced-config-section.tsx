@@ -75,6 +75,13 @@ export interface AdvancedConfigSectionProps {
    * what a field currently resolves to.
    */
   readonly rawFields: unknown;
+  /**
+   * One line of the section's own current state — "guardando · 4 episódios",
+   * "nenhuma configurada" — shown on the closed card so a reader knows
+   * whether to open it at all. Optional: a section with nothing worth
+   * summarising shows only its title, exactly as before.
+   */
+  readonly status?: string | undefined;
 }
 
 /** Every prefix this section scopes to, whether one was given or several. */
@@ -159,6 +166,7 @@ export function AdvancedConfigSection({
   writable,
   fields,
   rawFields,
+  status,
 }: AdvancedConfigSectionProps): ReactNode {
   const catalogue = editableFields(rawFields);
   const rows = effectiveRows(fields, catalogue, locale);
@@ -184,6 +192,14 @@ export function AdvancedConfigSection({
           <ChevronRightIcon size="inline" />
         </span>
         {title}
+        {status === undefined ? null : (
+          <span
+            data-testid="advanced-section-status"
+            className="ml-auto min-w-0 truncate text-meta font-normal text-muted"
+          >
+            {status}
+          </span>
+        )}
       </summary>
       <div className="pt-3 flex flex-col gap-4">
         <EffectiveFieldsTable
