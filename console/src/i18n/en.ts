@@ -2069,6 +2069,7 @@ export const EN = {
   'admin.column.principal': 'Principal',
   'admin.column.kind': 'Kind',
   'admin.column.active': 'Active',
+  'admin.sessions.title': 'Active sessions',
   // The primary action Members & roles never had: a person, created without
   // leaving the page, with the local password they sign in with. Absent for
   // a viewer who may not write identity — see `PrincipalsPanel`'s own doc.
@@ -2246,6 +2247,7 @@ export const EN = {
   'live.investigate.close': 'Close',
 
   // --- The agent: what it is, what it can do, what it will do alone ------------
+  'organisation.defaultName': 'Default organisation',
   'agent.tabs': 'What the agent is, can do, and will do alone',
   'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Tools',

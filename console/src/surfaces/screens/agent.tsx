@@ -206,6 +206,22 @@ const AGENT_ADVANCED_FIELD_LIST: readonly {
   { path: 'agents.tool_budget', label: 'agent.budgets.toolBudget' },
 ];
 
+/**
+ * The name the first run gives the root it creates when nobody names one —
+ * `DEFAULT_ORGANISATION_NAME`, `config/constants/first_run.py`. The one node
+ * name that is the product's own word rather than an operator's, which is
+ * what makes translating it honest where translating a chosen name would not
+ * be.
+ */
+const DEFAULT_ORGANISATION_NAME = 'Default organisation';
+
+/** `name`, in the viewer's language when it is the product's own default. */
+function crumbName(locale: Locale, name: string): string {
+  return name === DEFAULT_ORGANISATION_NAME
+    ? message(locale, 'organisation.defaultName')
+    : name;
+}
+
 function nothing(): PanelData<unknown> {
   return { status: 'ready', data: {} };
 }
@@ -372,7 +388,14 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
         nested={
           node === '' || placed.length < 2
             ? []
-            : [{ label: placed.find((each) => each.id === node)?.name ?? node }]
+            : [
+                {
+                  label: crumbName(
+                    locale,
+                    placed.find((each) => each.id === node)?.name ?? node,
+                  ),
+                },
+              ]
         }
       />
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import NextLink from 'next/link';
 
+import { cx } from '@/design/cx';
+
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
@@ -12,7 +14,7 @@ import {
   AdvancedConfigSection,
   advancedConfigSectionId,
 } from '../advanced-config-section';
-import { FilterBar, type FilterChoice } from '../filters';
+import type { FilterChoice } from '../filters';
 import type { CredentialFieldSpec } from '../credential';
 import {
   IntegrationCatalogue,
@@ -36,7 +38,13 @@ import {
   text,
 } from '../read';
 import { placedTree } from '../tree';
-import { hrefFor, readViewState, resolveNode, type FilterName } from '../url-state';
+import {
+  hrefFor,
+  readViewState,
+  resolveNode,
+  withFilter,
+  type FilterName,
+} from '../url-state';
 
 /**
  * What the Catalogue became: connected first, a suggestion the estate already
@@ -476,14 +484,50 @@ export async function IntegrationsScreen(
             </p>
           )}
 
+          {/* Chips, not native selects — the house's own filter row, each
+              chip a link carrying the narrowing in the address, the same
+              shape the runs and resources screens already draw. */}
           {choices.length === 0 ? null : (
-            <FilterBar
-              path="/integrations"
-              state={state}
-              filters={INTEGRATIONS_FILTERS}
-              anyLabel={message(locale, 'surface.filter.any')}
-              choices={choices}
-            />
+            <div
+              data-testid="integration-filters"
+              className="flex flex-wrap items-center gap-2"
+            >
+              {choices.map((group) => (
+                <div key={group.name} className="flex flex-wrap items-center gap-2">
+                  <span className="text-micro text-muted font-sans uppercase tracking-wide">
+                    {group.label}
+                  </span>
+                  {[
+                    { value: '', label: message(locale, 'surface.filter.any') },
+                    ...group.options,
+                  ].map((option) => {
+                    const active = (state.filters[group.name] ?? '') === option.value;
+                    return (
+                      <NextLink
+                        key={option.value === '' ? '__any__' : option.value}
+                        data-testid="integration-filter-chip"
+                        data-filter={group.name}
+                        data-active={active}
+                        prefetch={false}
+                        href={hrefFor(
+                          '/integrations',
+                          withFilter(state, group.name, option.value),
+                          INTEGRATIONS_FILTERS,
+                        )}
+                        className={cx(
+                          'inline-flex items-center rounded-full edge px-3 py-1 text-meta motion-hover',
+                          active
+                            ? 'border-accent bg-accent-bg text-accent font-semibold'
+                            : 'border-border text-muted hover:text-text hover:bg-hover',
+                        )}
+                      >
+                        {option.label}
+                      </NextLink>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           )}
 
           <IntegrationCatalogue

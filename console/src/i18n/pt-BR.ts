@@ -1772,6 +1772,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.column.principal': 'Identidade',
   'admin.column.kind': 'Tipo',
   'admin.column.active': 'Ativa',
+  'admin.sessions.title': 'Sessões ativas',
   'admin.principals.create.displayName': 'Nome de exibição',
   'admin.principals.create.email': 'E-mail',
   'admin.principals.create.password': 'Senha inicial',
@@ -1920,6 +1921,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.agent.title': 'O agente',
   'page.agent.context':
     'O que ele é, o que ele pode fazer e o que ele vai fazer sem perguntar a ninguém.',
+  'organisation.defaultName': 'Organização padrão',
   'agent.tabs': 'O que o agente é, o que pode e o que fará sozinho',
   'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Ferramentas',
@@ -2237,32 +2239,32 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.settings.title': 'Ajustes',
   'page.settings.context':
     'Tudo sobre esta instalação que não é trabalho de incidente: quem tem acesso, como o agente se comporta e de onde os dados vêm.',
-  'settings.group.organization': 'Organisation',
-  'settings.group.agent': 'Agent',
-  'settings.group.data': 'Data',
-  'settings.page.membersRoles': 'Members & roles',
+  'settings.group.organization': 'Organização',
+  'settings.group.agent': 'Agente',
+  'settings.group.data': 'Dados',
+  'settings.page.membersRoles': 'Membros e papéis',
   'settings.page.membersRoles.context':
     'Quem existe nesta instalação, os papéis que cada um tem e as sessões abertas.',
-  'settings.page.singleSignOn': 'Single sign-on',
+  'settings.page.singleSignOn': 'Login único',
   'settings.page.singleSignOn.context': 'Como as pessoas entram sem uma senha local.',
-  'settings.page.machineTokens': 'Machine tokens',
+  'settings.page.machineTokens': 'Tokens de máquina',
   'settings.page.machineTokens.context':
     'Credenciais emitidas para um script ou serviço, agrupadas pelo que as criou.',
-  'settings.page.auditLog': 'Audit log',
+  'settings.page.auditLog': 'Trilha de auditoria',
   'settings.page.auditLog.context': 'Quem fez o quê, quando, e contra qual recurso.',
-  'settings.page.modelsProviders': 'Models & providers',
+  'settings.page.modelsProviders': 'Modelos e provedores',
   'settings.page.modelsProviders.context':
     'Qual modelo conduz as investigações, e a credencial em que ele roda.',
-  'settings.page.autonomyGuardrails': 'Autonomy & guardrails',
+  'settings.page.autonomyGuardrails': 'Autonomia e guardrails',
   'settings.page.autonomyGuardrails.context':
     'O que esta instalação pode fazer por conta própria, e sobre o que precisa perguntar.',
-  'settings.page.notifications': 'Notifications',
+  'settings.page.notifications': 'Notificações',
   'settings.page.notifications.context':
     'Para onde um relatório vai quando uma investigação termina, e quando ficar em silêncio.',
-  'settings.page.alertIntake': 'Alert intake',
+  'settings.page.alertIntake': 'Entrada de alertas',
   'settings.page.alertIntake.context':
     'O que chega, e as regras que decidem o que acontece com aquilo.',
-  'settings.page.schedulesDestinations': 'Schedules & destinations',
+  'settings.page.schedulesDestinations': 'Agendas e destinos',
   'settings.page.schedulesDestinations.context':
     'As investigações que rodam por horário, e para onde um alerta vai depois de chegar.',
   // Compartilhada por toda página que a subnav lista antes de a funcionalidade
