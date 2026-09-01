@@ -185,7 +185,7 @@ test.describe('each of the six stages draws inside a ringed circular well, not a
     }
   });
 
-  test('with nothing in this dataset naming which stage a run is on, every station honestly draws not-yet-reached', async ({
+  test('the band lights exactly what the runs listing supports: passed up to the running station, nothing past it', async ({
     page,
   }) => {
     await page.goto('/agent');
@@ -194,11 +194,22 @@ test.describe('each of the six stages draws inside a ringed circular well, not a
     const treatments = await stations.evaluateAll((elements) =>
       elements.map((element) => element.getAttribute('data-treatment')),
     );
-    // The fixture's own running run carries no field naming which of the six
-    // stages it is on, so nothing here may claim "passed" or "running" for
-    // any of them -- a guess dressed as a live reading would be worse than
-    // this screen drawing honestly what it actually knows.
-    expect(treatments).toEqual(STAGE_ORDER.map(() => 'not-reached'));
+    // The listing's own `last_completed_stage` is the one field that names
+    // where a run in flight is, and the band draws exactly that: every stage
+    // before the current one passed, the current one running, and nothing
+    // claimed past it. With nothing in flight, every station rests — either
+    // way, no treatment is ever a guess.
+    const runningAt = treatments.indexOf('running');
+    if (runningAt === -1) {
+      expect(treatments).toEqual(STAGE_ORDER.map(() => 'not-reached'));
+    } else {
+      expect(treatments.slice(0, runningAt)).toEqual(
+        STAGE_ORDER.slice(0, runningAt).map(() => 'passed'),
+      );
+      expect(treatments.slice(runningAt + 1)).toEqual(
+        STAGE_ORDER.slice(runningAt + 1).map(() => 'not-reached'),
+      );
+    }
   });
 });
 

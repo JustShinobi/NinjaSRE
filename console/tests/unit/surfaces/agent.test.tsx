@@ -137,7 +137,7 @@ describe('what it is: the stages and the specialists', () => {
   it('renders the stages in the order the pipeline runs them', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    const stages = screen.getAllByTestId('agent-stage');
+    const stages = screen.getAllByTestId('pipeline-metro-node');
     expect(stages.map((stage) => stage.getAttribute('data-stage'))).toEqual([
       'resolve_integrations',
       'intake',
@@ -148,21 +148,36 @@ describe('what it is: the stages and the specialists', () => {
     ]);
   });
 
-  it('draws the hierarchy with the specialists on it, disabled ones included', async () => {
+  it('lights the station the furthest run in flight is on, and nothing past it', async () => {
+    // The populated listing carries one running run with
+    // `last_completed_stage: plan_evidence`, so the band draws the first
+    // three stations passed, gathering running (with the live ring), and
+    // the two after it untouched — read from the listing, never guessed.
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    const drawn = screen.getAllByTestId('hierarchy-node');
-    const specialists = drawn.filter(
-      (node) => node.getAttribute('data-rank') === 'specialists',
-    );
-    expect(specialists.map((node) => node.getAttribute('data-node'))).toContain(
-      'change-historian',
-    );
-    expect(
-      specialists
-        .find((node) => node.getAttribute('data-node') === 'change-historian')
-        ?.getAttribute('data-disabled'),
-    ).toBe('true');
+    const stations = screen.getAllByTestId('pipeline-metro-station');
+    expect(stations.map((station) => station.getAttribute('data-treatment'))).toEqual([
+      'passed',
+      'passed',
+      'passed',
+      'running',
+      'not-reached',
+      'not-reached',
+    ]);
+  });
+
+  it('carries each stage’s own prose inside its station, one disclosure away', async () => {
+    // The section that used to repeat the six stages below the band is gone;
+    // the description and what a stage consults live inside the metro now,
+    // so removing the metro's detail would silently remove the prose too.
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    const details = screen.getAllByTestId('pipeline-metro-detail');
+    expect(details.length).toBe(6);
+    const diagnose = screen
+      .getAllByTestId('pipeline-metro-node')
+      .find((node) => node.getAttribute('data-stage') === 'diagnose');
+    expect(diagnose?.textContent).toContain('model role:');
   });
 
   it('marks a specialist the configuration switched off rather than hiding it', async () => {
@@ -539,7 +554,7 @@ describe('Article VI: the model is a role here, never a vendor', () => {
   it('shows a stage its role and never a model', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    for (const stage of screen.getAllByTestId('agent-stage')) {
+    for (const stage of screen.getAllByTestId('pipeline-metro-node')) {
       const role = stage.getAttribute('data-role') ?? '';
       const text = stage.textContent;
       for (const provider of PROVIDERS) {

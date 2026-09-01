@@ -9,13 +9,65 @@
 const DETERMINISTIC_STAGE = 'plan_evidence';
 
 /**
- * What a stage's own mono line reads: the bound model role, "deterministic"
- * for the one stage that is not model-driven, or "no model" otherwise.
+ * What regime a stage runs under: a bound model role, the one deterministic
+ * step, or no model at all.
+ *
+ * Structured rather than a composed string, because the mono line that reads
+ * it is now written in the viewer's language ("2 · modelo: intake") and a
+ * pre-composed English sentence would be the one word on the station no
+ * catalogue could reach.
  */
-export function stageRegime(stageName: string, modelRole: string): string {
-  if (modelRole !== '') return `model: ${modelRole}`;
-  if (stageName === DETERMINISTIC_STAGE) return 'deterministic';
-  return 'no model';
+export type StageRegime =
+  | { readonly kind: 'model'; readonly role: string }
+  | { readonly kind: 'deterministic' }
+  | { readonly kind: 'none' };
+
+export function stageRegime(stageName: string, modelRole: string): StageRegime {
+  if (modelRole !== '') return { kind: 'model', role: modelRole };
+  if (stageName === DETERMINISTIC_STAGE) return { kind: 'deterministic' };
+  return { kind: 'none' };
+}
+
+/**
+ * The stage a run is on right now, from the listing's own
+ * `last_completed_stage` — the stage after it, or the first stage when
+ * nothing has completed yet. `undefined` for a spelling this pipeline's own
+ * order does not contain, which draws honestly as "nothing known" rather
+ * than as a guess. A run still marked running with the final stage already
+ * completed is on that final stage — delivery is finishing, not unstarted.
+ */
+export function currentStage(
+  order: readonly string[],
+  lastCompleted: string,
+): string | undefined {
+  if (order.length === 0) return undefined;
+  if (lastCompleted === '') return order[0];
+  const at = order.indexOf(lastCompleted);
+  if (at === -1) return undefined;
+  return order[at + 1] ?? order[order.length - 1];
+}
+
+/**
+ * The furthest-along current stage among the runs in flight — the one
+ * station the band lights when more than one investigation is walking the
+ * line, and the point the rail's fill reaches.
+ */
+export function furthestCurrentStage(
+  order: readonly string[],
+  lastCompletedStages: readonly string[],
+): string | undefined {
+  let best: string | undefined;
+  let bestAt = -1;
+  for (const lastCompleted of lastCompletedStages) {
+    const stage = currentStage(order, lastCompleted);
+    if (stage === undefined) continue;
+    const at = order.indexOf(stage);
+    if (at > bestAt) {
+      bestAt = at;
+      best = stage;
+    }
+  }
+  return best;
 }
 
 /**

@@ -23,12 +23,14 @@ test('the first question: which stages run, and which specialists are enabled', 
 }) => {
   await page.goto('/agent');
 
-  const stages = page.getByTestId('agent-stage');
+  const stages = page.getByTestId('pipeline-metro-node');
   await expect(stages.first()).toBeVisible();
   expect(await stages.count()).toBeGreaterThan(1);
 
-  // Each stage says what it consults, which is the difference between "the AI
-  // investigated" and "these things were consulted, in this order".
+  // Each stage says what it consults — one disclosure away, inside its own
+  // station, which is the difference between "the AI investigated" and
+  // "these things were consulted, in this order".
+  await stages.first().getByTestId('pipeline-metro-summary').click();
   await expect(stages.first()).toContainText('Consults:');
 
   // And the model is a role. No provider identifier appears beside a stage.
@@ -90,10 +92,12 @@ test('no configuration document is shown outside the panel that is one', async (
   await page.goto('/agent?tab=autonomy');
   await expect(page.getByTestId('agent-document')).toHaveCount(0);
 
-  // The one place a document appears is the structured-text view beside the
-  // picture, which is a choice an operator makes rather than the only way to
-  // read the topology.
+  // The one place a document appears is the structured-text view, closed by
+  // default behind its own disclosure — a choice an operator makes rather
+  // than the only way to read the topology.
   await page.goto('/agent?tab=topology');
+  const documentDetails = page.getByTestId('agent-document-details');
+  await expect(documentDetails).toBeVisible();
+  await documentDetails.locator('summary').click();
   await expect(page.getByTestId('agent-document')).toBeVisible();
-  await expect(page.getByTestId('hierarchy')).toBeVisible();
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  currentStage,
+  furthestCurrentStage,
   STAGE_TREATMENT_CLASSES,
   stageRegime,
   stageTreatment,
@@ -9,15 +11,51 @@ import {
 
 describe('stageRegime', () => {
   it('names the bound model role when one is set', () => {
-    expect(stageRegime('intake', 'intake')).toBe('model: intake');
+    expect(stageRegime('intake', 'intake')).toEqual({ kind: 'model', role: 'intake' });
   });
 
   it('says "no model" when nothing is bound and the stage is not the plan stage', () => {
-    expect(stageRegime('resolve_integrations', '')).toBe('no model');
+    expect(stageRegime('resolve_integrations', '')).toEqual({ kind: 'none' });
   });
 
   it('says "deterministic" for the plan stage specifically, with no model role', () => {
-    expect(stageRegime('plan_evidence', '')).toBe('deterministic');
+    expect(stageRegime('plan_evidence', '')).toEqual({ kind: 'deterministic' });
+  });
+});
+
+describe('currentStage', () => {
+  const order = ['resolve', 'intake', 'plan', 'gather'];
+
+  it('is the stage after the last completed one', () => {
+    expect(currentStage(order, 'intake')).toBe('plan');
+  });
+
+  it('is the first stage when nothing has completed yet', () => {
+    expect(currentStage(order, '')).toBe('resolve');
+  });
+
+  it('stays on the final stage for a run still open past it', () => {
+    expect(currentStage(order, 'gather')).toBe('gather');
+  });
+
+  it('claims nothing for a spelling outside the pipeline order', () => {
+    expect(currentStage(order, 'unheard_of')).toBeUndefined();
+  });
+});
+
+describe('furthestCurrentStage', () => {
+  const order = ['resolve', 'intake', 'plan', 'gather'];
+
+  it('is the furthest-along current stage among the runs in flight', () => {
+    expect(furthestCurrentStage(order, ['', 'intake'])).toBe('plan');
+  });
+
+  it('is nothing with no runs in flight', () => {
+    expect(furthestCurrentStage(order, [])).toBeUndefined();
+  });
+
+  it('ignores a run whose stage the order does not contain', () => {
+    expect(furthestCurrentStage(order, ['unheard_of'])).toBeUndefined();
   });
 });
 

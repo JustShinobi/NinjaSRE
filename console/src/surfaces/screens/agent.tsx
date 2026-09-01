@@ -17,7 +17,7 @@ import {
 } from '@/design/icons';
 import { statusPresentation } from '@/design/status';
 import { humaniseIdentifier } from '@/i18n/format';
-import { message, type Locale, type MessageKey } from '@/i18n/messages';
+import { isMessageKey, message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -32,7 +32,6 @@ import {
 } from '../capability-browser';
 import { bridgedServers, capabilityRows, type CapabilityRow } from '../capability-rows';
 import type { SurfaceContext } from '../context';
-import { HierarchyGraph, type HierarchyRank } from '../graph';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { postureName } from '../postures';
@@ -53,10 +52,12 @@ import {
   type PanelData,
 } from '../read';
 import {
+  furthestCurrentStage,
   STAGE_TREATMENT_CLASSES,
   stageRegime,
   stageTreatment,
   toolSummary,
+  type StageRegime,
 } from './agent-pipeline-metro';
 import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
@@ -118,11 +119,6 @@ export const AGENT_FILTERS: readonly FilterName[] = ['node', 'tab'];
 export function tabFrom(value: string): AgentTab {
   return AGENT_TABS.find((tab) => tab === value) ?? AGENT_TABS[0];
 }
-
-/** Where a rank of the hierarchy sits, and what it is called. */
-const ORCHESTRATOR = 'orchestrator';
-const STAGES = 'stages';
-const SPECIALISTS = 'specialists';
 
 /** The permission the policy editor needs, so the link is absent without it. */
 const WRITE = 'config.write';
@@ -442,48 +438,97 @@ const STAGE_ICON: Readonly<
   deliver: CheckIcon,
 };
 
-/** The six-node line the Pipeline tab opens with, one look at what a run does. */
+/** A stage's own words, when this console has them; its identifier, humanised, otherwise. */
+function stageWord(locale: Locale, kind: 'name' | 'copy', stage: string): string {
+  const key = `agent.metro.${kind}.${stage}`;
+  if (isMessageKey(key)) return message(locale, key);
+  return kind === 'name' ? humaniseIdentifier(stage) : '';
+}
+
+/** The mono line under a station: its ordinal, then its regime — or "running now". */
+function regimeLine(
+  locale: Locale,
+  ordinal: number,
+  regime: StageRegime,
+  running: boolean,
+): string {
+  const label = running
+    ? message(locale, 'agent.metro.runningNow')
+    : regime.kind === 'model'
+      ? message(locale, 'agent.metro.regime.model', { role: regime.role })
+      : regime.kind === 'deterministic'
+        ? message(locale, 'agent.metro.regime.deterministic')
+        : message(locale, 'agent.metro.regime.none');
+  return `${String(ordinal)} · ${label}`;
+}
+
+/**
+ * The six-node line the Pipeline tab opens with — one look at what a run
+ * does, and the one place the per-stage prose lives: each station is a
+ * disclosure, and opening it shows that stage's description, what it
+ * consults, and the model role it runs under. The section that used to
+ * repeat all of that below the band is gone; this is where it went.
+ */
 function PipelineMetro({
   locale,
+  pipeline,
   stages,
   runs,
 }: {
   readonly locale: Locale;
+  readonly pipeline: PanelData<unknown>;
   readonly stages: readonly unknown[];
   readonly runs: PanelData<unknown>;
 }): ReactNode {
-  if (stages.length === 0) return null;
-  const inFlight =
+  const running =
     runs.status === 'ready'
       ? list(dataOf(runs), 'runs').filter((run) => text(run, 'status') === 'running')
-          .length
-      : 0;
+      : [];
+  const inFlight = running.length;
   const stageNames = stages.map((stage) => text(stage, 'name'));
-  // A run's own summary says whether it is running at all (`inFlight`,
-  // above) but nothing on it yet names which of the six stages it is
-  // running -- so there is no honest way to light one station up over the
-  // rest. Every station draws not-reached until a field exists to read
-  // instead of guess; `stageTreatment` already carries the other two
-  // treatments, so wiring a real value in here is the only change a future
-  // reader needs to make.
-  const currentStageName: string | undefined = undefined;
+  // The listing's own `last_completed_stage` names where each run in flight
+  // is; the furthest one along is the station the band lights and the point
+  // the rail's fill reaches. With nothing in flight the band rests.
+  const currentStageName = furthestCurrentStage(
+    stageNames,
+    running.map((run) => text(run, 'last_completed_stage')),
+  );
+  const currentAt =
+    currentStageName === undefined ? -1 : stageNames.indexOf(currentStageName);
+  const fillPercent =
+    stageNames.length < 2 || currentAt < 0
+      ? 0
+      : (currentAt / (stageNames.length - 1)) * 100;
   return (
-    <div className="flex flex-col gap-5 rounded-3 edge border-border bg-raised p-5">
-      <div className="flex items-baseline gap-3">
-        <span className="text-strong">{message(locale, 'agent.metro.title')}</span>
-        <span className="text-meta text-muted">
-          {message(locale, 'agent.metro.subtitle')}
-        </span>
-        {inFlight === 0 ? null : (
+    <Panel
+      title={message(locale, 'agent.metro.title')}
+      state={stateOf(pipeline, stages.length === 0)}
+      dependency={dependencyOf(pipeline)}
+      labels={panelLabels(locale, message(locale, 'agent.metro.title'))}
+      empty={{
+        heading: message(locale, 'agent.empty.heading'),
+        body: message(locale, 'agent.empty.body'),
+        actionLabel: message(locale, 'agent.empty.action'),
+        // The body says outright that nothing here is configuration, so
+        // there is no owning page to send anyone to; the area's own
+        // address is the only honest destination left.
+        href: '/agent',
+      }}
+      action={
+        inFlight === 0 ? undefined : (
           <span
             data-testid="pipeline-in-flight"
-            className="ml-auto flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
+            className="flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
           >
             <span aria-hidden="true" className="icon-inline rotate-45 bg-accent" />
             {message(locale, 'agent.metro.inFlight', { count: inFlight })}
           </span>
-        )}
-      </div>
+        )
+      }
+    >
+      <p className="text-meta text-muted pb-4">
+        {message(locale, 'agent.metro.subtitle')}
+      </p>
       <div className="relative grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {/*
          * The rail: what makes six stages read as the one sequence every run
@@ -510,54 +555,98 @@ function PipelineMetro({
             insetInlineEnd: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
           }}
         >
-          <span className="h-0 w-full edge border-border" />
+          <span className="relative flex h-0 w-full items-center edge border-border">
+            {/* The filled part of the line: how far the furthest run in
+                flight has walked. `motion-overlay` gives the width a
+                declared transition, so a stage boundary slides rather than
+                jumps — and the global reduced-motion rule zeroes it. */}
+            <span
+              data-testid="pipeline-metro-rail-fill"
+              className="motion-overlay absolute inset-y-0 left-0 my-auto h-1 rounded-full bg-accent"
+              style={{ width: `${String(fillPercent)}%` }}
+            />
+          </span>
         </div>
-        {stages.map((stage) => {
+        {stages.map((stage, index) => {
           const name = text(stage, 'name');
           const Icon = STAGE_ICON[name] ?? SettingsIcon;
           const regime = stageRegime(name, text(stage, 'model_role'));
           const treatment = stageTreatment(stageNames, name, currentStageName);
           return (
-            <div
+            <details
               key={name}
               data-testid="pipeline-metro-node"
               data-stage={name}
-              className="flex flex-col items-center gap-2 text-center"
+              data-role={text(stage, 'model_role')}
+              className="min-w-0"
             >
-              <span
-                data-testid="pipeline-metro-station"
-                data-treatment={treatment}
-                className={cx(
-                  'flex size-7 items-center justify-center rounded-full edge-emphasis',
-                  STAGE_TREATMENT_CLASSES[treatment],
-                  treatment === 'running' && 'pulse-live',
+              <summary
+                className="flex cursor-pointer select-none list-none flex-col items-center gap-2 text-center [&::-webkit-details-marker]:hidden"
+                data-testid="pipeline-metro-summary"
+              >
+                <span
+                  data-testid="pipeline-metro-station"
+                  data-treatment={treatment}
+                  className={cx(
+                    'flex size-7 items-center justify-center rounded-full edge-emphasis',
+                    STAGE_TREATMENT_CLASSES[treatment],
+                    treatment === 'running' && 'pulse-live',
+                  )}
+                >
+                  {treatment === 'running' ? (
+                    <span aria-hidden="true" className="pulse-live-ring text-accent" />
+                  ) : null}
+                  <Icon className="icon-head" />
+                </span>
+                <span
+                  data-testid="pipeline-metro-regime"
+                  data-running={treatment === 'running' ? 'true' : undefined}
+                  className={cx(
+                    'font-mono text-micro',
+                    treatment === 'running' ? 'text-accent' : 'text-muted',
+                  )}
+                >
+                  {regimeLine(locale, index + 1, regime, treatment === 'running')}
+                </span>
+                <span
+                  data-testid="pipeline-metro-name"
+                  className="text-small font-medium"
+                >
+                  {stageWord(locale, 'name', name)}
+                </span>
+                <span
+                  data-testid="pipeline-metro-copy"
+                  className="text-micro text-muted"
+                >
+                  {stageWord(locale, 'copy', name)}
+                </span>
+              </summary>
+              <div
+                data-testid="pipeline-metro-detail"
+                className="mt-2 flex flex-col gap-1 rounded-2 bg-sunken p-3 text-left"
+              >
+                {text(stage, 'summary') === '' ? null : (
+                  <span className="text-meta text-muted">{text(stage, 'summary')}</span>
                 )}
-              >
-                {treatment === 'running' ? (
-                  <span aria-hidden="true" className="pulse-live-ring text-accent" />
-                ) : null}
-                <Icon className="icon-head" />
-              </span>
-              <span
-                data-testid="pipeline-metro-regime"
-                className="font-mono text-micro text-muted"
-              >
-                {regime}
-              </span>
-              <span
-                data-testid="pipeline-metro-name"
-                className="text-small font-medium"
-              >
-                {humaniseIdentifier(name)}
-              </span>
-              <span data-testid="pipeline-metro-copy" className="text-micro text-muted">
-                {message(locale, `agent.metro.copy.${name}` as MessageKey)}
-              </span>
-            </div>
+                {list(stage, 'consults').length === 0 ? null : (
+                  <span className="text-meta text-muted">
+                    {message(locale, 'agent.stage.consults')}{' '}
+                    {list(stage, 'consults').map(String).join('; ')}
+                  </span>
+                )}
+                <span className="text-meta text-muted" data-testid="stage-role">
+                  {text(stage, 'model_role') === ''
+                    ? message(locale, 'agent.stage.noModel')
+                    : message(locale, 'agent.stage.role', {
+                        role: text(stage, 'model_role'),
+                      })}
+                </span>
+              </div>
+            </details>
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -645,6 +734,11 @@ function ToolsSummaryCard({
           })}
         </span>
       </div>
+      <p className="mt-auto text-small">
+        <Link href={address('tools')}>
+          {message(locale, 'agent.metro.tools.catalogue')}
+        </Link>
+      </p>
     </div>
   );
 }
@@ -671,17 +765,28 @@ function AutonomySummaryCard({
           <li
             key={text(entry, 'risk_class')}
             data-testid="autonomy-summary-row"
-            className="flex items-center gap-2 text-small"
+            className="flex items-center gap-2 rounded-2 edge border-border bg-sunken px-2 py-1 text-small"
           >
-            <span className="min-w-0 flex-1 truncate">
+            <span className="min-w-0 shrink-0 truncate">
               {humaniseIdentifier(text(entry, 'risk_class'))}
             </span>
-            <span data-testid="autonomy-summary-decision" className="ml-auto">
+            {/* The board's thin connecting line: what makes five rows read
+                as one ladder rather than five labels and five chips. */}
+            <span aria-hidden="true" className="h-px min-w-4 flex-1 bg-border" />
+            <span data-testid="autonomy-summary-decision" className="shrink-0">
               <Badge status={text(entry, 'decision')} locale={locale} />
             </span>
           </li>
         ))}
       </ul>
+      <p className="text-micro text-muted">
+        {message(locale, 'agent.metro.autonomy.footer')}
+      </p>
+      <p className="mt-auto text-small">
+        <Link href="/settings/autonomy-guardrails">
+          {message(locale, 'agent.metro.autonomy.adjust')}
+        </Link>
+      </p>
     </div>
   );
 }
@@ -706,12 +811,30 @@ function TeamSummaryCard({
     >
       <Link href={address('team')}>{message(locale, 'agent.tab.team')}</Link>
       {hasBudget ? (
-        <p data-testid="team-budget" className="text-small">
-          {message(locale, 'agent.metro.team.budget', {
-            used: tokensUsed,
-            budget: tokenBudget,
-          })}
-        </p>
+        <div className="flex flex-col gap-2">
+          <p data-testid="team-budget" className="text-small">
+            {message(locale, 'agent.metro.team.budget', {
+              used: tokensUsed,
+              budget: tokenBudget,
+            })}
+          </p>
+          {/* The budget as a bar, not a sentence alone — the board's own
+              treatment, and what makes "how full" readable at a glance. */}
+          <span
+            data-testid="team-budget-bar"
+            className="flex h-2 overflow-hidden rounded-full edge border-border bg-sunken"
+          >
+            <span
+              className="block h-full bg-accent"
+              style={{
+                width: `${String(Math.min(100, (tokensUsed / tokenBudget) * 100))}%`,
+              }}
+            />
+          </span>
+          <p className="text-micro text-muted">
+            {message(locale, 'agent.metro.team.note')}
+          </p>
+        </div>
       ) : (
         <div data-testid="team-empty" className="flex flex-col gap-2">
           <p className="text-small text-muted">
@@ -719,6 +842,17 @@ function TeamSummaryCard({
           </p>
         </div>
       )}
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full edge border-border bg-sunken px-2 py-1 text-micro text-muted">
+          {message(locale, 'agent.metro.team.investigator')}
+        </span>
+        <span className="rounded-full edge border-border bg-sunken px-2 py-1 text-micro text-muted">
+          {message(locale, 'agent.metro.team.subagent')}
+        </span>
+      </div>
+      <p className="mt-auto text-small">
+        <Link href={address('team')}>{message(locale, 'agent.metro.team.write')}</Link>
+      </p>
     </div>
   );
 }
@@ -785,52 +919,9 @@ function TopologyTab({
   const specialists = subAgentsOf(values);
   const declared = list(dataOf(fields), 'fields');
 
-  const ranks: readonly HierarchyRank[] = [
-    {
-      id: ORCHESTRATOR,
-      label: message(locale, 'agent.rank.orchestrator'),
-      nodes: [
-        {
-          id: ORCHESTRATOR,
-          name: message(locale, 'agent.rank.orchestrator'),
-          kind: ORCHESTRATOR,
-          href: '#agent-stages',
-          entryPoint: true,
-        },
-      ],
-    },
-    {
-      id: STAGES,
-      label: message(locale, 'agent.rank.stages'),
-      // They run one after another — resolve, intake, plan, gather, diagnose,
-      // deliver — and drawn as a plain row fanning out of the orchestrator,
-      // nothing said which came first.
-      sequence: true,
-      nodes: stages.map((stage) => ({
-        id: text(stage, 'name'),
-        // The readable form in the box; the identifier keeps its place in the
-        // list below, where a reader matching a log line will look for it.
-        name: humaniseIdentifier(text(stage, 'name')),
-        kind: STAGES,
-        href: '#agent-stages',
-      })),
-    },
-    {
-      id: SPECIALISTS,
-      label: message(locale, 'agent.rank.specialists'),
-      nodes: specialists.map((specialist) => ({
-        id: specialist.name,
-        name: humaniseIdentifier(specialist.name),
-        kind: SPECIALISTS,
-        href: AGENT_ADVANCED_HREF,
-        disabled: !specialist.enabled,
-      })),
-    },
-  ];
-
   return (
     <>
-      <PipelineMetro locale={locale} stages={stages} runs={runs} />
+      <PipelineMetro locale={locale} pipeline={pipeline} stages={stages} runs={runs} />
       <PipelineSummaryCards
         locale={locale}
         capabilities={summaryCapabilities}
@@ -839,75 +930,6 @@ function TopologyTab({
         context={summaryContext}
         address={address}
       />
-      <Panel
-        title={message(locale, 'agent.stages.title')}
-        state={stateOf(pipeline, stages.length === 0)}
-        dependency={dependencyOf(pipeline)}
-        labels={panelLabels(locale, message(locale, 'agent.stages.title'))}
-        empty={{
-          heading: message(locale, 'agent.empty.heading'),
-          body: message(locale, 'agent.empty.body'),
-          actionLabel: message(locale, 'agent.empty.action'),
-          // The body says outright that nothing here is configuration, so
-          // there is no owning page to send anyone to; the area's own
-          // address is the only honest destination left.
-          href: '/agent',
-        }}
-      >
-        <div className="flex flex-col gap-4" id="agent-stages">
-          <HierarchyGraph
-            ranks={ranks}
-            labels={{ title: message(locale, 'agent.graph.title') }}
-          />
-          <ol className="flex flex-col gap-3">
-            {stages.map((stage) => (
-              <li
-                key={text(stage, 'name')}
-                data-testid="agent-stage"
-                data-stage={text(stage, 'name')}
-                data-role={text(stage, 'model_role')}
-                className="flex flex-col gap-1"
-              >
-                <span className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-strong">
-                    {humaniseIdentifier(text(stage, 'name'))}
-                  </span>
-                  <span className="font-mono text-meta text-muted">
-                    {text(stage, 'name')}
-                  </span>
-                  {text(stage, 'model_role') === '' ? (
-                    <span className="text-meta text-muted">
-                      {message(locale, 'agent.stage.noModel')}
-                    </span>
-                  ) : (
-                    <span className="text-meta text-muted" data-testid="stage-role">
-                      {message(locale, 'agent.stage.role', {
-                        role: text(stage, 'model_role'),
-                      })}
-                    </span>
-                  )}
-                  {flag(stage, 'dispatches_subagents') ? (
-                    <Badge status="active" locale={locale} />
-                  ) : null}
-                </span>
-                {/* Capped at a reading measure. The page cap stops a screen at
-                    1360px, which is right for a table and still half again too
-                    wide for prose — the longest of these consults lines runs to
-                    two hundred characters, and a reader loses the start of the
-                    next line looking for it. */}
-                <span className="text-meta text-muted max-w-prose">
-                  {text(stage, 'summary')}
-                </span>
-                <span className="text-meta text-muted max-w-prose">
-                  {message(locale, 'agent.stage.consults')}{' '}
-                  {list(stage, 'consults').map(String).join('; ')}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Panel>
-
       <Panel
         title={message(locale, 'agent.specialists.title')}
         state={stateOf(effective, specialists.length === 0)}
@@ -1098,44 +1120,64 @@ function ModelRolePanel({
       <p className="text-meta text-muted pb-3">
         {message(locale, 'agent.models.body')}
       </p>
-      <ul className="flex flex-col gap-2">
-        {roles.map((role) => {
-          const binding = roleBinding(declared, role);
-          return (
-            <li
-              key={role}
-              data-testid="model-role"
-              data-role={role}
-              data-bound={binding.bound ? 'true' : 'false'}
-              className="flex flex-wrap items-center gap-3 text-small"
-            >
-              <span className="font-mono min-w-0 truncate">{role}</span>
-              {binding.provider === '' ? null : (
-                <span className="text-meta" data-testid="model-role-binding">
-                  {binding.provider} / {binding.model}
-                </span>
-              )}
-              {binding.bound ? (
-                <span
-                  className="text-meta text-muted"
-                  data-testid="model-role-provenance"
-                >
-                  {message(locale, 'agent.models.from', { node: binding.provenance })}
-                </span>
-              ) : (
-                <span className="text-meta text-muted" data-testid="model-role-default">
-                  {message(
-                    locale,
-                    binding.inherited
-                      ? 'agent.models.inherited'
-                      : 'agent.models.default',
-                  )}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {(() => {
+        const bindings = roles.map(
+          (role) => [role, roleBinding(declared, role)] as const,
+        );
+        // Every role that made no choice of its own says the identical
+        // sentence — seven copies of "follows the investigator" told a
+        // reader nothing seven times. The ones with something of their own
+        // to say stay as rows; the followers collapse to one line, with
+        // the full list a disclosure away.
+        const own = bindings.filter(([, binding]) => !binding.inherited);
+        const followers = bindings.filter(([, binding]) => binding.inherited);
+        const row = ([role, binding]: (typeof bindings)[number]): ReactNode => (
+          <li
+            key={role}
+            data-testid="model-role"
+            data-role={role}
+            data-bound={binding.bound ? 'true' : 'false'}
+            className="flex flex-wrap items-center gap-3 text-small"
+          >
+            <span className="font-mono min-w-0 truncate">{role}</span>
+            {binding.provider === '' ? null : (
+              <span className="text-meta" data-testid="model-role-binding">
+                {binding.provider} / {binding.model}
+              </span>
+            )}
+            {binding.bound ? (
+              <span
+                className="text-meta text-muted"
+                data-testid="model-role-provenance"
+              >
+                {message(locale, 'agent.models.from', { node: binding.provenance })}
+              </span>
+            ) : (
+              <span className="text-meta text-muted" data-testid="model-role-default">
+                {message(
+                  locale,
+                  binding.inherited ? 'agent.models.inherited' : 'agent.models.default',
+                )}
+              </span>
+            )}
+          </li>
+        );
+        return (
+          <div className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2">{own.map(row)}</ul>
+            {followers.length === 0 ? null : (
+              <details data-testid="model-roles-followers">
+                <summary className="cursor-pointer select-none text-small text-muted">
+                  {message(locale, 'agent.models.followSummary', {
+                    count: followers.length,
+                  })}
+                </summary>
+                <ul className="flex flex-col gap-2 pt-2">{followers.map(row)}</ul>
+              </details>
+            )}
+          </div>
+        );
+      })()}
     </Panel>
   );
 }
@@ -1367,12 +1409,21 @@ function DocumentPanel({
             {message(locale, 'agent.document.untouched')}
           </p>
         )}
-        <pre
-          data-testid="agent-document"
-          className="text-meta font-mono overflow-x-auto whitespace-pre"
-        >
-          {document}
-        </pre>
+        {/* Closed by default: the document is the second view of a topology
+            the rest of the tab already renders, kept for the operators who
+            read a tree faster than a picture — a disclosure away rather than
+            a page-length block everyone else scrolls past. */}
+        <details data-testid="agent-document-details">
+          <summary className="cursor-pointer select-none text-small text-muted">
+            {message(locale, 'agent.document.show')}
+          </summary>
+          <pre
+            data-testid="agent-document"
+            className="text-meta font-mono overflow-x-auto whitespace-pre pt-2"
+          >
+            {document}
+          </pre>
+        </details>
       </div>
     </Panel>
   );

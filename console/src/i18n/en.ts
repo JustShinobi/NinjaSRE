@@ -2213,12 +2213,6 @@ export const EN = {
   'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Tools',
   'agent.tab.autonomy': 'Autonomy',
-  'agent.graph.title':
-    'The investigation, from the orchestrator down to the specialists',
-  'agent.rank.orchestrator': 'Orchestrator',
-  'agent.rank.stages': 'Stages',
-  'agent.rank.specialists': 'Specialists',
-  'agent.stages.title': 'The stages an investigation runs',
   'agent.metro.title': 'The six stages of an investigation',
   'agent.metro.subtitle':
     'every run walks this line, and the transcript groups by stage',
@@ -2235,13 +2229,31 @@ export const EN = {
     'Forms hypotheses and tests them against the retained evidence.',
   'agent.metro.copy.deliver':
     'Writes the cause, proposes the action, and records the episode.',
+  'agent.metro.name.resolve_integrations': 'Resolve integrations',
+  'agent.metro.name.intake': 'Intake',
+  'agent.metro.name.plan_evidence': 'Plan evidence',
+  'agent.metro.name.gather_evidence': 'Gather evidence',
+  'agent.metro.name.diagnose': 'Diagnose',
+  'agent.metro.name.deliver': 'Deliver',
+  'agent.metro.regime.model': 'model: {role}',
+  'agent.metro.regime.deterministic': 'deterministic',
+  'agent.metro.regime.none': 'no model',
+  'agent.metro.runningNow': 'running now',
   'agent.metro.tools.ratio': '{enabled} of {total} enabled',
   'agent.metro.tools.read': 'Reads · {count}',
   'agent.metro.tools.writeReversible': 'Writes, reversible · {count}',
   'agent.metro.tools.destructive': 'Destructive · {count}',
+  'agent.metro.tools.catalogue': 'full catalogue \u2192',
+  'agent.metro.autonomy.footer':
+    'No class runs alone: everything is diagnosed and proposed for a person to decide.',
+  'agent.metro.autonomy.adjust': 'adjust the policy \u2192',
   'agent.metro.team.budget': '{used} of {budget} tokens',
   'agent.metro.team.empty':
     'No fact written yet. Environment facts join every investigation\u2019s prompt.',
+  'agent.metro.team.note': 'what exceeds the budget is refused, never truncated',
+  'agent.metro.team.investigator': '\u2192 Investigator',
+  'agent.metro.team.subagent': '\u2192 Sub-agent',
+  'agent.metro.team.write': 'write environment facts \u2192',
   'agent.stage.role': 'model role: {role}',
   'agent.stage.noModel': 'no model call',
   'agent.stage.consults': 'Consults:',
@@ -2260,6 +2272,7 @@ export const EN = {
     'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
   'agent.models.default': 'deployment default — nobody bound this role',
   'agent.models.inherited': 'no choice of its own — follows the investigator',
+  'agent.models.followSummary': '{count} roles follow the investigator',
   'agent.models.from': 'from {node}',
   'agent.models.empty.heading': 'No role is described here',
   'agent.models.empty.body':
@@ -2289,6 +2302,7 @@ export const EN = {
   'agent.document.untouched':
     'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
   'agent.document.title': 'The same topology, as the document',
+  'agent.document.show': 'show the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':
     'The deployment did not answer with the stages an investigation runs. Nothing here is configuration; it is what the build is.',
