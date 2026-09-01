@@ -601,7 +601,7 @@ function PipelineMetro({
         <div
           aria-hidden="true"
           data-testid="pipeline-metro-rail"
-          className="absolute top-0 hidden h-6 items-center lg:flex"
+          className="absolute top-0 hidden h-7 items-center lg:flex"
           style={{
             insetInlineStart: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
             insetInlineEnd: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
@@ -636,19 +636,27 @@ function PipelineMetro({
                 className="flex cursor-pointer select-none list-none flex-col items-center gap-2 text-center [&::-webkit-details-marker]:hidden"
                 data-testid="pipeline-metro-summary"
               >
-                <span
-                  data-testid="pipeline-metro-station"
-                  data-treatment={treatment}
-                  className={cx(
-                    'flex size-7 items-center justify-center rounded-full edge-emphasis',
-                    STAGE_TREATMENT_CLASSES[treatment],
-                    treatment === 'running' && 'pulse-live',
-                  )}
-                >
-                  {treatment === 'running' ? (
-                    <span aria-hidden="true" className="pulse-live-ring text-accent" />
-                  ) : null}
-                  <Icon className="icon-head" />
+                {/* An opaque backdrop under the tinted well, so the rail's
+                    fill reads as passing behind the station rather than
+                    through it — the tints are translucent by design. */}
+                <span className="rounded-full bg-raised">
+                  <span
+                    data-testid="pipeline-metro-station"
+                    data-treatment={treatment}
+                    className={cx(
+                      'flex size-7 items-center justify-center rounded-full edge-emphasis',
+                      STAGE_TREATMENT_CLASSES[treatment],
+                      treatment === 'running' && 'pulse-live',
+                    )}
+                  >
+                    {treatment === 'running' ? (
+                      <span
+                        aria-hidden="true"
+                        className="pulse-live-ring text-accent"
+                      />
+                    ) : null}
+                    <Icon className="icon-head" />
+                  </span>
                 </span>
                 <span
                   data-testid="pipeline-metro-regime"
@@ -747,7 +755,7 @@ function ToolsSummaryCard({
             className="flex items-center gap-2 text-micro"
           >
             <span className="w-1/4 min-w-0 shrink-0 truncate text-muted">
-              {humaniseIdentifier(domain)}
+              {domainLabel(locale, domain)}
             </span>
             <span className="h-1 flex-1 overflow-hidden rounded-full bg-sunken">
               <span
@@ -820,7 +828,7 @@ function AutonomySummaryCard({
             className="flex items-center gap-2 rounded-2 edge border-border bg-sunken px-2 py-1 text-small"
           >
             <span className="min-w-0 shrink-0 truncate">
-              {humaniseIdentifier(text(entry, 'risk_class'))}
+              {autonomyClassName(locale, text(entry, 'risk_class'))}
             </span>
             {/* The board's thin connecting line: what makes five rows read
                 as one ladder rather than five labels and five chips. */}
@@ -1929,6 +1937,20 @@ const AUTONOMY_CLASS_CHIP: Readonly<
   critical: { label: 'agent.autonomy.class.critical', role: 'danger', shape: 'square' },
 };
 
+/** A risk class's own word, from the ladder's map — its identifier otherwise. */
+function autonomyClassName(locale: Locale, riskClass: string): string {
+  const chip = AUTONOMY_CLASS_CHIP[riskClass];
+  return chip === undefined
+    ? humaniseIdentifier(riskClass)
+    : message(locale, chip.label);
+}
+
+/** The posture, in the same words the sidebar's own footer uses. */
+function postureWord(locale: Locale, posture: string): string {
+  const key = `shell.guardian.posture.${posture}`;
+  return isMessageKey(key) ? message(locale, key) : posture;
+}
+
 /** `sentence` split at its first full stop: the row's short line, and the rest. */
 export function firstSentence(sentence: string): readonly [string, string] {
   const match = /^(.*?[.!?])\s+(\S.*)$/su.exec(sentence.trim());
@@ -1983,7 +2005,7 @@ function AutonomyTab({
               <span className="pulse-live-ring" />
             </span>
             {message(locale, 'agent.autonomy.policyChip', {
-              posture: postureName(locale, posture),
+              posture: postureWord(locale, posture),
             })}
           </span>
         }

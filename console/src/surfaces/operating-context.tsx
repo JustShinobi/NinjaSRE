@@ -406,13 +406,7 @@ export function OperatingContextEditor({
               <span className="text-meta text-muted">
                 {labels.budgetUsed
                   .replace('{used}', String(spent))
-                  .replace('{budget}', String(tokenBudget))
-                  .replace(
-                    '{percent}',
-                    String(
-                      tokenBudget === 0 ? 0 : Math.round((spent / tokenBudget) * 100),
-                    ),
-                  )}
+                  .replace('{budget}', String(tokenBudget))}
               </span>
             </p>
             <ProgressBar

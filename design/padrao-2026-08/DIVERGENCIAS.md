@@ -492,3 +492,24 @@ identificador interno — ela nomeia o host, então passa.
 Não foi mexido aqui: `incident-group-list.tsx` é da 060 e a suíte dela já está
 vermelha por motivo independente. Fica nomeado para a 060 decidir se
 `unresolved-target:` é palavra de máquina que a FR-024 devia barrar.
+
+---
+
+# Varredura do polimento, 2026-09-01
+
+## 33. O veredito "Propor" fica âmbar vazado, não verde
+
+O board (`AgentAutonomy.dc.html`, `TheAgent.dc.html`) pinta o chip "Propor"
+da escada de autonomia em verde. O console o desenha no papel de espera —
+âmbar, círculo vazado — em toda parte.
+
+**Por quê.** `design/status.ts` declara `propose` deliberadamente na família
+"espera uma pessoa" (`approve` e `propose` both wait on a person, diz o
+próprio comentário do módulo), a mesma leitura que `pending` carrega e o
+motivo de o círculo vazado existir: um veredito que ainda depende de alguém
+não é um desfecho. Pintar "Propor" de verde diria "resolvido" sobre a única
+linha da escada cuja mensagem é "nada roda sem uma pessoa decidir". O verde
+do board vende a postura como segura; o âmbar do console diz o que ela é —
+uma espera. A palavra, o papel e a forma continuam vindo da fundação, iguais
+em `/decisions`, na escada e no card-resumo do Pipeline, e mudar só aqui
+criaria duas leituras do mesmo estado.

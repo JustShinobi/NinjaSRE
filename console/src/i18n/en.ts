@@ -1817,7 +1817,7 @@ export const EN = {
   'teamContext.column.body': 'What it says',
   'teamContext.provenance': 'Set at',
   'teamContext.budget': 'Prompt budget',
-  'teamContext.budgetUsed': 'of {budget} tokens · {percent}%',
+  'teamContext.budgetUsed': 'of {budget} tokens',
   'teamContext.budgetConsequence': 'What goes over budget is refused, not truncated.',
   'teamContext.overBudget':
     'Over the budget. The deployment will refuse this until it is shorter.',

@@ -1482,7 +1482,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.column.body': 'O que diz',
   'teamContext.provenance': 'Definido em',
   'teamContext.budget': 'Orçamento do prompt',
-  'teamContext.budgetUsed': 'de {budget} tokens · {percent}%',
+  'teamContext.budgetUsed': 'de {budget} tokens',
   'teamContext.budgetConsequence':
     'O que ultrapassa o orçamento é recusado, não truncado.',
   'teamContext.overBudget':
@@ -1591,8 +1591,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.column.effect': 'Efeito',
   'catalogue.column.integrations': 'Precisa de',
   'catalogue.column.enabled': 'Ativa aqui',
-  'catalogue.state.enabled': 'Ativa',
-  'catalogue.state.disabled': 'Inativa',
+  'catalogue.state.enabled': 'Habilitada',
+  'catalogue.state.disabled': 'Desligada',
   'catalogue.blocked': 'Requer a integração {integration}',
   'catalogue.blocked.action': 'Conectar',
   'catalogue.empty.heading': 'Nenhuma capacidade declarada',
