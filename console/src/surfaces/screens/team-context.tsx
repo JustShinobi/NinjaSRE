@@ -145,6 +145,10 @@ export async function TeamTab(context: SurfaceContext): Promise<ReactNode> {
               tokensUsed={number(document, 'tokens_used')}
               tokenBudget={number(document, 'token_budget')}
               roles={roles}
+              roleNames={{
+                investigator: message(locale, 'teamContext.role.investigator'),
+                subagent: message(locale, 'teamContext.role.subagent'),
+              }}
               writable={may(viewer, WRITE)}
               labels={{
                 section: message(locale, 'teamContext.column.section'),
@@ -161,9 +165,25 @@ export async function TeamTab(context: SurfaceContext): Promise<ReactNode> {
                 ),
                 sectionName: message(locale, 'teamContext.sectionName'),
                 remove: message(locale, 'teamContext.remove'),
-                factNotInstruction: message(locale, 'teamContext.factNotInstruction'),
+                exampleFactLabel: message(locale, 'teamContext.example.factLabel'),
+                exampleFactQuote: message(locale, 'teamContext.example.factQuote'),
+                exampleFactTail: message(locale, 'teamContext.example.factTail'),
+                exampleInstructionLabel: message(
+                  locale,
+                  'teamContext.example.instructionLabel',
+                ),
+                exampleInstructionQuote: message(
+                  locale,
+                  'teamContext.example.instructionQuote',
+                ),
+                exampleInstructionTail: message(
+                  locale,
+                  'teamContext.example.instructionTail',
+                ),
                 runbooks: message(locale, 'teamContext.runbooks'),
                 policy: message(locale, 'teamContext.policy'),
+                rolesNote: message(locale, 'teamContext.rolesNote'),
+                savedNote: message(locale, 'teamContext.savedNote'),
                 previewTitle: message(locale, 'teamContext.preview.title'),
                 previewLead: message(locale, 'teamContext.preview.lead'),
                 submit: message(locale, 'teamContext.preview.submit'),

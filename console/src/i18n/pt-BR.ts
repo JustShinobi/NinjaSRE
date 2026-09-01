@@ -1468,7 +1468,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.column.body': 'O que diz',
   'teamContext.provenance': 'Definido em',
   'teamContext.budget': 'Orçamento do prompt',
-  'teamContext.budgetUsed': '{used} de {budget} tokens',
+  'teamContext.budgetUsed': 'de {budget} tokens · {percent}%',
   'teamContext.budgetConsequence':
     'O que ultrapassa o orçamento é recusado, não truncado.',
   'teamContext.overBudget':
@@ -1491,7 +1491,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.preview.title': 'O que o modelo vai receber',
   'teamContext.preview.lead':
     'O texto exato que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de salvar aparece quando o tiver pedido.',
-  'teamContext.preview.submit': 'Mostrar-me o prompt',
+  'teamContext.preview.submit': 'Mostrar o prompt final',
   'teamContext.preview.disabledReason': 'Altere uma seção antes de pedir o prompt.',
   'teamContext.preview.previewing': 'Montando…',
   'teamContext.preview.first':
@@ -1501,7 +1501,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.saved': 'Guardado. A próxima investigação leva isto.',
   'teamContext.failed': 'O deployment recusou este contexto.',
   'teamContext.unreachable': 'Não foi possível contatar o deployment.',
-  'teamContext.roles': 'Enviado a',
+  'teamContext.roles': 'Enviado para',
+  'teamContext.role.investigator': 'Investigador',
+  'teamContext.role.subagent': 'Subagente',
+  'teamContext.rolesNote': 'Os dois papéis leem as mesmas seções.',
+  'teamContext.savedNote':
+    'Salvo por deployment — cada investigação nova já nasce lendo isto.',
+  'teamContext.example.factLabel': 'Fato:',
+  'teamContext.example.factQuote': '"Métricas de contêiner vêm do host, por vmid"',
+  'teamContext.example.factTail': '— muda como o agente lê o que vê.',
+  'teamContext.example.instructionLabel': 'Instrução:',
+  'teamContext.example.instructionQuote': '"sempre reinicie o serviço primeiro"',
+  'teamContext.example.instructionTail': '— procedimento não mora aqui.',
 
   'configuration.editor.title': 'Mudar o que se aplica aqui',
   'configuration.editor.lead':

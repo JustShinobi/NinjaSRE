@@ -8,6 +8,7 @@ import { ProgressBar } from '@/components/feedback';
 import { Badge } from '@/components/status';
 import { Input, Textarea } from '@/components/form';
 import { cx } from '@/design/cx';
+import { CheckIcon, CloseIcon, TrashIcon } from '@/design/icons';
 import { humaniseIdentifier } from '@/i18n/format';
 
 /**
@@ -62,9 +63,19 @@ export interface OperatingContextLabels {
   readonly addSectionDisabledReason: string;
   readonly sectionName: string;
   readonly remove: string;
-  readonly factNotInstruction: string;
+  /** The worked example: one fact that earns its place, one instruction struck. */
+  readonly exampleFactLabel: string;
+  readonly exampleFactQuote: string;
+  readonly exampleFactTail: string;
+  readonly exampleInstructionLabel: string;
+  readonly exampleInstructionQuote: string;
+  readonly exampleInstructionTail: string;
   readonly runbooks: string;
   readonly policy: string;
+  /** Under the sent-to chips: both roles read the same sections. */
+  readonly rolesNote: string;
+  /** The rail's closing note: saved per deployment, read by every new run. */
+  readonly savedNote: string;
   readonly previewTitle: string;
   readonly previewLead: string;
   readonly submit: string;
@@ -93,6 +104,8 @@ export interface OperatingContextEditorProps {
   readonly tokenBudget: number;
   /** The roles this text is sent to, as the deployment names them. */
   readonly roles: readonly string[];
+  /** Each role's own word in the viewer's language, keyed by the deployment's slug. */
+  readonly roleNames: Readonly<Record<string, string>>;
   readonly labels: OperatingContextLabels;
   /** Whether this viewer may write. A reader gets the text and no controls. */
   readonly writable: boolean;
@@ -138,6 +151,7 @@ export function OperatingContextEditor({
   tokensUsed,
   tokenBudget,
   roles,
+  roleNames,
   labels,
   writable,
 }: OperatingContextEditorProps): ReactNode {
@@ -238,168 +252,253 @@ export function OperatingContextEditor({
 
   return (
     <div data-testid="operating-context-editor" className="flex flex-col gap-4">
-      {/* Said before the first field, because it is the rule that decides what
-          belongs here at all, and after the fact it is only a correction. */}
-      <p data-testid="fact-not-instruction" className="text-meta text-muted">
-        {labels.factNotInstruction} <Link href="/knowledge">{labels.runbooks}</Link>
-        {' · '}
-        <Link href="/autonomy">{labels.policy}</Link>
-      </p>
-
-      <p className="flex flex-wrap items-baseline gap-2 text-meta text-muted">
-        <span>{labels.roles}</span>
-        {roles.map((role) => (
-          // Plain tags, not status badges. A role is not a state, and going
-          // through the status badge gave every one of them the hollow ring
-          // that means "a status this console has never heard of" — so a list
-          // of audiences read as a row of unticked checkboxes.
-          <span
-            key={role}
-            data-testid="context-role"
-            data-role-name={role}
-            className="rounded-1 bg-neutral-bg px-2 py-1 text-micro text-text"
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          {/* Said before the first field, because it is the rule that decides
+              what belongs here at all — and shown rather than told: one fact
+              that earns its place, one instruction struck through. */}
+          <div
+            data-testid="fact-not-instruction"
+            className="flex flex-col gap-2 rounded-2 edge border-border bg-sunken p-3"
           >
-            {humaniseIdentifier(role)}
-          </span>
-        ))}
-      </p>
+            <span className="flex items-start gap-2 text-meta">
+              <CheckIcon
+                aria-hidden="true"
+                className="icon-inline mt-1 shrink-0 text-accent"
+              />
+              <span>
+                {labels.exampleFactLabel}{' '}
+                <span className="text-accent">{labels.exampleFactQuote}</span>{' '}
+                {labels.exampleFactTail}
+              </span>
+            </span>
+            <span className="flex items-start gap-2 text-meta text-muted">
+              <CloseIcon
+                aria-hidden="true"
+                className="icon-inline mt-1 shrink-0 text-danger"
+              />
+              <span>
+                {labels.exampleInstructionLabel}{' '}
+                <s className="text-danger">{labels.exampleInstructionQuote}</s>{' '}
+                {labels.exampleInstructionTail}
+              </span>
+            </span>
+            <span className="text-micro text-muted">
+              <Link href="/knowledge">{labels.runbooks}</Link>
+              {' · '}
+              <Link href="/autonomy">{labels.policy}</Link>
+            </span>
+          </div>
 
-      {/* A meter as well as the count. "0 of 1200 tokens" is a figure a reader
-          has to hold two numbers in their head to place; the bar places it for
-          them, and the count stays because a bar alone is an estimate. */}
-      <p
-        data-testid="context-budget"
-        className={cx(
-          'flex flex-wrap items-center gap-3 text-meta tabular-nums',
-          over ? 'text-danger' : 'text-muted',
-        )}
-      >
-        <span>
-          {labels.budget}{' '}
-          {labels.budgetUsed
-            .replace('{used}', String(spent))
-            .replace('{budget}', String(tokenBudget))}
-        </span>
-        <ProgressBar
-          label={labels.budget}
-          value={tokenBudget === 0 ? 0 : (spent / tokenBudget) * 100}
-        />
-      </p>
-      {/* Said before anyone is near the limit, not only once they have crossed
-          it: what happens past the budget is a refusal, never a silent cut. */}
-      <p data-testid="context-budget-consequence" className="text-meta text-muted">
-        {labels.budgetConsequence}
-      </p>
-      {over ? (
-        <p
-          data-testid="context-over-budget"
-          role="status"
-          className="text-meta text-danger"
-        >
-          {labels.overBudget}
-        </p>
-      ) : null}
-
-      {rows.map((row) => (
-        <div
-          key={row.name}
-          data-testid="context-section"
-          data-section={row.name}
-          className="flex flex-col gap-1"
-        >
-          {/* Which level said it. Without this, a section changed at the wrong
-              level looks like a console that ignored the change. Beside the
-              name rather than under it, and the name is the field's own label
-              rather than a heading repeated above one. */}
-          <span
-            data-testid="section-provenance"
-            data-section={row.name}
-            className="flex flex-wrap items-center gap-2"
-          >
-            <span className="text-meta text-muted">{labels.provenance}</span>
-            <Badge status={row.provenance === '' ? 'unset' : row.provenance} />
-          </span>
-          {writable ? (
-            <Textarea
-              label={row.name}
-              name={`section-${row.name}`}
-              rows={4}
-              value={bodyFor[row.name] ?? row.body}
-              onValueChange={(next) => {
-                edit(row.name, next);
-              }}
-            />
-          ) : (
-            <>
-              <span className="text-meta text-muted">{row.name}</span>
-              <p className="text-small whitespace-pre-wrap">{row.body}</p>
-            </>
-          )}
-        </div>
-      ))}
-
-      {writable ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <Input
-            label={labels.sectionName}
-            name="new-section"
-            value={naming}
-            onValueChange={setNaming}
-          />
-          {/* The primary is the one that changes something. This screen had
-              the filled button on "Show me the prompt" — a preview — while the
-              action that actually adds a section sat beside it in the secondary
-              skin. A reader following the emphasis was being pointed at the one
-              control that does nothing. */}
-          <Button
-            variant="primary"
-            data-testid="add-section"
-            state={naming.trim() === '' ? 'disabled' : 'default'}
-            title={naming.trim() === '' ? labels.addSectionDisabledReason : undefined}
-            onClick={() => {
-              const name = naming.trim();
-              if (name === '') return;
-              setAdded((was) => (was.includes(name) ? was : [...was, name]));
-              setNaming('');
-              setSaved(false);
-            }}
-          >
-            {labels.addSection}
-          </Button>
-          {template.length === 0 ? null : (
-            // The label alone answers "start from what?"; the title carries the
-            // longer answer (what it was derived from, and that nothing is
-            // written until save) for whoever hovers rather than guesses.
-            <Button
-              data-testid="use-template"
-              title={labels.templateLead}
-              onClick={() => {
-                startFromTemplate();
-              }}
+          {rows.map((row) => (
+            <div
+              key={row.name}
+              data-testid="context-section"
+              data-section={row.name}
+              className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-3"
             >
-              {labels.templateUse}
-            </Button>
-          )}
-        </div>
-      ) : null}
+              {/* Which level said it. Without this, a section changed at the
+                  wrong level looks like a console that ignored the change. */}
+              <span
+                data-testid="section-provenance"
+                data-section={row.name}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <span className="text-meta text-muted">{labels.provenance}</span>
+                <Badge status={row.provenance === '' ? 'unset' : row.provenance} />
+                {writable ? (
+                  <span className="ml-auto">
+                    <Button
+                      variant="quiet"
+                      data-testid="remove-section"
+                      title={labels.remove}
+                      onClick={() => {
+                        setSaved(false);
+                        if (added.includes(row.name)) {
+                          setAdded((was) => was.filter((name) => name !== row.name));
+                          setBodyFor((was) => {
+                            const { [row.name]: dropped, ...rest } = was;
+                            void dropped;
+                            return rest;
+                          });
+                          return;
+                        }
+                        // A served section is silenced, never deleted: an empty
+                        // body is how an inherited one is overridden to nothing.
+                        edit(row.name, '');
+                      }}
+                    >
+                      <TrashIcon aria-hidden="true" className="icon-inline" />
+                      <span className="sr-only">{labels.remove}</span>
+                    </Button>
+                  </span>
+                ) : null}
+              </span>
+              {writable ? (
+                <Textarea
+                  label={row.name}
+                  name={`section-${row.name}`}
+                  rows={4}
+                  value={bodyFor[row.name] ?? row.body}
+                  onValueChange={(next) => {
+                    edit(row.name, next);
+                  }}
+                />
+              ) : (
+                <>
+                  <span className="text-meta text-muted">{row.name}</span>
+                  <p className="text-small whitespace-pre-wrap">{row.body}</p>
+                </>
+              )}
+            </div>
+          ))}
 
-      {writable ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="quiet"
-            data-testid="ask-context-preview"
-            state={
-              busy === 'preview' ? 'loading' : previewBlocked ? 'disabled' : 'default'
-            }
-            title={previewBlocked ? labels.previewDisabledReason : undefined}
-            onClick={() => {
-              void preview();
-            }}
-          >
-            {busy === 'preview' ? labels.previewing : labels.submit}
-          </Button>
+          {writable ? (
+            <div
+              data-testid="add-section-area"
+              className="flex flex-wrap items-end gap-3 rounded-3 edge-dashed border-border-strong p-3"
+            >
+              <Input
+                label={labels.sectionName}
+                name="new-section"
+                value={naming}
+                onValueChange={setNaming}
+              />
+              {/* The primary is the one that changes something. This screen had
+                  the filled button on "Show me the prompt" — a preview — while
+                  the action that actually adds a section sat beside it in the
+                  secondary skin. A reader following the emphasis was being
+                  pointed at the one control that does nothing. */}
+              <Button
+                variant="primary"
+                data-testid="add-section"
+                state={naming.trim() === '' ? 'disabled' : 'default'}
+                title={
+                  naming.trim() === '' ? labels.addSectionDisabledReason : undefined
+                }
+                onClick={() => {
+                  const name = naming.trim();
+                  if (name === '') return;
+                  setAdded((was) => (was.includes(name) ? was : [...was, name]));
+                  setNaming('');
+                  setSaved(false);
+                }}
+              >
+                {labels.addSection}
+              </Button>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+
+        {/* The rail: the budget, who reads this, and the two document-level
+            actions — the board's own right column. */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-4">
+            <span className="text-strong">{labels.budget}</span>
+            <p
+              data-testid="context-budget"
+              className={cx(
+                'flex flex-wrap items-baseline gap-2 tabular-nums',
+                over ? 'text-danger' : '',
+              )}
+            >
+              <span className="font-sans text-section font-bold">{spent}</span>
+              <span className="text-meta text-muted">
+                {labels.budgetUsed
+                  .replace('{used}', String(spent))
+                  .replace('{budget}', String(tokenBudget))
+                  .replace(
+                    '{percent}',
+                    String(
+                      tokenBudget === 0 ? 0 : Math.round((spent / tokenBudget) * 100),
+                    ),
+                  )}
+              </span>
+            </p>
+            <ProgressBar
+              label={labels.budget}
+              value={tokenBudget === 0 ? 0 : (spent / tokenBudget) * 100}
+            />
+            {/* Said before anyone is near the limit, not only once they have
+                crossed it: past the budget is a refusal, never a silent cut. */}
+            <p
+              data-testid="context-budget-consequence"
+              className="rounded-2 edge border-border bg-sunken p-2 text-micro text-muted"
+            >
+              {labels.budgetConsequence}
+            </p>
+            {over ? (
+              <p
+                data-testid="context-over-budget"
+                role="status"
+                className="text-meta text-danger"
+              >
+                {labels.overBudget}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-4">
+            <span className="text-strong">{labels.roles}</span>
+            <span className="flex flex-wrap gap-2">
+              {roles.map((role) => (
+                <span
+                  key={role}
+                  data-testid="context-role"
+                  data-role-name={role}
+                  className="flex items-center gap-2 rounded-full bg-accent-bg px-2 py-1 text-micro text-accent"
+                >
+                  <CheckIcon aria-hidden="true" className="icon-inline" />
+                  {roleNames[role] ?? humaniseIdentifier(role)}
+                </span>
+              ))}
+            </span>
+            <span className="text-micro text-muted">{labels.rolesNote}</span>
+          </div>
+
+          {writable ? (
+            <div className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-4">
+              {template.length === 0 ? null : (
+                // The label alone answers "start from what?"; the title
+                // carries the longer answer for whoever hovers.
+                <Button
+                  data-testid="use-template"
+                  title={labels.templateLead}
+                  onClick={() => {
+                    startFromTemplate();
+                  }}
+                >
+                  {labels.templateUse}
+                </Button>
+              )}
+              <Button
+                variant="quiet"
+                data-testid="ask-context-preview"
+                state={
+                  busy === 'preview'
+                    ? 'loading'
+                    : previewBlocked
+                      ? 'disabled'
+                      : 'default'
+                }
+                title={previewBlocked ? labels.previewDisabledReason : undefined}
+                onClick={() => {
+                  void preview();
+                }}
+              >
+                {busy === 'preview' ? labels.previewing : labels.submit}
+              </Button>
+            </div>
+          ) : null}
+
+          <p
+            data-testid="context-saved-note"
+            className="rounded-3 edge border-border bg-sunken p-3 text-meta text-muted"
+          >
+            {labels.savedNote}
+          </p>
+        </div>
+      </div>
 
       {answer === null || !current ? null : (
         <div data-testid="context-preview" className="flex flex-col gap-2">

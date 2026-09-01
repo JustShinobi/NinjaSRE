@@ -230,6 +230,15 @@
   border-style: solid;
 }
 
+/* An `edge` drawn dashed — the "add one" affordance the board draws around
+   an area that does not exist yet. A modifier over `edge` rather than
+   Tailwind's own `border-dashed`, so the stroke width stays the declared
+   one and the colour still comes from a `border-{role}` token. */
+@utility edge-dashed {
+  border-width: var(--stroke-1);
+  border-style: dashed;
+}
+
 @utility motion-hover {
   transition-duration: var(--dur-hover);
   transition-timing-function: ease-out;

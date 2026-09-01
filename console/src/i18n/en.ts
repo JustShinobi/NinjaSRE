@@ -1803,7 +1803,7 @@ export const EN = {
   'teamContext.column.body': 'What it says',
   'teamContext.provenance': 'Set at',
   'teamContext.budget': 'Prompt budget',
-  'teamContext.budgetUsed': '{used} of {budget} tokens',
+  'teamContext.budgetUsed': 'of {budget} tokens · {percent}%',
   'teamContext.budgetConsequence': 'What goes over budget is refused, not truncated.',
   'teamContext.overBudget':
     'Over the budget. The deployment will refuse this until it is shorter.',
@@ -1824,7 +1824,7 @@ export const EN = {
   'teamContext.preview.title': 'What the model will be sent',
   'teamContext.preview.lead':
     'The exact text the next investigation’s system prompt will carry, assembled by the deployment. The save appears once you have asked for it.',
-  'teamContext.preview.submit': 'Show me the prompt',
+  'teamContext.preview.submit': 'Show the final prompt',
   'teamContext.preview.disabledReason':
     'Change a section before asking for the prompt.',
   'teamContext.preview.previewing': 'Assembling…',
@@ -1836,6 +1836,17 @@ export const EN = {
   'teamContext.failed': 'The deployment refused this context.',
   'teamContext.unreachable': 'The deployment could not be reached.',
   'teamContext.roles': 'Sent to',
+  'teamContext.role.investigator': 'Investigator',
+  'teamContext.role.subagent': 'Sub-agent',
+  'teamContext.rolesNote': 'Both roles read the same sections.',
+  'teamContext.savedNote':
+    'Saved per deployment — every new investigation is born reading this.',
+  'teamContext.example.factLabel': 'Fact:',
+  'teamContext.example.factQuote': '"Container metrics come from the host, by vmid"',
+  'teamContext.example.factTail': '— changes how the agent reads what it sees.',
+  'teamContext.example.instructionLabel': 'Instruction:',
+  'teamContext.example.instructionQuote': '"always restart the service first"',
+  'teamContext.example.instructionTail': '— procedure does not live here.',
 
   // --- The capability catalogue ------------------------------------------------------------------
   'catalogue.title': 'Capabilities',
