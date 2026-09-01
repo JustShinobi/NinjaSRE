@@ -62,7 +62,8 @@ certa e a tela não.
   inventado**.
 - Ícone no chip "Parar a automação", losango na banda de execução, substantivos
   nos contadores (`investigações em voo`, `incidentes acompanhados`), "O agente"
-  na barra lateral, números de KPI coloridos, razão 2:1 nas duas colunas.
+  na barra lateral, números de KPI coloridos, razão 3:2 nas duas colunas (`lg:grid-cols-5` com `col-span-3` e
+  `col-span-2`) — a do board, que é uma vez e meia.
 - Zero ocorrências de `res-[0-9a-f]{8}` e de hex ≥16.
 
 ## O que continua diferente do board, de propósito
@@ -95,3 +96,28 @@ mostram o título antigo e o id cru. Não valem como evidência de SC-007 nem de
 AN-11. Ficam porque são a única evidência do cartão vivo, e porque registram o
 "antes". Não foram recapturadas porque o §4 do `EXECUCAO.md` dá um run por
 slot e ele já foi gasto.
+
+## Contestações a este veredito, e o que a medição disse
+
+Um verifier independente reprovou este gate com dois achados. Um se sustenta,
+o outro não, e ambos ficam registrados porque um veredito que só guarda o que
+lhe convém não é evidência.
+
+**Refutado — a barra lateral da captura clara não está escura.** O achado dizia
+que `dashboard-light.png` desenha a barra no `surface` do tema escuro
+(`#101815`), contradizendo o board e as evidências da 000 e da 060. Amostrado
+pixel a pixel nos dois arquivos:
+
+| Arquivo | Barra lateral |
+|---|---|
+| `dashboard-light.png` | `(255, 255, 255)` |
+| `dashboard-dark.png` | `(16, 24, 21)` = `#101815` |
+
+A cor apontada existe — na captura **escura**. A clara está branca, conforme.
+
+**Procede — a razão das colunas estava errada nesta página.** O texto dizia
+2:1; o código é `lg:grid-cols-5` com `col-span-3` e `col-span-2`, isto é 3:2.
+O número veio da rodada anterior, quando era mesmo 2-de-3, e não foi
+reconferido depois que o próprio conserto (`577d4733`) mudou a proporção.
+Corrigido acima. É a segunda vez que este arquivo afirma mais do que a
+evidência sustenta, e as duas foram pegas por leitura independente.
