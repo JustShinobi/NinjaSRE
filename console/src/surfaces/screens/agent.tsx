@@ -10,16 +10,19 @@ import { cx } from '@/design/cx';
 import {
   ActivityIcon,
   AlertCircleIcon,
+  ArrowRightIcon,
   CheckIcon,
   ClipboardIcon,
   SearchIcon,
   SettingsIcon,
 } from '@/design/icons';
-import { statusPresentation } from '@/design/status';
+import { statusPresentation, type Shape } from '@/design/status';
+import type { SemanticRole } from '@/design/tokens';
 import { humaniseIdentifier } from '@/i18n/format';
 import { isMessageKey, message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
+import { loadGuardian } from '@/shell/load';
 import { areaFor } from '@/shell/routes';
 import {
   AdvancedConfigSection,
@@ -59,7 +62,6 @@ import {
   toolSummary,
   type StageRegime,
 } from './agent-pipeline-metro';
-import { RiskLadder } from '../risk-ladder';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 import { TeamTab } from './team-context';
@@ -324,6 +326,11 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
           currentPolicyReplay(node, init),
         );
 
+  // The same datum the sidebar's own footer reads — "Guardião ativo · só
+  // propõe" — so the tab's policy chip and the frame can never disagree
+  // about what the deployment currently permits.
+  const guardian = tab === 'autonomy' ? await loadGuardian(credential) : null;
+
   // Self-contained rather than pre-fetched into a prop, like every other
   // tab this reorganisation folded in from its own former screen: `TeamTab`
   // reads the same address this function already parsed and does its own
@@ -392,6 +399,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             locale={locale}
             outlook={outlook}
             replay={replay}
+            posture={guardian?.posture ?? 'propose'}
             node={node}
             viewer={viewer}
           />
@@ -1698,16 +1706,48 @@ function ToolGroup({
 
 // --- What it will do alone -------------------------------------------------------
 
+/** The words and dress of one rung of the board's ladder. */
+const AUTONOMY_CLASS_CHIP: Readonly<
+  Record<
+    string,
+    { readonly label: MessageKey; readonly role: SemanticRole; readonly shape: Shape }
+  >
+> = {
+  trivial: {
+    label: 'agent.autonomy.class.trivial',
+    role: 'neutral',
+    shape: 'hollow-circle',
+  },
+  low: { label: 'agent.autonomy.class.low', role: 'neutral', shape: 'filled-circle' },
+  moderate: {
+    label: 'agent.autonomy.class.moderate',
+    role: 'warning',
+    shape: 'rotated-square',
+  },
+  high: { label: 'agent.autonomy.class.high', role: 'warning', shape: 'triangle' },
+  critical: { label: 'agent.autonomy.class.critical', role: 'danger', shape: 'square' },
+};
+
+/** `sentence` split at its first full stop: the row's short line, and the rest. */
+export function firstSentence(sentence: string): readonly [string, string] {
+  const match = /^(.*?[.!?])\s+(\S.*)$/su.exec(sentence.trim());
+  if (match === null) return [sentence.trim(), ''];
+  return [match[1] ?? '', match[2] ?? ''];
+}
+
 function AutonomyTab({
   locale,
   outlook,
   replay,
+  posture,
   node,
   viewer,
 }: {
   readonly locale: Locale;
   readonly outlook: PanelData<unknown>;
   readonly replay: PanelData<unknown>;
+  /** What the deployment currently permits, the same datum the sidebar's footer reads. */
+  readonly posture: string;
   readonly node: string;
   readonly viewer: SurfaceContext['viewer'];
 }): ReactNode {
@@ -1715,6 +1755,7 @@ function AutonomyTab({
   const simulated = flag(dataOf(outlook), 'dry_run');
   const editable = may(viewer, WRITE);
   const recorded = list(dataOf(replay), 'actions');
+  const ruleHref = '/settings/autonomy-guardrails';
 
   return (
     <>
@@ -1729,6 +1770,22 @@ function AutonomyTab({
           actionLabel: message(locale, 'agent.outlook.empty.action'),
           href: '/autonomy',
         }}
+        action={
+          <span
+            data-testid="autonomy-policy-chip"
+            className="flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
+          >
+            <span
+              aria-hidden="true"
+              className="pulse-live inline-block size-2 rounded-full bg-accent"
+            >
+              <span className="pulse-live-ring" />
+            </span>
+            {message(locale, 'agent.autonomy.policyChip', {
+              posture: postureName(locale, posture),
+            })}
+          </span>
+        }
       >
         <p className="text-meta text-muted pb-3">
           {message(locale, 'agent.outlook.body')}
@@ -1738,61 +1795,126 @@ function AutonomyTab({
             {message(locale, 'agent.outlook.dryRun')}
           </p>
         ) : null}
-        <ul className="flex flex-col gap-3">
-          {classes.map((entry) => (
-            <li
-              key={text(entry, 'risk_class')}
-              data-testid="outlook-class"
-              data-risk={text(entry, 'risk_class')}
-              data-decision={text(entry, 'decision')}
-              className="flex flex-col gap-1"
-            >
-              <span className="flex flex-wrap items-center gap-3">
-                <RiskLadder
-                  riskClass={text(entry, 'risk_class')}
-                  label={humaniseIdentifier(text(entry, 'risk_class'))}
-                />
-                <Badge status={text(entry, 'decision')} locale={locale} />
-                {text(entry, 'refused_by') === '' ? null : (
-                  <span className="text-meta text-muted" data-testid="outlook-bound">
-                    {message(locale, 'agent.outlook.bound', {
-                      bound: text(entry, 'refused_by'),
-                    })}
-                  </span>
-                )}
-              </span>
-              <span className="text-small max-w-prose" data-testid="outlook-sentence">
-                {text(entry, 'sentence')}
-              </span>
-              {/* Labelled, because unlabelled it read as the sentence above it
-                  said a second time in grey. It is not: the sentence says what
-                  would happen, this says which rule decided — and the two
-                  necessarily share most of their words, so only the label
-                  tells a reader they are two different claims. It is the
-                  decision's own audit text, complete on purpose, because it is
-                  also read on a decision record with none of this around it. */}
-              <span className="text-meta text-muted max-w-prose">
-                <span className="text-strong">
-                  {message(locale, 'agent.outlook.reason')}
-                </span>{' '}
-                {text(entry, 'reason')}
-              </span>
-            </li>
-          ))}
+        <ul className="flex flex-col" data-testid="autonomy-ladder">
+          {classes.map((entry) => {
+            const riskClass = text(entry, 'risk_class');
+            const chip = AUTONOMY_CLASS_CHIP[riskClass];
+            const [lead, rest] = firstSentence(text(entry, 'sentence'));
+            return (
+              <li
+                key={riskClass}
+                data-testid="outlook-class"
+                data-risk={riskClass}
+                data-decision={text(entry, 'decision')}
+                className="edge border-border border-x-0 border-t-0 last:border-b-0"
+              >
+                <details>
+                  <summary className="flex cursor-pointer select-none list-none flex-wrap items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
+                    {chip === undefined ? (
+                      <Badge status={riskClass} locale={locale} />
+                    ) : (
+                      <ResolvedChip
+                        role={chip.role}
+                        shape={chip.shape}
+                        label={message(locale, chip.label)}
+                        testId="autonomy-class-chip"
+                      />
+                    )}
+                    <span
+                      className="min-w-0 flex-1 text-small"
+                      data-testid="outlook-sentence"
+                    >
+                      {lead}
+                    </span>
+                    <ArrowRightIcon
+                      aria-hidden="true"
+                      className="icon-inline text-muted"
+                    />
+                    <span data-testid="outlook-decision">
+                      <Badge status={text(entry, 'decision')} locale={locale} />
+                    </span>
+                    <span className="text-micro text-muted">
+                      {message(locale, 'agent.autonomy.nobodyAlone')}
+                    </span>
+                  </summary>
+                  {/* The "why" lives here, once per row and one disclosure
+                      away, instead of repeating below all five rows. It is
+                      the decision's own audit text, complete on purpose,
+                      because it is also read on a decision record with none
+                      of this around it. */}
+                  <div
+                    data-testid="outlook-why"
+                    className="mb-3 flex flex-col gap-2 edge border-accent border-y-0 border-r-0 pl-3"
+                  >
+                    {rest === '' ? null : (
+                      <span className="text-small max-w-prose">{rest}</span>
+                    )}
+                    {text(entry, 'refused_by') === '' ? null : (
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="outlook-bound"
+                      >
+                        {message(locale, 'agent.outlook.bound', {
+                          bound: text(entry, 'refused_by'),
+                        })}
+                      </span>
+                    )}
+                    <span className="text-meta text-muted max-w-prose">
+                      <span className="text-strong">
+                        {message(locale, 'agent.outlook.reason')}
+                      </span>{' '}
+                      {text(entry, 'reason')}
+                    </span>
+                    <span className="text-meta">
+                      <Link href={ruleHref}>
+                        {message(locale, 'agent.autonomy.seeRule')}
+                      </Link>
+                    </span>
+                  </div>
+                </details>
+              </li>
+            );
+          })}
         </ul>
-        {/* Linked, never embedded: the editor is the autonomy area's, and a
-          second copy of it here would be a second place a posture is changed. */}
-        {editable ? (
-          <p className="text-meta text-muted pt-4">
-            <Link
-              href={
-                node === '' ? '/autonomy' : `/autonomy?node=${encodeURIComponent(node)}`
-              }
-            >
-              {message(locale, 'agent.outlook.edit')}
-            </Link>
-          </p>
-        ) : null}
+        {/* The board's closing card: what changing the policy means, and that
+            doing so is itself a recorded decision. Linked, never embedded —
+            the editor is the settings area's, and a second copy of it here
+            would be a second place a posture is changed. */}
+        <div
+          data-testid="autonomy-change-card"
+          className="mt-4 flex flex-wrap items-center gap-4 rounded-3 edge border-border bg-sunken p-4"
+        >
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-2 bg-accent-bg text-accent edge border-accent"
+          >
+            <SettingsIcon className="icon-head" />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-strong">
+              {message(locale, 'agent.autonomy.change.title')}
+            </span>
+            <span className="text-meta text-muted max-w-prose">
+              {message(locale, 'agent.autonomy.change.body')}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-micro text-muted">
+              {message(locale, 'agent.autonomy.change.note')}
+            </span>
+            {editable ? (
+              <Link
+                href={
+                  node === ''
+                    ? '/autonomy'
+                    : `/autonomy?node=${encodeURIComponent(node)}`
+                }
+              >
+                {message(locale, 'agent.metro.autonomy.adjust')}
+              </Link>
+            ) : null}
+          </div>
+        </div>
       </Panel>
 
       {/* Beside the representative set rather than instead of it. The declared

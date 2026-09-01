@@ -62,11 +62,14 @@ test('the third question: what each class of action would do under this policy',
   await expect(classes).toHaveCount(5);
 
   // A sentence per class, not a policy document. The word the whole tab exists
-  // for is "would" — this has not happened.
+  // for is "would" — this has not happened. The row leads with the short
+  // description; the "would" phrasing lives in the row's own disclosure.
   for (let index = 0; index < 5; index += 1) {
-    await expect(classes.nth(index).getByTestId('outlook-sentence')).toContainText(
-      'would',
-    );
+    const row = classes.nth(index);
+    await expect(row.getByTestId('outlook-sentence')).toBeVisible();
+    await row.locator('summary').click();
+    await expect(row).toContainText('would');
+    await row.locator('summary').click();
   }
 });
 

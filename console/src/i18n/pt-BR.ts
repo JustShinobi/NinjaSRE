@@ -2012,6 +2012,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.bridged.empty.action': 'Editar a configuração',
   'agent.bridged.state.enabled': 'Ativado',
   'agent.bridged.state.disabled': 'Desativado',
+  'agent.autonomy.class.trivial': 'Trivial',
+  'agent.autonomy.class.low': 'Baixa',
+  'agent.autonomy.class.moderate': 'Moderada',
+  'agent.autonomy.class.high': 'Alta',
+  'agent.autonomy.class.critical': 'Perigosa',
+  'agent.autonomy.policyChip': 'Política atual: {posture}',
+  'agent.autonomy.nobodyAlone': 'nada roda sem uma pessoa decidir',
+  'agent.autonomy.seeRule': 'ver a regra que resolve isso →',
+  'agent.autonomy.change.title': 'Mudar a política',
+  'agent.autonomy.change.body':
+    'Regras declaradas por classe ou por capacidade mudam o veredito de "Propor" para executar com aprovação, ou executar sozinho. Cada regra diz o que cobre — e o que não estiver coberto continua caindo aqui.',
+  'agent.autonomy.change.note': 'mudança de política é uma decisão registrada',
   'agent.outlook.title': 'O que aconteceria, por classe de ação',
   'agent.outlook.body':
     'Uma frase por classe, respondida pelo próprio deployment sob a política tal como ela está agora.',

@@ -2334,6 +2334,18 @@ export const EN = {
   'agent.bridged.empty.action': 'Edit the configuration',
   'agent.bridged.state.enabled': 'Enabled',
   'agent.bridged.state.disabled': 'Disabled',
+  'agent.autonomy.class.trivial': 'Trivial',
+  'agent.autonomy.class.low': 'Low',
+  'agent.autonomy.class.moderate': 'Moderate',
+  'agent.autonomy.class.high': 'High',
+  'agent.autonomy.class.critical': 'Critical',
+  'agent.autonomy.policyChip': 'Current policy: {posture}',
+  'agent.autonomy.nobodyAlone': 'nothing runs without a person deciding',
+  'agent.autonomy.seeRule': 'see the rule that resolves this →',
+  'agent.autonomy.change.title': 'Change the policy',
+  'agent.autonomy.change.body':
+    'Rules declared per class or per capability change the verdict from "Propose" to run with approval, or run alone. Each rule says what it covers — and whatever is not covered keeps landing here.',
+  'agent.autonomy.change.note': 'a policy change is a recorded decision',
   'agent.outlook.title': 'What would happen, by class of action',
   'agent.outlook.body':
     'One sentence per class, answered by the deployment itself under the policy as it stands right now.',

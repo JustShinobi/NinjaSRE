@@ -1039,8 +1039,35 @@ describe('what it will do alone', () => {
       'critical',
     ]);
     for (const entry of classes) {
-      const sentence = entry.querySelector('[data-testid="outlook-sentence"]');
-      expect(sentence?.textContent).toContain('would');
+      // The row shows the sentence's short lead; the rest of the
+      // deployment's own "would" phrasing lives in the row's disclosure —
+      // still this row's content, one click away, never dropped.
+      expect(entry.querySelector('[data-testid="outlook-sentence"]')).not.toBeNull();
+      expect(entry.textContent).toContain('would');
+    }
+  });
+
+  it("draws the board's ladder: class chips by severity, a policy chip, and the change-the-policy card", async () => {
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    const chips = screen.getAllByTestId('autonomy-class-chip');
+    expect(chips.length).toBe(5);
+    expect(chips.map((chip) => chip.getAttribute('data-role'))).toEqual([
+      'neutral',
+      'neutral',
+      'warning',
+      'warning',
+      'danger',
+    ]);
+    expect(screen.getByTestId('autonomy-policy-chip')).toBeInTheDocument();
+    expect(screen.getByTestId('autonomy-change-card')).toBeInTheDocument();
+    // Each row's "why" carries the link to the rule that resolves it.
+    const whys = screen.getAllByTestId('outlook-why');
+    expect(whys.length).toBe(5);
+    for (const why of whys) {
+      expect(
+        why.querySelector('a[href="/settings/autonomy-guardrails"]'),
+      ).not.toBeNull();
     }
   });
 
@@ -1062,7 +1089,9 @@ describe('what it will do alone', () => {
 
     for (const entry of screen.getAllByTestId('outlook-class')) {
       const decision = entry.getAttribute('data-decision') ?? '';
-      const badge = entry.querySelector('[data-role]');
+      // The decision's own chip, not the class chip beside it — both carry a
+      // role, and only this one is claimed to match the decision's.
+      const badge = entry.querySelector('[data-testid="outlook-decision"] [data-role]');
       expect(statusPresentation(decision).known, decision).toBe(true);
       expect(badge).toHaveAttribute('data-role', statusPresentation(decision).role);
     }
