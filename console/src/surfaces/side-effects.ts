@@ -35,3 +35,18 @@ export function sideEffectLabel(locale: Locale, level: string): string {
   const key = DESCRIBED[level];
   return key === undefined ? level : message(locale, key);
 }
+
+/** The short chip words for `level` — for a template that adds its own dash. */
+const NAMED: Readonly<Record<string, MessageKey>> = {
+  read: 'sideEffect.chip.read',
+  read_sensitive: 'sideEffect.chip.read_sensitive',
+  write_reversible: 'sideEffect.chip.write_reversible',
+  write_irreversible: 'sideEffect.chip.write_irreversible',
+  destructive: 'sideEffect.chip.destructive',
+};
+
+/** `level`'s short name, or the slug itself when this console has no words for it. */
+export function sideEffectName(locale: Locale, level: string): string {
+  const key = NAMED[level];
+  return key === undefined ? level : message(locale, key);
+}

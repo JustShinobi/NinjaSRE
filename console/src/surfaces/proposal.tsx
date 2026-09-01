@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
-import type { Locale } from '@/i18n/messages';
+import { Badge, ResolvedChip } from '@/components/status';
+import { message, type Locale } from '@/i18n/messages';
 import { AlertTriangleIcon } from '@/design/icons';
 import { Link } from '@/components/action';
 import type { ExpiredFooterProps } from './expired-footer';
@@ -103,6 +103,8 @@ export interface DecisionCardProps {
   readonly decision?: ReactNode;
   /** Present only when `state === 'expired'`. */
   readonly expiredFooter?: ExpiredFooterProps;
+  /** How long ago it expired, already phrased ("há 2 horas"). Empty when unknown. */
+  readonly expiredAgo?: string;
   /** Present only when the decision has already been decided. */
   readonly outcome?: DecisionOutcome;
 }
@@ -131,6 +133,16 @@ function Section({
       {children}
     </div>
   );
+}
+
+/**
+ * Whether `summary` is a bare call signature rather than a sentence — the
+ * shape the deployment writes when nobody phrased the step
+ * (`proxmox_start_guest(kind='lxc', …)`). Printed as code when it is: mono,
+ * one line, truncated — never dressed as prose.
+ */
+export function isCallSignature(summary: string): boolean {
+  return /^[a-zA-Z0-9_.]+\(.*\)$/su.test(summary.trim());
 }
 
 function Steps({
@@ -177,14 +189,24 @@ function Steps({
           >
             {step.ordinal}
           </span>
-          <span className="text-small">
-            {step.summary}
-            {step.capability === '' ? null : (
-              <span className="ml-2 text-micro text-muted font-mono">
-                ({step.capability})
-              </span>
-            )}
-          </span>
+          {isCallSignature(step.summary) ? (
+            <code
+              data-testid="step-signature"
+              className="block min-w-0 flex-1 truncate font-mono text-meta"
+              title={step.summary}
+            >
+              {step.summary}
+            </code>
+          ) : (
+            <span className="text-small">
+              {step.summary}
+              {step.capability === '' ? null : (
+                <span className="ml-2 text-micro text-muted font-mono">
+                  ({step.capability})
+                </span>
+              )}
+            </span>
+          )}
         </li>
       ))}
     </ol>
@@ -225,14 +247,24 @@ function RollbackSteps({
           >
             {step.ordinal}
           </span>
-          <span className="text-small">
-            {step.summary}
-            {step.capability === '' ? null : (
-              <span className="ml-2 text-micro text-muted font-mono">
-                ({step.capability})
-              </span>
-            )}
-          </span>
+          {isCallSignature(step.summary) ? (
+            <code
+              data-testid="step-signature"
+              className="block min-w-0 flex-1 truncate font-mono text-meta"
+              title={step.summary}
+            >
+              {step.summary}
+            </code>
+          ) : (
+            <span className="text-small">
+              {step.summary}
+              {step.capability === '' ? null : (
+                <span className="ml-2 text-micro text-muted font-mono">
+                  ({step.capability})
+                </span>
+              )}
+            </span>
+          )}
         </li>
       ))}
     </ol>
@@ -301,6 +333,7 @@ export function DecisionCard({
   approvalId,
   locale,
   state,
+  expiredAgo = '',
   title,
   requester,
   originHref,
@@ -361,7 +394,21 @@ export function DecisionCard({
         <div className="ml-auto flex items-center gap-3 shrink-0">
           <RiskGauge risk={risk} label={riskLabel} />
           <span data-testid="decision-state">
-            <Badge status={state} locale={locale} />
+            {state === 'expired' && expiredAgo !== '' && locale !== undefined ? (
+              // The board's hollow amber chip carrying the age — "expirada
+              // há 2 h" — rather than the bare word: how long a decision sat
+              // unanswered is the fact that makes an expiry worth reading.
+              <ResolvedChip
+                role="warning"
+                shape="hollow-circle"
+                label={message(locale, 'decisions.card.expiredAgo', {
+                  ago: expiredAgo,
+                })}
+                testId="decision-state-expired"
+              />
+            ) : (
+              <Badge status={state} locale={locale} />
+            )}
           </span>
         </div>
       </header>
@@ -404,13 +451,17 @@ export function DecisionCard({
                   <li
                     key={item.summary}
                     data-testid="evidence-item"
-                    className="flex items-center gap-2"
+                    className="flex items-start gap-2"
                   >
                     <span
-                      className="w-2 h-2 rounded-full bg-success shrink-0"
+                      className="mt-1 w-2 h-2 rounded-full bg-success shrink-0"
                       aria-hidden="true"
                     />
-                    <span className="text-meta min-w-0">{item.summary}</span>
+                    {/* Two lines at most: a five-line log dump lives behind
+                        the link, never in the bullet. */}
+                    <span className="text-meta min-w-0 flex-1 line-clamp-2">
+                      {item.summary}
+                    </span>
                     <a
                       data-testid="evidence-link"
                       href={item.href}

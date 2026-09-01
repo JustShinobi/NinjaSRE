@@ -16,7 +16,7 @@ import {
   type DecisionCardProps,
   type EvidenceItem,
 } from '../proposal';
-import { sideEffectLabel } from '../side-effects';
+import { sideEffectName } from '../side-effects';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode } from '../url-state';
 import {
@@ -181,12 +181,15 @@ function autonomyTextOf(
   const autonomy = field(record, 'autonomy');
   const level = text(autonomy, 'side_effect_level');
   const reversible = flag(autonomy, 'reversible');
+  // The short name, not the full sentence: the sentence carries its own
+  // dash, and composing it into this template printed two dashes in one
+  // green note. One phrase, one frame.
   return reversible
     ? message(locale, 'decisions.card.autonomy.reversible', {
-        level: sideEffectLabel(locale, level),
+        level: sideEffectName(locale, level),
       })
     : message(locale, 'decisions.card.autonomy.irreversible', {
-        level: sideEffectLabel(locale, level),
+        level: sideEffectName(locale, level),
       });
 }
 
@@ -443,10 +446,16 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
               record,
               isExpired ? 'expired' : 'pending',
             );
+            // How long ago it lapsed, phrased by the shared clock — what the
+            // board's hollow amber chip carries beside the word.
+            const lapsed = isExpired
+              ? timestamp(locale, text(record, 'expires_at'), now, zone).relative
+              : '';
             return (
               <div key={id}>
                 <DecisionCard
                   {...cardProps}
+                  {...(isExpired && lapsed !== '' ? { expiredAgo: lapsed } : {})}
                   {...(isExpired
                     ? {
                         expiredFooter: {
@@ -519,6 +528,20 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
                 data-verdict={verdict}
                 className="flex items-center gap-2 py-2 edge border-border border-t-0 border-x-0 last:border-b-0"
               >
+                {/* The foundation's shape vocabulary, not text alone: a green
+                    dot for a decision that went through, a red square for one
+                    refused — legible before the sentence is read. */}
+                <span
+                  aria-hidden="true"
+                  data-testid="decided-shape"
+                  className={
+                    verdict === 'approved'
+                      ? 'icon-inline shrink-0 rounded-full bg-success'
+                      : verdict === 'rejected'
+                        ? 'icon-inline shrink-0 bg-danger'
+                        : 'icon-inline shrink-0 rounded-full bg-neutral opacity-50'
+                  }
+                />
                 <span className="text-small min-w-0 truncate">
                   {text(record, 'title')} — {outcome}
                 </span>

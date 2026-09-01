@@ -247,8 +247,43 @@ describe('the autonomy line of a pending decision', () => {
     // The defect this guards against: the raw backend slug interpolated
     // straight into the sentence, with nothing translating it.
     expect(autonomy).not.toHaveTextContent('write_irreversible —');
-    expect(autonomy).toHaveTextContent(/cannot be undone/i);
+    // One phrase, one frame: the short worded level, one dash, the queue
+    // promise — never the level's own full sentence composed into a second
+    // dash ("… cannot be undone. — queued …").
+    expect(autonomy).toHaveTextContent(/irreversible/i);
     expect(autonomy).toHaveTextContent(/queued/i);
+    expect((autonomy?.textContent?.match(/—/g) ?? []).length).toBe(1);
+  });
+
+  it('prints a bare call signature as code, never dressed as prose', async () => {
+    stubReads({
+      '/v1/approvals?state=pending': {
+        approvals: [
+          {
+            ...PENDING,
+            steps: [
+              {
+                ordinal: 1,
+                summary: "proxmox_start_guest(kind='lxc', vmid=102)",
+                capability: 'proxmox_start_guest',
+              },
+            ],
+          },
+        ],
+      },
+      '/v1/approvals?state=expired': { approvals: [] },
+      '/v1/approvals?state=decided&limit=10': { approvals: [] },
+      '/v1/setup/checklist': { complete: true },
+      '/v1/investigations/run-under-test/interactions': { interactions: [] },
+    });
+
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(await ApprovalsTab(contextFor(datasetViewer('populated'))));
+
+    const signature = screen.getAllByTestId('step-signature')[0];
+    expect(signature?.tagName).toBe('CODE');
+    expect(signature).toHaveClass('truncate');
   });
 
   it('still renders a level this console has no words for, as itself', async () => {

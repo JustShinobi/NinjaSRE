@@ -2534,6 +2534,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'decisions.card.risk': 'Risco',
   'decisions.card.outcome': 'Decidida',
   'decisions.card.appliedAndVerified': 'aplicada e verificada',
+  'decisions.card.expiredAgo': 'expirada {ago}',
   'decisions.card.autonomy.reversible':
     '{level} — fica na fila e só aplica depois do seu sim.',
   'decisions.card.autonomy.irreversible':

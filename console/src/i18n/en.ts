@@ -2762,6 +2762,7 @@ export const EN = {
   'decisions.card.risk': 'Risk',
   'decisions.card.outcome': 'Decided',
   'decisions.card.appliedAndVerified': 'applied and verified',
+  'decisions.card.expiredAgo': 'expired {ago}',
   'decisions.card.autonomy.reversible':
     '{level} — queued, applies only after your yes.',
   'decisions.card.autonomy.irreversible':
