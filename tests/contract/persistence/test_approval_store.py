@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
+
 import pytest
-from conftest import at
+from conftest import POSTGRES, at
 
 from config.constants.security import SIDE_EFFECT_WRITE_REVERSIBLE
-from platform.persistence.errors import AppendOnlyViolation, RecordNotFound
+from platform.persistence.errors import AppendOnlyViolation, DuplicateRecord, RecordNotFound
 from platform.persistence.ports import (
     ApprovalRequest,
     ApprovalState,
@@ -16,6 +19,7 @@ from platform.persistence.ports import (
     TenantScope,
     UnitOfWork,
 )
+from platform.persistence.ports.approval_store import ORIGIN_APPROVAL_ID_KEY
 
 pytestmark = pytest.mark.contract
 
@@ -288,3 +292,146 @@ async def test_decided_requests_can_be_narrowed_to_one_action(
         found = await uow.approvals.list_decided(action="detector.proposal")
 
     assert [item.approval_id for item in found] == ["a-proposal"]
+
+
+def reproposal_of(origin: str, *, approval_id: str, minutes: float) -> ApprovalRequest:
+    """Return a pending request that records which expired one it replaces."""
+    request = request_for(approval_id, minutes=minutes)
+    return replace(request, arguments={**request.arguments, ORIGIN_APPROVAL_ID_KEY: origin})
+
+
+async def test_the_request_raised_to_replace_an_expired_one_is_found_by_that_origin(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Asked for by origin rather than found by reading the queue.
+
+    A reproposal is the newest thing waiting, and pending requests are read
+    oldest first, so any bounded page of the queue stops containing it once
+    enough older requests are ahead of it. The one caller that has to know
+    "is there already a live request for this origin" therefore cannot get a
+    trustworthy answer out of a listing at all, at any page size.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(3):
+            await uow.approvals.create_request(request_for(f"a-waiting-{index}", minutes=index))
+        await uow.approvals.create_request(
+            reproposal_of("a-expired", approval_id="a-fresh", minutes=90)
+        )
+
+        found = await uow.approvals.pending_for_origin("a-expired")
+
+    assert found is not None
+    assert found.approval_id == "a-fresh"
+
+
+async def test_nothing_is_found_for_an_origin_nothing_replaced(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(request_for("a-waiting"))
+
+        assert await uow.approvals.pending_for_origin("a-expired") is None
+
+
+async def test_a_reproposal_that_has_been_answered_no_longer_stands_for_its_origin(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Only a live request blocks a second one.
+
+    Once the reproposal has been decided — approved, rejected, discarded, or
+    lapsed in its turn — the origin has nothing outstanding against it and may
+    be proposed again. A lookup that still answered with the answered one
+    would make the second expiry unreproposable for ever.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(
+            reproposal_of("a-expired", approval_id="a-fresh", minutes=0)
+        )
+        await uow.approvals.expire_due(at(31))
+
+        assert await uow.approvals.pending_for_origin("a-expired") is None
+
+
+async def test_a_second_live_request_for_one_origin_is_refused(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """One expired decision may have one live replacement, and the store says so.
+
+    The check the route makes before queueing cannot be the guarantee: it runs
+    in a transaction that commits before the one creating the new request even
+    opens, so two calls that interleave both read "nothing yet". What closes
+    that window is the store refusing the second row outright — a partial
+    unique index over ``(org_id, arguments->>'origin_approval_id')`` restricted
+    to pending rows, which is only enforceable because the marker is written by
+    the insert that creates the request rather than by an amendment afterwards.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(
+            reproposal_of("a-expired", approval_id="a-fresh", minutes=0)
+        )
+
+    async with gateway.begin(scope) as uow:
+        with pytest.raises(DuplicateRecord):
+            await uow.approvals.create_request(
+                reproposal_of("a-expired", approval_id="a-second", minutes=1)
+            )
+
+
+async def test_an_origin_whose_replacement_was_answered_may_be_reproposed_again(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The refusal covers live rows only, which is why it is a *partial* index.
+
+    A plain uniqueness rule over the marker would make an origin unreproposable
+    for ever after its first replacement lapsed — the second expiry could never
+    be answered by anybody.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(
+            reproposal_of("a-expired", approval_id="a-fresh", minutes=0)
+        )
+        await uow.approvals.expire_due(at(31))
+
+    async with gateway.begin(scope) as uow:
+        again = await uow.approvals.create_request(
+            reproposal_of("a-expired", approval_id="a-later", minutes=60)
+        )
+
+    assert again.approval_id == "a-later"
+
+
+async def test_two_requests_for_one_origin_never_both_stand(
+    gateway: PersistenceGateway, scope: TenantScope, backend_name: str
+) -> None:
+    """Two transactions racing for the same origin: one commits, one is refused.
+
+    Genuinely concurrent, in two transactions on two connections, which is the
+    only shape that proves anything here — a sequential pair would pass against
+    a database with no constraint on it at all. PostgreSQL only: the second
+    insert has to *block* on the first until it commits, and an in-memory fake
+    has no lock to block on.
+    """
+    if backend_name != POSTGRES:
+        pytest.skip("Blocking on an uncommitted duplicate is PostgreSQL's to do.")
+
+    async def propose(approval_id: str, minutes: float) -> None:
+        async with gateway.begin(scope) as uow:
+            await uow.approvals.create_request(
+                reproposal_of("a-expired", approval_id=approval_id, minutes=minutes)
+            )
+
+    outcomes = await asyncio.gather(
+        propose("a-first", 0),
+        propose("a-second", 1),
+        return_exceptions=True,
+    )
+
+    refused = [outcome for outcome in outcomes if isinstance(outcome, DuplicateRecord)]
+    assert len(refused) == 1, f"exactly one of the two must be refused, got {outcomes!r}"
+
+    async with gateway.begin(scope) as uow:
+        standing = await uow.approvals.pending_for_origin("a-expired")
+        queue = await uow.approvals.list_pending()
+
+    assert standing is not None
+    assert [item.approval_id for item in queue] == [standing.approval_id]

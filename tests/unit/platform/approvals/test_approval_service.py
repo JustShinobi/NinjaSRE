@@ -25,6 +25,7 @@ from platform.approvals.models import ChangeState, ChangeType, fingerprint_of
 from platform.approvals.policy import SecurityPolicy
 from platform.approvals.service import RESTORE_CAPABILITY, ApprovalService
 from platform.persistence.ports import PersistenceGateway, TenantScope
+from platform.persistence.ports.approval_store import ORIGIN_APPROVAL_ID_KEY
 
 pytestmark = pytest.mark.unit
 
@@ -396,3 +397,61 @@ async def test_a_policy_tightened_after_queueing_is_re_checked_at_the_decision(
 
     assert not applier.was_applied
     assert (await tightened.get(change.change_id)).state is ChangeState.PENDING
+
+
+# --- Replacing a lapsed proposal ---------------------------------------------
+
+
+async def test_a_change_raised_to_replace_an_expired_one_records_that_origin(
+    service: ApprovalService,
+    target: Callable[..., Any],
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+) -> None:
+    """The marker reaches the store in the insert that creates the request.
+
+    Not in an amendment afterwards. The difference is the whole guarantee: a
+    partial unique index over ``(org_id, arguments->>'origin_approval_id')``
+    can only refuse a concurrent second proposal if the value is already in the
+    statement that writes the row, and a marker applied one transaction later
+    leaves a committed request carrying nothing for any later check to find.
+    """
+    change = await service.queue(
+        change_type=ChangeType.PROMPT,
+        target=target(),
+        proposed={"level": "strict"},
+        requester=REQUESTER,
+        rationale="the earlier proposal lapsed unanswered",
+        origin_approval_id="a-expired",
+    )
+
+    assert change.origin_approval_id == "a-expired"
+
+    async with gateway.begin(scope) as uow:
+        stored = await uow.approvals.get_request(change.change_id)
+        found = await uow.approvals.pending_for_origin("a-expired")
+
+    assert stored is not None
+    assert stored.arguments[ORIGIN_APPROVAL_ID_KEY] == "a-expired"
+    assert found is not None and found.approval_id == change.change_id
+
+
+async def test_a_change_nobody_reproposed_carries_no_origin_marker(
+    queue_change: Callable[..., Any],
+    gateway: PersistenceGateway,
+    scope: TenantScope,
+) -> None:
+    """The key is absent rather than null, which is what keeps the index empty.
+
+    An ordinary change writing ``origin_approval_id: null`` would put every
+    queued change into a uniqueness rule meant for reproposals alone.
+    """
+    change = await queue_change({"level": "strict"})
+
+    assert change.origin_approval_id is None
+
+    async with gateway.begin(scope) as uow:
+        stored = await uow.approvals.get_request(change.change_id)
+
+    assert stored is not None
+    assert ORIGIN_APPROVAL_ID_KEY not in stored.arguments

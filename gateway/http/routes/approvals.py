@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -47,8 +47,9 @@ from config.constants.security import (
     REMEDIATION_PAYLOAD_STEPS,
     REMEDIATION_PAYLOAD_WAIVER,
 )
+from core.capability.metadata import SideEffectLevel
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request, conflict, not_found, unprocessable
+from gateway.http.errors import ApiProblem, bad_request, conflict, not_found, unprocessable
 from gateway.http.state import GatewayState
 from platform.approvals.models import PROPOSED_KEY, ChangeType
 from platform.identity.audit.recorder import (
@@ -59,7 +60,12 @@ from platform.identity.audit.recorder import (
 from platform.incidents.errors import UnknownIncident
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.observability.logging import get_logger
-from platform.persistence.errors import AppendOnlyViolation, PersistenceError, RecordNotFound
+from platform.persistence.errors import (
+    AppendOnlyViolation,
+    DuplicateRecord,
+    PersistenceError,
+    RecordNotFound,
+)
 from platform.persistence.ports import ActorKind, AuditOutcome
 from platform.persistence.ports.approval_store import (
     ApprovalRequest,
@@ -111,13 +117,6 @@ router = APIRouter(prefix="/v1/approvals", tags=["approvals"])
 #: A verdict this route recognises. Anything else is refused before a store is
 #: ever asked.
 _VERDICTS = frozenset({"approve", "reject"})
-
-#: Where a reproposed pending request's link to the expired one it came from
-#: lives — a key inside the existing `arguments` JSON, never a new column
-#: (the store's `state` is an unconstrained `String(32)` and `arguments` is
-#: already JSONB, so this needs no migration). Read by `repropose_approval`'s
-#: own idempotency check; nothing else reads it.
-_ORIGIN_APPROVAL_ID_KEY = "origin_approval_id"
 
 
 class RollbackStepView(BaseModel):
@@ -477,6 +476,32 @@ def _reversible_of(arguments: Mapping[str, Any], *, fallback: bool) -> bool:
     return fallback
 
 
+def _undoable_without_a_waiver(request: ApprovalRequest, plan: RollbackPlan | None) -> bool:
+    """Return what to say about undoing a request whose document names no waiver.
+
+    Only a remediation queued through ``RequestBuilder`` stores a
+    ``rollback_waiver``. This route lists every row the approval store holds,
+    and the other producers writing there — a configuration edit, a knowledge
+    proposal, the agent's own proposal queue, the demo seeder — store none. So
+    the waiver is missing on ordinary rows rather than exceptional ones, and
+    what stands in for it is read by a reviewer as an assurance: the card
+    prints "reversible" in green beside the button.
+
+    Derived from the two facts already in hand, and both must say yes: a
+    rollback plan was actually stored, and the action's own declared effect is
+    one that can be walked back. A level nothing here can rank falls to "no"
+    with the rest — a word this deployment does not recognise is not evidence
+    that a production write is safe.
+    """
+    if plan is None:
+        return False
+    try:
+        level = SideEffectLevel(request.side_effect_level)
+    except ValueError:
+        return False
+    return level <= SideEffectLevel.WRITE_REVERSIBLE
+
+
 def _evidence_of(arguments: Mapping[str, Any]) -> list[EvidenceItemView]:
     """Return the evidence items the document names, each with its reference."""
     payload = _proposed_of(arguments)
@@ -592,7 +617,9 @@ async def _view(
         blast_radius=_blast_radius_field_of(request.arguments),
         autonomy=AutonomyView(
             side_effect_level=request.side_effect_level,
-            reversible=_reversible_of(request.arguments, fallback=True),
+            reversible=_reversible_of(
+                request.arguments, fallback=_undoable_without_a_waiver(request, plan)
+            ),
             queued=True,
         ),
         prior_effectiveness=_prior_effectiveness_of(request.arguments),
@@ -617,7 +644,9 @@ async def list_approvals(
     auth: AuthenticatedRequest = Depends(authorized),
     run_id: str = "",
     limit: int = 50,
-    approval_state: str = Query(default="pending", alias="state"),
+    approval_state: Literal["pending", "expired", "decided"] = Query(
+        default="pending", alias="state"
+    ),
 ) -> ApprovalList:
     """Return approvals in one state bucket, per FR-006.
 
@@ -630,6 +659,12 @@ async def list_approvals(
     production called it, so a request answered an hour after its own window
     closed still read as `pending` and the sidebar counted it. This is the
     one place that composes it into a path something actually serves.
+
+    The three are the whole of what the parameter accepts, and they are typed
+    rather than matched, so a fourth word is refused with ``422`` and named in
+    the schema. It used to fall through to the pending queue with a ``200``: a
+    client asking for the expired ones got the live ones, with nothing in the
+    response saying it had been given a different question's answer.
 
     Each carries its rollback plan, because the queue is where a reviewer
     decides which one to open — and "this one has no undo" is exactly the fact
@@ -685,12 +720,19 @@ async def repropose_approval(
 
     Only an expired decision may be reproposed (FR-015: "Só aceita
     state=expired"). Idempotent by origin while the new pending exists
-    (FR-017): a second call returns `409` naming the same pending rather than
-    a second one. An origin that no longer resolves — the capability retired,
+    (FR-017): a later call returns `409` naming the same pending rather than
+    a second one, however deep the queue that pending one is waiting in, and
+    whether the two calls arrive one after another or together. A lookup by
+    origin answers the sequential case with the better message; the store
+    refusing a second *live* proposal for one origin is what answers the
+    concurrent one, where both callers read "nothing reproposed yet" before
+    either has committed. Both end in the same `409`.
+
+    An origin that no longer resolves — the capability retired,
     the plan undeliverable — is refused by name with `422` (FR-016), never a
     server error.
     """
-    # Three transactions, never nested — `RequestBuilder.queue()` opens its
+    # Separate transactions, never nested — `RequestBuilder.queue()` opens its
     # own `state.gateway.begin(...)` inside `ApprovalService.queue()`
     # (`platform/approvals/service.py`), and `FakePersistence.begin` (like
     # the real gateway's own transaction scope) is not reentrant: holding one
@@ -707,11 +749,15 @@ async def repropose_approval(
                 f"decision may be reproposed"
             )
 
-        existing = await uow.approvals.list_pending(limit=200)
-        already = next(
-            (row for row in existing if row.arguments.get(_ORIGIN_APPROVAL_ID_KEY) == approval_id),
-            None,
-        )
+        # Asked for by origin rather than searched for in a page of the queue.
+        # A reproposal is stamped with the instant it was raised, so it is the
+        # newest thing waiting, and pending requests come back oldest first:
+        # a scan of the first page stopped containing it the moment a page's
+        # worth of older requests sat ahead of it, and this check then said
+        # "nothing yet" for a deployment whose queue was merely busy. The page
+        # could not be widened either — `MAX_QUERY_PAGE_SIZE` is the ceiling
+        # every listing is held to, and the page was already at it.
+        already = await uow.approvals.pending_for_origin(approval_id)
         if already is not None:
             raise conflict(f"{approval_id!r} was already reproposed as {already.approval_id!r}")
 
@@ -728,10 +774,56 @@ async def repropose_approval(
             "this deployment composed no remediation desk, so nothing can be reproposed"
         )
 
+    # Everything else in this handler reads and writes under the caller's own
+    # token scope; the desk's builder carries the scope its composition root
+    # fixed once at boot, from `organisation_id()`. Those are two answers to
+    # "which organisation is this proposal for", and the queue below is the one
+    # step that acts on the desk's answer rather than the caller's. If they
+    # disagree, the new request commits in the configured org while the read
+    # two blocks down looks for it in the caller's — a pending proposal nobody
+    # can see, decide or expire, and one the origin's own uniqueness rule (keyed
+    # on `org_id` first) would not even count against a second reproposal here.
+    # Asserted here rather than assumed, because nothing in the
+    # authentication path compares the two: a token's scope is built from its
+    # own row and never checked against what this process was configured with.
+    #
+    # 409 rather than 400 or 403: the request is well formed and the caller is
+    # entitled to it — it is the deployment's own two halves that are in
+    # conflict, and the identical call succeeds once they agree.
+    desk_scope = getattr(getattr(desk, "requests", None), "scope", None)
+    if desk_scope is not None and desk_scope.org_id != auth.scope.org_id:
+        raise conflict(
+            f"this deployment's remediation desk is composed for organisation "
+            f"{desk_scope.org_id!r} while the caller is scoped to "
+            f"{auth.scope.org_id!r} — reproposing would queue the new request "
+            f"outside the organisation that asked for it"
+        )
+
+    # The origin travels into the queue rather than being stamped on afterwards,
+    # which is what puts it in the insert that creates the request. That is the
+    # form `ix_approvals_pending_origin` — unique over
+    # `(org_id, arguments->>'origin_approval_id')` where the row is still
+    # pending — can be stated over, and so the form in which the *database*
+    # refuses the second of two calls that both read "nothing reproposed yet".
+    # Written a transaction later, as it was, there was a committed pending
+    # proposal carrying no marker for the length of that window: invisible to
+    # the check above, and to any constraint on a value not yet there.
     try:
-        queued = await desk.requests.queue(action)
+        queued = await desk.requests.queue(action, origin_approval_id=approval_id)
     except RemediationError as unresolved:
         raise unprocessable(str(unresolved)) from unresolved
+    except DuplicateRecord as raced:
+        # The interleaving the check above cannot see: the other call committed
+        # between that lookup and this insert. The answer is the one the
+        # sequential second call already gets — the proposal that stands, named
+        # — rather than the 500 an unread persistence error would become.
+        async with state.gateway.begin(auth.scope) as uow:
+            standing = await uow.approvals.pending_for_origin(approval_id)
+        if standing is None:
+            raise
+        raise conflict(
+            f"{approval_id!r} was already reproposed as {standing.approval_id!r}"
+        ) from raced
 
     if not queued.change_id:
         raise unprocessable(
@@ -739,12 +831,21 @@ async def repropose_approval(
             f"approval store composed for it"
         )
 
+    # A read, and only a read. The request is already complete in the store —
+    # marker included — so what remains is fetching the state and the instant
+    # the response quotes back.
     async with state.gateway.begin(auth.scope) as uow:
-        just_queued = await uow.approvals.get_request(queued.change_id)
-        assert just_queued is not None  # created moments ago, by the call above
-        fresh = await uow.approvals.amend_request(
-            queued.change_id,
-            arguments={**just_queued.arguments, _ORIGIN_APPROVAL_ID_KEY: approval_id},
+        fresh = await uow.approvals.get_request(queued.change_id)
+    if fresh is None:
+        # Created moments ago by the call above, so reaching this means the
+        # queue wrote somewhere this scope cannot read it back from. Raised
+        # rather than asserted: `python -O` strips an assert, and what survives
+        # it is `None` flowing into the response as though it were a request.
+        raise ApiProblem(
+            status_code=500,
+            message=f"{approval_id!r} was reproposed as {queued.change_id!r}, which is "
+            f"not readable in the scope this request is served under",
+            error_type="internal_error",
         )
 
     logger.info(

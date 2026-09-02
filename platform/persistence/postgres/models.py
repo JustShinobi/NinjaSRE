@@ -573,6 +573,22 @@ class Approval(Base):
         ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
         Index("ix_approvals_state", "org_id", "state", "requested_at"),
         Index("ix_approvals_run", "org_id", "run_id"),
+        # One expired decision may hold one live replacement. The rule is the
+        # database's rather than the route's because a lookup cannot see a row
+        # another transaction has not committed yet, so two reproposals landing
+        # together would both read "nothing yet" and both queue. Partial twice
+        # over: on `pending`, because a replacement that lapsed in its turn must
+        # leave its origin reproposable again; and on the marker being present,
+        # because an ordinary change writes none and belongs to no such rule.
+        Index(
+            "ix_approvals_pending_origin",
+            "org_id",
+            text("(arguments ->> 'origin_approval_id')"),
+            unique=True,
+            postgresql_where=text(
+                "state = 'pending' AND (arguments ->> 'origin_approval_id') IS NOT NULL"
+            ),
+        ),
     )
 
     org_id: Mapped[str] = _org()

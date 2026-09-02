@@ -31,6 +31,7 @@ from core.capability.metadata import SideEffectLevel
 from gateway.http.remediation import RemediationDesk, compose_remediation
 from platform.identity.permissions import Role
 from platform.persistence.ports import TenantScope
+from platform.persistence.ports.approval_store import ApprovalRequest
 from platform.remediation.models import (
     RemediationAction,
     RemediationTarget,
@@ -243,6 +244,56 @@ async def test_a_field_the_stored_document_never_named_reads_as_a_declared_absen
     assert record["intent"] == ""
     assert record["evidence"] == []
     assert record["prior_effectiveness"]["summary"] == ""
+
+
+async def test_an_irreversible_row_with_no_plan_is_never_reported_reversible(
+    deployment: Deployment, client: AsyncClient
+) -> None:
+    """This route lists every row the approval store holds, not only the ones a
+    remediation desk queued — a configuration edit, a knowledge proposal, the
+    agent's own proposal queue and the demo seeder all write there, and none of
+    them stores the rollback waiver the autonomy line reads. The reviewer is
+    shown "this can be undone" as an assurance; saying it about an irreversible
+    action with no plan behind it is the one wrong answer nobody can recover
+    from once the button is pressed."""
+    now = datetime.now(UTC)
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.approvals.create_request(
+            ApprovalRequest(
+                approval_id="apr-no-waiver",
+                run_id="",
+                action="estate.delete_snapshot",
+                side_effect_level="write_irreversible",
+                summary="Delete the checkout snapshot",
+                requested_at=now,
+                expires_at=now + timedelta(hours=1),
+                arguments={"snapshot": "checkout-2026-08"},
+            )
+        )
+
+    record = (await _list(client, deployment))["approvals"][0]
+
+    assert record["approval_id"] == "apr-no-waiver"
+    assert record["autonomy"]["side_effect_level"] == "write_irreversible"
+    assert record["rollback_plan"] is None
+    assert record["autonomy"]["reversible"] is False
+
+
+async def test_an_unrecognised_state_filter_is_refused_rather_than_answered_with_pending(
+    deployment: Deployment, client: AsyncClient
+) -> None:
+    """A misspelled bucket used to fall through to the pending queue with a
+    `200`, so a client asking for the expired ones was handed the live ones and
+    had nothing in the response saying so. Refusing names the mistake."""
+    secret = await _viewer_token(deployment)
+
+    response = await client.get(
+        "/v1/approvals",
+        params={"state": "expiredd"},
+        headers={"Authorization": f"Bearer {secret}"},
+    )
+
+    assert response.status_code == 422, response.text
 
 
 async def test_default_listing_excludes_expired_and_decided(

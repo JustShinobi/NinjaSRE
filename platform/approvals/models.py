@@ -42,7 +42,11 @@ from config.constants.security import (
     PENDING_CHANGE_EXPIRY_HOURS,
     SIDE_EFFECT_WRITE_REVERSIBLE,
 )
-from platform.persistence.ports.approval_store import ApprovalRequest, ApprovalState
+from platform.persistence.ports.approval_store import (
+    ORIGIN_APPROVAL_ID_KEY,
+    ApprovalRequest,
+    ApprovalState,
+)
 
 
 class ChangeType(StrEnum):
@@ -276,6 +280,12 @@ class PendingChange:
     side_effect_level: str = SIDE_EFFECT_WRITE_REVERSIBLE
     decision: Decision | None = None
     conflict: Conflict | None = None
+    #: The expired approval this one was raised to replace, when it replaces
+    #: one. A field rather than something the caller writes into ``proposed``,
+    #: because it has to reach the *top* level of the stored arguments: that is
+    #: where the database's partial unique index looks, and a value nested
+    #: under the proposal would be a marker no constraint could see.
+    origin_approval_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.change_id:
@@ -302,6 +312,7 @@ class PendingChange:
         at: datetime,
         expiry_hours: float = PENDING_CHANGE_EXPIRY_HOURS,
         side_effect_level: str = SIDE_EFFECT_WRITE_REVERSIBLE,
+        origin_approval_id: str | None = None,
     ) -> PendingChange:
         """Return a change queued at ``at``, fingerprinted against ``current``.
 
@@ -309,6 +320,12 @@ class PendingChange:
         supplied its own could supply one taken before it read the target, and
         the whole point of the fingerprint is that it describes the state the
         reviewer will be shown.
+
+        ``origin_approval_id`` names the lapsed approval this one replaces, and
+        travels with the change from here so it is written by the insert that
+        creates the row. Stamping it afterwards would leave a committed
+        proposal carrying no marker between the two writes — invisible to
+        every later check, and to the constraint meant to catch a second one.
         """
         return cls(
             change_id=change_id,
@@ -322,6 +339,7 @@ class PendingChange:
             expires_at=at + timedelta(hours=expiry_hours),
             fingerprint=fingerprint_of(current),
             side_effect_level=side_effect_level,
+            origin_approval_id=origin_approval_id,
         )
 
     # --- Reading -------------------------------------------------------------
@@ -470,6 +488,12 @@ class PendingChange:
             payload[DECISION_KEY] = self.decision.to_record()
         if self.conflict is not None:
             payload[CONFLICT_KEY] = self.conflict.to_record()
+        # Absent rather than null when this change replaces nothing. The
+        # database's uniqueness rule is partial on this key existing, and a
+        # null written for every ordinary change would enrol all of them in a
+        # rule meant for reproposals alone.
+        if self.origin_approval_id is not None:
+            payload[ORIGIN_APPROVAL_ID_KEY] = self.origin_approval_id
         return payload
 
     @classmethod
@@ -509,6 +533,7 @@ class PendingChange:
             side_effect_level=request.side_effect_level,
             decision=Decision.of_record(decision) if isinstance(decision, Mapping) else None,
             conflict=Conflict.of_record(conflict) if isinstance(conflict, Mapping) else None,
+            origin_approval_id=_optional_str(payload.get(ORIGIN_APPROVAL_ID_KEY)),
         )
 
 

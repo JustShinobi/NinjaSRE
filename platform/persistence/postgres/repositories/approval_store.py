@@ -15,6 +15,7 @@ from platform.persistence.errors import (
     RecordNotFound,
 )
 from platform.persistence.ports.approval_store import (
+    ORIGIN_APPROVAL_ID_KEY,
     ApprovalRequest,
     ApprovalState,
     RollbackPlan,
@@ -81,9 +82,32 @@ class PostgresApprovalStore(TenantBound):
     """Approvals and rollback plans for one organisation."""
 
     async def create_request(self, request: ApprovalRequest) -> ApprovalRequest:
-        """Store a pending request and return it."""
+        """Store a pending request and return it.
+
+        A second *live* request raised to replace the same expired one is
+        refused twice over. The lookup below names the origin, which is the
+        useful message; the partial unique index
+        ``ix_approvals_pending_origin`` is what holds under a genuine race,
+        where two callers both read nothing and both insert. Only the index
+        actually guarantees anything — a read cannot see a row another
+        transaction has not committed yet — so the lookup exists for the
+        wording, and the constraint for the truth. On that path the refusal is
+        still a ``DuplicateRecord``, but the generic one this method's flush
+        already translates every unique violation into: it names the request
+        rather than the origin, because reading which constraint fired out of
+        a driver's error is a second thing to keep true and nothing acts on the
+        distinction.
+        """
         if await self.session.get(models.Approval, (self.org_id, request.approval_id)) is not None:
             raise DuplicateRecord(kind="approval request", identifier=request.approval_id)
+
+        origin = request.arguments.get(ORIGIN_APPROVAL_ID_KEY)
+        if (
+            request.state is ApprovalState.PENDING
+            and origin is not None
+            and await self.pending_for_origin(str(origin)) is not None
+        ):
+            raise DuplicateRecord(kind="live reproposal of approval", identifier=str(origin))
 
         row = models.Approval(
             org_id=self.org_id,
@@ -174,6 +198,20 @@ class PostgresApprovalStore(TenantBound):
 
         rows = await self.session.scalars(statement)
         return tuple(_to_request(row) for row in rows)
+
+    async def pending_for_origin(self, approval_id: str) -> ApprovalRequest | None:
+        """Return the undecided request raised to replace ``approval_id``, or ``None``."""
+        row = await self.session.scalar(
+            select(models.Approval)
+            .where(
+                models.Approval.org_id == self.org_id,
+                models.Approval.state == ApprovalState.PENDING.value,
+                models.Approval.arguments[ORIGIN_APPROVAL_ID_KEY].astext == approval_id,
+            )
+            .order_by(models.Approval.requested_at.asc(), models.Approval.approval_id.asc())
+            .limit(1)
+        )
+        return _to_request(row) if row is not None else None
 
     async def list_decided(
         self,
