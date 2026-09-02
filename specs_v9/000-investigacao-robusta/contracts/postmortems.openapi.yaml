@@ -1,0 +1,723 @@
+openapi: 3.1.0
+info:
+  title: NinjaSRE Postmortem API — feature contract
+  version: 0.1.0
+  description: >-
+    Contrato de design da specs_v9. Na implementação, estas operações passam a compor o
+    OpenAPI canônico do gateway e o cliente gerado do console.
+paths:
+  /v1/knowledge/postmortems:
+    get:
+      operationId: listPostmortems
+      x-permission: knowledge.read
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+        - name: status
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/PostmortemStatus'
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [rooted, known_recurrence, inconclusive]
+        - name: component
+          in: query
+          schema:
+            type: string
+        - name: problem_class
+          in: query
+          schema:
+            type: string
+        - name: recurrence
+          in: query
+          schema:
+            type: string
+            enum: [never_used, candidate, confirmed, rejected]
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: query
+          in: query
+          description: Busca textual/semântica limitada ao tenant e aos estados solicitados.
+          schema:
+            type: string
+            maxLength: 500
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: >-
+            Máximo de 50 por página. É o tamanho para o qual o objetivo de latência da
+            listagem foi medido, e não uma preferência de layout.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        '200':
+          description: Página de postmortems autorizados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemPage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createPostmortemDraft
+      x-permission: knowledge.write
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostmortemDraftRequest'
+      responses:
+        '201':
+          description: Rascunho criado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/knowledge/postmortems/{postmortem_id}:
+    parameters:
+      - $ref: '#/components/parameters/PostmortemId'
+    get:
+      operationId: getPostmortem
+      x-permission: knowledge.read
+      responses:
+        '200':
+          description: Postmortem com revisão atual, fontes, citações e uso recente.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: revisePostmortemDraft
+      x-permission: knowledge.write
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevisePostmortemRequest'
+      responses:
+        '200':
+          description: Nova revisão imutável criada e selecionada como atual.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          description: A revisão mudou desde a leitura indicada por If-Match.
+
+  /v1/knowledge/postmortems/{postmortem_id}/publish:
+    post:
+      operationId: publishPostmortem
+      x-permission: knowledge.curate
+      parameters:
+        - $ref: '#/components/parameters/PostmortemId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision_id]
+              properties:
+                revision_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Revisão publicada e indexada para consultas futuras.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/knowledge/postmortems/{postmortem_id}/supersede:
+    post:
+      operationId: supersedePostmortem
+      x-permission: knowledge.curate
+      parameters:
+        - $ref: '#/components/parameters/PostmortemId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [successor_postmortem_id, reason]
+              properties:
+                successor_postmortem_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Postmortem retirado de novas correlações e ligado ao sucessor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/knowledge/postmortems/{postmortem_id}/archive:
+    post:
+      operationId: archivePostmortem
+      x-permission: knowledge.curate
+      parameters:
+        - $ref: '#/components/parameters/PostmortemId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Postmortem arquivado e removido de novas consultas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/knowledge/postmortems/{postmortem_id}/metrics:
+    get:
+      operationId: getPostmortemMetrics
+      x-permission: knowledge.read
+      parameters:
+        - $ref: '#/components/parameters/PostmortemId'
+        - name: date_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: date_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Uso, influência, erros e economia observada no período declarado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemMetrics'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/knowledge/postmortems/associations/{association_id}/feedback:
+    post:
+      operationId: addPostmortemAssociationFeedback
+      x-permission: knowledge.write
+      parameters:
+        - name: association_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating:
+                  type: string
+                  enum: [useful, incorrect, outdated]
+                reason:
+                  type: string
+                  maxLength: 2000
+              allOf:
+                - if:
+                    properties:
+                      rating:
+                        enum: [incorrect, outdated]
+                  then:
+                    required: [reason]
+      responses:
+        '201':
+          description: Feedback append-only registrado.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/incidents/{incident_id}/postmortem:
+    post:
+      operationId: createPostmortemFromIncident
+      x-permission: knowledge.write
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFromSourceRequest'
+      responses:
+        '201':
+          description: Rascunho determinístico criado a partir do incidente e seus runs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/investigations/{run_id}/postmortem:
+    post:
+      operationId: createPostmortemFromInvestigation
+      x-permission: knowledge.write
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFromSourceRequest'
+      responses:
+        '201':
+          description: Rascunho determinístico criado a partir do trace do run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostmortemDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  parameters:
+    TeamId:
+      name: team_id
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PostmortemId:
+      name: postmortem_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+  headers:
+    ETag:
+      description: Hash opaco da revisão atual para concorrência otimista.
+      schema:
+        type: string
+  schemas:
+    PostmortemStatus:
+      type: string
+      enum: [draft, published, superseded, archived]
+    SourceRef:
+      type: object
+      required: [type, id, relation]
+      properties:
+        type:
+          type: string
+          enum: [incident, run, occurrence, episode, document]
+        id:
+          type: string
+        relation:
+          type: string
+          enum: [primary, supporting, related]
+    EvidenceRef:
+      type: object
+      required: [run_id, evidence_id, claim_path]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        evidence_id:
+          type: string
+        claim_path:
+          type: string
+    RecurrenceCriterion:
+      type: object
+      required: [field, operator, expected]
+      properties:
+        field:
+          type: string
+        operator:
+          type: string
+          enum: [equals, contains, regex, range, set_intersects]
+        expected: {}
+        tolerance: {}
+        required:
+          type: boolean
+          default: true
+    PostmortemContentInput:
+      type: object
+      required: [summary, impact, symptoms, timeline, resolution]
+      properties:
+        summary:
+          type: string
+        impact:
+          type: object
+          additionalProperties: true
+        symptoms:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        timeline:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        root_cause:
+          type: [string, 'null']
+        contributing_factors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        resolution:
+          type: object
+          additionalProperties: true
+        corrective_actions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        detection_gaps:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        recurrence_criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecurrenceCriterion'
+        component_keys:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRef'
+    CreatePostmortemDraftRequest:
+      type: object
+      required: [team_id, title, outcome, content]
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        outcome:
+          type: string
+          enum: [rooted, known_recurrence, inconclusive]
+        content:
+          $ref: '#/components/schemas/PostmortemContentInput'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+    RevisePostmortemRequest:
+      type: object
+      required: [title, outcome, content, change_reason]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        outcome:
+          type: string
+          enum: [rooted, known_recurrence, inconclusive]
+        content:
+          $ref: '#/components/schemas/PostmortemContentInput'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        change_reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    CreateFromSourceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 300
+        include_related_runs:
+          type: boolean
+          default: true
+    PostmortemSummary:
+      type: object
+      # FR-030 obriga cada item da lista a mostrar título, estado editorial, desfecho,
+      # componentes, causa ou a ausência dela, última revisão, ocorrências relacionadas e
+      # vínculo para as fontes. Um campo opcional aqui seria um item de lista incompleto.
+      required:
+        [
+          id,
+          title,
+          status,
+          outcome,
+          revision,
+          component_keys,
+          root_cause_summary,
+          related_occurrence_count,
+          source_count,
+          updated_at,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/PostmortemStatus'
+        outcome:
+          type: string
+          enum: [rooted, known_recurrence, inconclusive]
+        revision:
+          type: integer
+        component_keys:
+          type: array
+          items:
+            type: string
+        root_cause_summary:
+          type: [string, 'null']
+          description: Causa resumida ou null para desfecho inconclusivo.
+        related_occurrence_count:
+          type: integer
+        source_count:
+          type: integer
+        usage_count:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    PostmortemDetail:
+      allOf:
+        - $ref: '#/components/schemas/PostmortemSummary'
+        - type: object
+          required: [team_id, content, sources, review_required_fields]
+          properties:
+            team_id:
+              type: string
+              format: uuid
+            content:
+              $ref: '#/components/schemas/PostmortemContentInput'
+            sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/SourceRef'
+            review_required_fields:
+              type: array
+              items:
+                type: string
+            superseded_by_id:
+              type: [string, 'null']
+              format: uuid
+            recent_associations:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            duplicate_candidates:
+              type: array
+              description: Candidatos explicáveis para anexar fonte, revisar ou distinguir.
+              items:
+                type: object
+                required: [postmortem_id, revision_id, match_kind, rationale]
+                properties:
+                  postmortem_id:
+                    type: string
+                    format: uuid
+                  revision_id:
+                    type: string
+                    format: uuid
+                  match_kind:
+                    type: string
+                    enum: [exact, semantic, weak]
+                  rationale:
+                    type: object
+                    additionalProperties: true
+    PostmortemPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostmortemSummary'
+        next_cursor:
+          type: [string, 'null']
+    PostmortemMetrics:
+      type: object
+      required:
+        - date_from
+        - date_to
+        - consulted
+        - accepted
+        - rejected
+        - shortened_runs
+        - incorrect_associations
+        - usage_status
+      properties:
+        date_from:
+          type: string
+          format: date-time
+        date_to:
+          type: string
+          format: date-time
+        consulted:
+          type: integer
+          minimum: 0
+        accepted:
+          type: integer
+          minimum: 0
+        rejected:
+          type: integer
+          minimum: 0
+        shortened_runs:
+          type: integer
+          minimum: 0
+        incorrect_associations:
+          type: integer
+          minimum: 0
+        token_savings:
+          type: [integer, 'null']
+        tool_call_savings:
+          type: [integer, 'null']
+        duration_savings_ms:
+          type: [integer, 'null']
+        baseline:
+          type: [object, 'null']
+          additionalProperties: true
+        usage_status:
+          type: string
+          enum: [measured, unknown]
+  responses:
+    Forbidden:
+      description: Organização/equipe fora do escopo ou permissão ausente.
+    NotFound:
+      description: Recurso não encontrado dentro do escopo autorizado.
+    Conflict:
+      description: Transição inválida, comando duplicado incompatível ou conflito concorrente.
+    ValidationError:
+      description: Conteúdo inválido, incompleto, não citável ou rejeitado pelo secret guard.
