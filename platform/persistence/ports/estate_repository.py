@@ -448,6 +448,19 @@ class EstateRepository(Protocol):
     async def get(self, resource_id: str) -> Resource | None:
         """Return the resource with ``resource_id``, or ``None``."""
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> Mapping[str, Resource]:
+        """Return the resources with these ids, keyed by id.
+
+        Batched over every id a caller asks about in one read, because a
+        listing page resolving its rows' parents asks this question once, not
+        once per row. An id the estate does not hold is left out of the mapping
+        rather than mapped to ``None`` — the caller then reads what is there
+        instead of stepping around a sentinel for what is not. Absent
+        resources are returned, exactly as ``get`` returns them: a parent that
+        stopped being reported still has the name its children are displayed
+        under.
+        """
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the *present* resource ``source`` calls ``native_id``, or ``None``.
 

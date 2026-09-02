@@ -8,7 +8,11 @@ is served on `ResourceView`, which is this module's own type.
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import pytest
 
@@ -22,6 +26,7 @@ from platform.persistence.ports import (
     Resource,
     ResourceHealth,
     TenantScope,
+    UnitOfWork,
 )
 
 pytestmark = pytest.mark.unit
@@ -81,6 +86,60 @@ def service(gateway: PersistenceGateway) -> EstateService:
     return EstateService(gateway=gateway, kinds=core_registry())
 
 
+class CountingEstate:
+    """Passes every call through, and keeps a tally of which ones were made.
+
+    Delegation by ``__getattr__`` rather than a method per port member: the
+    point is to count round trips, and a wrapper that had to be extended
+    every time the port grew would be a wrapper that silently stopped
+    counting the call somebody added.
+    """
+
+    def __init__(self, inner: Any, calls: Counter[str]) -> None:
+        self._inner = inner
+        self._calls = calls
+
+    def __getattr__(self, name: str) -> Any:
+        method = getattr(self._inner, name)
+
+        async def counted(*args: Any, **kwargs: Any) -> Any:
+            self._calls[name] += 1
+            return await method(*args, **kwargs)
+
+        return counted
+
+
+class CountingUnitOfWork:
+    """One unit of work, with the estate repository counted."""
+
+    def __init__(self, inner: UnitOfWork, calls: Counter[str]) -> None:
+        self._inner = inner
+        self._calls = calls
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    @property
+    def estate(self) -> CountingEstate:
+        return CountingEstate(self._inner.estate, self._calls)
+
+
+class CountingGateway:
+    """A gateway that hands out counted units of work over a real one."""
+
+    def __init__(self, inner: PersistenceGateway, calls: Counter[str]) -> None:
+        self._inner = inner
+        self._calls = calls
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    @asynccontextmanager
+    async def begin(self, scope: TenantScope) -> AsyncIterator[UnitOfWork]:
+        async with self._inner.begin(scope) as unit:
+            yield cast(UnitOfWork, CountingUnitOfWork(unit, self._calls))
+
+
 async def test_a_listing_resolves_the_parent_name_even_when_the_parent_is_off_the_page(
     service: EstateService, gateway: PersistenceGateway, scope: TenantScope
 ) -> None:
@@ -100,6 +159,35 @@ async def test_a_listing_resolves_the_parent_name_even_when_the_parent_is_off_th
     assert len(found) == 1
     assert found[0].resource.resource_id == "ct-100"
     assert found[0].parent_name == "pve01"
+
+
+async def test_a_listing_resolves_every_off_page_parent_in_one_read(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Three off-page parents cost one read, not three.
+
+    Counted rather than inferred from the names, because the lookup-per-row
+    this replaced produced exactly the same names: a test that only checks
+    the result cannot tell one round trip from a page's worth of them, and
+    the ceiling on that page is `MAX_ESTATE_PAGE_SIZE`.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(3):
+            await uow.estate.upsert(node(f"node-pve0{index}", display_name=f"pve0{index}"))
+            await uow.estate.upsert(guest(f"ct-10{index}", parent_id=f"node-pve0{index}"))
+            await uow.estate.record_health(f"ct-10{index}", derivation(ResourceHealth.UNHEALTHY))
+
+    calls: Counter[str] = Counter()
+    counted = EstateService(
+        gateway=cast(PersistenceGateway, CountingGateway(gateway, calls)),
+        kinds=core_registry(),
+    )
+
+    found = await counted.query(scope, EstateQuery(health=(ResourceHealth.UNHEALTHY,)), now=at())
+
+    assert sorted(view.parent_name for view in found) == ["pve00", "pve01", "pve02"]
+    assert calls["get_many"] == 1
+    assert calls["get"] == 0
 
 
 async def test_a_resource_with_no_parent_carries_no_parent_name(

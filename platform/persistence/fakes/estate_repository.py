@@ -53,6 +53,15 @@ class FakeEstateRepository:
         """Return the resource with ``resource_id``, or ``None``."""
         return self.state.resources.get(resource_id)
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> dict[str, Resource]:
+        """Return the resources with these ids, keyed by id."""
+        found: dict[str, Resource] = {}
+        for resource_id in resource_ids:
+            resource = self.state.resources.get(resource_id)
+            if resource is not None:
+                found[resource_id] = resource
+        return found
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the present resource ``source`` calls ``native_id``, or ``None``."""
         for resource in sorted(self.state.resources.values(), key=lambda found: found.resource_id):

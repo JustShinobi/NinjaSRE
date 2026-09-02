@@ -219,6 +219,14 @@ class PostgresEstateRepository(TenantBound):
         row = await self.session.get(models.EstateResource, (self.org_id, resource_id))
         return None if row is None else _to_resource(row)
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> Mapping[str, Resource]:
+        """Return the resources with these ids, keyed by id."""
+        if not resource_ids:
+            return {}
+        statement = self._resources().where(models.EstateResource.resource_id.in_(resource_ids))
+        rows = (await self.session.execute(statement)).scalars().all()
+        return {row.resource_id: _to_resource(row) for row in rows}
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the present resource ``source`` calls ``native_id``, or ``None``."""
         statement = self._resources().where(

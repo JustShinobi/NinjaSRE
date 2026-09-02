@@ -145,10 +145,10 @@ class EstateService:
                 if resource.parent_id is not None and resource.parent_id not in names
             }
             if missing:
-                for parent_id in missing:
-                    parent = await uow.estate.get(parent_id)
-                    if parent is not None:
-                        names[parent_id] = parent.display_name
+                parents = await uow.estate.get_many(tuple(sorted(missing)))
+                names.update(
+                    {parent_id: parent.display_name for parent_id, parent in parents.items()}
+                )
 
             unhealthy_ids = tuple(
                 resource.resource_id

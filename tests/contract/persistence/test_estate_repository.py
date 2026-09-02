@@ -660,6 +660,31 @@ async def test_a_whole_estate_pass_keeps_every_filter_the_query_declares(
     assert [resource.resource_id for resource in found] == ["res-0", "res-2"]
 
 
+async def test_get_many_returns_every_id_it_holds_and_omits_the_ones_it_does_not(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The batched read a listing page resolves its parents' names with."""
+    async with gateway.begin(scope) as uow:
+        await uow.estate.upsert(resource("r-1", display_name="checkout-api"))
+        await uow.estate.upsert(resource("r-2", display_name="billing-api"))
+        await uow.estate.upsert(resource("r-3", display_name="search-api"))
+
+        found = await uow.estate.get_many(("r-1", "r-3", "r-never-discovered"))
+
+    assert {key: value.display_name for key, value in found.items()} == {
+        "r-1": "checkout-api",
+        "r-3": "search-api",
+    }
+
+
+async def test_get_many_of_an_empty_selection_is_an_empty_mapping(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        found = await uow.estate.get_many(())
+    assert found == {}
+
+
 async def test_unhealthy_since_reads_the_most_recent_transition_into_unhealthy(
     gateway: PersistenceGateway, scope: TenantScope
 ) -> None:
