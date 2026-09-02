@@ -42,6 +42,7 @@ from httpx import AsyncClient
 
 from config.constants.runs import SSE_KEEPALIVE_SECONDS
 from gateway.http.routes.events import stream_deployment_events
+from gateway.http.streaming.sse import deployment_sse_frame
 from gateway.http.streaming.subscription import deployment_event_source
 from platform.identity.permissions import Role
 from platform.runs.deployment import (
@@ -52,6 +53,13 @@ from platform.runs.deployment import (
     DeploymentScope,
 )
 from tests.unit.gateway.http.conftest import TEAM_PAYMENTS, Deployment, issue_token
+
+#: Two organisations one deployment serves at once — a token resolves to
+#: whichever its own row names, and a second organisation is created by a
+#: shipped path, so "this deployment has one tenant" is not an assumption this
+#: channel is allowed to make.
+_ACME = "acme"
+_INITECH = "initech"
 
 
 def _parse_sse(raw: bytes) -> list[tuple[str, str, str]]:
@@ -74,6 +82,7 @@ async def _collect(
     cursor: DeploymentCursor | None,
     *,
     frame_count: int,
+    org_id: str = _ACME,
     keepalive_seconds: float = SSE_KEEPALIVE_SECONDS,
 ) -> list[bytes]:
     """Return the first ``frame_count`` frames `deployment_event_source` yields.
@@ -89,7 +98,7 @@ async def _collect(
     """
     frames: list[bytes] = []
     generator = deployment_event_source(
-        broker=broker, cursor=cursor, keepalive_seconds=keepalive_seconds
+        broker=broker, cursor=cursor, org_id=org_id, keepalive_seconds=keepalive_seconds
     )
     async for frame in generator:
         frames.append(frame)
@@ -166,6 +175,7 @@ async def test_a_published_event_arrives_as_the_declared_frame_shape() -> None:
             scope=DeploymentScope.RUN,
             kind=DeploymentEventKind.RUN_STARTED,
             payload={"run_id": "run-1"},
+            org_id=_ACME,
         )
 
     publisher = asyncio.create_task(publish_soon())
@@ -200,6 +210,7 @@ async def test_reconnecting_with_the_current_epoch_delivers_only_what_is_newer()
             scope=DeploymentScope.RUN,
             kind=DeploymentEventKind.RUN_STARTED,
             payload={"run_id": f"run-{index}"},
+            org_id=_ACME,
         )
 
     cursor = DeploymentCursor(epoch=broker.epoch, sequence=2)
@@ -211,7 +222,10 @@ async def test_reconnecting_with_the_current_epoch_delivers_only_what_is_newer()
 async def test_a_cursor_from_a_foreign_epoch_is_answered_with_resync_first() -> None:
     broker = DeploymentEventBroker()
     await broker.publish(
-        scope=DeploymentScope.RUN, kind=DeploymentEventKind.RUN_STARTED, payload={"run_id": "run-1"}
+        scope=DeploymentScope.RUN,
+        kind=DeploymentEventKind.RUN_STARTED,
+        payload={"run_id": "run-1"},
+        org_id=_ACME,
     )
 
     cursor = DeploymentCursor(epoch="a-previous-process", sequence=99)
@@ -257,6 +271,7 @@ async def test_ten_reconnection_cycles_deliver_no_duplicate_and_exactly_one_resy
                     scope=DeploymentScope.RUN,
                     kind=DeploymentEventKind.RUN_STARTED,
                     payload={"run_id": f"run-{index}"},
+                    org_id=_ACME,
                 )
 
             publisher = asyncio.create_task(publish_soon())
@@ -272,6 +287,7 @@ async def test_ten_reconnection_cycles_deliver_no_duplicate_and_exactly_one_resy
                 scope=DeploymentScope.RUN,
                 kind=DeploymentEventKind.RUN_STARTED,
                 payload={"run_id": f"run-{cycle}"},
+                org_id=_ACME,
             )
             published_sequence = published.sequence
             frames = await _collect(broker, cursor, frame_count=1)
@@ -326,3 +342,92 @@ def test_the_generator_rejects_a_scope_mismatched_payload_at_construction() -> N
             occurred_at=datetime.now(UTC),
             payload={"run_id": "r1", "title": "leaked"},
         )
+
+
+# --- Tenancy at the connection ----------------------------------------------
+
+
+async def test_a_connection_is_served_only_its_own_organisations_events() -> None:
+    """The generator the route hands `StreamingResponse` is where the caller's
+    tenant is actually applied, so this drives it the same way the route does:
+    one broker, two organisations publishing into it, one connection."""
+    broker = DeploymentEventBroker()
+
+    async def publish_soon() -> None:
+        await asyncio.sleep(0.01)
+        await broker.publish(
+            scope=DeploymentScope.INCIDENT,
+            kind=DeploymentEventKind.INCIDENT_OPENED,
+            payload={"incident_id": "initech-only"},
+            org_id=_INITECH,
+        )
+        await broker.publish(
+            scope=DeploymentScope.INCIDENT,
+            kind=DeploymentEventKind.INCIDENT_OPENED,
+            payload={"incident_id": "acme-only"},
+            org_id=_ACME,
+        )
+
+    publisher = asyncio.create_task(publish_soon())
+    try:
+        frames = await _collect(broker, None, frame_count=1, org_id=_ACME)
+    finally:
+        await publisher
+
+    parsed = [frame for frame in _parse_sse(frames[0]) if frame[1] != ""]
+    assert [json.loads(data)["payload"] for _id, _event, data in parsed] == [
+        {"incident_id": "acme-only"}
+    ]
+
+
+async def test_a_reconnections_backlog_is_served_only_its_own_organisations_events() -> None:
+    """Reconnecting is the second way onto this wire, and a filter on the live
+    path alone is one a client gets past by pressing reload."""
+    broker = DeploymentEventBroker()
+    await broker.publish(
+        scope=DeploymentScope.INCIDENT,
+        kind=DeploymentEventKind.INCIDENT_OPENED,
+        payload={"incident_id": "initech-only"},
+        org_id=_INITECH,
+    )
+    await broker.publish(
+        scope=DeploymentScope.DECISION,
+        kind=DeploymentEventKind.DECISION_PROPOSED,
+        payload={"proposal_id": "acme-only"},
+        org_id=_ACME,
+    )
+
+    cursor = DeploymentCursor(epoch=broker.epoch, sequence=0)
+    frames = await _collect(broker, cursor, frame_count=1, org_id=_ACME)
+    parsed = [frame for frame in _parse_sse(frames[0]) if frame[1] != ""]
+    assert [json.loads(data)["payload"] for _id, _event, data in parsed] == [
+        {"proposal_id": "acme-only"}
+    ]
+
+
+def test_the_route_scopes_the_stream_to_the_authenticated_tokens_own_tenant() -> None:
+    """Read from the route's own source, as the header assertions above are.
+
+    The value has to be the token's own — `AuthenticatedRequest.scope` — and
+    never one a request named, which is the property that makes reaching
+    another tenant's feed unreachable rather than merely unauthorised.
+    """
+    source = inspect.getsource(stream_deployment_events)
+    assert "auth.scope.org_id" in source
+    assert "del auth" not in source, "the caller's identity is what scopes this channel"
+
+
+def test_the_frame_on_the_wire_never_carries_the_organisation_it_was_filtered_by() -> None:
+    """`org_id` decides who a frame reaches; it is not part of what a reader is
+    told. A reader's own organisation is the only one they can ever be sent."""
+    event = DeploymentEvent(
+        scope=DeploymentScope.INCIDENT,
+        kind=DeploymentEventKind.INCIDENT_OPENED,
+        sequence=1,
+        occurred_at=datetime.now(UTC),
+        payload={"incident_id": "i1"},
+        org_id=_ACME,
+    )
+    frame = deployment_sse_frame(event, epoch="epoch").decode()
+    assert _ACME not in frame
+    assert "org_id" not in frame

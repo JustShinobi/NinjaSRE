@@ -21,6 +21,7 @@ from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.headline import headline_for, report_body, resource_from_labels
 from platform.runs.recorder import RunRecorder
+from platform.runs.stream import RunEventPublisher
 
 
 def _utc_now() -> datetime:
@@ -117,7 +118,9 @@ async def start_investigation(
             # only ever reveals a run to the team it actually belongs to.
             team_node_id = (await uow.config.root()).node_id
         recorder = RunRecorder(
-            store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+            store=uow.run_traces,
+            guardrails=state.guardrails,
+            events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
         )
         run = await recorder.start_run(
             trigger=trigger,
@@ -209,7 +212,9 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
         summary = report_body(summary)
         async with state.gateway.begin(scope) as uow:
             recorder = RunRecorder(
-                store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+                store=uow.run_traces,
+                guardrails=state.guardrails,
+                events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
             )
             await recorder.complete_run(
                 request.run_id, status=status, summary=summary, headline=headline

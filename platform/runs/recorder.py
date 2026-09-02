@@ -79,7 +79,7 @@ from platform.persistence.ports.run_trace_store import (
 )
 from platform.runs.events import RunEvent, TraceEventKind
 from platform.runs.headline import resource_from_labels, synthesize_headline
-from platform.runs.stream import RunEventBroker
+from platform.runs.stream import RunEventPublisher
 from platform.runs.truncation import truncate
 
 logger = get_logger(__name__)
@@ -154,11 +154,18 @@ class RunRecorder:
     Holds a store rather than a gateway: the store already came out of a unit of
     work, so a recorder is inside its caller's transaction and a run that failed
     to commit did not half-record itself.
+
+    ``events`` is a broker *and* the organisation this recorder is writing for,
+    never a bare broker. One broker serves the whole process, so an event handed
+    to it without a tenant is one the deployment-wide channel can only deliver
+    to everybody — and a recorder that publishes is by definition inside a
+    scoped unit of work, so the organisation is always in the caller's hand at
+    the moment it decides to publish at all.
     """
 
     store: RunTraceStore
     guardrails: GuardrailEngine | None = None
-    broker: RunEventBroker | None = None
+    events: RunEventPublisher | None = None
     clock: Callable[[], datetime] = _utc_now
     ids: Callable[[], str] = _identifier
 
@@ -544,8 +551,8 @@ class RunRecorder:
                 payload=body,
             )
         )
-        if self.broker is not None:
-            await self.broker.publish(RunEvent.of(record))
+        if self.events is not None:
+            await self.events.publish(RunEvent.of(record))
         return record
 
     async def record_guardrail_action(

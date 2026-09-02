@@ -29,7 +29,17 @@ image:
 # --- The application -----------------------------------------------------------
 
 app:
-  replicas: 2
+  # One, and one until a stream bridge exists — not a starting point somebody
+  # should raise for capacity. Both live channels fan out inside the process
+  # that published the event: `RunEventBroker` accepts a `StreamBridge` and the
+  # serving root hands it none, and `DeploymentEventBroker` has no bridge seam
+  # at all. A second replica would not add capacity to the live console, it
+  # would halve what a session sees — an SSE client is pinned to one replica,
+  # every write the other handled never reaches it, and the freshness chip goes
+  # on reading `live` throughout. There is no `StreamBridge` implementation in
+  # this repository outside one test's own double, so raising this is a change
+  # that starts with writing one.
+  replicas: 1
   port: 8420
   resources:
     requests:
@@ -51,6 +61,9 @@ app:
 
 console:
   enabled: true
+  # Two is fine here, and for the reason `app.replicas` is not: this renders
+  # pages and proxies the event stream onward, it never holds a broker, so a
+  # browser talking to either replica is served the same events.
   replicas: 2
   port: 8421
   resources:

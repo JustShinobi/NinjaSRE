@@ -19,11 +19,15 @@ The alternative — an unbounded queue — is a memory leak with a client attach
 and it fails the whole process rather than one reader.
 
 Across replicas, the recording process is not necessarily the one a client is
-connected to. ``StreamBridge`` is the seam: a deployment wires a Postgres
-``LISTEN``/``NOTIFY`` bridge (or any other fan-out) and every replica's broker
-publishes what the others recorded. With no bridge configured a single-process
-deployment still works completely, which is the point of the port being
-optional rather than required.
+connected to. ``StreamBridge`` is the seam a Postgres ``LISTEN``/``NOTIFY``
+fan-out — or any other — would be written against, and **nothing in this
+repository implements it**: the port is declared, ``bridge`` defaults to
+``None``, and the serving composition root supplies none. So a deployment runs
+one application replica until something does implement it, and the chart says
+so where it sets the replica count. A single-process deployment works
+completely with no bridge, which is why the seam is optional rather than
+required — but "optional" is not "configured", and an operator told to wire a
+bridge would be looking for a class that does not exist.
 """
 
 from __future__ import annotations
@@ -70,10 +74,20 @@ class StreamBridge(Protocol):
     bridge only has to get an event that one replica recorded to the brokers on
     the others, and it may drop one — the client's cursor and the log are what
     make that survivable.
+
+    Nothing implements this today; see the module docstring for what that costs
+    a deployment.
     """
 
-    async def publish(self, event: RunEvent) -> None:
-        """Send ``event`` to the other replicas."""
+    async def publish(self, event: RunEvent, *, org_id: str) -> None:
+        """Send ``event``, and the organisation whose run it is, to the other replicas.
+
+        The tenant travels beside the event rather than on it because a
+        `RunEvent` is a row of one run's log and the log stores no organisation
+        — the store it came out of was already opened for one. A bridge that
+        dropped the tenant would leave the receiving replica holding an event it
+        could only treat as everybody's.
+        """
 
     def subscribe(self, deliver: Callable[[RunEvent], None]) -> None:
         """Register ``deliver`` to be called with events from other replicas."""
@@ -179,16 +193,26 @@ class RunEventBroker:
         """Return how many clients are watching ``run_id``."""
         return len(self._subscribers.get(run_id, ()))
 
-    async def publish(self, event: RunEvent) -> None:
-        """Deliver ``event`` locally and hand it to the bridge.
+    async def publish(self, event: RunEvent, *, org_id: str) -> None:
+        """Deliver ``event`` locally and hand it and its tenant to the bridge.
 
         Locally first. A bridge that is slow or down must not delay the clients
         attached to the replica that recorded the event, which are the ones most
         likely to be the operator watching it happen.
+
+        ``org_id`` names whose run this is, and is required with no default.
+        This broker's own fan-out does not consult it — it keys on the run id,
+        and a subscriber only ever holds a run it was authorised to watch — but
+        one broker serves every organisation in the process, and
+        `platform.runs.deployment.DeploymentPublishingRunEventBroker` forwards a
+        filtered copy of four kinds onto the deployment-wide channel, where the
+        tenant is the whole of what decides who a frame reaches. A default here
+        would be the value a call site that never thought about tenancy takes,
+        and that value can only be "everyone".
         """
         self.deliver(event)
         if self.bridge is not None:
-            await self.bridge.publish(event)
+            await self.bridge.publish(event, org_id=org_id)
 
     def deliver(self, event: RunEvent) -> None:
         """Deliver ``event`` to this replica's subscribers only.
@@ -196,6 +220,11 @@ class RunEventBroker:
         What the bridge calls on the receiving side, and what ``publish`` calls
         before handing over. Separating them is what stops a bridged event being
         sent straight back across the bridge.
+
+        No tenant, and none needed: this is the per-run fan-out, and a
+        subscription exists only because a client asked to watch a run it was
+        authorised for. The deployment-wide forward, which is where the tenant
+        decides anything, hangs off ``publish`` alone.
         """
         for subscription in self._subscribers.get(event.run_id, ()):
             subscription.offer(event)
@@ -211,6 +240,32 @@ class RunEventBroker:
             return
         self.bridge.subscribe(self.deliver)
         self._bridged = True
+
+
+@dataclass(frozen=True, slots=True)
+class RunEventPublisher:
+    """A run broker, paired with the organisation whose runs go into it.
+
+    The broker is built once per process and carries every organisation's runs;
+    the tenant is not on the event and cannot be, because a `RunEvent` is a row
+    of one run's log and the log stores no organisation. Pairing the two here is
+    what makes an unattributed publish unspellable rather than merely
+    discouraged: `platform.runs.recorder.RunRecorder` cannot be given somewhere
+    to publish without also being told whose runs it is publishing, so a call
+    site that never considered tenancy fails to type check instead of reaching
+    every subscriber in the deployment.
+
+    ``org_id`` is the organisation the recorder's unit of work was opened for.
+    Every construction site has it in hand — a recorder holds a store that came
+    out of a scoped unit, and the scope is the line above.
+    """
+
+    broker: RunEventBroker
+    org_id: str
+
+    async def publish(self, event: RunEvent) -> None:
+        """Publish ``event`` on the broker, attributed to this organisation."""
+        await self.broker.publish(event, org_id=self.org_id)
 
 
 @dataclass(slots=True)
@@ -302,6 +357,7 @@ async def watching(stream: RunStream, cursor: Cursor) -> AsyncIterator[AsyncGene
 
 __all__ = [
     "RunEventBroker",
+    "RunEventPublisher",
     "RunStream",
     "StreamBridge",
     "SubscriberTooSlow",

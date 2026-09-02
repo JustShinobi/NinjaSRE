@@ -15,22 +15,24 @@ from platform.runs.events import RunEvent, TraceEventKind
 from platform.runs.recorder import RecordedTurn, RunRecorder
 from platform.runs.stream import (
     RunEventBroker,
+    RunEventPublisher,
     RunStream,
     SubscriberTooSlow,
     Subscription,
 )
 
 RUN = "run-live"
+ORG = "org-live"
 
 
 def writer(uow: UnitOfWork, clock: Callable[[], datetime], broker: RunEventBroker) -> RunRecorder:
-    """Return a recorder publishing to ``broker``."""
+    """Return a recorder publishing this organisation's runs to ``broker``."""
     counter = iter(range(10_000))
     return RunRecorder(
         store=uow.run_traces,
         clock=clock,
         ids=lambda: f"id-{next(counter):04d}",
-        broker=broker,
+        events=RunEventPublisher(broker=broker, org_id=ORG),
     )
 
 
@@ -244,9 +246,11 @@ async def test_a_bridge_carries_an_event_to_another_replicas_subscribers(
         """A bridge joining two brokers in one process, as a network one would."""
 
         def __init__(self) -> None:
+            self.organisations: list[str] = []
             self.listeners: list[Callable[[RunEvent], None]] = []
 
-        async def publish(self, event: RunEvent) -> None:
+        async def publish(self, event: RunEvent, *, org_id: str) -> None:
+            self.organisations.append(org_id)
             for listener in self.listeners:
                 listener(event)
 
@@ -263,6 +267,9 @@ async def test_a_bridge_carries_an_event_to_another_replicas_subscribers(
     )
 
     assert [event.kind for event in await collected(watching)] == [TraceEventKind.RUN_STARTED]
+    # The tenant crosses with the event. A replica that received one without it
+    # could only forward it onward as everybody's.
+    assert bridge.organisations == [ORG]
 
 
 async def test_a_bridged_event_is_not_sent_back_across_the_bridge(
@@ -275,7 +282,7 @@ async def test_a_bridged_event_is_not_sent_back_across_the_bridge(
             self.crossings = 0
             self.listeners: list[Callable[[RunEvent], None]] = []
 
-        async def publish(self, event: RunEvent) -> None:
+        async def publish(self, event: RunEvent, *, org_id: str) -> None:
             self.crossings += 1
             for listener in self.listeners:
                 listener(event)

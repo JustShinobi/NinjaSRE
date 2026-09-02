@@ -25,6 +25,24 @@ an epoch and a sequence within it; a cursor from a different epoch names a
 process that is no longer the one being asked, and reconnecting into it is
 answered with ``resync`` rather than a silent restart at sequence zero, which
 would look like nothing had ever happened.
+
+**One broker, one tenant at a time.** The broker is process-wide, and a
+deployment serves more than one organisation — a token resolves to whichever
+organisation its own row names, and a second one is created by a shipped path.
+So every event carries the organisation it belongs to on its *envelope*, every
+subscriber names the organisation it may hear about, and both the live path and
+the backlog replay deliver only what matches. Not on the payload: ``org_id`` is
+deliberately absent from ``_ALLOWED_PAYLOAD_KEYS`` below, so it decides who a
+frame reaches and is never serialised to a client — a reader's own organisation
+is the only one they can ever be sent, which makes telling them redundant, and
+a field that never crosses the wire cannot be read off it.
+
+Every publisher onto this channel names an organisation today, run-scope events
+included — see ``DeploymentPublishingRunEventBroker.publish`` at the foot of
+this module, which forwards the tenant its caller was required to name. The
+envelope still admits ``None``, meaning "not attributable to one organisation",
+and an event carrying it reaches every subscriber; nothing publishes one, and a
+publisher that wants to has to pass it explicitly and mean it.
 """
 
 from __future__ import annotations
@@ -67,7 +85,7 @@ class DeploymentScope(StrEnum):
 
 
 class DeploymentEventKind(StrEnum):
-    """The ten kinds of frame this channel ever carries, and no others.
+    """The eleven kinds of frame this channel ever carries, and no others.
 
     Closed on purpose, the same reason `TraceEventKind` is: a kind nobody named
     here is a kind the console cannot react to, so a new one is a deliberate
@@ -83,6 +101,12 @@ class DeploymentEventKind(StrEnum):
     DECISION_PROPOSED = "decision_proposed"
     DECISION_EXPIRED = "decision_expired"
     DECISION_DECIDED = "decision_decided"
+    #: Withdrawn without an answer — the one way a proposal leaves the queue
+    #: that is nobody's decision about it. Its own kind rather than a second
+    #: meaning for `decision_decided`, because a reader counting what a person
+    #: said about a proposal and a reader counting what is still waiting are
+    #: asking different questions, and only one of them should count this.
+    DECISION_DISCARDED = "decision_discarded"
     RESYNC = "resync"
 
 
@@ -122,6 +146,7 @@ _KINDS_BY_SCOPE: Final[Mapping[DeploymentScope, frozenset[DeploymentEventKind]]]
             DeploymentEventKind.DECISION_PROPOSED,
             DeploymentEventKind.DECISION_EXPIRED,
             DeploymentEventKind.DECISION_DECIDED,
+            DeploymentEventKind.DECISION_DISCARDED,
         }
     ),
     DeploymentScope.CONTROL: frozenset({DeploymentEventKind.RESYNC}),
@@ -137,6 +162,19 @@ class DeploymentEvent:
     sequence: int
     occurred_at: datetime
     payload: Mapping[str, Any] = field(default_factory=dict)
+    #: Which organisation's fact this is — the envelope, deliberately not a
+    #: payload key. Kept off `_ALLOWED_PAYLOAD_KEYS` so it cannot be
+    #: serialised by accident: `gateway.http.streaming.sse.deployment_sse_frame`
+    #: builds a client's frame out of the scope, the kind, the sequence, the
+    #: instant and the payload, and this is none of them. It exists to decide
+    #: who a frame is delivered to, and a reader has no use for it — the org
+    #: they are in is the only one they can ever be sent.
+    #:
+    #: ``None`` means "not attributable to one organisation", and such an event
+    #: reaches every subscriber. Nothing publishes one today: every tap names a
+    #: tenant, and a ``resync`` is minted with the organisation of the
+    #: connection that provoked it.
+    org_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in _KINDS_BY_SCOPE[self.scope]:
@@ -193,17 +231,47 @@ class DeploymentSubscriberTooSlow(RuntimeError):
 
 @dataclass(slots=True)
 class _Subscription:
-    """One client's live attachment to the deployment channel."""
+    """One client's live attachment to the deployment channel, within one tenant.
 
+    ``org_id`` is the organisation the connection's own token resolved to, and
+    it is the whole of what this subscriber may ever hear about. Required, with
+    no default: an attachment that forgot to name a tenant would be one that
+    hears every tenant, which is the failure this field exists to make
+    unspellable rather than merely discouraged.
+    """
+
+    org_id: str
     _queue: asyncio.Queue[DeploymentEvent] = field(
         default_factory=lambda: asyncio.Queue(maxsize=DEPLOYMENT_STREAM_BUFFER_EVENTS)
     )
     _overflowed: bool = False
     _closed: bool = False
 
+    def wants(self, event: DeploymentEvent) -> bool:
+        """Return whether ``event`` is this subscriber's to see.
+
+        An event attributed to another organisation is not — its ids, its kind
+        and its timing are all facts about a deployment this caller has no
+        route to read. An unattributed event (``org_id is None``) is, and no
+        publisher mints one: every tap names the tenant its unit of work was
+        opened for, every run event names the one its recorder was built with,
+        and a ``resync`` is minted with the organisation of the connection that
+        provoked it. The permissive reading is kept for a frame constructed
+        directly rather than published — a test's, or a control frame a later
+        connection-scoped kind might need — and it is safe there precisely
+        because it cannot be reached by forgetting: ``publish`` takes the
+        organisation as a keyword with no default.
+        """
+        return event.org_id is None or event.org_id == self.org_id
+
     def offer(self, event: DeploymentEvent) -> None:
-        """Enqueue ``event``, or mark this subscriber fallen behind. Never blocks."""
-        if self._closed or self._overflowed:
+        """Enqueue ``event`` if it is this subscriber's, or mark it fallen behind.
+
+        Never blocks, and filters before it enqueues rather than after: an
+        event this client may not see must not occupy a slot in its bounded
+        buffer, or one busy tenant would push another's client into ``resync``.
+        """
+        if self._closed or self._overflowed or not self.wants(event):
             return
         try:
             self._queue.put_nowait(event)
@@ -258,9 +326,19 @@ class DeploymentEventBroker:
         return len(self._subscribers)
 
     async def publish(
-        self, *, scope: DeploymentScope, kind: DeploymentEventKind, payload: Mapping[str, Any]
+        self,
+        *,
+        scope: DeploymentScope,
+        kind: DeploymentEventKind,
+        payload: Mapping[str, Any],
+        org_id: str | None,
     ) -> DeploymentEvent:
         """Assign the next sequence to one fact, remember it, and deliver it live.
+
+        ``org_id`` names whose fact this is, and is required rather than
+        defaulted: a publisher that cannot say has to say so, by passing
+        ``None`` and meaning it, because the default a busy call site would
+        have taken is the one that reaches every tenant.
 
         Delivery never waits on a subscriber: `_Subscription.offer` does not
         block, so one slow reader cannot make this call — which every write
@@ -268,7 +346,12 @@ class DeploymentEventBroker:
         """
         self._sequence += 1
         event = DeploymentEvent(
-            scope=scope, kind=kind, sequence=self._sequence, occurred_at=_utc_now(), payload=payload
+            scope=scope,
+            kind=kind,
+            sequence=self._sequence,
+            occurred_at=_utc_now(),
+            payload=payload,
+            org_id=org_id,
         )
         self._buffer.append(event)
         for subscription in self._subscribers:
@@ -284,9 +367,9 @@ class DeploymentEventBroker:
         return position >= self._buffer[0].sequence - 1
 
     def attach(
-        self, cursor: DeploymentCursor | None = None
+        self, cursor: DeploymentCursor | None = None, *, org_id: str
     ) -> tuple[_Subscription, tuple[DeploymentEvent, ...]]:
-        """Register a live subscriber and return it with whatever it should see first.
+        """Register a live subscriber for ``org_id`` and return what it should see first.
 
         A first connection (``cursor`` is ``None``) needs nothing backfilled: the
         page that opened the channel already read its own current state. A
@@ -296,15 +379,31 @@ class DeploymentEventBroker:
         `resync` event instead, at the current tip, so the client refreshes once
         and then watches forward from here rather than from a hole this memory
         cannot honestly fill.
+
+        The backlog is filtered by ``org_id`` exactly as the live path is. The
+        buffer is one deque for the whole process, so replaying it unfiltered
+        would hand a reconnecting client everything every other tenant did
+        while it was away — the same leak as the live path, reached by pressing
+        reload.
+
+        ``org_id`` is the caller's own, taken from the token their connection
+        authenticated with. This method has no way to check that and does not
+        try: the route above it (`gateway.http.routes.events`) reads it from
+        ``auth.scope``, which is the authenticated token's own tenant and never
+        a value a request named.
         """
-        subscription = _Subscription()
+        subscription = _Subscription(org_id=org_id)
         self._subscribers.append(subscription)
 
         if cursor is None:
             return subscription, ()
 
         if cursor.epoch == self.epoch and self._coverable(cursor.sequence):
-            backlog = tuple(event for event in self._buffer if event.sequence > cursor.sequence)
+            backlog = tuple(
+                event
+                for event in self._buffer
+                if event.sequence > cursor.sequence and subscription.wants(event)
+            )
             return subscription, backlog
 
         resync = DeploymentEvent(
@@ -313,6 +412,7 @@ class DeploymentEventBroker:
             sequence=self._sequence,
             occurred_at=_utc_now(),
             payload={},
+            org_id=org_id,
         )
         return subscription, (resync,)
 
@@ -358,16 +458,23 @@ class DeploymentPublishingRunEventBroker(RunEventBroker):
 
     deployment_events: DeploymentEventBroker | None = None
 
-    async def publish(self, event: RunEvent) -> None:
+    async def publish(self, event: RunEvent, *, org_id: str) -> None:
         """Deliver ``event`` to this run's own subscribers, then tap it if it qualifies."""
-        await super().publish(event)
+        await super().publish(event, org_id=org_id)
         if self.deployment_events is None:
             return
         kind = deployment_kind_of(event)
         if kind is None:
             return
+        # The organisation the publisher named, carried straight onto the
+        # envelope. It arrives beside the event rather than on it because a
+        # `RunEvent` is a row of one run's log and the log stores no tenant —
+        # the store it came out of was already opened for one. What makes this
+        # trustworthy is that `platform.runs.stream.RunEventPublisher` is the
+        # only way a `RunRecorder` is given somewhere to publish, and it cannot
+        # be built without an organisation.
         await self.deployment_events.publish(
-            scope=DeploymentScope.RUN, kind=kind, payload={"run_id": event.run_id}
+            scope=DeploymentScope.RUN, kind=kind, payload={"run_id": event.run_id}, org_id=org_id
         )
 
 

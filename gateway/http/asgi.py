@@ -237,9 +237,11 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
     # place its two write-path taps are composed: the run broker below is a
     # `DeploymentPublishingRunEventBroker` rather than a plain one, and the
     # persistence gateway everything but `Deployment.store` sees is decorated
-    # so an incident's or a decision's write also publishes here. Nothing
-    # downstream of this function — no route, no store method, no call site
-    # that already published or wrote — changes to make that true.
+    # so an incident's or a decision's write also publishes here. No route and
+    # no store method changes to make that true; a call site that publishes a
+    # run event names the organisation it is publishing for, because this
+    # broker is one per process and the deployment channel decides who a frame
+    # reaches by exactly that.
     deployment_events = DeploymentEventBroker()
     gateway_store: PersistenceGateway = with_deployment_events(store, deployment_events)
 

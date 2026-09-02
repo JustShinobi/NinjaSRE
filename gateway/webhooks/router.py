@@ -94,6 +94,7 @@ from platform.persistence.ports.transaction import TenantScope
 from platform.persistence.ports.transit_ledger import PayloadSample, TransitOutcome
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RunRecorder
+from platform.runs.stream import RunEventPublisher
 
 logger = get_logger(__name__)
 
@@ -1070,7 +1071,9 @@ async def _handle_resolution(
 
         if linked_run is not None:
             recorder = RunRecorder(
-                store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+                store=uow.run_traces,
+                guardrails=state.guardrails,
+                events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
             )
             await recorder.record_event(
                 linked_run,

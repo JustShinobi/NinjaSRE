@@ -145,10 +145,19 @@ async def deployment_event_source(
     *,
     broker: DeploymentEventBroker,
     cursor: DeploymentCursor | None,
+    org_id: str,
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
     keepalive_seconds: float = SSE_KEEPALIVE_SECONDS,
 ) -> AsyncGenerator[bytes, None]:
-    """Yield SSE frames: any backlog first, then live, with heartbeats between events.
+    """Yield ``org_id``'s SSE frames: backlog first, then live, heartbeats between.
+
+    ``org_id`` is the organisation this connection's own token resolved to, and
+    it is required: the broker behind this channel is one process-wide object
+    that every tenant's writes publish into, so a connection that did not name
+    a tenant would be handed all of them. It is passed to ``attach`` and
+    applied there to the backlog and the live path alike — this generator never
+    filters a frame itself, because a filter here and a filter there would be
+    two places to keep one rule.
 
     A subscriber that falls behind the bounded buffer is disconnected here —
     ``DeploymentSubscriberTooSlow`` ends the generator, which ends the HTTP
@@ -175,7 +184,7 @@ async def deployment_event_source(
     condition this reproduces, and neither this module nor its tests are the
     place to change that call, which this feature's file scope does not reach.
     """
-    subscription, backlog = broker.attach(cursor)
+    subscription, backlog = broker.attach(cursor, org_id=org_id)
     try:
         for event in backlog:
             yield deployment_sse_frame(event, epoch=broker.epoch)
