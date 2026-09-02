@@ -30,6 +30,7 @@ from platform.persistence.ports import (
 )
 from platform.persistence.ports.incident_store import (
     incident_key,
+    incidents_in_window,
     public_incident_id,
     timeline_key,
 )
@@ -231,12 +232,151 @@ async def test_a_listing_filters_by_state_severity_team_and_subject(
     assert [entry.correlation_key for entry in subject] == ["a"]
 
 
+async def test_a_listing_filters_by_the_window_an_incident_opened_in(
+    gateway: PersistenceGateway,
+) -> None:
+    """Half-open, like every other window in this package: ``[after, before)``.
+
+    ``opened_before`` is exclusive so a caller can page a descending listing by
+    handing back the oldest instant it read: an inclusive bound would return
+    that incident again on every page, and the walk would never advance.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(incident(correlation_key="a", minutes=0))
+        await uow.incidents.upsert(incident(correlation_key="b", minutes=10))
+        await uow.incidents.upsert(incident(correlation_key="c", minutes=20))
+
+        before = await uow.incidents.query(IncidentQuery(opened_before=at(20)))
+        window = await uow.incidents.query(IncidentQuery(opened_after=at(10), opened_before=at(20)))
+
+    assert [entry.correlation_key for entry in before] == ["b", "a"]
+    assert [entry.correlation_key for entry in window] == ["b"]
+
+
+async def test_a_window_wide_pass_reaches_past_one_page(
+    gateway: PersistenceGateway,
+) -> None:
+    """The whole-window read the overview's KPIs are computed over.
+
+    Five incidents read with a page bound of two: without the walk this is two
+    incidents, and a caller has no way to tell that from a window holding two.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        for index in range(5):
+            await uow.incidents.upsert(incident(correlation_key=f"k-{index}", minutes=index * 10))
+
+        everything = await incidents_in_window(uow.incidents, IncidentQuery(limit=2))
+
+    assert [entry.correlation_key for entry in everything] == [
+        f"k-{index}" for index in (4, 3, 2, 1, 0)
+    ]
+
+
+async def test_a_window_wide_pass_keeps_incidents_that_opened_in_the_same_instant(
+    gateway: PersistenceGateway,
+) -> None:
+    """Two incidents sharing a timestamp must both survive the walk.
+
+    The cursor is an instant rather than a keyset, so a page boundary can fall
+    between two incidents opened at the same moment. Read at a page bound of
+    two: the first page is exactly the pair, and the walk still has to reach the
+    older incident behind them rather than reading the pair for ever.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(incident(correlation_key="a", minutes=10))
+        await uow.incidents.upsert(incident(correlation_key="b", minutes=10))
+        await uow.incidents.upsert(incident(correlation_key="c", minutes=0))
+
+        everything = await incidents_in_window(uow.incidents, IncidentQuery(limit=2))
+
+    assert sorted(entry.correlation_key for entry in everything) == ["a", "b", "c"]
+
+
+async def test_a_window_wide_pass_stops_at_its_page_ceiling(
+    gateway: PersistenceGateway,
+) -> None:
+    """A bound, not a formality: a walk with no ceiling never returns.
+
+    It returns what it read rather than raising, for the reason the estate's own
+    pass gives — a caller wants the incidents it got. What comes back is a
+    newest-first prefix of the window and not the window: two pages of two here
+    are three incidents rather than four, because the second page re-reads the
+    instant the first one stopped on.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        for index in range(5):
+            await uow.incidents.upsert(incident(correlation_key=f"k-{index}", minutes=index * 10))
+
+        capped = await incidents_in_window(uow.incidents, IncidentQuery(limit=2), max_pages=2)
+
+    assert [entry.correlation_key for entry in capped] == ["k-4", "k-3", "k-2"]
+
+
 async def test_a_listing_above_the_page_bound_is_refused(
     gateway: PersistenceGateway,
 ) -> None:
     async with gateway.begin(TenantScope(org_id="acme")) as uow:
         with pytest.raises(BoundExceeded, match="MAX_INCIDENT_PAGE_SIZE"):
             await uow.incidents.query(IncidentQuery(limit=100_000))
+
+
+async def test_a_bounded_page_is_the_start_of_the_unbounded_listing(
+    gateway: PersistenceGateway,
+) -> None:
+    """A page is a prefix of the whole answer, whoever applies the bound.
+
+    Whether the limit is taken by the database or by the caller afterwards,
+    the page has to be the newest ``limit`` incidents the filters matched, in
+    the same order and with the same contents. Asserted with a filter and
+    without one, because those are the two shapes a backend can push into SQL
+    differently.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        for index in range(6):
+            await uow.incidents.upsert(incident(correlation_key=f"k-{index}", minutes=index * 10))
+        await uow.incidents.upsert(
+            incident(correlation_key="quiet", minutes=5, severity="low"),
+        )
+
+        whole = await uow.incidents.query(IncidentQuery(limit=50))
+        page = await uow.incidents.query(IncidentQuery(limit=2))
+        whole_critical = await uow.incidents.query(
+            IncidentQuery(severities=("critical",), limit=50)
+        )
+        critical_page = await uow.incidents.query(IncidentQuery(severities=("critical",), limit=2))
+
+    assert [entry.correlation_key for entry in whole] == [
+        f"k-{index}" for index in (5, 4, 3, 2, 1)
+    ] + ["quiet", "k-0"]
+    assert page == whole[:2]
+    assert critical_page == whole_critical[:2]
+
+
+async def test_a_subject_filter_selects_over_the_window_before_the_page_bound(
+    gateway: PersistenceGateway,
+) -> None:
+    """The subject filter runs over everything the window matched, then the bound.
+
+    Four incidents about ``store-cove`` and one older one about
+    ``store-ridge``, read with a page bound of two. The answer is the
+    ``store-ridge`` incident: a backend that let the database take the bound
+    first would fetch the two newest rows, drop both for the wrong subject,
+    and report that no live incident covers that resource — which is exactly
+    what the joining rule reads to decide whether an arriving alert lands on
+    an incident that already exists, or opens a second one beside it.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        for index in range(4):
+            await uow.incidents.upsert(
+                incident(correlation_key=f"k-{index}", minutes=(index + 1) * 10)
+            )
+        await uow.incidents.upsert(
+            incident(correlation_key="oldest", minutes=0, subjects=("store-ridge",))
+        )
+
+        found = await uow.incidents.query(IncidentQuery(subject_id="store-ridge", limit=2))
+
+    assert [entry.correlation_key for entry in found] == ["oldest"]
 
 
 # --- The timeline ---------------------------------------------------------------------

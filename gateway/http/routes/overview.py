@@ -28,8 +28,12 @@ from gateway.http.state import GatewayState
 from platform.config_service.service import ConfigService
 from platform.incidents.service import DetectorService
 from platform.persistence.ports.estate_snapshot_store import EstateDailySnapshot
-from platform.persistence.ports.incident_store import Incident, IncidentQuery
-from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
+from platform.persistence.ports.incident_store import (
+    Incident,
+    IncidentQuery,
+    incidents_in_window,
+)
+from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, runs_in_window
 
 router = APIRouter(tags=["overview"])
 
@@ -263,10 +267,15 @@ async def overview(
     async with state.gateway.begin(auth.scope) as uow:
         summary = await uow.estate.summarise(now=now)
         daily = await uow.estate_snapshots.list_daily(since=since, until=until)
-        incidents = await uow.incidents.query(
-            IncidentQuery(opened_after=window_start, limit=MAX_INCIDENT_PAGE_SIZE)
+        # Drained rather than read once. Both listings cap at one page and both
+        # come back newest first, so a fortnight busier than a page would be
+        # counted over its newest page and rendered as "180 de 200 incidentes"
+        # — a total the deployment never measured, shown as one it did.
+        incidents = await incidents_in_window(
+            uow.incidents,
+            IncidentQuery(opened_after=window_start, limit=MAX_INCIDENT_PAGE_SIZE),
         )
-        runs = await uow.run_traces.list_runs(since=window_start, limit=MAX_QUERY_PAGE_SIZE)
+        runs = await runs_in_window(uow.run_traces, since=window_start, limit=MAX_QUERY_PAGE_SIZE)
 
     detectors = await _detector_service(state, auth)
     detector_views = await detectors.list(auth.scope, now=now)

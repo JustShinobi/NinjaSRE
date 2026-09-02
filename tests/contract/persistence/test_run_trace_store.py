@@ -17,6 +17,7 @@ from platform.persistence.ports import (
     TraceEventRecord,
     TurnRecord,
 )
+from platform.persistence.ports.run_trace_store import runs_in_window
 
 pytestmark = pytest.mark.contract
 
@@ -135,6 +136,62 @@ async def test_runs_are_listed_most_recent_first_and_filtered(
         listed = await uow.run_traces.list_runs(status=RunStatus.FAILED)
 
     assert [r.run_id for r in listed] == ["run-2"]
+
+
+async def test_a_window_wide_pass_reaches_past_one_page(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The whole-window read the overview's KPIs are computed over.
+
+    Five runs read with a page bound of two: without the walk this is two runs,
+    and a rate computed over them is presented as the fortnight's.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(5):
+            await uow.run_traces.start_run(run(f"run-{index}", minutes=index * 10))
+
+        everything = await runs_in_window(uow.run_traces, since=at(0), limit=2)
+
+    assert [entry.run_id for entry in everything] == [f"run-{index}" for index in (4, 3, 2, 1, 0)]
+
+
+async def test_a_window_wide_pass_keeps_runs_that_started_in_the_same_instant(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Two runs sharing a start time must both survive the walk.
+
+    ``until`` is an instant rather than a keyset cursor, so a page boundary can
+    fall between two runs started at the same moment. Read at a page bound of
+    two: the first page is exactly the pair, and the walk still has to reach the
+    older run behind them rather than reading the pair for ever.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run("run-a", minutes=10))
+        await uow.run_traces.start_run(run("run-b", minutes=10))
+        await uow.run_traces.start_run(run("run-c", minutes=0))
+
+        everything = await runs_in_window(uow.run_traces, since=at(0), limit=2)
+
+    assert sorted(entry.run_id for entry in everything) == ["run-a", "run-b", "run-c"]
+
+
+async def test_a_window_wide_pass_stops_at_its_page_ceiling(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A bound, not a formality: a walk with no ceiling never returns.
+
+    It returns what it read rather than raising — a caller wants the runs it
+    got. What comes back is a newest-first prefix of the window and not the
+    window: two pages of two here are three runs rather than four, because the
+    second page re-reads the instant the first one stopped on.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(5):
+            await uow.run_traces.start_run(run(f"run-{index}", minutes=index * 10))
+
+        capped = await runs_in_window(uow.run_traces, since=at(0), limit=2, max_pages=2)
+
+    assert [entry.run_id for entry in capped] == ["run-4", "run-3", "run-2"]
 
 
 async def test_an_oversized_body_is_refused_rather_than_stored(

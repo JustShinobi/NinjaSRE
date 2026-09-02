@@ -36,18 +36,28 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Final, Protocol, runtime_checkable
 
 from config.constants.observation import (
     MAX_INCIDENT_PAGE_SIZE,
     MAX_INCIDENT_SUBJECTS,
+    MAX_INCIDENT_SWEEP_PAGES,
     MAX_INCIDENT_TIMELINE,
 )
-from config.constants.persistence import MAX_IDENTIFIER_CHARS
+from config.constants.persistence import (
+    MAX_IDENTIFIER_CHARS,
+    STORED_TIMESTAMP_RESOLUTION_MICROSECONDS,
+)
 from platform.persistence.errors import BoundExceeded
+
+#: How far past an instant a backwards walk resumes, so that an exclusive
+#: upper bound covers the instant itself. One tick of the stored resolution:
+#: any smaller and the bound would not move, any larger and it would step
+#: over incidents that opened between the two.
+_RESUME_STEP: Final = timedelta(microseconds=STORED_TIMESTAMP_RESOLUTION_MICROSECONDS)
 
 
 class IncidentState(StrEnum):
@@ -283,7 +293,14 @@ class IncidentQuery:
     detector_ids: tuple[str, ...] = ()
     subject_id: str = ""
     team_node_id: str | None = None
+    #: The window an incident opened in, half-open: ``opened_after`` is
+    #: inclusive and ``opened_before`` is exclusive, the same shape
+    #: ``RunTraceStore.list_runs`` reads a window in. Exclusive at the top is
+    #: what makes a descending listing resumable — a caller walking backwards
+    #: hands the oldest instant it read back as ``opened_before``, and an
+    #: inclusive bound would return that incident on every page.
     opened_after: datetime | None = None
+    opened_before: datetime | None = None
     #: Closed incidents are included by default, because "what happened last
     #: night" is the question an incident list is most often opened to answer.
     live_only: bool = False
@@ -443,7 +460,9 @@ def matches(incident: Incident, query: IncidentQuery) -> bool:
         return False
     if query.team_node_id is not None and incident.team_node_id != query.team_node_id:
         return False
-    return not (query.opened_after is not None and incident.opened_at < query.opened_after)
+    if query.opened_after is not None and incident.opened_at < query.opened_after:
+        return False
+    return not (query.opened_before is not None and incident.opened_at >= query.opened_before)
 
 
 @runtime_checkable
@@ -515,6 +534,53 @@ class IncidentStore(Protocol):
         """
 
 
+async def incidents_in_window(
+    store: IncidentStore,
+    query: IncidentQuery,
+    *,
+    max_pages: int = MAX_INCIDENT_SWEEP_PAGES,
+) -> tuple[Incident, ...]:
+    """Return every incident ``query`` matches, paging past the page bound.
+
+    The answer to "a KPI over the whole window resolves against its first
+    page" — the overview's tiles read one page of incidents and rendered its
+    size as the fortnight's total. ``whole_estate`` is the same idea against
+    ``EstateRepository``, and this is deliberately its shape rather than a
+    second one.
+
+    It walks ``opened_before`` backwards, because an incident listing has no
+    keyset cursor to walk. The resume point is the oldest instant the previous
+    page reached, taken *inclusively* so incidents sharing that instant survive
+    the page boundary, with what was already collected dropped by identity. A
+    page that lies entirely inside one instant is the exception: resuming on it
+    would return the same page for ever, so the walk steps strictly past that
+    instant. Incidents beyond the page bound at that one instant are then
+    unreachable through this port — losing them is worse than stopping only if
+    you also lose the rest of the window, and stopping is what would.
+
+    ``max_pages`` is a bound and not a formality: a walk with no ceiling turns a
+    window somebody filled into a request that never returns. Reaching it
+    returns what was read rather than raising, for the reason ``whole_estate``
+    gives — a caller wants the incidents it got — and what comes back is then a
+    newest-first prefix of the window rather than the window. The count is not
+    an exact tell of that, because a resumed page re-reads the instant it
+    resumed on; the ceiling sits far above any fortnight this serves so the
+    question does not arise.
+    """
+    limit = check_incident_limit(query.limit)
+    collected: dict[str, Incident] = {}
+    cursor = query.opened_before
+    for _ in range(max_pages):
+        page = await store.query(replace(query, opened_before=cursor, limit=limit))
+        for incident in page:
+            collected.setdefault(incident.incident_id, incident)
+        if len(page) < limit:
+            break
+        oldest = page[-1].opened_at
+        cursor = oldest if page[0].opened_at == oldest else oldest + _RESUME_STEP
+    return tuple(collected.values())
+
+
 __all__ = [
     "INCIDENT_PUBLIC_ID_PREFIX",
     "SYSTEM_ACTOR",
@@ -529,6 +595,7 @@ __all__ = [
     "check_incident_limit",
     "check_timeline_limit",
     "incident_key",
+    "incidents_in_window",
     "is_public_incident_id",
     "matches",
     "public_incident_id",

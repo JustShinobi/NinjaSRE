@@ -155,6 +155,14 @@ MAX_INCIDENT_TIMELINE: Final[int] = 500
 #: Incidents one listing may return.
 MAX_INCIDENT_PAGE_SIZE: Final[int] = 200
 
+#: How many pages a whole-window incident pass walks before it stops. The
+#: ceiling under "page until the window runs out": at the page bound above this
+#: is 5,000 incidents in one window, far past any fortnight a deployment this
+#: platform is aimed at survives, and still a number rather than "until it
+#: ends". A pass with no ceiling turns a noisy fortnight into a request that
+#: never returns.
+MAX_INCIDENT_SWEEP_PAGES: Final[int] = 25
+
 #: How long a closed incident is kept. Longer than a run trace, because "has
 #: this happened before" is asked months later.
 RETENTION_DAYS_INCIDENTS: Final[int] = 180
@@ -210,6 +218,7 @@ __all__ = [
     "MAX_DISPATCHES_PER_TEAM_PER_HOUR",
     "MAX_INCIDENT_PAGE_SIZE",
     "MAX_INCIDENT_SUBJECTS",
+    "MAX_INCIDENT_SWEEP_PAGES",
     "MAX_INCIDENT_TIMELINE",
     "MAX_SIGNAL_PAGE_SIZE",
     "MIN_DETECTOR_DURATION_SECONDS",

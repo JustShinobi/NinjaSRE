@@ -103,6 +103,17 @@ MIGRATION_BACKFILL_BATCH_SIZE: Final[int] = 5_000
 #: query.
 MAX_QUERY_PAGE_SIZE: Final[int] = 200
 
+#: How many pages a whole-window run pass walks before it stops. Same shape and
+#: same reasoning as the incident sweep: at the page bound above this is 5,000
+#: runs in one window, and a walk with no ceiling is one that never returns.
+MAX_RUN_SWEEP_PAGES: Final[int] = 25
+
+#: The finest gap two stored instants can differ by. PostgreSQL's ``timestamptz``
+#: and Python's ``datetime`` both hold microseconds, so shifting an exclusive
+#: upper bound by exactly this much makes it inclusive — which is what lets a
+#: descending walk resume on an instant without dropping the rows that share it.
+STORED_TIMESTAMP_RESOLUTION_MICROSECONDS: Final[int] = 1
+
 #: Ceiling on one JSONB payload — a trace turn, an evidence body, a session
 #: snapshot. PostgreSQL would TOAST far more than this without complaint, which
 #: is the problem: an unbounded evidence blob is discovered at restore time.
@@ -219,6 +230,7 @@ __all__ = [
     "MAX_JOB_CLAIM_BATCH",
     "MAX_JSONB_PAYLOAD_BYTES",
     "MAX_QUERY_PAGE_SIZE",
+    "MAX_RUN_SWEEP_PAGES",
     "MAX_VECTOR_TOP_K",
     "MIGRATION_ADVISORY_LOCK_KEY",
     "MIGRATION_BACKFILL_BATCH_SIZE",
@@ -234,6 +246,7 @@ __all__ = [
     "RETENTION_DAYS_RUN_TRACES",
     "RETENTION_DAYS_SESSIONS",
     "RETENTION_EXEMPT_DATA_CLASSES",
+    "STORED_TIMESTAMP_RESOLUTION_MICROSECONDS",
     "TOPOLOGY_GRAPH_NAME",
     "VECTOR_SEARCH_LATENCY_BUDGET_MS",
 ]

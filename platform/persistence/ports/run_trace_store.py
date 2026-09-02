@@ -22,9 +22,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Final, Protocol, runtime_checkable
+
+from config.constants.persistence import (
+    MAX_QUERY_PAGE_SIZE,
+    MAX_RUN_SWEEP_PAGES,
+    STORED_TIMESTAMP_RESOLUTION_MICROSECONDS,
+)
+
+#: How far past an instant a backwards walk resumes, so that an exclusive
+#: upper bound covers the instant itself. One tick of the stored resolution:
+#: any smaller and the bound would not move, any larger and it would step over
+#: runs that started between the two.
+_RESUME_STEP: Final = timedelta(microseconds=STORED_TIMESTAMP_RESOLUTION_MICROSECONDS)
 
 
 class RunStatus(StrEnum):
@@ -311,6 +323,60 @@ class RunTraceStore(Protocol):
         """
 
 
+async def runs_in_window(
+    store: RunTraceStore,
+    *,
+    status: RunStatus | None = None,
+    alert_id: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = MAX_QUERY_PAGE_SIZE,
+    max_pages: int = MAX_RUN_SWEEP_PAGES,
+) -> tuple[AgentRun, ...]:
+    """Return every run in ``[since, until)``, paging past the page bound.
+
+    The answer to "a rate over the whole window resolves against its first
+    page": ``list_runs`` returns at most ``MAX_QUERY_PAGE_SIZE`` runs, newest
+    first, so a fortnight busier than one page was being counted over its
+    newest page and reported as the fortnight.
+
+    No cursor beyond the window itself is needed. ``until`` is exclusive, so
+    each page resumes at the oldest start time it reached — taken *inclusively*,
+    by one tick of the stored resolution, so runs sharing that instant survive
+    the page boundary — with what was already collected dropped by identity. A
+    page lying entirely inside one instant is the exception: resuming on it
+    would return the same page for ever, so the walk steps strictly past that
+    instant, and runs beyond the page bound at that one instant are unreachable
+    through this port. Losing them beats stopping, which would lose the rest of
+    the window as well.
+
+    ``max_pages`` is a bound and not a formality: reaching it returns what was
+    read rather than raising, and what comes back is then a newest-first prefix
+    of the window rather than the window. The count is not an exact tell of
+    that, because a resumed page re-reads the instant it resumed on; the
+    ceiling sits far above any window this serves so the question does not
+    arise.
+    """
+    collected: dict[str, AgentRun] = {}
+    cursor = until
+    for _ in range(max_pages):
+        page = await store.list_runs(
+            status=status, alert_id=alert_id, since=since, until=cursor, limit=limit
+        )
+        for run in page:
+            collected.setdefault(run.run_id, run)
+        if len(page) < limit:
+            break
+        oldest = page[-1].started_at
+        newest = page[0].started_at
+        if oldest is None or newest is None:
+            # Only an unfiltered listing returns a run that never started, and
+            # such a run has no place on a time cursor.
+            break
+        cursor = oldest if newest == oldest else oldest + _RESUME_STEP
+    return tuple(collected.values())
+
+
 __all__ = [
     "AgentRun",
     "EvidenceRecord",
@@ -321,4 +387,5 @@ __all__ = [
     "ToolCallStatus",
     "TraceEventRecord",
     "TurnRecord",
+    "runs_in_window",
 ]

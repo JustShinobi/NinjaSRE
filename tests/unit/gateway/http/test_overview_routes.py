@@ -9,18 +9,38 @@ requested it, which the route table (`tests/security/test_route_permissions
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
 
 from config.constants.estate import MAX_OVERVIEW_DAILY_BUCKETS
+from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
+from config.constants.persistence import MAX_QUERY_PAGE_SIZE
 from platform.persistence.ports.estate_repository import HealthDerivation, Resource, ResourceHealth
 from platform.persistence.ports.estate_snapshot_store import EstateDailySnapshot
+from platform.persistence.ports.incident_store import (
+    Incident,
+    IncidentOrigin,
+    IncidentState,
+    IncidentSubject,
+    incident_key,
+    public_incident_id,
+)
+from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
 from platform.persistence.ports.transaction import TenantScope
 from tests.unit.gateway.http.conftest import ORG, Deployment, issue_token
 
 pytestmark = pytest.mark.anyio
+
+#: How far past one page the window-wide fixture reaches. Small enough that
+#: seeding is quick, large enough that a first-page read and a whole-window
+#: read cannot round to the same figure.
+_BEYOND_ONE_PAGE = 30
+
+#: The one run that took an hour rather than a minute. It sits among the
+#: oldest, so it is only reachable once the read has drained the window.
+_SLOWEST_RUN_SECONDS = 3600.0
 
 
 def _now() -> datetime:
@@ -124,3 +144,83 @@ async def test_the_daily_series_never_exceeds_the_declared_bucket_bound(
 
     body = response.json()
     assert len(body["watched"]["series"]) <= MAX_OVERVIEW_DAILY_BUCKETS
+
+
+async def _seed_more_than_one_page(deployment: Deployment, *, now: datetime) -> None:
+    """Fill the window with more incidents and more runs than one page returns.
+
+    The extras are the *oldest* items and they are the ones that differ: a
+    read that stops at the first page sees only the newest, so every figure
+    below has two possible answers and only one of them is the window's.
+    """
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        for index in range(MAX_INCIDENT_PAGE_SIZE + _BEYOND_ONE_PAGE):
+            opened_at = now - timedelta(minutes=index + 5)
+            internal_id = incident_key(f"detector:disk-{index}", opened_at)
+            await uow.incidents.upsert(
+                Incident(
+                    incident_id=internal_id,
+                    correlation_key=f"detector:disk-{index}",
+                    title="Datastore near full",
+                    summary="store-cove is 95.65% full",
+                    origin=IncidentOrigin.DETECTOR,
+                    origin_id="datastore-near-full",
+                    severity="critical",
+                    state=IncidentState.RESOLVED,
+                    opened_at=opened_at,
+                    subjects=(
+                        IncidentSubject(
+                            resource_id="store-cove",
+                            detail="store-cove is 95.65% full",
+                            evidence={"used_percent": "95.65"},
+                            observed_at=opened_at,
+                        ),
+                    ),
+                    closed_at=opened_at + timedelta(minutes=1),
+                    self_resolved=index >= MAX_INCIDENT_PAGE_SIZE,
+                    public_id=public_incident_id(internal_id),
+                )
+            )
+
+        for index in range(MAX_QUERY_PAGE_SIZE + _BEYOND_ONE_PAGE):
+            started_at = now - timedelta(minutes=index + 5)
+            failed = index >= MAX_QUERY_PAGE_SIZE
+            seconds = _SLOWEST_RUN_SECONDS if index == MAX_QUERY_PAGE_SIZE else 60.0
+            await uow.run_traces.start_run(
+                AgentRun(
+                    run_id=f"run-{index:04d}",
+                    trigger="alert",
+                    status=RunStatus.FAILED if failed else RunStatus.COMPLETED,
+                    started_at=started_at,
+                    finished_at=started_at + timedelta(seconds=seconds),
+                )
+            )
+
+
+async def test_the_kpis_are_computed_over_the_whole_window_not_its_first_page(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """A tile says "N de M": M has to be the window, not the page that was read.
+
+    Both listings behind these KPIs are capped at one page and both come back
+    newest first, so an organisation with more than a page of activity in the
+    window would otherwise read its busiest fortnight as exactly one page of
+    it — a total the deployment never measured, presented as one it did.
+    """
+    now = _now()
+    await _seed_more_than_one_page(deployment, now=now)
+    incidents = MAX_INCIDENT_PAGE_SIZE + _BEYOND_ONE_PAGE
+    runs = MAX_QUERY_PAGE_SIZE + _BEYOND_ONE_PAGE
+
+    response = await client.get("/v1/overview", headers=await _headers(deployment))
+
+    body = response.json()
+    assert body["self_resolved"]["breakdown"]["total"] == incidents
+    assert body["self_resolved"]["breakdown"]["self_resolved"] == _BEYOND_ONE_PAGE
+    assert body["self_resolved"]["value"] == round(100 * _BEYOND_ONE_PAGE / incidents, 1)
+    assert body["success_rate"]["breakdown"]["total"] == runs
+    assert body["success_rate"]["breakdown"]["succeeded"] == MAX_QUERY_PAGE_SIZE
+    assert body["success_rate"]["value"] == round(100 * MAX_QUERY_PAGE_SIZE / runs, 1)
+    # The slowest run is one of the oldest, so a first-page read reports the
+    # ordinary minute as the worst case the fortnight held.
+    assert body["time_to_cause"]["breakdown"]["worst_seconds"] == _SLOWEST_RUN_SECONDS
