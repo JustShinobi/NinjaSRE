@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import socket
+import time
 import urllib.error
 import urllib.request
 from collections.abc import AsyncIterator
@@ -19,6 +20,8 @@ import pytest
 
 from tools.mockplane.scenarios import Override
 from tools.mockplane.server import (
+    DEPLOYMENT_STREAM_DISRUPTION_SECONDS,
+    DROP_DEPLOYMENT_STREAM_PATH,
     SESSION_HEADER,
     MockPlane,
     OutboundRequestRefused,
@@ -252,7 +255,14 @@ def test_a_write_is_reflected_in_the_next_read(mock: MockPlane) -> None:
     mock.answer("POST", "/v1/investigations", body={"objective": "look at the volume"})
     after = json.loads(mock.answer("GET", "/v1/runs").body)["runs"]
     assert len(after) == before + 1
-    assert after[0]["run_id"] == "run-0007"
+    # A suffix, not the fixture's bare identity: a second call in the same
+    # session must not prepend the same `run_id` a second time, because the
+    # run band keys its cards by exactly that field and two list entries
+    # sharing one React key is undefined reconciliation, once observed for
+    # real. The response a caller reads back is untouched — this is what
+    # this *session's own list* remembers about the write afterwards.
+    assert after[0]["run_id"].startswith("run-0007-")
+    assert after[0]["run_id"] != "run-0007"
 
 
 def test_approving_an_interaction_closes_it_on_the_next_read(mock: MockPlane) -> None:
@@ -372,6 +382,21 @@ async def test_a_reset_forgets_counts_too(mock: MockPlane) -> None:
     await call(mock, "GET", "/v1/runs")
     mock.reset()
     assert mock.request_counts() == {}
+
+
+async def test_the_drop_deployment_stream_route_sets_a_disruption_deadline(
+    mock: MockPlane,
+) -> None:
+    """`POST DROP_DEPLOYMENT_STREAM_PATH` is a control route too: answered
+    before the gateway's own routing, the same as `/requests`, and it never
+    touches a fixture."""
+    before = time.monotonic()
+    status, body, _ = await call(mock, "POST", DROP_DEPLOYMENT_STREAM_PATH)
+    assert status == 204
+    assert body == b""
+    deadline = mock.session().deployment_stream_disrupted_until
+    assert deadline is not None
+    assert before < deadline <= time.monotonic() + DEPLOYMENT_STREAM_DISRUPTION_SECONDS
 
 
 # --- Determinism ------------------------------------------------------------------

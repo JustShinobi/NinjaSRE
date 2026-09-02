@@ -219,10 +219,10 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
 
       {may(viewer, TOKENS) ? (
         <Panel
-          title={message(locale, 'admin.column.active')}
+          title={message(locale, 'admin.sessions.title')}
           state={stateOf(tokens, liveSessions.length === 0)}
           dependency={dependencyOf(tokens)}
-          labels={panelLabels(locale, message(locale, 'admin.column.active'))}
+          labels={panelLabels(locale, message(locale, 'admin.sessions.title'))}
           empty={emptyState}
         >
           <SessionPanel

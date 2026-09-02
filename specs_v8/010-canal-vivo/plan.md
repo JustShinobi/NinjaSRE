@@ -101,6 +101,8 @@ gateway/http/routes/events.py        # NOVO: GET /v1/events/stream
 gateway/http/security/…              # declaração da rota nova na tabela do domínio
 gateway/…(estado do gateway)         # composição dos 4 itens acima
 config/constants/runs.py             # DEPLOYMENT_STREAM_BUFFER_EVENTS, SSE_KEEPALIVE_SECONDS
+tools/mockplane/server.py            # caminho de stream não-escopado-por-run + cursor época:sequência
+tools/mockplane/endpoints.py         # o endpoint novo declarado como streaming
 console/src/live/deployment.ts       # NOVO: conexão do canal (reusa connection.ts)
 console/src/live/auto-refresh.tsx    # timer vira fallback; chip mapeia ConnectionState→Freshness
 console/tests/unit/live/…            # deployment.test.ts, auto-refresh fallback

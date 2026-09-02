@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, select
 from sqlalchemy.dialects.postgresql import insert
 
 from config.constants.observation import MAX_INCIDENT_TIMELINE
@@ -121,37 +121,12 @@ class PostgresIncidentStore(TenantBound):
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
         """Return the incidents matching ``query``, most recently opened first."""
         limit = check_incident_limit(query.limit)
-        statement = select(models.IncidentRow).where(models.IncidentRow.org_id == self.org_id)
-
-        if query.live_only:
-            statement = statement.where(models.IncidentRow.closed_at.is_(None))
-        if query.states:
-            statement = statement.where(
-                models.IncidentRow.state.in_([state.value for state in query.states])
-            )
-        if query.origins:
-            statement = statement.where(
-                models.IncidentRow.origin.in_([origin.value for origin in query.origins])
-            )
-        if query.severities:
-            statement = statement.where(models.IncidentRow.severity.in_(query.severities))
-        if query.detector_ids:
-            statement = statement.where(models.IncidentRow.origin_id.in_(query.detector_ids))
-        if query.team_node_id is not None:
-            statement = statement.where(models.IncidentRow.team_node_id == query.team_node_id)
-        if query.opened_after is not None:
-            statement = statement.where(models.IncidentRow.opened_at >= query.opened_after)
-
-        statement = statement.order_by(
-            models.IncidentRow.opened_at.desc(), models.IncidentRow.incident_id.desc()
-        )
-        found = await self.session.execute(statement)
+        found = await self.session.execute(_statement(self.org_id, query, limit=limit))
         incidents = [_incident(row) for row in found.scalars()]
 
-        # Applied here rather than in SQL: a subject filter over a JSONB list
-        # needs a containment operator and an index nothing else would use, and
-        # the page is already bounded by the time it reaches this line.
-        if query.subject_id:
+        # The one filter SQL did not apply — see ``_statement`` for why, and for
+        # why the page it produced is unbounded whenever this branch is taken.
+        if _filtered_after_the_fetch(query):
             incidents = [
                 incident for incident in incidents if query.subject_id in incident.subject_ids
             ]
@@ -207,6 +182,66 @@ class PostgresIncidentStore(TenantBound):
             )
         )
         return rows_affected(removed)
+
+
+def _filtered_after_the_fetch(query: IncidentQuery) -> bool:
+    """Return whether ``query`` carries a filter the listing applies in Python.
+
+    ``subject_id`` is the only one, and it is one because a subject is a value
+    inside a JSONB list rather than a column: matching it in SQL needs a
+    containment operator over ``subjects`` and a GIN index that no other query
+    here would ever use.
+    """
+    return bool(query.subject_id)
+
+
+def _statement(
+    org_id: str, query: IncidentQuery, *, limit: int
+) -> Select[tuple[models.IncidentRow]]:
+    """Return the listing ``query`` reads, newest first and bounded where it can be.
+
+    Every dimension but one is a column, so every dimension but one is a
+    ``WHERE``: the window, the states, the origins, the severities, the
+    detectors, the team, and whether the incident is still live. The exception
+    is ``subject_id``, which ``_filtered_after_the_fetch`` names and the caller
+    applies to the rows this returns.
+
+    That split is what decides the bound. With no post-fetch filter the page is
+    exactly the first ``limit`` rows of this ordering, so the ``LIMIT`` belongs
+    here and the database stops reading at it — which is what keeps a sweep
+    that drains a window page by page from re-reading the whole window on every
+    page. With a post-fetch filter it must not: the rows a ``LIMIT`` would cut
+    away are the ones the subject filter still has to look at, and bounding the
+    read would silently return a short page, or none at all, for an
+    organisation whose matching incident sits behind a busier one.
+    """
+    statement = select(models.IncidentRow).where(models.IncidentRow.org_id == org_id)
+
+    if query.live_only:
+        statement = statement.where(models.IncidentRow.closed_at.is_(None))
+    if query.states:
+        statement = statement.where(
+            models.IncidentRow.state.in_([state.value for state in query.states])
+        )
+    if query.origins:
+        statement = statement.where(
+            models.IncidentRow.origin.in_([origin.value for origin in query.origins])
+        )
+    if query.severities:
+        statement = statement.where(models.IncidentRow.severity.in_(query.severities))
+    if query.detector_ids:
+        statement = statement.where(models.IncidentRow.origin_id.in_(query.detector_ids))
+    if query.team_node_id is not None:
+        statement = statement.where(models.IncidentRow.team_node_id == query.team_node_id)
+    if query.opened_after is not None:
+        statement = statement.where(models.IncidentRow.opened_at >= query.opened_after)
+    if query.opened_before is not None:
+        statement = statement.where(models.IncidentRow.opened_at < query.opened_before)
+
+    statement = statement.order_by(
+        models.IncidentRow.opened_at.desc(), models.IncidentRow.incident_id.desc()
+    )
+    return statement if _filtered_after_the_fetch(query) else statement.limit(limit)
 
 
 def _row(org_id: str, incident: Incident) -> dict[str, Any]:

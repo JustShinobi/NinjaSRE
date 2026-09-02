@@ -658,3 +658,60 @@ async def test_a_whole_estate_pass_keeps_every_filter_the_query_declares(
         found = await whole_estate(uow.estate, EstateQuery(sources=("proxmox",), limit=1))
 
     assert [resource.resource_id for resource in found] == ["res-0", "res-2"]
+
+
+async def test_get_many_returns_every_id_it_holds_and_omits_the_ones_it_does_not(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The batched read a listing page resolves its parents' names with."""
+    async with gateway.begin(scope) as uow:
+        await uow.estate.upsert(resource("r-1", display_name="checkout-api"))
+        await uow.estate.upsert(resource("r-2", display_name="billing-api"))
+        await uow.estate.upsert(resource("r-3", display_name="search-api"))
+
+        found = await uow.estate.get_many(("r-1", "r-3", "r-never-discovered"))
+
+    assert {key: value.display_name for key, value in found.items()} == {
+        "r-1": "checkout-api",
+        "r-3": "search-api",
+    }
+
+
+async def test_get_many_of_an_empty_selection_is_an_empty_mapping(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        found = await uow.estate.get_many(())
+    assert found == {}
+
+
+async def test_unhealthy_since_reads_the_most_recent_transition_into_unhealthy(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A resource's "since" is the newest transition into UNHEALTHY, batched."""
+    async with gateway.begin(scope) as uow:
+        await uow.estate.upsert(resource("r-1"))
+        await uow.estate.upsert(resource("r-2"))
+        await uow.estate.upsert(resource("r-3"))
+        await uow.estate.record_health("r-1", derivation(ResourceHealth.HEALTHY, minutes=0))
+        await uow.estate.record_health("r-1", derivation(ResourceHealth.UNHEALTHY, minutes=5))
+        # A later recovery and a second fall: "since" tracks the *current*
+        # streak, not the first time this resource was ever unhealthy.
+        await uow.estate.record_health("r-1", derivation(ResourceHealth.HEALTHY, minutes=10))
+        await uow.estate.record_health("r-1", derivation(ResourceHealth.UNHEALTHY, minutes=20))
+        await uow.estate.record_health("r-2", derivation(ResourceHealth.UNHEALTHY, minutes=7))
+        # r-3 stays healthy and must not appear in the mapping at all.
+        await uow.estate.record_health("r-3", derivation(ResourceHealth.HEALTHY, minutes=1))
+
+        since = await uow.estate.unhealthy_since(("r-1", "r-2", "r-3"))
+
+    assert since == {"r-1": at(20), "r-2": at(7)}
+    assert "r-3" not in since
+
+
+async def test_unhealthy_since_of_an_empty_selection_is_an_empty_mapping(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        since = await uow.estate.unhealthy_since(())
+    assert since == {}

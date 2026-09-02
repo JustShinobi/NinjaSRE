@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
 import { Badge, ResolvedChip } from '@/components/status';
+import type { Locale } from '@/i18n/messages';
 import { statusPresentation } from '@/design/status';
 
 /**
@@ -127,6 +128,8 @@ export interface AutonomyLabels {
 
 export interface AutonomyEditorProps {
   readonly nodeId: string;
+  /** The viewer's language, for the decisions the product knows. */
+  readonly locale?: Locale | undefined;
   readonly rules: readonly EditableRule[];
   /** The levels the deployment declares, in the order it declares them. */
   readonly levels: readonly string[];
@@ -271,6 +274,7 @@ function matcherFor(
 /** Edit the posture, see what it would have decided differently, then save it. */
 export function AutonomyEditor({
   nodeId,
+  locale,
   rules,
   levels,
   levelLabels,
@@ -855,7 +859,7 @@ export function AutonomyEditor({
               <div className="flex items-center gap-2">
                 <dt className="text-meta text-muted">{labels.decision}</dt>
                 <dd className="flex items-center gap-2">
-                  <Badge status={explanation.decision} />
+                  <Badge status={explanation.decision} locale={locale} />
                   <ResolvedChip
                     role={statusPresentation(explanation.level).role}
                     shape={statusPresentation(explanation.level).shape}

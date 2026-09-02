@@ -27,13 +27,14 @@
     {
       "id": "agent-1440-light",
       "route": "/agent?tab=topology",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced agent settings” section, holding the budgets this tab already printed but could not change, the three per-role prompt overrides, the operating-context switch and the subagent roster. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "The Pipeline tab gained the metro-line hero and the three summary cards this feature adds; the committed image predates both and no longer represents this route. Since then, the tab itself was also renamed from \"Topology\" to \"Pipeline\" (the board's own word) and the metro line gained the rail joining its six nodes, which the committed image has neither of. Since then again, the six stages also stopped drawing as bare icons: each now sits inside a large, fully-rounded, ringed well, coloured for whichever of passed, running or not-yet-reached it draws — with no run in flight on any real dataset this suite or staging carries, every well draws not-yet-reached today, which the committed image (six plain glyphs with nothing around them) does not show at all."
     },
     {
       "id": "agent-autonomy-1440-light",
@@ -102,26 +103,52 @@
       }
     },
     {
+      "id": "dashboard-1440-dark",
+      "route": "/",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The Painel's own content rather than the shell around it (see shell-1440-dark for the frame): the \"Em execu\u00e7\u00e3o agora\" run band with a stage bar per card, the \"precisa de voc\u00ea\" decision band with the plan and the reversal visible before either control, the five KPI tiles with sparkline and decomposition, \"o que insiste em acontecer\" as a per-subject strip, and \"atividade ao vivo\" as a shaped vertical timeline. Did not exist as its own registered screen before this feature -- the four existing \"shell-*\" entries at this route deliberately compare only the frame around it, so the body this feature rebuilt had no baseline of its own to fail against."
+      },
+      "pending_because": "New content, first capture pending review against design/padrao-2026-08/Main.dc.html -- not to be supplied by this feature's own gate run (the LLM visual review and the baseline acceptance belong to the orchestrator's Orca Browser gate, per specs_v8/EXECUCAO.md \u00a73)."
+    },
+    {
+      "id": "dashboard-1440-light",
+      "route": "/",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The same content as dashboard-1440-dark, under the light token set. Did not exist as its own registered screen before this feature."
+      },
+      "pending_because": "New content, first capture pending review against design/padrao-2026-08/DashboardLight.dc.html -- not to be supplied by this feature's own gate run (the LLM visual review and the baseline acceptance belong to the orchestrator's Orca Browser gate, per specs_v8/EXECUCAO.md \u00a73)."
+    },
+    {
       "id": "decisions-1440-light",
       "route": "/decisions?tab=actions",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "04-screen-incident.png",
         "reason": "The Actions tab — what used to be the whole of Approvals, now the default of one fused screen. The proposal card, reviewed against the reference's: all eight fields — target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy — in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data. Not yet re-reviewed at this address: needs recapturing before it protects the fused screen. Recaptured and reviewed as an image on 2026-08-25, after the card gained the controls a decision is actually made with: Approve, Reject held disabled until a reason is typed, and the reason field above them. Before this the Actions tab passed controls only for an approval that matched a live agent interaction, so a remediation the gate had queued — which raises no interaction — drew a card saying 'awaiting your decision' with nothing on it to decide with. Measured against staging the same day: a pending approval with fifteen minutes left and zero buttons in the page body. What the image also shows and this reason does not endorse: the card grouped under 'Past its expiry' carries the same Approve control as the live one, and whether an expired proposal should offer it is an open question this baseline freezes rather than answers."
-      }
+      },
+      "pending_because": "The card is no longer the eight-field block the committed image shows. It now states the action by field the way the board draws it, and an expired proposal carries a way out — propose again from a fresh reading, or discard — instead of the Approve control the old baseline froze as an open question rather than answering."
     },
     {
       "id": "decisions-changes-1440-light",
       "route": "/decisions?tab=changes",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Changes tab — what used to be the whole of Proposed changes, now the sibling tab of Actions rather than a separate menu entry. The emphasis is the point: a proposal awaiting a human must not read like a completed one. First capture at this address: needs recapturing before it protects anything."
-      }
+      },
+      "pending_because": "The tab bar and this tab's pills were re-dressed to the board's own shapes, so the committed image no longer depicts what the screen renders."
     },
     {
       "id": "first-run-1440-light",
@@ -213,6 +240,18 @@
       }
     },
     {
+      "id": "incidents-1440-light",
+      "route": "/incidents",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": ""
+      },
+      "pending_because": "No baseline ever existed for the grouped incidents list at this address -- confirmed absent by this feature's own Phase 0 reading of this file before any code changed. Registered here now that the screen this feature builds exists; needs a first reviewed capture."
+    },
+    {
       "id": "integrations-1440-light",
       "route": "/integrations",
       "status": "baselined",
@@ -237,24 +276,26 @@
     {
       "id": "knowledge-1440-light",
       "route": "/knowledge",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Documents tab, and the default one now that Knowledge, Memory and Topology are three tabs of a single screen. The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "The bare address now opens on Learned (FR-010), not Documents -- the committed image is a capture of a tab this address no longer shows by default."
     },
     {
       "id": "knowledge-learned-1440-light",
       "route": "/knowledge?tab=learned",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
+      },
+      "pending_because": "Learned is now cards with a grouped component filter and a side panel reading the proposal queue, replacing the row-table capture committed here. Since that capture, the episode outcome also gained a proper dot and chip through the shared status vocabulary (data-role on both), where it used to be a hand-rolled resolved/not-resolved shape with neither."
     },
     {
       "id": "knowledge-topology-1440-light",
@@ -270,24 +311,26 @@
     {
       "id": "resources-1440-light",
       "route": "/resources",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "05-screen-estate.png",
         "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
-      }
+      },
+      "pending_because": "The whole screen is now a segmented health bar, node sections and a card grid, replacing the flat sortable table the committed image shows. Each node section is capped at one row (nothing unhealthy) or two (something is), with a 'see all'/'see the unhealthy' link past the cap, so the page has a bounded height to capture in the first place."
     },
     {
       "id": "resources-320-light",
       "route": "/resources",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 320,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
-      }
+      },
+      "pending_because": "Same replacement as resources-1440-light, at the narrowest declared width. The S1 baseline debt (T029 in this feature's own tasks.md) said a virtualised table never captured in full; the card grid inherited the same failure for a different reason -- it drew every resource on every node with no cap, 59 cards for one node alone, 3230px tall, so nothing fit in a capture window here either. Closed by capping each node section at one row when nothing on it is unhealthy and two when something is, with a 'see all'/'see the unhealthy' link where the board draws one. Still needs its first real capture of the capped layout."
     },
     {
       "id": "run-detail-1440-dark",
@@ -296,8 +339,8 @@
       "viewport": 1440,
       "theme": "dark",
       "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured under the dark token set and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+        "against": null,
+        "reason": "A settled run: the six-stage pipeline rail on top (no active ring, each stage its own duration), the transcript narrated by default with the raw payload behind a closed disclosure and the Narrado/Bruto toggle, and the rail's three panels — Descobertas até agora, Custo e tokens, O que tocou — read from the same replay the transcript is. First capture of the narrated run view; the previous baseline described the JSON-block transcript this feature replaces."
       }
     },
     {
@@ -307,8 +350,19 @@
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Recaptured in light and the pixels are byte-for-byte the committed image, which corrects the reason this entry was held: it was said to predate the headline/report feature, and it does not. The picture is current. What it shows and this entry claimed: one transcript entry per event with its kind in words beside a coloured well, a capability call with its arguments bounded and the full payload one control away, the change ruler carrying a real changes_in_window answer with both commits and the sentence, cost apportioned per turn under a line saying it is an apportionment, and no live-only control on a settled run. Two claims of the older reason are NOT in the picture and are recorded rather than quietly dropped: there is no guardrail entry at danger weight in this transcript, and the title is 'alert investigation' — a generic label, not a sentence — while the report body one line below carries a perfectly good one. The fixture stores that label in the headline field, so this baseline cannot demonstrate 'a title that is a sentence'."
+        "against": null,
+        "reason": "The same settled run as the dark baseline, under the light token set. First capture of the narrated run view."
+      }
+    },
+    {
+      "id": "run-detail-live-1440-dark",
+      "route": "/runs/run-0003",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The live run baseline under the dark token set — the theme the board itself is drawn in. Did not exist before this feature; the live state only became worth a picture once the rail, the narrated transcript and the honest live panels existed to be in it."
       }
     },
     {
@@ -319,7 +373,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "A run still in progress: the live transcript over its own connection, the connection state, and — for a viewer who may steer it — the takeover and add-context controls the settled run-detail baselines never show, because a finished run offers none of them. No reference is drawn for this state on its own; the design documents one run-detail picture and this is the half of it a settled fixture id cannot reach. Held once and rejected, on the transcript card contradicting itself: the header counted the replay the server had read while the body drew the stream, so the card said “6 events” over “This investigation recorded no events.” Both halves read the live run now, and the picture is what that looks like — “0 events” beside a Reconnecting badge, over a body saying the same thing. Nought rather than six is the honest reading of this capture and not a loss: the fixture server answers reads and serves no stream, so nothing has arrived, and the badge beside the count is what says so. Reviewed image by image on 2026-08-26 against this entry's own criteria and accepted on what the picture shows. Two things the picture also shows, named here so accepting it does not read as endorsing them. The sidebar's group labels are sentence case — “The environment”, “Settings” — where every other committed baseline still has them shouting; that is the design change that stopped the labels shouting, already committed, and no baseline has been recaptured for it yet, so this one is ahead of the rest of the set rather than the set being wrong. And the run's title is “alert investigation”, a generic label rather than a sentence, for the same reason the settled run-detail baselines carry it: the fixture stores that string in the headline field."
+        "reason": "A live run: the pipeline rail with the active stage's pulsing ring, the transcript still narrating from the stream, and the cost, findings and 'what it touched' panels reading the live state instead of the settled empty chrome. First capture of the narrated live view; the previous baseline predates the rail entirely and described a '0 events' reconnecting state this fixture no longer reaches with the stream carrying stage_completed events from the start."
       }
     },
     {
@@ -330,7 +384,18 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. Recaptured after the headline/report split, and the change is visible and is the improvement — four subjects now read as sentences the run itself produced rather than as a raw summary. Reviewed image by image on 2026-08-25 by the agent running the wave, against this entry's own criteria, and accepted on what the picture actually shows. Two things the picture also shows, named here so accepting it does not read as endorsing them: three rows carry the generic label 'alert investigation' as their subject, one of them a completed run that has a report; and one reads 'Alert · run-0101', an identifier standing in for a name. Both come from the fixture, which stores those strings in the headline field itself. This baseline freezes what the screen draws, which is its job; it does not claim the subjects are all sentences."
+        "reason": "The reformed list: live runs as their own band of cards with a six-segment stage bar and elapsed time, settled runs below as the existing accordion with a two-line headline, filters as chips. First capture of the reformed list; the previous baseline described the dropdown-filtered, single-line-subject table this feature replaces."
+      }
+    },
+    {
+      "id": "runs-1440-dark",
+      "route": "/runs",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The reformed list under the dark token set. Did not exist before this feature."
       }
     },
     {

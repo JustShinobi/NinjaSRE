@@ -1,6 +1,75 @@
 @import 'tailwindcss';
 
 /*
+ * The three families, served from this deployment's own origin.
+ *
+ * Eight files (`public/fonts/`), subset latin, licensed OFL and comitted
+ * beside their licence. `font-display: swap` holds each stack's own system
+ * fallback (`tokens.ts`'s `FONT_STACKS`) during the first paint, so a cold
+ * cache never collapses layout waiting for a woff2 that has not arrived yet.
+ * Nothing here is a network request: DIVERGENCIAS.md §2 turns the board's own
+ * `<link>` to `fonts.googleapis.com` into files this origin serves instead,
+ * which is what keeps the zero-egress property the rest of the console
+ * already holds.
+ */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
+/*
  * The Tailwind theme, which is the token table's second reader.
  *
  * Every entry here is a `var()` into a token and never a value: the values live
@@ -99,7 +168,8 @@
   --shadow-1: var(--elev-1);
   --shadow-2: var(--elev-2);
 
-  /* Families. Both come from the operating system; no font is fetched. */
+  /* Families. Self-hosted from this origin — see the @font-face block below. */
+  --font-display: var(--family-display);
   --font-sans: var(--family-sans);
   --font-mono: var(--family-mono);
 
@@ -158,6 +228,15 @@
 @utility edge-emphasis {
   border-width: var(--stroke-3);
   border-style: solid;
+}
+
+/* An `edge` drawn dashed — the "add one" affordance the board draws around
+   an area that does not exist yet. A modifier over `edge` rather than
+   Tailwind's own `border-dashed`, so the stroke width stays the declared
+   one and the colour still comes from a `border-{role}` token. */
+@utility edge-dashed {
+  border-width: var(--stroke-1);
+  border-style: dashed;
 }
 
 @utility motion-hover {
@@ -283,6 +362,20 @@
   height: var(--shell-topbar);
 }
 
+@utility max-w-search {
+  max-width: var(--shell-search);
+}
+
+/*
+ * The active navigation entry's own inner rule — an inset accent bar on the
+ * leading edge, its width read from the border scale (`stroke-3`, the same
+ * step an emphasis border already uses) rather than written a second time as
+ * a literal.
+ */
+@utility nav-active-bar {
+  box-shadow: inset var(--stroke-3) 0 0 var(--accent);
+}
+
 @layer base {
   *,
   *::before,
@@ -332,16 +425,35 @@
 }
 
 /*
- * A mark that says the thing behind it is still running.
+ * The three motion primitives the design board names: a mark that says the
+ * thing behind it is still running, a new item entering a live list, and the
+ * progress bar of whichever stage is active right now. Each is a keyframe and
+ * a utility class, its duration read from the token table (`--dur-pulse`,
+ * `--dur-slide`, `--dur-shimmer`) rather than written into the keyframe —
+ * changing the speed is changing the table, not hunting a number through
+ * three declarations.
  *
- * The ring expands out of the dot and fades, on the toast duration doubled —
- * slow enough to read as breathing rather than as blinking, which is what an
- * alarm does. It carries no meaning of its own: the word beside it says
- * whether the guardian is active, and this only says the page is describing
- * something live rather than something recorded.
+ * `pulse-live` predates this board: the ring expands out of the dot and
+ * fades, slow enough to read as breathing rather than as blinking, which is
+ * what an alarm does. It carries no meaning of its own — the word beside it
+ * says whether the thing is live — and it is the one primitive this feature
+ * already had a consumer for (`AutoRefresh`'s live mark, and the sidebar's own
+ * "arriving" mark). `slide-in` and `stage-shimmer` are new: a run card
+ * entering a live list slides down a few pixels while it fades in, and an active
+ * stage's own progress segment carries a gradient sliding along it. Neither
+ * has a consumer inside this feature — the shell has nowhere yet that a run
+ * card or a stage bar renders — so they are proved directly, as CSS rather
+ * than through a screen, and the features building those surfaces reach for
+ * them by name.
  *
- * The reduced-motion block above already removes it, by removal rather than by
- * shortening, so there is nothing further to declare here.
+ * The block below the three keyframes is what makes reduced motion an
+ * absolute rather than a duration of zero: the generic rule in `@layer base`
+ * already zeroes every transition and animation's *duration*, which silences
+ * how long they run but leaves `animation-name` pointing at the keyframe —
+ * `getComputedStyle(...).animationName` still names `ninjasre-pulse` even at
+ * zero duration. A viewer who asked for no motion is still owed "no
+ * animation", not "an animation that finishes instantly", so this sets
+ * `animation: none` outright for the three primitives specifically.
  */
 @utility pulse-live {
   position: relative;
@@ -366,6 +478,49 @@
   100% {
     transform: scale(3);
     opacity: 0;
+  }
+}
+
+@utility slide-in {
+  animation: ninjasre-slide-in var(--dur-slide) ease-out;
+}
+
+@keyframes ninjasre-slide-in {
+  from {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility stage-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--accent-bg) 0%,
+    var(--accent) 50%,
+    var(--accent-bg) 100%
+  );
+  background-size: var(--shimmer-sweep) 100%;
+  animation: ninjasre-stage-shimmer var(--dur-shimmer) linear infinite;
+}
+
+@keyframes ninjasre-stage-shimmer {
+  0% {
+    background-position: calc(var(--shimmer-sweep) / -2) 0;
+  }
+  100% {
+    background-position: calc(var(--shimmer-sweep) / 2) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-live-ring,
+  .slide-in,
+  .stage-shimmer {
+    animation: none;
   }
 }
 

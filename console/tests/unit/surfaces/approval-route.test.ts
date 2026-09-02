@@ -88,6 +88,24 @@ it('forwards a decision to the approval it names, carrying the session', async (
   });
 });
 
+it('forwards a repropose to the expired approval it names', async () => {
+  vi.stubGlobal('fetch', answering(201, { approval_id: 'apr-2', state: 'pending' }));
+
+  const answer = await post({ operation: 'repropose', target: 'apr-1', payload: {} });
+
+  expect(answer.status).toBe(201);
+  expect(sent[0]?.url).toBe(`${API}/v1/approvals/apr-1/repropose`);
+});
+
+it('forwards a discard to the approval it names', async () => {
+  vi.stubGlobal('fetch', answering(200, { state: 'discarded' }));
+
+  const answer = await post({ operation: 'discard', target: 'apr-1', payload: {} });
+
+  expect(answer.status).toBe(200);
+  expect(sent[0]?.url).toBe(`${API}/v1/approvals/apr-1/discard`);
+});
+
 it('escapes the identifier rather than pasting it into the address', async () => {
   vi.stubGlobal('fetch', answering(200, {}));
 

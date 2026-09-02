@@ -14,6 +14,7 @@ from platform.persistence.errors import (
 )
 from platform.persistence.fakes.state import TenantState, check_limit, check_payload
 from platform.persistence.ports.approval_store import (
+    ORIGIN_APPROVAL_ID_KEY,
     ApprovalRequest,
     ApprovalState,
     RollbackPlan,
@@ -28,9 +29,31 @@ class FakeApprovalStore:
     state: TenantState
 
     async def create_request(self, request: ApprovalRequest) -> ApprovalRequest:
-        """Store a pending request and return it."""
+        """Store a pending request and return it.
+
+        Refuses a second *live* request raised to replace the same expired one,
+        which is PostgreSQL's partial unique index over ``(org_id,
+        arguments->>'origin_approval_id') WHERE state = 'pending'`` mimicked
+        here. Mimicked rather than left to the database because the two
+        implementations of this port are held to one contract suite: a fake
+        that accepted a row PostgreSQL refuses would let every caller above it
+        be developed against a rule only half the deployments enforce, and the
+        one that found out would be a production database at 3am.
+
+        What it cannot mimic is the *race*. Two coroutines here interleave only
+        where they await, and there is no lock to block the second insert on;
+        the index is what closes that window, and the contract suite proves it
+        against a real database rather than against this.
+        """
         if request.approval_id in self.state.approvals:
             raise DuplicateRecord(kind="approval request", identifier=request.approval_id)
+        origin = request.arguments.get(ORIGIN_APPROVAL_ID_KEY)
+        if (
+            request.state is ApprovalState.PENDING
+            and origin is not None
+            and await self.pending_for_origin(str(origin)) is not None
+        ):
+            raise DuplicateRecord(kind="live reproposal of approval", identifier=str(origin))
         check_payload(request.arguments, kind="approval arguments")
         self.state.approvals[request.approval_id] = request
         return request
@@ -99,18 +122,33 @@ class FakeApprovalStore:
         matches.sort(key=lambda r: (r.requested_at, r.approval_id))
         return tuple(matches[:limit])
 
+    async def pending_for_origin(self, approval_id: str) -> ApprovalRequest | None:
+        """Return the undecided request raised to replace ``approval_id``, or ``None``."""
+        matches = [
+            request
+            for request in self.state.approvals.values()
+            if request.state is ApprovalState.PENDING
+            and request.arguments.get(ORIGIN_APPROVAL_ID_KEY) == approval_id
+        ]
+        matches.sort(key=lambda r: (r.requested_at, r.approval_id))
+        return matches[0] if matches else None
+
     async def list_decided(
         self,
         *,
         action: str | None = None,
+        states: Sequence[ApprovalState] | None = None,
         limit: int = 50,
     ) -> tuple[ApprovalRequest, ...]:
         """Return answered requests, most recently decided first."""
         check_limit(limit)
+        allowed = None if states is None else set(states)
         matches = [
             request
             for request in self.state.approvals.values()
-            if request.state.is_decided and (action is None or request.action == action)
+            if request.state.is_decided
+            and (action is None or request.action == action)
+            and (allowed is None or request.state in allowed)
         ]
         # The identifier is the tiebreaker, and it is descending like the
         # instant: two rows decided in the same transaction have the same
@@ -121,6 +159,32 @@ class FakeApprovalStore:
             reverse=True,
         )
         return tuple(matches[:limit])
+
+    async def discard(
+        self,
+        approval_id: str,
+        *,
+        discarded_by: str,
+        discarded_at: datetime,
+    ) -> ApprovalRequest:
+        """Move ``approval_id`` to ``DISCARDED`` and return it as stored."""
+        request = self._require_request(approval_id)
+        if request.state in (
+            ApprovalState.APPROVED,
+            ApprovalState.REJECTED,
+            ApprovalState.DISCARDED,
+        ):
+            raise AppendOnlyViolation(kind="approval discard", identifier=approval_id)
+
+        discarded = replace(
+            request,
+            state=ApprovalState.DISCARDED,
+            decided_by=discarded_by,
+            decided_at=discarded_at,
+            reason=None,
+        )
+        self.state.approvals[approval_id] = discarded
+        return discarded
 
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""

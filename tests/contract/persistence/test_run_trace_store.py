@@ -17,6 +17,7 @@ from platform.persistence.ports import (
     TraceEventRecord,
     TurnRecord,
 )
+from platform.persistence.ports.run_trace_store import runs_in_window
 
 pytestmark = pytest.mark.contract
 
@@ -135,6 +136,62 @@ async def test_runs_are_listed_most_recent_first_and_filtered(
         listed = await uow.run_traces.list_runs(status=RunStatus.FAILED)
 
     assert [r.run_id for r in listed] == ["run-2"]
+
+
+async def test_a_window_wide_pass_reaches_past_one_page(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The whole-window read the overview's KPIs are computed over.
+
+    Five runs read with a page bound of two: without the walk this is two runs,
+    and a rate computed over them is presented as the fortnight's.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(5):
+            await uow.run_traces.start_run(run(f"run-{index}", minutes=index * 10))
+
+        everything = await runs_in_window(uow.run_traces, since=at(0), limit=2)
+
+    assert [entry.run_id for entry in everything] == [f"run-{index}" for index in (4, 3, 2, 1, 0)]
+
+
+async def test_a_window_wide_pass_keeps_runs_that_started_in_the_same_instant(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Two runs sharing a start time must both survive the walk.
+
+    ``until`` is an instant rather than a keyset cursor, so a page boundary can
+    fall between two runs started at the same moment. Read at a page bound of
+    two: the first page is exactly the pair, and the walk still has to reach the
+    older run behind them rather than reading the pair for ever.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run("run-a", minutes=10))
+        await uow.run_traces.start_run(run("run-b", minutes=10))
+        await uow.run_traces.start_run(run("run-c", minutes=0))
+
+        everything = await runs_in_window(uow.run_traces, since=at(0), limit=2)
+
+    assert sorted(entry.run_id for entry in everything) == ["run-a", "run-b", "run-c"]
+
+
+async def test_a_window_wide_pass_stops_at_its_page_ceiling(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A bound, not a formality: a walk with no ceiling never returns.
+
+    It returns what it read rather than raising — a caller wants the runs it
+    got. What comes back is a newest-first prefix of the window and not the
+    window: two pages of two here are three runs rather than four, because the
+    second page re-reads the instant the first one stopped on.
+    """
+    async with gateway.begin(scope) as uow:
+        for index in range(5):
+            await uow.run_traces.start_run(run(f"run-{index}", minutes=index * 10))
+
+        capped = await runs_in_window(uow.run_traces, since=at(0), limit=2, max_pages=2)
+
+    assert [entry.run_id for entry in capped] == ["run-4", "run-3", "run-2"]
 
 
 async def test_an_oversized_body_is_refused_rather_than_stored(
@@ -298,6 +355,87 @@ async def test_evidence_replays_in_the_order_it_was_observed(
         trace = await uow.run_traces.replay("run-1")
 
     assert [item.source for item in trace.evidence] == ["zeta", "alpha", "mu"]
+
+
+async def test_starting_a_run_with_an_objective_persists_it(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        started = await uow.run_traces.start_run(
+            AgentRun(run_id="run-1", trigger="interactive", objective="Find the leak in checkout")
+        )
+        reread = await uow.run_traces.get_run("run-1")
+
+    assert started.objective == "Find the leak in checkout"
+    assert reread is not None
+    assert reread.objective == "Find the leak in checkout"
+
+
+async def test_a_run_started_with_no_objective_reads_back_empty(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        started = await uow.run_traces.start_run(run())
+
+    assert started.objective == ""
+
+
+async def test_last_completed_stages_reads_the_highest_sequence_per_run(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # run-1 completed two stages, in order; only the second — the higher
+    # sequence — should come back. run-2 completed one. run-3 exists but
+    # never finished a single stage, and must be absent from the answer
+    # rather than present with an empty string standing in for "none yet".
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run("run-1"))
+        await uow.run_traces.start_run(run("run-2"))
+        await uow.run_traces.start_run(run("run-3"))
+
+        await uow.run_traces.record_event(
+            TraceEventRecord(
+                event_id="ev-1",
+                run_id="run-1",
+                kind="stage_completed",
+                payload={"stage": "resolve_integrations"},
+            )
+        )
+        await uow.run_traces.record_event(
+            TraceEventRecord(
+                event_id="ev-2",
+                run_id="run-1",
+                kind="stage_completed",
+                payload={"stage": "plan_evidence"},
+            )
+        )
+        await uow.run_traces.record_event(
+            TraceEventRecord(
+                event_id="ev-3",
+                run_id="run-2",
+                kind="stage_completed",
+                payload={"stage": "intake"},
+            )
+        )
+        # A different kind of event, so a query that forgot to filter on
+        # ``kind`` would report a stage for a run that never completed one.
+        await uow.run_traces.record_event(
+            TraceEventRecord(event_id="ev-4", run_id="run-3", kind="run_started")
+        )
+
+        stages = await uow.run_traces.last_completed_stages(["run-1", "run-2", "run-3"])
+
+    assert stages["run-1"] == "plan_evidence"
+    assert stages["run-2"] == "intake"
+    assert "run-3" not in stages
+
+
+async def test_last_completed_stages_of_an_empty_list_reads_nothing(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        stages = await uow.run_traces.last_completed_stages([])
+
+    assert stages == {}
 
 
 async def test_every_event_gets_its_own_position(

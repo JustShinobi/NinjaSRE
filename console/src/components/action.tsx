@@ -51,7 +51,13 @@ export const VARIANT_SKIN: Readonly<Record<ButtonVariant, string>> = {
   primary: 'bg-accent text-on-accent border-accent hover:opacity-90 motion-hover',
   secondary: 'bg-surface text-text border-border-strong hover:bg-hover motion-hover',
   quiet: 'bg-transparent text-muted border-transparent hover:bg-hover motion-hover',
-  destructive: 'bg-danger text-on-danger border-danger hover:opacity-90 motion-hover',
+  // Tinted, not filled. The board draws the destructive control as a ground of
+  // `danger-bg` carrying `danger` text, which is the same grammar every other
+  // tinted thing here already speaks — a status chip and an inline callout both
+  // write it. Filling it inverted the two: the ground took the text's colour and
+  // the text took the ground's, which reads as a primary button that happens to
+  // be red rather than as the one control that needs a second thought.
+  destructive: 'bg-danger-bg text-danger border-danger hover:bg-hover motion-hover',
 };
 
 /** What a forced state looks like, for the gallery. Colour only, never a box. */

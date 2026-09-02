@@ -280,7 +280,10 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   // outside the enumeration by name, so every screen comparing against
   // `closed` was comparing against a word that cannot arrive.
   open: { role: 'danger', shape: 'square' },
-  investigating: { role: 'info', shape: 'rotated-square' },
+  // Green, as the board draws it: work in progress rather than an aside —
+  // the agent is on it, which is the product doing its job. The shape stays
+  // its own, so it is never mistaken for a settled state.
+  investigating: { role: 'success', shape: 'rotated-square' },
   // Waiting on a person, which is the same fact `suspended` carries for a run
   // and is drawn the same way for that reason.
   awaiting_human: { role: 'warning', shape: 'triangle' },
@@ -305,6 +308,23 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   approved: { role: 'success', shape: 'filled-circle' },
   rejected: { role: 'danger', shape: 'square' },
   expired: { role: 'neutral', shape: 'dash' },
+  // How an investigation ended, where that is not one of the words above.
+  // `resolved` is already declared with the incident state it shares, and
+  // means the same thing on both. Amber and hollow, as the board draws it: an
+  // investigation that reached no root cause is not a failure to be drawn in
+  // red, and it is emphatically not a success — it is the case the learning
+  // corpus exists to improve on, so it is drawn as something still open.
+  inconclusive: { role: 'warning', shape: 'hollow-circle' },
+  // The bleeding stopped and the cause did not get fixed. Warning rather than
+  // success, for the same reason `closed_without_action` is neutral rather than
+  // green: drawing an unfinished thing as a win is how a deployment's success
+  // rate lies. A circle, because this is where the investigation ended, and
+  // dimmed, because it is not the whole of what `resolved` claims.
+  mitigated: { role: 'warning', shape: 'dimmed-circle' },
+  // The alert was wrong and there was nothing to fix. Nothing is owed and
+  // nothing was achieved, which is what the dash means everywhere else it
+  // appears here — the detector is what wants looking at, not the estate.
+  false_positive: { role: 'neutral', shape: 'dash' },
   // How reversible an action is. This is the one an operator reads before
   // pressing something, so it is never carried by colour alone either.
   read_only: { role: 'success', shape: 'filled-circle' },

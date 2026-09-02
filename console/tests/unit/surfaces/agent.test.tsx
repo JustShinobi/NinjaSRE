@@ -1,8 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EN } from '@/i18n/en';
 import { statusPresentation } from '@/design/status';
 import { message } from '@/i18n/messages';
 import { LOCALE_COOKIE, SESSION_COOKIE } from '@/session/cookies';
@@ -120,7 +118,7 @@ describe('the three sections', () => {
       .getAllByTestId('tab-link')
       .find((tab) => tab.getAttribute('aria-current') === 'page');
     expect(current?.getAttribute('data-tab')).toBe('tools');
-    expect(screen.getAllByTestId('tool-group').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('tools-domain-rail')).toBeInTheDocument();
   });
 
   it('falls back to the first section for a name it does not have', () => {
@@ -137,7 +135,7 @@ describe('what it is: the stages and the specialists', () => {
   it('renders the stages in the order the pipeline runs them', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    const stages = screen.getAllByTestId('agent-stage');
+    const stages = screen.getAllByTestId('pipeline-metro-node');
     expect(stages.map((stage) => stage.getAttribute('data-stage'))).toEqual([
       'resolve_integrations',
       'intake',
@@ -148,21 +146,36 @@ describe('what it is: the stages and the specialists', () => {
     ]);
   });
 
-  it('draws the hierarchy with the specialists on it, disabled ones included', async () => {
+  it('lights the station the furthest run in flight is on, and nothing past it', async () => {
+    // The populated listing carries one running run with
+    // `last_completed_stage: plan_evidence`, so the band draws the first
+    // three stations passed, gathering running (with the live ring), and
+    // the two after it untouched — read from the listing, never guessed.
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    const drawn = screen.getAllByTestId('hierarchy-node');
-    const specialists = drawn.filter(
-      (node) => node.getAttribute('data-rank') === 'specialists',
-    );
-    expect(specialists.map((node) => node.getAttribute('data-node'))).toContain(
-      'change-historian',
-    );
-    expect(
-      specialists
-        .find((node) => node.getAttribute('data-node') === 'change-historian')
-        ?.getAttribute('data-disabled'),
-    ).toBe('true');
+    const stations = screen.getAllByTestId('pipeline-metro-station');
+    expect(stations.map((station) => station.getAttribute('data-treatment'))).toEqual([
+      'passed',
+      'passed',
+      'passed',
+      'running',
+      'not-reached',
+      'not-reached',
+    ]);
+  });
+
+  it('carries each stage’s own prose inside its station, one disclosure away', async () => {
+    // The section that used to repeat the six stages below the band is gone;
+    // the description and what a stage consults live inside the metro now,
+    // so removing the metro's detail would silently remove the prose too.
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    const details = screen.getAllByTestId('pipeline-metro-detail');
+    expect(details.length).toBe(6);
+    const diagnose = screen
+      .getAllByTestId('pipeline-metro-node')
+      .find((node) => node.getAttribute('data-stage') === 'diagnose');
+    expect(diagnose?.textContent).toContain('model role:');
   });
 
   it('marks a specialist the configuration switched off rather than hiding it', async () => {
@@ -539,7 +552,7 @@ describe('Article VI: the model is a role here, never a vendor', () => {
   it('shows a stage its role and never a model', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    for (const stage of screen.getAllByTestId('agent-stage')) {
+    for (const stage of screen.getAllByTestId('pipeline-metro-node')) {
       const role = stage.getAttribute('data-role') ?? '';
       const text = stage.textContent;
       for (const provider of PROVIDERS) {
@@ -583,42 +596,69 @@ describe('what it can do: the tools', () => {
     serveScenario('populated', principalHolding(EVERYTHING, NODE));
   });
 
-  it('splits the catalogue into what reads and what writes', async () => {
+  it('offers the four side-effect filters in the band, each an address', async () => {
+    // The reads/writes split lives in the band's own filter chips now — the
+    // two page-length prose sections it used to be are gone.
     await renderAgent({ node: NODE, tab: 'tools' });
 
-    const groups = screen
-      .getAllByTestId('tool-group')
-      .map((group) => group.getAttribute('data-group'));
-    expect(groups).toEqual(['read', 'write']);
-
-    for (const tool of screen.getAllByTestId('agent-tool')) {
-      expect(['read', 'write']).toContain(tool.getAttribute('data-group'));
+    const chips = screen.getAllByTestId('tools-effect-chip');
+    expect(chips.map((chip) => chip.getAttribute('data-effect'))).toEqual([
+      '',
+      'read',
+      'write_reversible',
+      'write_irreversible',
+      'destructive',
+    ]);
+    for (const chip of chips) {
+      expect(chip.getAttribute('href')).toContain('tab=tools');
     }
   });
 
-  it('gives a plain read a distinct, known role — never the neutral unknown', async () => {
-    await renderAgent({ node: NODE, tab: 'tools' });
+  it('narrows the cards to the side effect the address names', async () => {
+    await renderAgent({
+      node: NODE,
+      tab: 'tools',
+      domain: 'rushes.example.invalid',
+      effect: 'read',
+    });
 
-    const row = screen
-      .getAllByTestId('agent-tool')
-      .find((tool) => tool.getAttribute('data-tool') === 'estate.storage_pressure');
-    expect(row).toBeDefined();
+    const cards = screen.getAllByTestId('capability-card');
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.map((card) => card.getAttribute('data-capability'))).toContain(
+      'estate.storage_pressure',
+    );
+  });
 
-    const badge = row?.querySelector('[data-role]');
-    expect(badge).toHaveAttribute('data-role', 'success');
-    expect(badge).toHaveAttribute('data-known', 'true');
+  it("gives a plain read the catalogue's own worded chip, never a raw slug", async () => {
+    await renderAgent({
+      node: NODE,
+      tab: 'tools',
+      domain: 'rushes.example.invalid',
+    });
+
+    const card = screen
+      .getAllByTestId('capability-card')
+      .find(
+        (each) => each.getAttribute('data-capability') === 'estate.storage_pressure',
+      );
+    expect(card).toBeDefined();
+    const chip = card?.querySelector('[data-testid="capability-side-effect"]');
+    expect(chip?.textContent).toContain('Read');
+    expect(card?.textContent).not.toContain('read_sensitive');
   });
 
   it('dims a tool whose integration is missing, and names the integration', async () => {
-    await renderAgent({ node: NODE, tab: 'tools' });
+    // The populated node blocks metrics.range_query behind metrics-store; it
+    // is a node-only entry, so it lives in the leftover bucket.
+    await renderAgent({ node: NODE, tab: 'tools', domain: 'other' });
 
     const blocked = screen
-      .getAllByTestId('agent-tool')
-      .filter((tool) => tool.getAttribute('data-available') === 'false');
+      .getAllByTestId('capability-card')
+      .filter((card) => card.getAttribute('data-available') === 'false');
     expect(blocked.length).toBeGreaterThan(0);
-    for (const tool of blocked) {
-      expect(tool.className).toContain('opacity-60');
-      const reason = tool.querySelector('[data-testid="tool-blocked"]');
+    for (const card of blocked) {
+      expect(card.className).toContain('opacity-60');
+      const reason = card.querySelector('[data-testid="tool-blocked"]');
       expect(reason?.textContent.trim()).toBeTruthy();
       // Named, not merely "unavailable": the integration is the thing somebody
       // can go and connect.
@@ -833,21 +873,12 @@ describe("what it can do: the catalogue's own read half", () => {
     });
   }
 
-  /** The `<tr data-testid="capability">` row for one tool, by its declared name. */
-  function toolRow(name: string): HTMLElement {
+  /** The `<details data-testid="capability-card">` for one tool, by name. */
+  function toolCard(name: string): HTMLElement {
     const found = screen
-      .getAllByTestId('capability')
-      .find((row) => row.getAttribute('data-capability') === name);
-    if (found === undefined) throw new Error(`no capability row for ${name}`);
-    return found;
-  }
-
-  /** The `<tr data-testid="capability-domain">` heading row for one domain. */
-  function domainHeading(domain: string): HTMLElement {
-    const found = screen
-      .getAllByTestId('capability-domain')
-      .find((row) => row.getAttribute('data-domain') === domain);
-    if (found === undefined) throw new Error(`no domain heading for ${domain}`);
+      .getAllByTestId('capability-card')
+      .find((card) => card.getAttribute('data-capability') === name);
+    if (found === undefined) throw new Error(`no capability card for ${name}`);
     return found;
   }
 
@@ -856,71 +887,48 @@ describe("what it can do: the catalogue's own read half", () => {
       serve();
     });
 
-    it('shows every tool and skill with nothing typed', async () => {
+    it('lists every domain in the rail, skills included, each with its count', async () => {
       await renderAgent({ tab: 'tools' });
 
-      expect(toolRow('estate.list_resources')).toBeDefined();
-      expect(toolRow('chat.post_message')).toBeDefined();
-      expect(toolRow('audit.tamper_check')).toBeDefined();
-      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+      const rail = screen.getAllByTestId('tools-domain');
+      expect(rail.map((item) => item.getAttribute('data-domain'))).toEqual(
+        expect.arrayContaining(['estate', 'chat', 'audit', 'skills']),
+      );
+      for (const item of rail) {
+        // Selection is a navigation: the rail item is a link carrying the
+        // domain in the address, never component state.
+        expect(item.getAttribute('href')).toContain('domain=');
+      }
     });
 
-    it('narrows to the rows a search matches, by name', async () => {
-      await renderAgent({ tab: 'tools' });
+    it('narrows to the cards the address’s own search matches, by name', async () => {
+      await renderAgent({ tab: 'tools', domain: 'chat', q: 'chat' });
 
-      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'chat');
-
-      expect(toolRow('chat.post_message')).toBeDefined();
+      expect(toolCard('chat.post_message')).toBeDefined();
       expect(
         screen
-          .queryAllByTestId('capability')
+          .queryAllByTestId('capability-card')
           .some(
-            (row) => row.getAttribute('data-capability') === 'estate.list_resources',
+            (card) => card.getAttribute('data-capability') === 'estate.list_resources',
           ),
       ).toBe(false);
     });
 
     it('says how many of the whole catalogue are enabled, unaffected by the filter', async () => {
       await renderAgent({ tab: 'tools' });
+      expect(screen.getByTestId('tools-ratio')).toHaveTextContent('1 of 3 enabled');
 
-      expect(screen.getByTestId('capability-count')).toHaveTextContent(
-        '1 of 3 enabled',
-      );
-
-      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'chat');
-
-      expect(screen.getByTestId('capability-count')).toHaveTextContent(
+      await renderAgent({ tab: 'tools', q: 'chat' });
+      expect(screen.getAllByTestId('tools-ratio')[0]).toHaveTextContent(
         '1 of 3 enabled',
       );
     });
 
-    it('offers an anchor per domain a reader can jump to', async () => {
-      await renderAgent({ tab: 'tools' });
+    it('says plainly when nothing matches, rather than an empty grid', async () => {
+      await renderAgent({ tab: 'tools', q: 'nothing-matches-this' });
 
-      const nav = screen.getByTestId('domain-nav');
-      // The label is the domain as a person reads it; the anchor still keys off
-      // the catalogue's own word, so nothing about navigation moved when the
-      // label stopped being the raw one.
-      expect(within(nav).getByRole('link', { name: /^estate/i })).toHaveAttribute(
-        'href',
-        '#domain-estate',
-      );
-      expect(within(nav).getByRole('link', { name: /^chat/i })).toHaveAttribute(
-        'href',
-        '#domain-chat',
-      );
-    });
-
-    it('says plainly when nothing matches, rather than an empty table', async () => {
-      await renderAgent({ tab: 'tools' });
-
-      await userEvent.type(
-        screen.getByLabelText(EN['catalogue.search']),
-        'nothing-matches-this',
-      );
-
-      expect(screen.getByTestId('capability-search-empty')).toBeDefined();
-      expect(screen.queryAllByTestId('capability')).toHaveLength(0);
+      expect(screen.getByTestId('tools-none-match')).toBeDefined();
+      expect(screen.queryAllByTestId('capability-card')).toHaveLength(0);
     });
   });
 
@@ -930,28 +938,26 @@ describe("what it can do: the catalogue's own read half", () => {
     });
 
     it('never renders the broken sentence a prior bug report quoted', async () => {
-      await renderAgent({ tab: 'tools' });
+      await renderAgent({ tab: 'tools', domain: 'chat' });
 
       expect(screen.queryByText(/Blocked by needs the/)).toBeNull();
       expect(document.body.textContent).not.toContain('Blocked by needs the');
     });
 
     it('names the missing integration in a sentence that stands on its own, with a link to connect it', async () => {
-      await renderAgent({ tab: 'tools' });
+      await renderAgent({ tab: 'tools', domain: 'chat' });
 
-      const blocked = within(toolRow('chat.post_message')).getByTestId(
-        'capability-blocked',
-      );
+      const blocked = within(toolCard('chat.post_message')).getByTestId('tool-blocked');
       expect(blocked).toHaveTextContent('Requires the chat integration');
       const link = within(blocked).getByRole('link', { name: 'Connect it' });
       expect(link).toHaveAttribute('href', '/integrations');
     });
 
     it('shows a refusal that is not about a missing integration as-is, with no link', async () => {
-      await renderAgent({ tab: 'tools' });
+      await renderAgent({ tab: 'tools', domain: 'audit' });
 
-      const blocked = within(toolRow('audit.tamper_check')).getByTestId(
-        'capability-blocked',
+      const blocked = within(toolCard('audit.tamper_check')).getByTestId(
+        'tool-blocked',
       );
       expect(blocked).toHaveTextContent('disabled for this team');
       expect(within(blocked).queryByRole('link')).toBeNull();
@@ -964,43 +970,41 @@ describe("what it can do: the catalogue's own read half", () => {
     });
 
     it('says the tool is enabled, never the raw resource-health word', async () => {
-      await renderAgent({ tab: 'tools' });
+      await renderAgent({ tab: 'tools', domain: 'estate' });
 
-      const row = toolRow('estate.list_resources');
+      const card = toolCard('estate.list_resources');
       // `healthy` is a resource's word, never a capability's own
-      // availability in this column — the same distinction already drawn
+      // availability on this card — the same distinction already drawn
       // for a bridged server's own registration state.
-      expect(row.textContent).not.toMatch(/healthy/i);
-      expect(within(row).getByTestId('capability-available')).toHaveTextContent(
+      expect(card.textContent).not.toMatch(/healthy/i);
+      expect(within(card).getByTestId('capability-available')).toHaveTextContent(
         'Enabled',
       );
     });
   });
 
-  describe('skills are searchable and grouped, not a wall of prose', () => {
+  describe('skills live in the rail like any other bucket, not a wall of prose', () => {
     beforeEach(() => {
       serve();
     });
 
-    it('groups skills under their own heading rather than repeating "Skills —" on every row', async () => {
-      await renderAgent({ tab: 'tools' });
+    it('groups skills under their own rail bucket', async () => {
+      await renderAgent({ tab: 'tools', domain: 'skills' });
 
-      expect(domainHeading('skills')).toHaveTextContent('Skills (1)');
-      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+      expect(screen.getByTestId('tools-domain-title')).toHaveTextContent('Skills');
+      expect(toolCard('kubernetes-triage')).toBeDefined();
       expect(screen.queryByText(/Skills — /)).toBeNull();
     });
 
     it('is found by the same search that finds a tool', async () => {
-      await renderAgent({ tab: 'tools' });
+      await renderAgent({ tab: 'tools', domain: 'skills', q: 'triage' });
 
-      await userEvent.type(screen.getByLabelText(EN['catalogue.search']), 'triage');
-
-      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+      expect(toolCard('kubernetes-triage')).toBeDefined();
       expect(
         screen
-          .queryAllByTestId('capability')
+          .queryAllByTestId('capability-card')
           .some(
-            (row) => row.getAttribute('data-capability') === 'estate.list_resources',
+            (card) => card.getAttribute('data-capability') === 'estate.list_resources',
           ),
       ).toBe(false);
     });
@@ -1024,8 +1028,35 @@ describe('what it will do alone', () => {
       'critical',
     ]);
     for (const entry of classes) {
-      const sentence = entry.querySelector('[data-testid="outlook-sentence"]');
-      expect(sentence?.textContent).toContain('would');
+      // The row shows the sentence's short lead; the rest of the
+      // deployment's own "would" phrasing lives in the row's disclosure —
+      // still this row's content, one click away, never dropped.
+      expect(entry.querySelector('[data-testid="outlook-sentence"]')).not.toBeNull();
+      expect(entry.textContent).toContain('would');
+    }
+  });
+
+  it("draws the board's ladder: class chips by severity, a policy chip, and the change-the-policy card", async () => {
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    const chips = screen.getAllByTestId('autonomy-class-chip');
+    expect(chips.length).toBe(5);
+    expect(chips.map((chip) => chip.getAttribute('data-role'))).toEqual([
+      'neutral',
+      'neutral',
+      'warning',
+      'warning',
+      'danger',
+    ]);
+    expect(screen.getByTestId('autonomy-policy-chip')).toBeInTheDocument();
+    expect(screen.getByTestId('autonomy-change-card')).toBeInTheDocument();
+    // Each row's "why" carries the link to the rule that resolves it.
+    const whys = screen.getAllByTestId('outlook-why');
+    expect(whys.length).toBe(5);
+    for (const why of whys) {
+      expect(
+        why.querySelector('a[href="/settings/autonomy-guardrails"]'),
+      ).not.toBeNull();
     }
   });
 
@@ -1047,7 +1078,9 @@ describe('what it will do alone', () => {
 
     for (const entry of screen.getAllByTestId('outlook-class')) {
       const decision = entry.getAttribute('data-decision') ?? '';
-      const badge = entry.querySelector('[data-role]');
+      // The decision's own chip, not the class chip beside it — both carry a
+      // role, and only this one is claimed to match the decision's.
+      const badge = entry.querySelector('[data-testid="outlook-decision"] [data-role]');
       expect(statusPresentation(decision).known, decision).toBe(true);
       expect(badge).toHaveAttribute('data-role', statusPresentation(decision).role);
     }

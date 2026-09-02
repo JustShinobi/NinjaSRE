@@ -200,7 +200,7 @@ export function SidebarNav({
                       className={cx(
                         'flex items-center gap-2 mx-1 px-2 py-1 rounded-2 text-body motion-hover',
                         isActive(state)
-                          ? 'bg-accent-bg text-accent font-semibold'
+                          ? 'bg-accent-bg text-accent font-semibold nav-active-bar'
                           : 'text-text hover:bg-hover',
                       )}
                     >
@@ -264,7 +264,14 @@ export function GuardianFooter({
       title={message(locale, 'shell.guardian.tooltip')}
       className="mt-auto flex items-center gap-2 p-3 edge border-x-0 border-b-0 border-border text-meta text-muted hover:bg-hover motion-hover"
     >
-      <StatusDot status={guardian.live ? 'healthy' : 'unknown'} />
+      {guardian.live ? (
+        <span className="pulse-live icon-inline rounded-full text-success">
+          <StatusDot status="healthy" />
+          <span className="pulse-live-ring" />
+        </span>
+      ) : (
+        <StatusDot status="unknown" />
+      )}
       {message(locale, 'shell.guardian.state', {
         liveness,
         posture: message(locale, POSTURE_KEY[guardian.posture]),

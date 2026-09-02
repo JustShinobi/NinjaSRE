@@ -20,7 +20,7 @@ export const EN = {
   'nav.label': 'Areas',
   'nav.group.now': 'Now',
   'nav.group.environment': 'The environment',
-  'nav.group.settings': 'Settings',
+  'nav.group.settings': 'Configuration',
   'nav.firstRun': 'Setup',
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',
@@ -409,12 +409,37 @@ export const EN = {
   // The one word `StatusChip` renders for each of the five states declared in
   // `design/status.ts`, whatever backend spelling — a resource's health, an
   // integration's health, a checklist's readiness — it was translated from.
+  // The status enumerations the product itself knows, labelled — `Badge`
+  // probes `status.<normalised word>` and falls back to the raw word for
+  // anything the deployment invented. Flat keys, one per state.
+  'status.running': 'Running',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.succeeded': 'Succeeded',
+  'status.expired': 'Expired',
+  'status.investigating': 'Investigating',
+  'status.resolved': 'Resolved',
+  'status.remediating': 'Remediating',
+  'status.open': 'Open',
+  'status.awaiting_human': 'Awaiting a person',
+  'status.critical': 'Critical',
+  'status.medium': 'Medium',
+  'status.active': 'Active',
+  'status.propose': 'Propose',
+  'status.proposed': 'Proposed',
   'status.credential.notConnected': 'Not connected',
   'status.credential.stored': 'Stored',
   'status.credential.verified': 'Verified',
   'status.credential.degraded': 'Degraded',
   'status.credential.failing': 'Failing',
   'status.credential.unknown': 'Unknown',
+  'status.resource.healthy': 'healthy',
+  'status.resource.degraded': 'degraded',
+  'status.resource.unhealthy': 'unhealthy',
+  'status.resource.unknown': 'unknown',
+  'status.resource.stale': 'stale',
+  'status.resource.maintenance': 'in maintenance',
+  'status.resource.absent': 'absent',
   'status.credential.unknown.explain':
     "This deployment's gateway could not be reached, so the real state could not be read.",
 
@@ -465,12 +490,130 @@ export const EN = {
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
   'transcript.events.one': '{count} event',
+  // The board's own second half of this caption (`RunView.dc.html`:
+  // "31 eventos · o mais novo primeiro") — its own key, not folded into
+  // `transcript.events` above, because that key is shared with the audit
+  // log's own count (`settings/audit.tsx`), which is not ordered this way.
+  'transcript.newestFirst': 'newest first',
   'transcript.empty.heading': 'No transcript yet',
   'transcript.empty.body':
     'A transcript appears as soon as the investigation takes its first turn. Nothing has been recorded for this one.',
   'transcript.empty.action': 'Back to the investigations',
 
+  // The toggle between the narrated sentence (the default) and the raw
+  // payload every event actually carries. Two words, read by the toggle
+  // itself and by nothing else.
+  'transcript.view.narrated': 'Narrated',
+  'transcript.view.raw': 'Raw',
+  'transcript.view.payload': 'Raw payload',
+
+  // One lead sentence per raw kind the stream vocabulary declares
+  // (`STREAM_KINDS`, `transcript.ts`). `{name}` is only ever filled with a
+  // real capability or sub-agent name — never left as a literal placeholder —
+  // and the event's own `detail` is appended after the lead by `narrate`,
+  // never folded into the template itself.
+  'transcript.narration.runStarted': 'Objective accepted',
+  'transcript.narration.stageCompleted': 'Stage completed — {name}',
+  'transcript.narration.turnCompleted': 'The turn concluded',
+  'transcript.narration.evidenceObserved': 'Evidence was noted',
+  'transcript.narration.maskingApplied': 'Sensitive content was masked',
+  'transcript.narration.budgetEviction': 'Context beyond the budget was evicted',
+  'transcript.narration.approvalRequested': 'An approval was requested',
+  'transcript.narration.attentionChanged':
+    'The investigation started or stopped waiting on a person',
+  'transcript.narration.reportDelivered': 'A report was delivered',
+  'transcript.narration.notificationDecided': 'A notification policy decided',
+  'transcript.narration.runInterrupted': 'The investigation was interrupted',
+  'transcript.narration.runFinished': 'The investigation finished',
+  'transcript.narration.hypothesisFormed': 'A hypothesis formed',
+  'transcript.narration.turnStarted': 'A new turn began',
+  'transcript.narration.modelReasoned': 'The model reasoned',
+  'transcript.narration.toolCalled': 'Called {name}',
+  'transcript.narration.toolSucceeded': '{name} returned',
+  'transcript.narration.toolFailed': '{name} failed',
+  'transcript.narration.observationRecorded': 'An observation was recorded',
+  'transcript.narration.evidenceRetained': 'Evidence was retained',
+  'transcript.narration.memoryRecalled': 'A memory was recalled',
+  'transcript.narration.subagentDispatched': 'Dispatched {name}',
+  'transcript.narration.subagentReturned': '{name} returned',
+  'transcript.narration.guardrailWithheld': 'A guardrail withheld an action',
+  'transcript.narration.guardrailApplied': 'A guardrail was applied',
+  'transcript.narration.interactionOpened': 'The investigation is waiting on a person',
+  'transcript.narration.interactionAnswered': 'The open question was answered',
+  'transcript.narration.runCompleted': 'The investigation completed',
+  'transcript.narration.runFailed': 'The investigation failed',
+  // The floor every event has: a kind this build has never met still names
+  // itself, in a sentence, rather than falling back to a raw payload block.
+  'transcript.narration.unknown': 'An event of an unrecognised kind arrived: {kind}',
+  'transcript.narration.unnamedCapability': 'a capability',
+  'transcript.narration.unnamedSubagent': 'a sub-agent',
+  'transcript.narration.unnamedStage': 'a stage',
+
+  // --- The run's pipeline rail -----------------------------------------------------
+  'run.stage.rail.title': 'Pipeline',
+  'run.stage.future': 'Stage {number}',
+  'run.usage.awaiting': 'The first turn has not arrived yet.',
+  'run.links.watching': 'Watching for resources this investigation touches.',
+  'run.findings.title': 'Findings so far',
+  'run.findings.none': 'No stage has finished with a finding yet.',
+
   // --- The overview --------------------------------------------------------------
+  // --- The Painel: "Em execução agora" ------------------------------------------
+  'dashboard.runBand.title': 'Running now',
+  // The nouns that say what each count counts: without them the line reads
+  // "0 · 12 · 0" and the reader has to guess what the second number is.
+  'dashboard.runBand.flight': 'investigations in flight',
+  'dashboard.runBand.followed': 'incidents followed',
+  'dashboard.runBand.blocked': 'blocked on you',
+  'dashboard.runBand.more': 'all investigations →',
+  // The stage under way, by name, and where it falls among the six.
+  'dashboard.runBand.stage': '{stage} · {position} of {total}',
+  'dashboard.runBand.empty':
+    'Nothing is running right now — every investigation has finished or none has started.',
+  'dashboard.runBand.empty.action': 'Start one →',
+
+  // --- The Painel: "Precisa de você" (decided inline) --------------------------
+  'dashboard.decisionBand.title': 'Needs you',
+  'dashboard.decisionBand.plan': 'What will happen',
+  'dashboard.decisionBand.rollback': 'How it reverses',
+  'dashboard.decisionBand.approve': 'Approve',
+  'dashboard.decisionBand.reject': 'Reject',
+  'dashboard.decisionBand.rejectSubmit': 'Confirm rejection',
+  'dashboard.decisionBand.cancel': 'Cancel',
+  'dashboard.decisionBand.reason': 'Reason',
+  'dashboard.decisionBand.reasonRequired': 'A reason is required to reject.',
+  'dashboard.decisionBand.failed': 'The decision could not be recorded. Try again.',
+  'dashboard.decisionBand.noPermission':
+    'You do not hold the permission to decide this. Ask somebody who does.',
+  'dashboard.decisionBand.viewPlan': 'See plan →',
+  'dashboard.decisionBand.empty': 'Nothing is waiting on a decision right now.',
+  'dashboard.decisionBand.empty.action': 'See the decision history →',
+  'dashboard.decisionBand.more': '{count} more waiting →',
+
+  // --- The five KPI tiles (from GET /v1/overview) ---------------------------
+  'dashboard.kpi.watched': 'Resources watched',
+  'dashboard.kpi.watched.breakdownJoiner': ' · ',
+  'dashboard.kpi.degraded': 'Degraded now',
+  'dashboard.kpi.degraded.noDetector': 'No detector promotes a finding to an incident',
+  'dashboard.kpi.degraded.context': "counted from the estate's current health",
+  'dashboard.kpi.selfResolved': 'Closed on their own',
+  'dashboard.kpi.selfResolved.context': '{closed} of {total} incidents',
+  'dashboard.kpi.selfResolved.context.none': 'No incident has closed yet',
+  'dashboard.kpi.successRate': 'Success rate',
+  'dashboard.kpi.successRate.context': '{succeeded} of {total} investigations',
+  'dashboard.kpi.successRate.context.none': 'No investigation has finished yet',
+  'dashboard.kpi.timeToCause': 'Time to a cause',
+  'dashboard.kpi.timeToCause.context': 'median {median} · worst {worst}',
+  'dashboard.kpi.timeToCause.context.none': 'No investigation has finished yet',
+  'dashboard.kpi.readFailed': 'Could not be read',
+  'dashboard.kpi.sparkline.label': '{count}-day trend',
+  'dashboard.kpi.drill': 'See the list behind this figure',
+  'dashboard.kpi.configureDetectors': 'Configure detectors →',
+
+  // --- "What keeps happening" (subject strip, 48h window) --------------------
+  'dashboard.subjects.empty': 'Nothing has repeated in the last 48 hours.',
+  'dashboard.subjects.empty.action': 'See Incidents →',
+
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
   'dashboard.attention.count.one': '{count} item needs you',
@@ -496,11 +639,28 @@ export const EN = {
   'dashboard.stat.timeToCause.context': 'median of {settled} · slowest {slowest}',
   'dashboard.stat.timeToCause.context.none': 'No investigation has finished yet.',
   'dashboard.stat.drill': 'See the list behind this figure',
-  'dashboard.activity.title': 'Recent activity',
+  'dashboard.activity.title': 'Live activity',
   'dashboard.activity.empty.heading': 'Nothing has happened yet',
   'dashboard.activity.empty.body':
-    'Investigations, incidents and sweeps appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
+    'Investigations, incidents and decisions appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
   'dashboard.activity.empty.action': 'Connect a source',
+  'dashboard.activity.more': 'full timeline →',
+  'dashboard.liveActivity.count': '{count}×',
+  'dashboard.liveActivity.investigationStarted': 'Investigation started',
+  'dashboard.liveActivity.causeFound': 'Cause found',
+  'dashboard.liveActivity.investigationEnded': 'Investigation ended',
+  'dashboard.liveActivity.incidentOpened': 'Incident opened',
+  'dashboard.liveActivity.incidentSelfResolved': 'Incident closed on its own',
+  'dashboard.liveActivity.decisionProposed': 'Remediation proposed',
+  'dashboard.liveActivity.decisionDecided': 'Decision recorded',
+  // The middle term of each entry's second line: what produced it. Two
+  // of these name the entry's kind; the other two say what the
+  // deployment actually recorded (that nobody touched it, that somebody
+  // has to decide).
+  'dashboard.liveActivity.by.investigation': 'investigation',
+  'dashboard.liveActivity.by.awaitingApproval': 'awaiting approval',
+  'dashboard.liveActivity.by.noHuman': 'with no human intervention',
+  'dashboard.liveActivity.by.decision': 'decision',
   'dashboard.hero.title': 'Continue setting up',
   'dashboard.hero.remaining': '{count} of {total} steps left',
   'dashboard.hero.next': 'Next',
@@ -509,11 +669,6 @@ export const EN = {
   'dashboard.hero.empty.body':
     'This is drawn from the deployment’s own setup checklist, and it did not answer. Everything else on this page is unaffected.',
   'dashboard.hero.empty.action': 'Open first steps',
-  'dashboard.quickActions.title': 'Quick actions',
-  'dashboard.quickActions.empty.heading': 'Nothing to do from here',
-  'dashboard.quickActions.empty.body':
-    'These are the destinations the setup checklist is asking for. It is asking for none.',
-  'dashboard.quickActions.empty.action': 'Go to the overview',
   'dashboard.guardian.title': 'Guardian',
   'dashboard.guardian.posture': 'Posture',
   'dashboard.guardian.liveness': 'Liveness',
@@ -741,6 +896,9 @@ export const EN = {
   'runs.column.started': 'Started',
   'runs.column.duration': 'Duration',
   'runs.column.cost': 'Cost',
+  'runs.page.label': 'Pages',
+  'runs.page.previous': 'Previous',
+  'runs.page.next': 'Next',
   'runs.filter.status': 'Status',
   'runs.filter.trigger': 'Trigger',
   'runs.list.title': 'Investigations',
@@ -749,6 +907,9 @@ export const EN = {
   'runs.trigger.scheduled': 'Scheduled',
   'runs.trigger.specialist': 'Specialist',
   'runs.list.caption': 'Every investigation this deployment has recorded',
+  'runs.live.title': 'Live now',
+  'runs.live.count.one': '{count} in flight',
+  'runs.live.count': '{count} in flight',
   'runs.empty.heading': 'No investigations yet',
   'runs.empty.body':
     'An investigation is recorded whenever an alert, a schedule or a person starts one. None has been.',
@@ -765,6 +926,7 @@ export const EN = {
   'run.usage.calls': 'Calls',
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Cost',
+  'run.usage.unrecorded': 'no cost recorded for this run',
   'run.usage.unpriced': 'No published price for this model',
   'run.usage.unpriced.short': 'unpriced',
   'run.usage.apportioned':
@@ -781,6 +943,7 @@ export const EN = {
   'run.links.title': 'What this investigation touched',
   'run.links.resources': 'Resources',
   'run.links.incident': 'Incident',
+  'run.links.readOnly': 'read-only so far · no write proposed yet',
   'run.links.empty.heading': 'Nothing linked yet',
   'run.links.empty.body':
     'Resources and incidents are linked as the investigation names them. This one has named none.',
@@ -794,7 +957,7 @@ export const EN = {
   'runs.row.opening': 'Opening this investigation…',
   'runs.row.close': 'Close this investigation',
   'runs.row.openPage': 'Open on its own page',
-  'run.evidence.backed': '{backed} of {claims} claims backed',
+  'run.evidence.backed': '{backed} of {claims} with evidence',
   'run.evidence.unassessed': 'no claim to back',
   'run.evidence.unassessed.explain':
     'This investigation never assessed its own evidence, which is not the same as having found nothing.',
@@ -882,7 +1045,12 @@ export const EN = {
   'dashboard.stat.unattended.context.none': 'nothing has closed yet',
   'dashboard.attention.more': 'and {count} more waiting',
   'dashboard.recurring.title': 'What keeps happening',
-  'dashboard.recurring.note': 'Grouped by subject, not by firing',
+  'dashboard.recurring.tally':
+    '{subjects} subjects · {firings} firings · grouped by subject',
+  'dashboard.recurring.tally.one':
+    '{subjects} subject · {firings} firings · grouped by subject',
+  'dashboard.recurring.more': 'see all {count} subjects →',
+  'dashboard.recurring.more.one': 'see the subject →',
   'dashboard.recurring.empty.heading': 'Nothing has recurred',
   'dashboard.recurring.empty.body':
     'A condition that fires more than once on the same subject is collected here, so a problem that keeps coming back is one row rather than a page of them.',
@@ -891,12 +1059,22 @@ export const EN = {
   'incidents.filter.view': 'View',
   'incidents.view.grouped': 'By subject',
   'incidents.view.flat': 'Every firing',
-  'incidents.group.count': '{count} firings',
   'incidents.group.wasSeverity': 'was {severity}',
-  'incidents.group.count.one': 'Fired once',
   'incidents.group.since': 'recurring since {since}',
   'incidents.group.expand': 'Show every firing of {title}',
   'incidents.group.summary': '{subjects} subjects · {firings} firings',
+  'incidents.filter.state.investigating': 'Investigating',
+  'incidents.filter.state.resolved': 'Resolved',
+  'incidents.filter.severity.critical': 'Critical',
+  'incidents.header.summary':
+    '{subjects} subjects · {firings} firings · {critical} critical in progress',
+  'incidents.timeline.title': 'Firings in the last 24h',
+  'incidents.timeline.now': 'now',
+  'incidents.timeline.overflow': 'and {count} more before yesterday',
+  'incidents.cause.live': 'investigation in progress →',
+  'incidents.cause.found': 'Last cause found:',
+  'incidents.coverage.gap': '{count} degraded findings have no detector watching them',
+  'incidents.coverage.action': 'Turn on a detector →',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
   // --- Why this deployment is empty, as opposed to what the feature is for ----
@@ -1120,6 +1298,22 @@ export const EN = {
   'resources.none.action': 'Declare them',
   'resources.summary.watched': 'watched',
   'resources.summary.unaccounted': 'unaccounted for',
+  'resources.summary.watched.count': '{count} watched',
+  'resources.summary.legend': '{count} {health}',
+  'resources.order.worst': 'Worst first',
+  'resources.card.lastSeen': 'seen {when}',
+  'resources.card.unhealthySince': '{since} out',
+  'resources.filter.kind.any': 'All',
+  'resources.node.none': 'No node declared',
+  'resources.node.count': '{count} resources on this node',
+  'resources.node.unhealthyCount': '{count} unhealthy',
+  'resources.node.seeUnhealthy': 'See the {count} unhealthy of {node} →',
+  'resources.node.seeAll': 'See all {count} resources of {node} →',
+  'resources.synthesis.line':
+    '{count} {kind} unhealthy since {since} — all on {node}, same start window',
+  'resources.synthesis.action': 'investigate as a batch →',
+  'resources.synthesis.objective':
+    'What took down {count} {kind} on {node} since {since}?',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.divergent.hint':
@@ -1142,6 +1336,9 @@ export const EN = {
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
+  'resources.undeclared.title': 'Not in the inventory',
+  'resources.undeclared.body':
+    'The source reports these and the declared inventory does not name them. Add them to the inventory, or ignore them if they should not be tracked.',
   'resources.unresolved.title': 'Alerts for things not here',
   'resources.unresolved.body':
     'Something is alerting about a target this estate does not hold. Either nobody has swept it, or an alert receiver is pointed at the wrong deployment — and both are worth knowing.',
@@ -1270,6 +1467,26 @@ export const EN = {
   'memory.column.occurred': 'Occurred',
   'memory.filter.component': 'Component',
   'memory.filter.outcome': 'Outcome',
+  'memory.componentType.service': 'services',
+  'memory.componentType.node': 'nodes',
+  'memory.componentType.guest': 'guests',
+  'memory.componentType.cluster': 'cluster',
+  'memory.episode.outcome.resolved': 'Resolved',
+  'memory.episode.outcome.mitigated': 'Mitigated',
+  'memory.episode.outcome.inconclusive': 'Inconclusive',
+  'memory.episode.outcome.falsePositive': 'False positive',
+  'memory.episode.openInvestigation': 'open investigation →',
+  'memory.count': '{count} episodes',
+  'memory.learned.title': 'What the agent learned from this',
+  'memory.learned.empty':
+    'Nothing distilled yet. Learnings are proposed once episodes agree, and wait here for review.',
+  'memory.learned.from': 'from {run}',
+  'memory.learned.promote': 'promote to document',
+  'memory.preview.documents': '{count} documents ingested',
+  'memory.preview.documents.empty': 'Documents — nothing ingested yet',
+  'memory.preview.open': 'open →',
+  'memory.preview.topology': '{count} nodes observed',
+  'memory.preview.topology.empty': 'Topology — nothing observed yet',
   'memory.search': 'Search episodes',
   'memory.stats.title': 'What the corpus holds',
   'memory.stats.episodes': 'Episodes',
@@ -1321,6 +1538,16 @@ export const EN = {
   // from — technical groups the raw configuration editor used to carry.
   'knowledge.advanced.heading': 'Advanced settings',
   'knowledge.advanced.changes.title': 'Change source',
+  'knowledge.advanced.status.none': 'none configured',
+  'knowledge.advanced.status.changes': 'connected to {vendor}',
+  'knowledge.advanced.status.consulting': 'consulting {parts}',
+  'knowledge.advanced.status.nothing': 'consulting nothing',
+  'knowledge.advanced.status.topology': 'topology',
+  'knowledge.advanced.status.documents': 'documents',
+  'knowledge.advanced.status.saving': 'saving · {count} episodes',
+  'knowledge.advanced.status.notSaving': 'not saving',
+  'knowledge.advanced.status.on': 'on',
+  'knowledge.advanced.status.off': 'off',
   'knowledge.advanced.field.repositoryPath': 'Repository path',
   'knowledge.advanced.field.gitHostVendor': 'Git host vendor',
   'knowledge.advanced.field.gitHostRepository': 'Git host repository',
@@ -1590,7 +1817,7 @@ export const EN = {
   'teamContext.column.body': 'What it says',
   'teamContext.provenance': 'Set at',
   'teamContext.budget': 'Prompt budget',
-  'teamContext.budgetUsed': '{used} of {budget} tokens',
+  'teamContext.budgetUsed': 'of {budget} tokens',
   'teamContext.budgetConsequence': 'What goes over budget is refused, not truncated.',
   'teamContext.overBudget':
     'Over the budget. The deployment will refuse this until it is shorter.',
@@ -1611,7 +1838,7 @@ export const EN = {
   'teamContext.preview.title': 'What the model will be sent',
   'teamContext.preview.lead':
     'The exact text the next investigation’s system prompt will carry, assembled by the deployment. The save appears once you have asked for it.',
-  'teamContext.preview.submit': 'Show me the prompt',
+  'teamContext.preview.submit': 'Show the final prompt',
   'teamContext.preview.disabledReason':
     'Change a section before asking for the prompt.',
   'teamContext.preview.previewing': 'Assembling…',
@@ -1623,6 +1850,17 @@ export const EN = {
   'teamContext.failed': 'The deployment refused this context.',
   'teamContext.unreachable': 'The deployment could not be reached.',
   'teamContext.roles': 'Sent to',
+  'teamContext.role.investigator': 'Investigator',
+  'teamContext.role.subagent': 'Sub-agent',
+  'teamContext.rolesNote': 'Both roles read the same sections.',
+  'teamContext.savedNote':
+    'Saved per deployment — every new investigation is born reading this.',
+  'teamContext.example.factLabel': 'Fact:',
+  'teamContext.example.factQuote': '"Container metrics come from the host, by vmid"',
+  'teamContext.example.factTail': '— changes how the agent reads what it sees.',
+  'teamContext.example.instructionLabel': 'Instruction:',
+  'teamContext.example.instructionQuote': '"always restart the service first"',
+  'teamContext.example.instructionTail': '— procedure does not live here.',
 
   // --- The capability catalogue ------------------------------------------------------------------
   'catalogue.title': 'Capabilities',
@@ -1831,6 +2069,7 @@ export const EN = {
   'admin.column.principal': 'Principal',
   'admin.column.kind': 'Kind',
   'admin.column.active': 'Active',
+  'admin.sessions.title': 'Active sessions',
   // The primary action Members & roles never had: a person, created without
   // leaving the page, with the local password they sign in with. Absent for
   // a viewer who may not write identity — see `PrincipalsPanel`'s own doc.
@@ -1990,22 +2229,70 @@ export const EN = {
   'live.outcome.unreachable': 'The deployment could not be reached.',
   'live.investigate.title': 'Start an investigation',
   'live.investigate.objective': 'What should be looked into?',
-  'live.investigate.start': 'Start it',
+  'live.investigate.start': 'Investigate',
+  'live.investigate.cancel': 'Cancel',
+  'live.investigate.hint':
+    'The objective says what the investigation is about — the agent decides the path.',
+  'live.investigate.ctrlEnter': 'Ctrl ↵ to start',
+  'live.investigate.suggestions': 'Or start from where the environment is',
+  'live.investigate.suggestion.recurring':
+    'Why does {subject} keep coming back? {count} firings',
+  'live.investigate.suggestion.unhealthy': 'What took {count} resources down?',
+  'live.investigate.suggestion.audit': 'Audit the general health of the {name} cluster',
+  'live.investigate.footer.team': 'Will run with team {team} · {posture}',
+  'live.investigate.footer.postureOnly': 'Will run {posture}',
+  'live.investigate.footer.stages': '6 stages · you follow it live, event by event',
   'live.investigate.required': 'An objective is what the investigation is about.',
   'live.investigate.started': 'The investigation has started.',
   'live.investigate.close': 'Close',
 
   // --- The agent: what it is, what it can do, what it will do alone ------------
+  'organisation.defaultName': 'Default organisation',
   'agent.tabs': 'What the agent is, can do, and will do alone',
-  'agent.tab.topology': 'Topology',
+  'agent.tab.topology': 'Pipeline',
   'agent.tab.tools': 'Tools',
   'agent.tab.autonomy': 'Autonomy',
-  'agent.graph.title':
-    'The investigation, from the orchestrator down to the specialists',
-  'agent.rank.orchestrator': 'Orchestrator',
-  'agent.rank.stages': 'Stages',
-  'agent.rank.specialists': 'Specialists',
-  'agent.stages.title': 'The stages an investigation runs',
+  'agent.metro.title': 'The six stages of an investigation',
+  'agent.metro.subtitle':
+    'every run walks this line, and the transcript groups by stage',
+  'agent.metro.inFlight': '{count} investigations in flight',
+  'agent.metro.copy.resolve_integrations':
+    'Discovers what this team can call; with nothing, it ends early.',
+  'agent.metro.copy.intake':
+    'Decides whether there is an incident and links it to one already open, when it is the same.',
+  'agent.metro.copy.plan_evidence':
+    'Scores the capabilities and chooses where it is worth starting.',
+  'agent.metro.copy.gather_evidence':
+    'Runs the planned reads and keeps only what supports something.',
+  'agent.metro.copy.diagnose':
+    'Forms hypotheses and tests them against the retained evidence.',
+  'agent.metro.copy.deliver':
+    'Writes the cause, proposes the action, and records the episode.',
+  'agent.metro.name.resolve_integrations': 'Resolve integrations',
+  'agent.metro.name.intake': 'Intake',
+  'agent.metro.name.plan_evidence': 'Plan evidence',
+  'agent.metro.name.gather_evidence': 'Gather evidence',
+  'agent.metro.name.diagnose': 'Diagnose',
+  'agent.metro.name.deliver': 'Deliver',
+  'agent.metro.regime.model': 'model: {role}',
+  'agent.metro.regime.deterministic': 'deterministic',
+  'agent.metro.regime.none': 'no model',
+  'agent.metro.runningNow': 'running now',
+  'agent.metro.tools.ratio': '{enabled} of {total} enabled',
+  'agent.metro.tools.read': 'Reads · {count}',
+  'agent.metro.tools.writeReversible': 'Writes, reversible · {count}',
+  'agent.metro.tools.destructive': 'Destructive · {count}',
+  'agent.metro.tools.catalogue': 'full catalogue \u2192',
+  'agent.metro.autonomy.footer':
+    'No class runs alone: everything is diagnosed and proposed for a person to decide.',
+  'agent.metro.autonomy.adjust': 'adjust the policy \u2192',
+  'agent.metro.team.budget': '{used} of {budget} tokens',
+  'agent.metro.team.empty':
+    'No fact written yet. Environment facts join every investigation\u2019s prompt.',
+  'agent.metro.team.note': 'what exceeds the budget is refused, never truncated',
+  'agent.metro.team.investigator': '\u2192 Investigator',
+  'agent.metro.team.subagent': '\u2192 Sub-agent',
+  'agent.metro.team.write': 'write environment facts \u2192',
   'agent.stage.role': 'model role: {role}',
   'agent.stage.noModel': 'no model call',
   'agent.stage.consults': 'Consults:',
@@ -2024,6 +2311,7 @@ export const EN = {
     'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
   'agent.models.default': 'deployment default — nobody bound this role',
   'agent.models.inherited': 'no choice of its own — follows the investigator',
+  'agent.models.followSummary': '{count} roles follow the investigator',
   'agent.models.from': 'from {node}',
   'agent.models.empty.heading': 'No role is described here',
   'agent.models.empty.body':
@@ -2053,6 +2341,7 @@ export const EN = {
   'agent.document.untouched':
     'Nothing has been overridden for this node: it runs the shipped pipeline as it stands. The document below says so in the deployment’s own words.',
   'agent.document.title': 'The same topology, as the document',
+  'agent.document.show': 'show the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':
     'The deployment did not answer with the stages an investigation runs. Nothing here is configuration; it is what the build is.',
@@ -2061,11 +2350,35 @@ export const EN = {
   // deployment declares, searchable — the same table `catalogue.tsx` used to
   // draw, on its own route, before Integrations took the write half.
   'agent.tools.browse': 'Find a tool or skill',
-  'agent.tools.reads': 'Tools that read',
-  'agent.tools.reads.body': 'These consult something and change nothing.',
-  'agent.tools.writes': 'Tools that write',
-  'agent.tools.writes.body':
-    'These change something. Every one of them passes the autonomy policy before it runs.',
+  'agent.tools.effect.all': 'All',
+  'agent.tools.effect.read': 'Reads',
+  'agent.tools.effect.write_reversible': 'Writes reversible',
+  'agent.tools.effect.write_irreversible': 'Writes irreversible',
+  'agent.tools.effect.destructive': 'Destructive',
+  'agent.tools.domain.remediation': 'Remediation',
+  'agent.tools.domain.cloud_control_plane': 'Control plane',
+  'agent.tools.domain.skills': 'Skills',
+  'agent.tools.domain.methodology': 'Methodology',
+  'agent.tools.domain.logstore': 'Logstore',
+  'agent.tools.domain.communication': 'Communication',
+  'agent.tools.domain.metrics': 'Metrics',
+  'agent.tools.domain.incident': 'Incident',
+  'agent.tools.domain.cicd': 'CI/CD',
+  'agent.tools.domain.vcs': 'VCS',
+  'agent.tools.domain.database': 'Database',
+  'agent.tools.domain.tracing': 'Tracing',
+  'agent.tools.domain.changes': 'Changes',
+  'agent.tools.domain.model_provider': 'Model provider',
+  'agent.tools.domain.observability': 'Observability',
+  'agent.tools.domain.topology': 'Topology',
+  'agent.tools.domain.estate': 'Estate',
+  'agent.tools.domain.other': 'Other',
+  'agent.tools.domainMeta':
+    '{count} capabilities · {enabled} enabled · destructive ones always ask for approval',
+  'agent.tools.showing': 'showing {shown} of {total} ·',
+  'agent.tools.showAll': 'see all {domain} capabilities →',
+  'agent.tools.footer':
+    'Side effects come from the catalogue, not from the agent — what is destructive always asks for approval.',
   'agent.tools.origin': 'from the {server} server',
   'agent.tools.blocked': 'not available here: {integration} is not configured',
   'agent.tools.unknown':
@@ -2084,6 +2397,18 @@ export const EN = {
   'agent.bridged.empty.action': 'Edit the configuration',
   'agent.bridged.state.enabled': 'Enabled',
   'agent.bridged.state.disabled': 'Disabled',
+  'agent.autonomy.class.trivial': 'Trivial',
+  'agent.autonomy.class.low': 'Low',
+  'agent.autonomy.class.moderate': 'Moderate',
+  'agent.autonomy.class.high': 'High',
+  'agent.autonomy.class.critical': 'Critical',
+  'agent.autonomy.policyChip': 'Current policy: {posture}',
+  'agent.autonomy.nobodyAlone': 'nothing runs without a person deciding',
+  'agent.autonomy.seeRule': 'see the rule that resolves this →',
+  'agent.autonomy.change.title': 'Change the policy',
+  'agent.autonomy.change.body':
+    'Rules declared per class or per capability change the verdict from "Propose" to run with approval, or run alone. Each rule says what it covers — and whatever is not covered keeps landing here.',
+  'agent.autonomy.change.note': 'a policy change is a recorded decision',
   'agent.outlook.title': 'What would happen, by class of action',
   'agent.outlook.body':
     'One sentence per class, answered by the deployment itself under the policy as it stands right now.',
@@ -2427,6 +2752,39 @@ export const EN = {
   'settings.sso.result.failed': 'This claim set failed the test:',
   'settings.sso.fallback':
     'Local sign-in stays available as a fallback, whatever this provider is set to — nobody is locked out by a broken identity provider alone.',
+  'decisions.card.steps': 'What will happen',
+  'decisions.card.rollback': 'If it goes wrong — rollback',
+  'decisions.card.noRollback': 'No rollback recorded — this action cannot be undone.',
+  'decisions.card.why': 'Why',
+  'decisions.card.evidence': 'Evidence behind this',
+  'decisions.card.evidenceLink': 'view',
+  'decisions.card.blastRadius': 'Blast radius',
+  'decisions.card.blastRadius.text': '{count} resource(s) known, depth {depth}',
+  'decisions.card.blastRadius.unknown':
+    'Unknown — the topology graph could not be read',
+  'decisions.card.rawPayload': 'raw action payload',
+  'decisions.card.notRecorded': 'Not recorded.',
+  'decisions.card.risk': 'Risk',
+  'decisions.card.outcome': 'Decided',
+  'decisions.card.appliedAndVerified': 'applied and verified',
+  'decisions.card.expiredAgo': 'expired {ago}',
+  'decisions.card.autonomy.reversible':
+    '{level} — queued, applies only after your yes.',
+  'decisions.card.autonomy.irreversible':
+    '{level} — queued, applies only after your yes.',
+  'decisions.expiredFooter.explanation':
+    'The window for this proposal closed — the environment was read before it expired. Propose again to decide on a current reading.',
+  'decisions.expiredFooter.repropose': 'Propose again, now',
+  'decisions.expiredFooter.discard': 'Discard',
+  'decisions.expiredFooter.failed': 'The deployment did not answer. Nothing changed.',
+  'decisions.decided.heading': 'Decided recently',
+  'decisions.decided.empty': 'Nothing has been decided yet.',
+  'decisions.decided.outcome.approved': 'approved by {who}',
+  'decisions.decided.outcome.approvedVerified':
+    'approved by {who}, applied and verified',
+  'decisions.decided.outcome.rejected': 'rejected by {who}: {reason}',
+  'decisions.decided.outcome.rejectedNoReason': 'rejected by {who}',
+  'decisions.decided.outcome.discarded': 'discarded by {who}',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

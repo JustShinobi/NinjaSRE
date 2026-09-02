@@ -31,6 +31,7 @@ from platform.persistence.ports import (
     CredentialMetadata,
     EffectivenessQuery,
     Episode,
+    EstateDailySnapshot,
     EstateQuery,
     HealthDerivation,
     Incident,
@@ -93,6 +94,7 @@ TENANT_SCOPED_PORTS = frozenset(
         "schedules",
         "credentials",
         "estate",
+        "estate_snapshots",
         "signals",
         "incidents",
         "remediation",
@@ -208,6 +210,15 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             seen_count=1,
         )
     )
+    await uow.estate_snapshots.record(
+        EstateDailySnapshot(
+            snapshot_date=at().date(),
+            total=1,
+            captured_at=at(),
+            counts_by_kind={"virtual_machine": 1},
+            counts_by_health={"healthy": 1},
+        )
+    )
     incident = Incident(
         incident_id="inc-1",
         correlation_key="detector:datastore-near-full",
@@ -315,6 +326,7 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.estate.transitions("res-1") == ()
         assert await uow.estate.references("res-1") == ()
         assert await uow.estate.last_sweep("proxmox") is None
+        assert (await uow.estate_snapshots.list_daily(since=at().date(), until=at().date())) == ()
         assert await uow.signals.window(SignalQuery()) == ()
         assert await uow.signals.latest() == ()
         assert await uow.signals.prune(before=at(10)) == 0
@@ -439,6 +451,7 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.episodes.list_strategies(team_node_id="payments") != ()
         assert await uow.credentials.get_metadata("slack-bot-token") is not None
         assert await uow.estate.get("res-1") is not None
+        assert (await uow.estate_snapshots.list_daily(since=at().date(), until=at().date())) != ()
         assert len(await uow.signals.latest()) == 1
         assert await uow.incidents.get("inc-1") is not None
         assert await uow.remediation.get("action-1") is not None

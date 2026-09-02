@@ -737,12 +737,22 @@ def remediation_payload(
     slightly different ones. The keys are named in the constants tier for the
     same reason: a second spelling is a field that reads back missing with no
     error anywhere.
+
+    The step's own description is never ``action.intent``. ``intent`` already
+    travels whole, at the top level of this same payload
+    (``RemediationAction.to_payload``), and is what a reviewer reads as *why*
+    the action needs approval — printing it again here as *what* the action
+    does would have the card state one fact twice rather than two facts once
+    each. ``action.operation`` names the capability against its own arguments,
+    which is what a step genuinely has to say once the justification lives
+    elsewhere; ``action.summary()`` only stands in for the rare action built
+    without one (a reader that never went through the gate).
     """
     payload = action.to_payload()
     payload[REMEDIATION_PAYLOAD_STEPS] = [
         {
             "capability": action.capability,
-            "description": action.intent or action.summary(),
+            "description": action.operation or action.summary(),
             "arguments": dict(action.arguments),
         }
     ]

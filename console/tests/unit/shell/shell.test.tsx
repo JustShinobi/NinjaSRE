@@ -294,7 +294,13 @@ describe('the session, from inside the shell', () => {
     });
     // Navigating away with the cookie still set is not signing out; it is
     // closing a tab, and the next person at that keyboard is still signed in.
-    const [address, init] = ending.mock.calls[0] as unknown as [string, RequestInit];
+    // Matched by address rather than assumed to be the first call: the shell
+    // also opens the deployment channel's own connection on mount
+    // (`/api/events/stream`), which is not the call this test is about.
+    const calls = ending.mock.calls as unknown as [string, RequestInit][];
+    const sessionCalls = calls.filter(([address]) => address === '/api/session');
+    expect(sessionCalls).toHaveLength(1);
+    const [address, init] = sessionCalls[0] ?? ['', {}];
     expect(address).toBe('/api/session');
     expect(init.method).toBe('DELETE');
     expect(navigate.mock.calls[0]?.[0]).toContain('reason=signed-out');

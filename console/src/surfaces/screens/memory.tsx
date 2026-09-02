@@ -1,12 +1,17 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
+import { SegmentedLinks, StatusDot } from '@/components';
+import { ResolvedChip } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 import { timestamp } from '@/i18n/format';
+import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
 import { extractionCause, firstCause, readSetupState, setupCause } from '../emptiness';
 import { INVESTIGATION_STEP } from '../first-run/plan';
-import { FilterBar, type FilterChoice } from '../filters';
-import { panelLabels, rowLabels } from '../labels';
+import { panelLabels } from '../labels';
 import { Panel, type PanelEmpty } from '../panel';
 import {
   authorised,
@@ -18,42 +23,299 @@ import {
   stateOf,
   text,
 } from '../read';
-import { RowList, type ListRow } from '../rows';
-import { readViewState, type FilterName } from '../url-state';
+import { hrefFor, readViewState, withFilter, type FilterName } from '../url-state';
+import {
+  displayComponent,
+  normaliseComponents,
+  type ComponentType,
+} from './component-normalisation';
 
 /**
  * The "Learned" tab of Knowledge: what past investigations left behind, and
  * what was learned from them.
  *
- * Episodes are browsable and each links to the run that produced it, which is
- * the property that makes the corpus evidence rather than assertion: a claim
- * about what happened in April is worth what the transcript behind it is worth.
- *
- * The component filter is passed to the *server* rather than applied here. The
- * search endpoint takes a component, and a console that read everything and
- * filtered it in a browser would be a console that stops working at the exact
- * size the corpus becomes worth having.
- *
- * A strategy is downstream of an episode, and an episode is downstream of an
- * investigation that finished. On a deployment where none has, saying so twice
- * — once for episodes, once for strategies — is two empty boxes past a
- * viewport for one fact. Below, the two collapse to the single section that
- * explains the whole chain, and the chain's own root cause: an unfinished
- * setup, named with a link to the place that finishes it.
+ * Episodes are cards, each linking to the run that produced it — the
+ * property that makes the corpus evidence rather than assertion. The
+ * component filter groups by type and merges `container:<id>`/`guest:<id>`
+ * into one option, because the staging audit that opened this feature found
+ * the same guest listed twice under two prefixes. The side panel reads the
+ * pending knowledge-typed proposals from the queue every proposal waits in —
+ * never a second copy of that queue.
  *
  * One of three tabs Knowledge asks about the same environment — learned,
  * documented, observed — so this content is rendered by
  * `screens/knowledge.tsx` beside `documents.tsx`'s and `topology.tsx`'s own.
  */
 
-export const MEMORY_FILTERS: readonly FilterName[] = [
-  // Carried through every filter link this tab regenerates, so choosing a
-  // component or an outcome does not also silently switch Knowledge back to
-  // its default tab. See `hrefFor`'s own docstring in `url-state.ts`.
-  'tab',
-  'component',
-  'outcome',
-];
+export const MEMORY_FILTERS: readonly FilterName[] = ['tab', 'component', 'outcome'];
+
+/** What the component filter's own label reads for each grouped type. */
+const TYPE_LABEL: Readonly<Record<ComponentType, string>> = {
+  service: 'memory.componentType.service',
+  node: 'memory.componentType.node',
+  guest: 'memory.componentType.guest',
+  cluster: 'memory.componentType.cluster',
+} as const;
+
+/** The one proposal type this panel reads out of the shared queue. */
+const KNOWLEDGE_PROPOSAL_TYPE = 'knowledge';
+
+/** Where every proposal, knowledge included, is reviewed and decided. */
+const PROPOSALS_HREF = '/decisions?tab=changes';
+
+/**
+ * Where the episode store's own outcome word is translated — the four
+ * `EpisodeOutcome` carries, not a shape this screen invented. A word outside
+ * this set still gets a role and a shape from the shared vocabulary and
+ * prints itself, the same graceful unknown `Badge` draws for any status this
+ * catalogue has not been taught: a provider one version ahead is not a fault.
+ */
+const EPISODE_OUTCOME_LABEL: Readonly<Record<string, MessageKey>> = {
+  resolved: 'memory.episode.outcome.resolved',
+  mitigated: 'memory.episode.outcome.mitigated',
+  inconclusive: 'memory.episode.outcome.inconclusive',
+  false_positive: 'memory.episode.outcome.falsePositive',
+};
+
+/** `outcome`, worded for the filter the same way the chip words it. */
+function outcomeWord(locale: SurfaceContext['locale'], outcome: string): string {
+  const declared = EPISODE_OUTCOME_LABEL[outcome];
+  return declared === undefined ? outcome : message(locale, declared);
+}
+
+/**
+ * The episode store's own machine vocabulary — `IssueType`,
+ * `platform/memory/models.py`. What decides whether a title's `prefix:` is a
+ * machine word to move into the meta line, or part of the human phrase.
+ */
+const EPISODE_MACHINE_WORDS: ReadonlySet<string> = new Set([
+  'oom_kill',
+  'crash_loop',
+  'workload_stopped',
+  'deploy_regression',
+  'configuration_error',
+  'resource_saturation',
+  'disk_pressure',
+  'connection_pool_exhaustion',
+  'network_failure',
+  'dependency_failure',
+  'certificate_expiry',
+  'authentication_failure',
+  'data_integrity',
+  'scheduled_job_failure',
+  'latency_regression',
+  'other',
+]);
+
+/**
+ * `title`, split at its first `:` when the prefix is a known machine word —
+ * the human phrase leads the card, and the machine word moves to the meta
+ * line. A title with no such prefix comes back whole.
+ */
+export function splitEpisodeTitle(title: string): {
+  readonly machine: string;
+  readonly human: string;
+} {
+  const cut = title.indexOf(':');
+  if (cut === -1) return { machine: '', human: title };
+  const prefix = title.slice(0, cut).trim();
+  if (!EPISODE_MACHINE_WORDS.has(prefix)) return { machine: '', human: title };
+  const rest = title.slice(cut + 1).trim();
+  return rest === '' ? { machine: '', human: title } : { machine: prefix, human: rest };
+}
+
+/** The right-hand chip the board draws beside every episode: the outcome, in role, shape and word. */
+function OutcomeChip({
+  locale,
+  outcome,
+}: {
+  readonly locale: SurfaceContext['locale'];
+  readonly outcome: string;
+}): ReactNode {
+  const presented = statusPresentation(outcome);
+  const declared = EPISODE_OUTCOME_LABEL[outcome];
+  return (
+    <ResolvedChip
+      testId="episode-outcome"
+      role={presented.role}
+      shape={presented.shape}
+      label={declared === undefined ? presented.label : message(locale, declared)}
+      className={declared === undefined ? 'shrink-0 capitalize' : 'shrink-0'}
+    />
+  );
+}
+
+function EpisodeCard({
+  context,
+  episode,
+  activeComponent,
+  state,
+}: {
+  readonly context: Pick<SurfaceContext, 'locale' | 'now' | 'zone'>;
+  readonly episode: unknown;
+  readonly activeComponent: string;
+  readonly state: ReturnType<typeof readViewState>;
+}): ReactNode {
+  const { locale, now, zone } = context;
+  const outcome = text(episode, 'outcome');
+  const runId = text(episode, 'run_id');
+  const components = list(episode, 'components').map(String);
+  const split = splitEpisodeTitle(text(episode, 'title'));
+  const target = components[0] === undefined ? '' : displayComponent(components[0]);
+  return (
+    <li
+      data-testid="episode-card"
+      data-outcome={outcome}
+      className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-4"
+    >
+      <div className="flex items-start gap-3">
+        <StatusDot status={outcome} className="mt-1" />
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          {/* The human phrase leads; the machine key never does. What used
+              to read "workload_stopped: the guest stopped" now leads with
+              the sentence, and the key lives on the meta line below, as the
+              board draws it. */}
+          <span className="text-small font-medium" data-testid="episode-title">
+            {split.human}
+          </span>
+          <span
+            className="flex min-w-0 items-center text-meta text-muted"
+            data-testid="episode-meta"
+          >
+            <span className="min-w-0 truncate">
+              {split.machine === '' ? null : (
+                <>
+                  <span className="font-mono">{split.machine}</span>
+                  {' · '}
+                </>
+              )}
+              {target === '' ? null : <>{target} · </>}
+              {text(episode, 'summary')}
+            </span>
+          </span>
+        </div>
+        <OutcomeChip locale={locale} outcome={outcome} />
+      </div>
+      <div className="flex items-center gap-2 flex-wrap pl-6">
+        {components.map((component) => (
+          <a
+            key={component}
+            href={hrefFor(
+              '/knowledge',
+              withFilter(state, 'component', component),
+              MEMORY_FILTERS,
+            )}
+            data-testid="episode-component-chip"
+            data-active={component === activeComponent ? 'true' : 'false'}
+            className={`rounded-full px-2 py-1 text-micro edge font-mono ${component === activeComponent ? 'bg-accent-bg text-accent border-accent' : 'text-muted'}`}
+            title={component}
+          >
+            {displayComponent(component)}
+          </a>
+        ))}
+        <span
+          data-testid="episode-time"
+          className="ml-auto shrink-0 text-micro text-muted"
+        >
+          {timestamp(locale, text(episode, 'occurred_at'), now, zone).relative}
+        </span>
+        {runId === '' ? null : (
+          <a
+            href={`/runs/${runId}`}
+            data-testid="episode-open-investigation"
+            className="shrink-0 text-micro text-accent hover:underline"
+          >
+            {message(locale, 'memory.episode.openInvestigation')}
+          </a>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function ComponentFilter({
+  locale,
+  groups,
+  active,
+  path,
+  state,
+}: {
+  readonly locale: SurfaceContext['locale'];
+  readonly groups: ReturnType<typeof normaliseComponents>;
+  readonly active: string;
+  readonly path: string;
+  readonly state: ReturnType<typeof readViewState>;
+}): ReactNode {
+  const activeLabel =
+    active === ''
+      ? message(locale, 'surface.filter.any')
+      : (groups
+          .flatMap((group) => group.options)
+          .find((option) => option.canonical === active)?.display ?? active);
+  return (
+    <details data-testid="component-filter" className="relative">
+      <summary
+        data-testid="component-filter-toggle"
+        className="flex items-center gap-2 rounded-2 edge border-border px-3 py-2 text-small cursor-pointer list-none"
+      >
+        {message(locale, 'memory.filter.component')} ·{' '}
+        <span data-testid="component-filter-summary" className="text-accent">
+          {activeLabel}
+        </span>
+      </summary>
+      <div className="absolute z-10 mt-2 flex flex-col gap-3 rounded-3 edge border-border bg-raised p-3 shadow-1 max-w-prose">
+        <a
+          href={hrefFor(path, withFilter(state, 'component', ''), MEMORY_FILTERS)}
+          className="text-micro text-muted hover:underline"
+        >
+          {message(locale, 'surface.filter.any')}
+        </a>
+        {groups.map((group) => (
+          <div
+            key={group.type}
+            data-testid="component-filter-group"
+            className="flex flex-col gap-1"
+          >
+            <span className="text-micro text-muted font-semibold uppercase tracking-wide">
+              {message(locale, TYPE_LABEL[group.type] as Parameters<typeof message>[1])}{' '}
+              <span
+                data-testid="component-filter-group-count"
+                className="font-mono normal-case"
+              >
+                {group.options.length}
+              </span>
+            </span>
+            {group.options.map((option) => (
+              <a
+                key={option.canonical}
+                href={hrefFor(
+                  path,
+                  withFilter(state, 'component', option.canonical),
+                  MEMORY_FILTERS,
+                )}
+                data-testid="component-filter-option"
+                className="text-small font-mono hover:underline"
+              >
+                {option.display}
+              </a>
+            ))}
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** One component, queried against the search endpoint's own exact match. */
+async function searchByComponent(
+  component: string,
+  init: RequestInit,
+): Promise<unknown> {
+  return read('/v1/memory/search', {
+    ...init,
+    query: `?component=${encodeURIComponent(component)}`,
+  });
+}
 
 export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
@@ -61,33 +323,70 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   const init = authorised(credential);
   const component = state.filters.component ?? '';
 
-  const [episodes, setup] = await Promise.all([
-    panelRead('/v1/memory/search', () =>
-      read('/v1/memory/search', {
-        ...init,
-        ...(component === ''
-          ? {}
-          : { query: `?component=${encodeURIComponent(component)}` }),
-      }),
+  // The vocabulary the filter offers is read unfiltered, always: the search
+  // endpoint's own `component` narrows the result set server-side, and a
+  // vocabulary built from an already-narrowed page would lose every option
+  // the current filter does not itself hold.
+  const [vocabulary, proposals, documents, topology, setup] = await Promise.all([
+    panelRead('/v1/memory/search', () => read('/v1/memory/search', init)),
+    panelRead('/v1/proposals', () => read('/v1/proposals', init)),
+    panelRead('/v1/knowledge/documents', () => read('/v1/knowledge/documents', init)),
+    panelRead('/v1/topology/{node_id}', () =>
+      read('/v1/topology/{node_id}', { ...init, params: { node_id: 'root' } }),
     ),
     readSetupState(credential),
   ]);
 
+  const wholeCorpus = list(dataOf(vocabulary), 'episodes');
+  const allComponents = [
+    ...new Set(wholeCorpus.flatMap((record) => list(record, 'components').map(String))),
+  ];
+  const componentGroups = normaliseComponents(allComponents);
+
+  // A merged option — `container:<id>` and `guest:<id>` folded into one —
+  // still queries the server by exact match, once per raw spelling it
+  // actually carries, and this is that resolution: never every episode
+  // fetched and narrowed in the browser, always a bounded query per
+  // observed spelling of the one thing that was clicked. A `component` the
+  // vocabulary does not recognise (a stale deep link) is queried literally,
+  // which is what makes "filter shown as active with an honest empty
+  // result" possible instead of silently dropping it.
+  const rawSpellings =
+    component === ''
+      ? []
+      : (componentGroups
+          .flatMap((group) => group.options)
+          .find((option) => option.canonical === component)?.raw ?? [component]);
+
+  const episodes =
+    component === ''
+      ? vocabulary
+      : rawSpellings.length === 1
+        ? await panelRead('/v1/memory/search', () =>
+            searchByComponent(rawSpellings[0] ?? component, init),
+          )
+        : await panelRead('/v1/memory/search', async () => {
+            const pages = await Promise.all(
+              rawSpellings.map((spelling) => searchByComponent(spelling, init)),
+            );
+            const merged = new Map<string, unknown>();
+            for (const page of pages) {
+              for (const episode of list(page, 'episodes')) {
+                merged.set(text(episode, 'episode_id'), episode);
+              }
+            }
+            return { episodes: [...merged.values()] };
+          });
+
   const records = list(dataOf(episodes), 'episodes');
 
-  // Read only when there is an empty corpus to explain. On every other
-  // rendering of this tab the answer changes nothing on the screen, and a
-  // read whose result is discarded is a read the deployment served for
-  // nobody.
   const finished =
-    episodes.status === 'ready' && records.length === 0
+    episodes.status === 'ready' && records.length === 0 && component === ''
       ? await finishedInvestigations(init)
       : 0;
-  const components = [
-    ...new Set(records.flatMap((record) => list(record, 'components').map(String))),
-  ].sort();
+
   const outcomes = [
-    ...new Set(records.map((record) => text(record, 'outcome'))),
+    ...new Set(wholeCorpus.map((record) => text(record, 'outcome')).filter(Boolean)),
   ].sort();
 
   const filtered = records.filter((record) => {
@@ -95,62 +394,16 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
     return outcome === undefined || text(record, 'outcome') === outcome;
   });
 
-  const rows: readonly ListRow[] = filtered.map((record) => ({
-    id: text(record, 'episode_id'),
-    // Every episode reaches the run that produced it. That link is the whole
-    // difference between a corpus and a pile of assertions.
-    href: `/runs/${text(record, 'run_id')}`,
-    cells: [
-      { kind: 'text', text: text(record, 'title') },
-      { kind: 'status', text: text(record, 'outcome') },
-      { kind: 'muted', text: list(record, 'components').map(String).join(', ') },
-      {
-        kind: 'muted',
-        text: timestamp(locale, text(record, 'occurred_at'), now, zone).relative,
-      },
-    ],
-  }));
-
-  // A filter with nothing behind it but "Any" is not a filter, it is a
-  // dropdown that teaches nothing. Both are computed from the whole corpus, not
-  // the current selection, so choosing one value does not make the other vanish.
-  const choices: readonly FilterChoice[] = [
-    {
-      name: 'component',
-      label: message(locale, 'memory.filter.component'),
-      options: components.map((value) => ({ value, label: value })),
-    },
-    {
-      name: 'outcome',
-      label: message(locale, 'memory.filter.outcome'),
-      options: outcomes.map((value) => ({ value, label: value })),
-    },
-  ].filter((choice) => choice.options.length > 0);
-
-  // The corpus itself, not the current filter: choosing an outcome nothing
-  // matches is a normal empty panel, not the deployment-wide story below.
   const corpusEmpty = episodes.status === 'ready' && records.length === 0;
 
-  // Most specific first, and the extraction cause is the more specific of the
-  // two: a deployment whose investigations have finished is past the setup
-  // step this screen would otherwise blame, so "finish setting up" would be
-  // advice for something already done.
   const cause = firstCause(
     extractionCause(locale, finished),
     setupCause(locale, setup, INVESTIGATION_STEP),
   );
 
-  // The mechanism for both stays — an episode comes from an investigation that
-  // ended, a strategy from episodes that agree — and, when the setup is why
-  // neither has happened yet, one more sentence closes the chain with a link
-  // to the place that finishes it.
   const cycleBody = [
     message(
       locale,
-      // The mechanism keeps its "and none has been written yet" only when
-      // nothing follows it. Where a cause does, that clause is the paragraph
-      // asserting an absence and then immediately counting the runs behind
-      // it — two sentences for one fact, in two different moods.
       cause === null ? 'memory.episodes.empty.body' : 'memory.episodes.empty.mechanism',
     ),
     message(locale, 'memory.strategies.empty.body'),
@@ -167,18 +420,26 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
     href: cause === null ? '/runs' : cause.href,
   };
 
+  const pendingKnowledge =
+    proposals.status === 'ready'
+      ? list(dataOf(proposals), 'proposals').filter(
+          (entry) => text(entry, 'proposal_type') === KNOWLEDGE_PROPOSAL_TYPE,
+        )
+      : [];
+
+  const documentCount =
+    documents.status === 'ready' ? list(dataOf(documents), 'documents').length : 0;
+  const topologyBody = dataOf(topology);
+  const topologyCount =
+    topology.status === 'ready'
+      ? new Set([
+          ...list(topologyBody, 'dependencies').map((entry) => text(entry, 'node_id')),
+          ...list(topologyBody, 'dependents').map((entry) => text(entry, 'node_id')),
+        ]).size
+      : 0;
+
   return (
     <>
-      {corpusEmpty || choices.length === 0 ? null : (
-        <FilterBar
-          path="/knowledge"
-          state={state}
-          filters={MEMORY_FILTERS}
-          anyLabel={message(locale, 'surface.filter.any')}
-          choices={choices}
-        />
-      )}
-
       {corpusEmpty ? (
         <Panel
           title={message(locale, 'memory.stats.title')}
@@ -188,66 +449,173 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
           empty={cycleEmpty}
         />
       ) : (
-        <div className="flex flex-col gap-5">
-          <Panel
-            title={message(locale, 'memory.episodes.title')}
-            state={stateOf(episodes, rows.length === 0)}
-            dependency={dependencyOf(episodes)}
-            labels={panelLabels(locale, message(locale, 'memory.episodes.title'))}
-            empty={{
-              heading: message(locale, 'memory.episodes.empty.heading'),
-              body: message(locale, 'memory.episodes.empty.body'),
-              actionLabel: message(locale, 'memory.episodes.empty.action'),
-              href: '/runs',
-            }}
-          >
-            <RowList
-              path="/knowledge"
-              state={state}
-              filters={MEMORY_FILTERS}
-              labels={rowLabels(locale, message(locale, 'memory.episodes.caption'))}
-              columns={[
-                {
-                  key: 'title',
-                  header: message(locale, 'memory.column.title'),
-                  sortable: true,
-                },
-                {
-                  key: 'outcome',
-                  header: message(locale, 'memory.column.outcome'),
-                  sortable: true,
-                },
-                {
-                  key: 'components',
-                  header: message(locale, 'memory.column.components'),
-                },
-                {
-                  key: 'occurred_at',
-                  header: message(locale, 'memory.column.occurred'),
-                  sortable: true,
-                },
-              ]}
-              rows={rows}
-            />
-          </Panel>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+          <div className="flex flex-col gap-3 min-w-0 lg:col-span-3">
+            {componentGroups.length === 0 && outcomes.length === 0 ? null : (
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Each filter is furniture on its own, not just as a pair --
+                    a corpus with components but one outcome still gets the
+                    component filter, and the reverse. */}
+                {componentGroups.length === 0 ? null : (
+                  <ComponentFilter
+                    locale={locale}
+                    groups={componentGroups}
+                    active={component}
+                    path="/knowledge"
+                    state={state}
+                  />
+                )}
+                {outcomes.length === 0 ? null : (
+                  <SegmentedLinks
+                    label={message(locale, 'memory.filter.outcome')}
+                    selected={state.filters.outcome ?? ''}
+                    options={[
+                      {
+                        id: '',
+                        label: message(locale, 'surface.filter.any'),
+                        href: hrefFor(
+                          '/knowledge',
+                          withFilter(state, 'outcome', ''),
+                          MEMORY_FILTERS,
+                        ),
+                      },
+                      ...outcomes.map((outcome) => ({
+                        id: outcome,
+                        label: outcomeWord(locale, outcome),
+                        href: hrefFor(
+                          '/knowledge',
+                          withFilter(state, 'outcome', outcome),
+                          MEMORY_FILTERS,
+                        ),
+                      })),
+                    ]}
+                  />
+                )}
+                <span className="ml-auto text-micro text-muted">
+                  {message(locale, 'memory.count', { count: filtered.length })}
+                </span>
+              </div>
+            )}
 
-          <Panel
-            title={message(locale, 'memory.strategies.title')}
-            // No endpoint serves synthesised strategies yet, and an empty panel
-            // that said nothing would read as a corpus with nothing in it. This
-            // says what a strategy is and what produces one.
-            state={stateOf(episodes, true)}
-            dependency={dependencyOf(episodes)}
-            labels={panelLabels(locale, message(locale, 'memory.strategies.title'))}
-            empty={{
-              heading: message(locale, 'memory.strategies.empty.heading'),
-              body: message(locale, 'memory.strategies.empty.body'),
-              actionLabel: message(locale, 'memory.strategies.empty.action'),
-              href: '/knowledge?tab=learned',
-            }}
-          />
+            <Panel
+              title={message(locale, 'memory.episodes.title')}
+              titleHidden
+              state={stateOf(episodes, filtered.length === 0)}
+              dependency={dependencyOf(episodes)}
+              labels={panelLabels(locale, message(locale, 'memory.episodes.title'))}
+              empty={{
+                heading: message(locale, 'memory.episodes.empty.heading'),
+                body: message(locale, 'memory.episodes.empty.body'),
+                actionLabel: message(locale, 'memory.episodes.empty.action'),
+                href: '/runs',
+              }}
+            >
+              <ul className="flex flex-col gap-3">
+                {filtered.map((episode) => (
+                  <EpisodeCard
+                    key={text(episode, 'episode_id')}
+                    context={{ locale, now, zone }}
+                    episode={episode}
+                    activeComponent={component}
+                    state={state}
+                  />
+                ))}
+              </ul>
+            </Panel>
+          </div>
+
+          <div
+            className="flex flex-col gap-3 min-w-0 lg:col-span-1"
+            data-testid="knowledge-learned-panel"
+          >
+            <span className="text-strong text-small">
+              {message(locale, 'memory.learned.title')}
+            </span>
+            {pendingKnowledge.length === 0 ? (
+              <div className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-3">
+                <p
+                  data-testid="knowledge-proposal-empty"
+                  className="text-small text-muted"
+                >
+                  {message(locale, 'memory.learned.empty')}
+                </p>
+                <a
+                  href={PROPOSALS_HREF}
+                  className="text-small text-accent hover:underline"
+                >
+                  {message(locale, 'nav.proposals')}
+                </a>
+              </div>
+            ) : (
+              pendingKnowledge.map((proposal) => (
+                <div
+                  key={text(proposal, 'proposal_id')}
+                  data-testid="knowledge-proposal-card"
+                  className="flex flex-col gap-2 rounded-3 edge border-border bg-raised p-3"
+                >
+                  <p className="text-small">{text(proposal, 'summary')}</p>
+                  <span className="text-micro text-muted">
+                    {message(locale, 'memory.learned.from', {
+                      run: text(proposal, 'run_id') || text(proposal, 'correlation_id'),
+                    })}
+                  </span>
+                  <a
+                    href={PROPOSALS_HREF}
+                    className="text-micro text-accent hover:underline"
+                  >
+                    {message(locale, 'memory.learned.promote')}
+                  </a>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+        <div
+          data-testid="knowledge-preview-documents"
+          className="flex items-center gap-3 rounded-3 edge border-border bg-raised p-3"
+        >
+          <p className="text-small">
+            {message(
+              locale,
+              documentCount > 0
+                ? 'memory.preview.documents'
+                : 'memory.preview.documents.empty',
+              { count: documentCount },
+            )}
+          </p>
+          <NextLink
+            href="/knowledge?tab=documents"
+            prefetch={false}
+            className="ml-auto shrink-0 text-small text-accent hover:underline"
+          >
+            {message(locale, 'memory.preview.open')}
+          </NextLink>
+        </div>
+        <div
+          data-testid="knowledge-preview-topology"
+          className="flex items-center gap-3 rounded-3 edge border-border bg-raised p-3"
+        >
+          <p className="text-small">
+            {message(
+              locale,
+              topologyCount > 0
+                ? 'memory.preview.topology'
+                : 'memory.preview.topology.empty',
+              { count: topologyCount },
+            )}
+          </p>
+          <NextLink
+            href="/knowledge?tab=topology"
+            prefetch={false}
+            className="ml-auto shrink-0 text-small text-accent hover:underline"
+          >
+            {message(locale, 'memory.preview.open')}
+          </NextLink>
+        </div>
+      </div>
     </>
   );
 }
@@ -255,14 +623,8 @@ export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
 /**
  * How many investigations this deployment has actually concluded.
  *
- * Completed, not settled. A cancelled or failed run reached no conclusion for
- * an episode to be extracted from, so counting one would have the screen
- * blaming the corpus for a gap that was never going to be filled — the same
- * false causality `setupCause` exists to stop asserting, in a smaller place.
- *
  * A read that fails resolves to nought, which leaves the screen's own words
- * in place. That is the safe direction: a console that could not count the
- * runs must not start telling people their extraction is broken.
+ * in place.
  */
 async function finishedInvestigations(init: RequestInit): Promise<number> {
   const runs = await panelRead('/v1/runs', () => read('/v1/runs', init));

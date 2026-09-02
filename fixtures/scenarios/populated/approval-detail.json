@@ -5,27 +5,113 @@
         "approval_id": "apr-0001"
       },
       "body": {
-        "action": "estate.enable_backup_job",
+        "action": "proxmox_start_guest",
+        "applied_and_verified": false,
         "approval_id": "apr-0001",
         "arguments": {
-          "job_id": "backup-7d831311"
+          "node": "node81",
+          "vmid": 122
         },
+        "autonomy": {
+          "queued": true,
+          "reversible": true,
+          "side_effect_level": "write_reversible"
+        },
+        "blast_radius": {
+          "count": 1,
+          "depth": 1,
+          "known": true
+        },
+        "blast_radius_count": 1,
+        "category": "remediation",
+        "created_at": "2026-08-07T11:39:00+00:00",
         "decided_at": null,
         "decided_by": null,
-        "expires_at": "2026-08-07T13:39:00+00:00",
+        "evidence": [
+          {
+            "reference": "alertmanager:incident_timeline:inc-0001",
+            "summary": "11 entries in the Alertmanager timeline"
+          },
+          {
+            "reference": "proxmox:quorum:HAL9000",
+            "summary": "HAL9000 quorate — restarting does not risk the cluster"
+          }
+        ],
+        "expires_at": "2026-08-07T12:39:00+00:00",
+        "intent": "The Redis probes fail because the container was shut down.",
+        "origin": {
+          "headline": "RedisExporterDown",
+          "incident_id": "inc-0001",
+          "run_id": "run-0005"
+        },
+        "prior_effectiveness": {
+          "summary": ""
+        },
+        "raw": {
+          "blast_radius": {
+            "count": 1,
+            "depth": 1,
+            "known": true
+          },
+          "capability": "proxmox_start_guest",
+          "evidence": [
+            {
+              "reference": "alertmanager:incident_timeline:inc-0001",
+              "summary": "11 entries in the Alertmanager timeline"
+            },
+            {
+              "reference": "proxmox:quorum:HAL9000",
+              "summary": "HAL9000 quorate — restarting does not risk the cluster"
+            }
+          ],
+          "intent": "The Redis probes fail because the container was shut down.",
+          "requester": "alert-router",
+          "rollback": [
+            {
+              "capability": "proxmox_shutdown_guest",
+              "ordinal": 1,
+              "summary": "Ask the guest to shut down and wait"
+            }
+          ],
+          "side_effect_level": "write_reversible",
+          "steps": [
+            {
+              "capability": "proxmox_start_guest",
+              "ordinal": 1,
+              "summary": "Start the guest via Proxmox"
+            }
+          ],
+          "target": {
+            "identifier": "run-0005"
+          }
+        },
         "reason": null,
         "requested_at": "2026-08-07T11:39:00+00:00",
+        "requester": "alert-router",
+        "risk": {
+          "class": "low",
+          "scale": 5,
+          "score": 3
+        },
+        "rollback": [
+          {
+            "capability": "proxmox_shutdown_guest",
+            "ordinal": 1,
+            "summary": "Ask the guest to shut down and wait"
+          }
+        ],
         "rollback_plan": {
           "approval_id": "apr-0001",
-          "notes": "Disabling it again restores the state exactly, and takes one call.",
+          "notes": "Shutting the guest down again restores the state exactly.",
           "plan_id": "plan-0001",
           "steps": [
             {
               "arguments": {
-                "job_id": "backup-7d831311"
+                "node": "node81",
+                "vmid": 122
               },
-              "capability": "estate.disable_backup_job",
-              "description": "Disable the job again",
+              "capability": "proxmox_shutdown_guest",
+              "description": "Ask the guest to shut down and wait",
               "ordinal": 1
             }
           ]
@@ -33,7 +119,16 @@
         "run_id": "run-0005",
         "side_effect_level": "write_reversible",
         "state": "pending",
-        "summary": "Enable the disabled job so the primary's guests are covered at all."
+        "steps": [
+          {
+            "capability": "proxmox_start_guest",
+            "ordinal": 1,
+            "summary": "Start the guest via Proxmox"
+          }
+        ],
+        "summary": "Restart the guest lxc/122 on pve01.",
+        "title": "Start the guest lxc/122 on pve01",
+        "verdict": null
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
@@ -52,21 +147,366 @@
       },
       "body": {
         "action": "estate.expand_volume",
+        "applied_and_verified": false,
         "approval_id": "apr-0002",
         "arguments": {
           "add_bytes": 16000000000,
           "volume_id": "vm-100-disk-0"
         },
-        "decided_at": null,
+        "autonomy": {
+          "queued": true,
+          "reversible": false,
+          "side_effect_level": "write_irreversible"
+        },
+        "blast_radius": {
+          "count": 1,
+          "depth": 1,
+          "known": true
+        },
+        "blast_radius_count": 1,
+        "category": "remediation",
+        "created_at": "2026-08-05T11:27:00+00:00",
+        "decided_at": "2026-08-06T11:27:00+00:00",
         "decided_by": null,
+        "evidence": [
+          {
+            "reference": "estate:storage:vm-100-disk-0",
+            "summary": "Volume at 99.6% of its own allocation"
+          }
+        ],
         "expires_at": "2026-08-06T11:27:00+00:00",
+        "intent": "",
+        "origin": {
+          "headline": "",
+          "incident_id": "",
+          "run_id": "run-0001"
+        },
+        "prior_effectiveness": {
+          "summary": ""
+        },
+        "raw": {
+          "blast_radius": {
+            "count": 1,
+            "depth": 1,
+            "known": true
+          },
+          "capability": "estate.expand_volume",
+          "evidence": [
+            {
+              "reference": "estate:storage:vm-100-disk-0",
+              "summary": "Volume at 99.6% of its own allocation"
+            }
+          ],
+          "intent": "",
+          "requester": "alert-router",
+          "rollback": [],
+          "side_effect_level": "write_irreversible",
+          "steps": [
+            {
+              "capability": "estate.expand_volume",
+              "ordinal": 1,
+              "summary": "Grow the volume that is at the ceiling of its own allocation."
+            }
+          ],
+          "target": {
+            "identifier": "run-0001"
+          }
+        },
         "reason": null,
         "requested_at": "2026-08-05T11:27:00+00:00",
+        "requester": "alert-router",
+        "risk": {
+          "class": "high",
+          "scale": 5,
+          "score": 4
+        },
+        "rollback": [],
         "rollback_plan": null,
         "run_id": "run-0001",
         "side_effect_level": "write_irreversible",
-        "state": "pending",
-        "summary": "Grow the volume that is at the ceiling of its own allocation."
+        "state": "expired",
+        "steps": [
+          {
+            "capability": "estate.expand_volume",
+            "ordinal": 1,
+            "summary": "Grow the volume that is at the ceiling of its own allocation."
+          }
+        ],
+        "summary": "Grow the volume that is at the ceiling of its own allocation.",
+        "title": "Grow the volume that is at the ceiling of its own allocation.",
+        "verdict": null
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approval-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "approval_id": "apr-0003"
+      },
+      "body": {
+        "action": "knowledge.clear_cache",
+        "applied_and_verified": true,
+        "approval_id": "apr-0003",
+        "arguments": {
+          "service": "flaresolverr"
+        },
+        "autonomy": {
+          "queued": true,
+          "reversible": true,
+          "side_effect_level": "write_reversible"
+        },
+        "blast_radius": {
+          "count": null,
+          "depth": null,
+          "known": false
+        },
+        "blast_radius_count": null,
+        "category": "remediation",
+        "created_at": "2026-08-05T09:00:00+00:00",
+        "decided_at": "2026-08-05T12:00:00+00:00",
+        "decided_by": "user-operator",
+        "evidence": [],
+        "expires_at": "2026-08-05T09:00:00+00:00",
+        "intent": "",
+        "origin": {
+          "headline": "",
+          "incident_id": "",
+          "run_id": "run-0004"
+        },
+        "prior_effectiveness": {
+          "summary": ""
+        },
+        "raw": {
+          "blast_radius": {
+            "count": null,
+            "depth": null,
+            "known": false
+          },
+          "capability": "knowledge.clear_cache",
+          "evidence": [],
+          "intent": "",
+          "requester": "alert-router",
+          "rollback": [],
+          "side_effect_level": "write_reversible",
+          "steps": [],
+          "target": {
+            "identifier": "run-0004"
+          }
+        },
+        "reason": null,
+        "requested_at": "2026-08-05T09:00:00+00:00",
+        "requester": "alert-router",
+        "risk": {
+          "class": "low",
+          "scale": 5,
+          "score": 1
+        },
+        "rollback": [],
+        "rollback_plan": null,
+        "run_id": "run-0004",
+        "side_effect_level": "write_reversible",
+        "state": "approved",
+        "steps": [],
+        "summary": "Clear cache of flaresolverr.",
+        "title": "Clear cache of flaresolverr",
+        "verdict": "approved"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approval-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "approval_id": "apr-0004"
+      },
+      "body": {
+        "action": "estate.migrate_guest",
+        "applied_and_verified": false,
+        "approval_id": "apr-0004",
+        "arguments": {
+          "guest": "vibe-kanban",
+          "target_node": "pve02"
+        },
+        "autonomy": {
+          "queued": true,
+          "reversible": false,
+          "side_effect_level": "write_irreversible"
+        },
+        "blast_radius": {
+          "count": null,
+          "depth": null,
+          "known": false
+        },
+        "blast_radius_count": null,
+        "category": "remediation",
+        "created_at": "2026-07-30T12:00:00+00:00",
+        "decided_at": "2026-07-30T13:00:00+00:00",
+        "decided_by": "user-operator",
+        "evidence": [],
+        "expires_at": "2026-07-31T12:00:00+00:00",
+        "intent": "",
+        "origin": {
+          "headline": "",
+          "incident_id": "",
+          "run_id": "run-0002"
+        },
+        "prior_effectiveness": {
+          "summary": ""
+        },
+        "raw": {
+          "blast_radius": {
+            "count": null,
+            "depth": null,
+            "known": false
+          },
+          "capability": "estate.migrate_guest",
+          "evidence": [],
+          "intent": "",
+          "requester": "alert-router",
+          "rollback": [],
+          "side_effect_level": "write_irreversible",
+          "steps": [],
+          "target": {
+            "identifier": "run-0002"
+          }
+        },
+        "reason": "wrong maintenance window",
+        "requested_at": "2026-07-30T12:00:00+00:00",
+        "requester": "alert-router",
+        "risk": {
+          "class": "medium",
+          "scale": 5,
+          "score": 3
+        },
+        "rollback": [],
+        "rollback_plan": null,
+        "run_id": "run-0002",
+        "side_effect_level": "write_irreversible",
+        "state": "rejected",
+        "steps": [],
+        "summary": "Migrate vibe-kanban to pve02.",
+        "title": "Migrate vibe-kanban to pve02",
+        "verdict": "rejected"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approval-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "approval_id": "apr-0005"
+      },
+      "body": {
+        "action": "legacy.rotate_removed_connector_credential",
+        "applied_and_verified": false,
+        "approval_id": "apr-0005",
+        "arguments": {
+          "connector_id": "legacy-example"
+        },
+        "autonomy": {
+          "queued": true,
+          "reversible": false,
+          "side_effect_level": "write_irreversible"
+        },
+        "blast_radius": {
+          "count": 0,
+          "depth": 0,
+          "known": false
+        },
+        "blast_radius_count": 0,
+        "category": "remediation",
+        "created_at": "2026-08-02T11:50:00+00:00",
+        "decided_at": "2026-08-03T11:50:00+00:00",
+        "decided_by": null,
+        "evidence": [
+          {
+            "reference": "integrations:connector:legacy-example",
+            "summary": "Credential due for rotation before the connector was removed"
+          }
+        ],
+        "expires_at": "2026-08-03T11:50:00+00:00",
+        "intent": "",
+        "origin": {
+          "headline": "",
+          "incident_id": "",
+          "run_id": "run-0006"
+        },
+        "prior_effectiveness": {
+          "summary": ""
+        },
+        "raw": {
+          "blast_radius": {
+            "count": 0,
+            "depth": 0,
+            "known": false
+          },
+          "capability": "legacy.rotate_removed_connector_credential",
+          "evidence": [
+            {
+              "reference": "integrations:connector:legacy-example",
+              "summary": "Credential due for rotation before the connector was removed"
+            }
+          ],
+          "intent": "",
+          "requester": "alert-router",
+          "rollback": [],
+          "side_effect_level": "write_irreversible",
+          "steps": [
+            {
+              "capability": "legacy.rotate_removed_connector_credential",
+              "ordinal": 1,
+              "summary": "Rotate the credential for the retired connector"
+            }
+          ],
+          "target": {
+            "identifier": "run-0006"
+          }
+        },
+        "reason": null,
+        "requested_at": "2026-08-02T11:50:00+00:00",
+        "requester": "alert-router",
+        "risk": {
+          "class": "medium",
+          "scale": 5,
+          "score": 3
+        },
+        "rollback": [],
+        "rollback_plan": null,
+        "run_id": "run-0006",
+        "side_effect_level": "write_irreversible",
+        "state": "expired",
+        "steps": [
+          {
+            "capability": "legacy.rotate_removed_connector_credential",
+            "ordinal": 1,
+            "summary": "Rotate the credential for the retired connector"
+          }
+        ],
+        "summary": "Rotate the credential for a connector that has since been removed.",
+        "title": "Rotate the credential for a connector that has since been removed.",
+        "verdict": null
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",

@@ -165,14 +165,14 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
                     ) : null}
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                    <Badge status={text(record, 'severity')} />
+                    <Badge status={text(record, 'severity')} locale={locale} />
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0 tabular-nums">
                     {formatNumber(locale, number(record, 'subjects_covered'))} /{' '}
                     {formatNumber(locale, number(record, 'subjects_total'))}
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                    <Badge status={text(record, 'last_verdict')} />
+                    <Badge status={text(record, 'last_verdict')} locale={locale} />
                     <span className="text-meta text-muted ml-2">
                       <time dateTime={evaluated.iso} title={evaluated.absolute}>
                         {evaluated.relative}

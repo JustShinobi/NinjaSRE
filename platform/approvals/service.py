@@ -205,6 +205,7 @@ class ApprovalService:
         side_effect_level: str = SIDE_EFFECT_WRITE_REVERSIBLE,
         expiry_hours: float | None = None,
         context: AuditContext | None = None,
+        origin_approval_id: str | None = None,
     ) -> PendingChange:
         """Queue a change against ``target``'s current state, and return it.
 
@@ -225,6 +226,15 @@ class ApprovalService:
         that outlived the incident would apply to a system nobody reviewed it
         against. A caller asking for longer than the policy allows gets the
         policy's number, because the window is the organisation's decision.
+
+        ``origin_approval_id`` names the lapsed approval this change replaces,
+        for a caller reproposing one. It is a parameter here rather than
+        something the caller folds into ``proposed`` because it has to land at
+        the top level of the stored arguments, written by the same insert that
+        creates the request: that is the only form the store's uniqueness rule
+        for live reproposals can be stated over, and it is what makes "one
+        expired decision, one live replacement" a property of the database
+        rather than of a check somebody's second click can slip past.
         """
         self.policy.check_settings(proposed)
 
@@ -245,6 +255,7 @@ class ApprovalService:
                 else self.policy.change_expiry_hours
             ),
             side_effect_level=side_effect_level,
+            origin_approval_id=origin_approval_id,
         )
 
         async with self.gateway.begin(self.scope) as uow:

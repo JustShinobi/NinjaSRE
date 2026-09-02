@@ -438,7 +438,23 @@ export interface paths {
         };
         /**
          * List Approvals
-         * @description Return undecided approvals, longest-waiting first (FR-008).
+         * @description Return approvals in one state bucket, per FR-006.
+         *
+         *     ``state=pending`` (the default) is only requests genuinely within their
+         *     own window; ``state=expired`` is only the ones that have lapsed;
+         *     ``state=decided`` is ``approved``/``rejected``/``discarded``, most
+         *     recently decided first. Every call sweeps lapsed requests to ``expired``
+         *     first (`ApprovalStore.expire_due`), in the same transaction — the
+         *     mechanism already existed with its own test coverage and nothing in
+         *     production called it, so a request answered an hour after its own window
+         *     closed still read as `pending` and the sidebar counted it. This is the
+         *     one place that composes it into a path something actually serves.
+         *
+         *     The three are the whole of what the parameter accepts, and they are typed
+         *     rather than matched, so a fourth word is refused with ``422`` and named in
+         *     the schema. It used to fall through to the pending queue with a ``200``: a
+         *     client asking for the expired ones got the live ones, with nothing in the
+         *     response saying it had been given a different question's answer.
          *
          *     Each carries its rollback plan, because the queue is where a reviewer
          *     decides which one to open — and "this one has no undo" is exactly the fact
@@ -498,6 +514,73 @@ export interface paths {
          *     this is the rule behind that courtesy.
          */
         post: operations["decide_approval_v1_approvals__approval_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{approval_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard Approval
+         * @description Withdraw a decision from the queue, marked, never deleted (FR-018).
+         *
+         *     Reachable from `pending` or `expired`; refused once a person has already
+         *     decided it (`approved`/`rejected`) or discarded it once already — the same
+         *     append-only guarantee `decide` already enforces.
+         */
+        post: operations["discard_approval_v1_approvals__approval_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{approval_id}/repropose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Repropose Approval
+         * @description Propose a fresh reading against an expired decision's origin (FR-015).
+         *
+         *     Queues through ``RequestBuilder.queue()`` — the exact mechanism that
+         *     produced the original, reached the same way `RemediationGate` reaches it
+         *     — never `RemediationGate.decide()`/`.execute_approved()`, which can
+         *     suspend waiting on a decision or, under an autonomy policy, execute the
+         *     action outright. Neither is acceptable for a handler whose only contract
+         *     is "always exactly one new pending proposal, never a write": calling
+         *     `queue()` directly is what makes propose-only structural here rather than
+         *     a convention a policy could override.
+         *
+         *     Only an expired decision may be reproposed (FR-015: "Só aceita
+         *     state=expired"). Idempotent by origin while the new pending exists
+         *     (FR-017): a later call returns `409` naming the same pending rather than
+         *     a second one, however deep the queue that pending one is waiting in, and
+         *     whether the two calls arrive one after another or together. A lookup by
+         *     origin answers the sequential case with the better message; the store
+         *     refusing a second *live* proposal for one origin is what answers the
+         *     concurrent one, where both callers read "nothing reproposed yet" before
+         *     either has committed. Both end in the same `409`.
+         *
+         *     An origin that no longer resolves — the capability retired,
+         *     the plan undeliverable — is refused by name with `422` (FR-016), never a
+         *     server error.
+         */
+        post: operations["repropose_approval_v1_approvals__approval_id__repropose_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1332,6 +1415,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Deployment Events
+         * @description Stream this organisation's runs, incidents and decisions changing, live.
+         *
+         *     ``auth`` does two things, not one. It carries the permission check against
+         *     the route table — the same permission `GET /v1/runs` needs — and it names
+         *     the organisation the connection is served, which is the token's own scope
+         *     and nothing a request can influence.
+         */
+        get: operations["stream_deployment_events_v1_events_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/incidents": {
         parameters: {
             query?: never;
@@ -1713,7 +1821,11 @@ export interface paths {
         put?: never;
         /**
          * Create Investigation
-         * @description Start an investigation and return its identity immediately.
+         * @description Start an investigation and return its identity, headline already named.
+         *
+         *     ``start_investigation`` has already committed the row — with its
+         *     provisional headline — by the time it returns the identity, so reading it
+         *     back here costs one query and never a guess at what the row says.
          */
         post: operations["create_investigation_v1_investigations_post"];
         delete?: never;
@@ -2052,6 +2164,26 @@ export interface paths {
          * @description Return what every enabled detector concludes right now.
          */
         get: operations["list_observations_v1_observations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Return the five KPI tiles the Painel renders, from one read.
+         */
+        get: operations["overview_v1_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3027,6 +3159,18 @@ export interface components {
             /** Rate */
             rate: number;
         };
+        /**
+         * ActionStepView
+         * @description One numbered sentence — either what the action does or how it undoes it.
+         */
+        ActionStepView: {
+            /** Capability */
+            capability: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Summary */
+            summary: string;
+        };
         /** AnswerRequest */
         AnswerRequest: {
             /**
@@ -3067,24 +3211,62 @@ export interface components {
         ApprovalView: {
             /** Action */
             action: string;
+            /**
+             * Applied And Verified
+             * @default false
+             */
+            applied_and_verified: boolean;
             /** Approval Id */
             approval_id: string;
             /** Arguments */
             arguments: {
                 [key: string]: unknown;
             };
+            autonomy: components["schemas"]["AutonomyView"];
+            blast_radius?: components["schemas"]["BlastRadiusFieldView"];
             /** Blast Radius Count */
             blast_radius_count?: number | null;
+            /**
+             * Category
+             * @default remediation
+             */
+            category: string;
+            /**
+             * Created At
+             * @default
+             */
+            created_at: string;
             /** Decided At */
             decided_at?: string | null;
             /** Decided By */
             decided_by?: string | null;
+            /** Evidence */
+            evidence?: components["schemas"]["EvidenceItemView"][];
             /** Expires At */
             expires_at: string;
+            /**
+             * Intent
+             * @default
+             */
+            intent: string;
+            origin?: components["schemas"]["OriginView"];
+            prior_effectiveness?: components["schemas"]["PriorEffectivenessView"];
+            /** Raw */
+            raw?: {
+                [key: string]: unknown;
+            };
             /** Reason */
             reason?: string | null;
             /** Requested At */
             requested_at: string;
+            /**
+             * Requester
+             * @default
+             */
+            requester: string;
+            risk: components["schemas"]["RiskView"];
+            /** Rollback */
+            rollback?: components["schemas"]["ActionStepView"][];
             rollback_plan?: components["schemas"]["RollbackPlanView"] | null;
             /** Run Id */
             run_id: string;
@@ -3092,8 +3274,17 @@ export interface components {
             side_effect_level: string;
             /** State */
             state: string;
+            /** Steps */
+            steps?: components["schemas"]["ActionStepView"][];
             /** Summary */
             summary: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /** Verdict */
+            verdict?: string | null;
         };
         /** AuditEventList */
         AuditEventList: {
@@ -3125,11 +3316,35 @@ export interface components {
             /** Resource Kind */
             resource_kind: string;
         };
+        /** AutonomyView */
+        AutonomyView: {
+            /**
+             * Queued
+             * @default true
+             */
+            queued: boolean;
+            /** Reversible */
+            reversible: boolean;
+            /** Side Effect Level */
+            side_effect_level: string;
+        };
         /** BlastRadiusEntryView */
         BlastRadiusEntryView: {
             /** Depth */
             depth: number;
             node: components["schemas"]["TopologyNodeView"];
+        };
+        /** BlastRadiusFieldView */
+        BlastRadiusFieldView: {
+            /** Count */
+            count?: number | null;
+            /** Depth */
+            depth?: number | null;
+            /**
+             * Known
+             * @default false
+             */
+            known: boolean;
         };
         /**
          * BoundsResponse
@@ -4355,6 +4570,13 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** EvidenceItemView */
+        EvidenceItemView: {
+            /** Reference */
+            reference: string;
+            /** Summary */
+            summary: string;
+        };
         /**
          * ExcludedToolView
          * @description A tool that was offered and is not available, and why.
@@ -4928,12 +5150,22 @@ export interface components {
              */
             incident_id: string;
             /**
+             * Last Completed Stage
+             * @default
+             */
+            last_completed_stage: string;
+            /**
              * Report
              * @default
              */
             report: string;
             /** Run Id */
             run_id: string;
+            /**
+             * Stage Index
+             * @default 0
+             */
+            stage_index: number;
             /** Started At */
             started_at?: string | null;
             /** Status */
@@ -5116,6 +5348,28 @@ export interface components {
             reason: string;
             /** Resolution */
             resolution: string;
+        };
+        /**
+         * KpiView
+         * @description One KPI: its current value, a decomposition, and a daily trend.
+         *
+         *     `value` is `None` — never a fabricated zero — when nothing in the window
+         *     can answer the question, which for a rate is "no terminal item yet".
+         */
+        KpiView: {
+            /** Breakdown */
+            breakdown?: {
+                [key: string]: number;
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Series */
+            series?: components["schemas"]["SeriesPointView"][];
+            /** Value */
+            value?: number | null;
         };
         /**
          * LinkedDocumentView
@@ -5380,6 +5634,24 @@ export interface components {
              */
             tokens_used: number;
         };
+        /** OriginView */
+        OriginView: {
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+        };
         /** OutcomeListView */
         OutcomeListView: {
             /**
@@ -5578,6 +5850,22 @@ export interface components {
             };
         };
         /**
+         * OverviewView
+         * @description The five KPI tiles the Painel renders, from one read.
+         */
+        OverviewView: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            degraded: components["schemas"]["KpiView"];
+            self_resolved: components["schemas"]["KpiView"];
+            success_rate: components["schemas"]["KpiView"];
+            time_to_cause: components["schemas"]["KpiView"];
+            watched: components["schemas"]["KpiView"];
+        };
+        /**
          * PipelineView
          * @description The investigation's shape, and the roles a deployment may bind.
          */
@@ -5744,6 +6032,14 @@ export interface components {
              * @default
              */
             team_node_id: string;
+        };
+        /** PriorEffectivenessView */
+        PriorEffectivenessView: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
         };
         /** PriorRejectionView */
         PriorRejectionView: {
@@ -6151,6 +6447,15 @@ export interface components {
             /** Turn Id */
             turn_id: string;
         };
+        /** ReproposeResult */
+        ReproposeResult: {
+            /** Approval Id */
+            approval_id: string;
+            /** Created At */
+            created_at: string;
+            /** State */
+            state: string;
+        };
         /**
          * RequiredPermissionView
          * @description One permission the credential has to be allowed, exactly as declared.
@@ -6314,6 +6619,8 @@ export interface components {
             stored_health: string;
             /** Team Node Id */
             team_node_id?: string | null;
+            /** Unhealthy Since */
+            unhealthy_since?: string | null;
         };
         /** RevocationResult */
         RevocationResult: {
@@ -6321,6 +6628,15 @@ export interface components {
             revoked: number;
             /** Token Ids */
             token_ids: string[];
+        };
+        /** RiskView */
+        RiskView: {
+            /** Class */
+            class: string;
+            /** Scale */
+            scale: number;
+            /** Score */
+            score: number;
         };
         /** RoleBindingView */
         RoleBindingView: {
@@ -6550,6 +6866,16 @@ export interface components {
             ok: boolean;
             /** Passed */
             passed: string[];
+        };
+        /**
+         * SeriesPointView
+         * @description One daily bucket of a KPI's sparkline.
+         */
+        SeriesPointView: {
+            /** Date */
+            date: string;
+            /** Value */
+            value: number;
         };
         /**
          * ShippedDetectorView
@@ -8102,6 +8428,7 @@ export interface operations {
             query?: {
                 run_id?: string;
                 limit?: number;
+                state?: "pending" | "expired" | "decided";
             };
             header?: {
                 authorization?: string | null;
@@ -8188,6 +8515,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_approval_v1_approvals__approval_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repropose_approval_v1_approvals__approval_id__repropose_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReproposeResult"];
                 };
             };
             /** @description Validation Error */
@@ -9454,6 +9847,38 @@ export interface operations {
             };
         };
     };
+    stream_deployment_events_v1_events_stream_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Last-Event-ID"?: string | null;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_incidents_v1_incidents_get: {
         parameters: {
             query?: {
@@ -10561,6 +10986,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_v1_overview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewView"];
                 };
             };
             /** @description Validation Error */

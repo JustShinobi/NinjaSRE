@@ -1,0 +1,51 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "captured_at": "2026-08-07T12:00:00+00:00",
+        "degraded": {
+          "breakdown": {},
+          "note": "no_detector_enabled",
+          "series": [],
+          "value": 0
+        },
+        "self_resolved": {
+          "breakdown": {},
+          "note": "",
+          "series": [],
+          "value": null
+        },
+        "success_rate": {
+          "breakdown": {},
+          "note": "",
+          "series": [],
+          "value": null
+        },
+        "time_to_cause": {
+          "breakdown": {},
+          "note": "",
+          "series": [],
+          "value": null
+        },
+        "watched": {
+          "breakdown": {},
+          "note": "",
+          "series": [],
+          "value": 0
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "overview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "overview"
+}

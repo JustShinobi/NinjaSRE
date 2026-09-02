@@ -1,0 +1,372 @@
+  1) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:73:1 › AN-01: a run started from the UI enters "Em execução agora" without a reload 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-band')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-band')
+
+
+      75 | }) => {
+      76 |   await page.goto('/');
+    > 77 |   await expect(runBand(page)).toBeVisible();
+         |                               ^
+      78 |   const before = await runCards(page).count();
+      79 |
+      80 |   const objective = `painel vivo probe ${String(Date.now())}`;
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:77:31
+
+    Error Context: test-results/painel-vivo.acceptance-AN--763e1-ução-agora-without-a-reload-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--763e1-ução-agora-without-a-reload-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--763e1-ução-agora-without-a-reload-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:94:1 › AN-02: the new card is titled by the typed objective, never "interactive investigation" nor a hex id 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-card').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-card').first()
+        - waiting for "http://127.0.0.1:8423/runs/run-0007" navigation to finish...
+        - navigated to "http://127.0.0.1:8423/runs/run-0007"
+
+
+      100 |
+      101 |   const card = runCards(page).first();
+    > 102 |   await expect(card).toBeVisible({ timeout: 5_000 });
+          |                      ^
+      103 |   const title = card.getByTestId('run-card-title');
+      104 |   const text = (await title.textContent()) ?? '';
+      105 |   expect(text).toContain(objective.slice(0, 20));
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:102:22
+
+    Error Context: test-results/painel-vivo.acceptance-AN--02b08--investigation-nor-a-hex-id-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--02b08--investigation-nor-a-hex-id-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--02b08--investigation-nor-a-hex-id-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:129:1 › AN-04: a new card carries the arrival animation class, absent under prefers-reduced-motion 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-card').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-card').first()
+        - waiting for navigation to finish...
+        - navigated to "http://127.0.0.1:8423/runs/run-0007"
+
+
+      135 |
+      136 |   const card = runCards(page).first();
+    > 137 |   await expect(card).toBeVisible({ timeout: 5_000 });
+          |                      ^
+      138 |   await expect(card).toHaveClass(/slide-in/);
+      139 | });
+      140 |
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:137:22
+
+    Error Context: test-results/painel-vivo.acceptance-AN--c182a-nder-prefers-reduced-motion-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--c182a-nder-prefers-reduced-motion-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--c182a-nder-prefers-reduced-motion-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:141:1 › AN-04: under prefers-reduced-motion, the animation does not run 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-card').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-card').first()
+        - waiting for navigation to finish...
+        - navigated to "http://127.0.0.1:8423/runs/run-0007"
+
+
+      146 |
+      147 |   const card = runCards(page).first();
+    > 148 |   await expect(card).toBeVisible({ timeout: 5_000 });
+          |                      ^
+      149 |   const animationName = await card.evaluate(
+      150 |     (element) => getComputedStyle(element).animationName,
+      151 |   );
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:148:22
+
+    Error Context: test-results/painel-vivo.acceptance-AN--101a5--the-animation-does-not-run-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--101a5--the-animation-does-not-run-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--101a5--the-animation-does-not-run-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:159:1 › AN-05: when a run completes, its card leaves the band and "em voo" decreases, without reload 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      166 |   await expect
+      167 |     .poll(async () => runCards(page).count(), { timeout: 5_000 })
+    > 168 |     .toBeGreaterThan(0);
+          |      ^
+      169 |   const flightCountBefore = Number(
+      170 |     (await page.getByTestId('run-band-flight-count').textContent()) ?? '0',
+      171 |   );
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:168:6
+
+    Error Context: test-results/painel-vivo.acceptance-AN--2738b-oo-decreases-without-reload-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--2738b-oo-decreases-without-reload-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--2738b-oo-decreases-without-reload-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:250:1 › AN-09: each of the five KPIs shows a number, a sparkline and a decomposition legend 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('kpi-tile').and(locator('[data-kpi="watched"]'))
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('kpi-tile').and(locator('[data-kpi="watched"]'))
+
+
+      254 |   for (const kpi of ['watched', 'degraded', 'selfResolved', 'successRate', 'timeToCause']) {
+      255 |     const tile = kpiTile(page, kpi);
+    > 256 |     await expect(tile).toBeVisible();
+          |                        ^
+      257 |     await expect(tile.getByTestId('kpi-value')).toBeVisible();
+      258 |     await expect(tile.getByTestId('kpi-sparkline')).toBeVisible();
+      259 |     await expect(tile.getByTestId('kpi-legend')).toBeVisible();
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:256:24
+
+    Error Context: test-results/painel-vivo.acceptance-AN--d6ca7--and-a-decomposition-legend-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--d6ca7--and-a-decomposition-legend-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--d6ca7--and-a-decomposition-legend-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:267:1 › AN-10: the "em voo" count on the run band equals the number of cards actually shown 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.textContent: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByTestId('run-band-flight-count')
+
+
+      271 |   const shown = await runCards(page).count();
+      272 |   const declared = Number(
+    > 273 |     (await page.getByTestId('run-band-flight-count').textContent()) ?? '-1',
+          |                                                      ^
+      274 |   );
+      275 |   // The header may count more than are drawn (the six-card visual cap), so
+      276 |   // the check is "at least as many", never a strict equality that a cap
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:273:54
+
+    Error Context: test-results/painel-vivo.acceptance-AN--142f3-ber-of-cards-actually-shown-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--142f3-ber-of-cards-actually-shown-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--142f3-ber-of-cards-actually-shown-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:319:1 › AN-13: "atividade ao vivo" is a vertical timeline where each entry carries its type's shape 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('activity-feed-entry').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('activity-feed-entry').first()
+
+
+      322 |   await page.goto('/');
+      323 |   const entries = activityEntries(page);
+    > 324 |   await expect(entries.first()).toBeVisible();
+          |                                 ^
+      325 |   const kinds = await entries.evaluateAll((nodes) =>
+      326 |     nodes.map((node) => node.getAttribute('data-kind')),
+      327 |   );
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:324:33
+
+    Error Context: test-results/painel-vivo.acceptance-AN--a85d5-ry-carries-its-type-s-shape-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--a85d5-ry-carries-its-type-s-shape-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--a85d5-ry-carries-its-type-s-shape-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:337:1 › AN-14: a new event inserts an activity entry at the top, without reload 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      345 |   await expect
+      346 |     .poll(async () => activityEntries(page).count(), { timeout: 5_000 })
+    > 347 |     .toBeGreaterThan(before);
+          |      ^
+      348 |   await expect(activityEntries(page).first()).toContainText(objective.slice(0, 20));
+      349 | });
+      350 |
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:347:6
+
+    Error Context: test-results/painel-vivo.acceptance-AN--527b5-y-at-the-top-without-reload-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--527b5-y-at-the-top-without-reload-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--527b5-y-at-the-top-without-reload-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:355:1 › AN-15: with the stream down, the freshness chip says fallback and the Painel keeps serving reads 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-band')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-band')
+
+
+      364 |   });
+      365 |   // The rest of the page is not blank behind the fallback chip.
+    > 366 |   await expect(runBand(page)).toBeVisible();
+          |                               ^
+      367 |   await expect(page.getByTestId('kpi-tile').first()).toBeVisible();
+      368 | });
+      369 |
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:366:31
+
+    Error Context: test-results/painel-vivo.acceptance-AN--3ffcd--Painel-keeps-serving-reads-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--3ffcd--Painel-keeps-serving-reads-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--3ffcd--Painel-keeps-serving-reads-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11) [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:390:1 › AN-17: the Painel renders without a console error in both themes 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('run-band')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('run-band')
+
+
+      393 |
+      394 |   await page.goto('/');
+    > 395 |   await expect(runBand(page)).toBeVisible();
+          |                               ^
+      396 |
+      397 |   await page.getByTestId('theme-switch').click();
+      398 |   await expect(page.locator('html')).toHaveAttribute('data-theme', /light|dark/);
+        at /srv/workspaces/v8-s3-050/console/tests/e2e/painel-vivo.acceptance.spec.ts:395:31
+
+    Error Context: test-results/painel-vivo.acceptance-AN--0529e-onsole-error-in-both-themes-behaviour/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/painel-vivo.acceptance-AN--0529e-onsole-error-in-both-themes-behaviour/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/painel-vivo.acceptance-AN--0529e-onsole-error-in-both-themes-behaviour/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11 failed
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:73:1 › AN-01: a run started from the UI enters "Em execução agora" without a reload 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:94:1 › AN-02: the new card is titled by the typed objective, never "interactive investigation" nor a hex id 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:129:1 › AN-04: a new card carries the arrival animation class, absent under prefers-reduced-motion 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:141:1 › AN-04: under prefers-reduced-motion, the animation does not run 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:159:1 › AN-05: when a run completes, its card leaves the band and "em voo" decreases, without reload 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:250:1 › AN-09: each of the five KPIs shows a number, a sparkline and a decomposition legend 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:267:1 › AN-10: the "em voo" count on the run band equals the number of cards actually shown 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:319:1 › AN-13: "atividade ao vivo" is a vertical timeline where each entry carries its type's shape 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:337:1 › AN-14: a new event inserts an activity entry at the top, without reload 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:355:1 › AN-15: with the stream down, the freshness chip says fallback and the Painel keeps serving reads 
+    [behaviour] › tests/e2e/painel-vivo.acceptance.spec.ts:390:1 › AN-17: the Painel renders without a console error in both themes 
+  7 skipped
+Shutting down
+Waiting for background tasks to complete. (CTRL+C to force quit)
+EXIT=1

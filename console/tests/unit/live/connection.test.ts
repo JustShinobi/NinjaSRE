@@ -4,6 +4,7 @@ import { framesIn } from '@/live/sse';
 import {
   BACKOFF_MS,
   MAX_RECONNECTIONS,
+  ReconnectingChannel,
   RunConnection,
   streamAddress,
   type ConnectionState,
@@ -114,6 +115,7 @@ interface Harness {
   readonly visibility: FakeVisibility;
   readonly states: ConnectionState[];
   readonly applied: number[];
+  readonly attempts: number[];
   cursor: string;
 }
 
@@ -123,6 +125,7 @@ function harness(): Harness {
   const visibility = new FakeVisibility();
   const states: ConnectionState[] = [];
   const applied: number[] = [];
+  const attempts: number[] = [];
   const held = { cursor: '' };
 
   const connection = new RunConnection({
@@ -138,6 +141,7 @@ function harness(): Harness {
         held.cursor = `run-0003:${String(event.sequence)}`;
       }
     },
+    onAttempt: (count) => attempts.push(count),
   });
 
   return {
@@ -147,6 +151,7 @@ function harness(): Harness {
     visibility,
     states,
     applied,
+    attempts,
     get cursor() {
       return held.cursor;
     },
@@ -253,6 +258,25 @@ describe('a live run’s connection', () => {
     test.clock.advance();
 
     expect(test.connection.attempts).toBe(0);
+  });
+
+  it('notifies onAttempt on every consecutive failure, even one that leaves the state unchanged', () => {
+    // The same hook `DeploymentConnection` relied on alone before the two
+    // classes shared one engine: `#setState` drops a call that would not
+    // change the state string, so a second and third consecutive failure
+    // never re-announce themselves through `onState` — a caller that needs
+    // to know how many attempts have failed reads this instead. Proving it
+    // here, on `RunConnection`, is what shows the fix is now structural
+    // rather than something only `DeploymentConnection` happened to have.
+    const test = harness();
+    test.connection.open();
+
+    test.source.handlers.onError(0);
+    test.source.handlers.onError(0);
+    test.source.handlers.onError(0);
+
+    expect(test.attempts).toEqual([1, 2, 3]);
+    expect(test.states.filter((state) => state === 'reconnecting')).toHaveLength(1);
   });
 
   it('ends the session through the one collapse path when the stream is refused', () => {
@@ -379,6 +403,113 @@ describe('a live run’s connection', () => {
 
     expect(test.applied).toEqual([0]);
     expect(test.connection.state).not.toBe('disconnected');
+  });
+});
+
+/**
+ * A reconnection is a gap, and the channel is the only thing that knows one
+ * happened.
+ *
+ * Between a drop and the reopen after it, whatever the deployment published
+ * went to a connection that was no longer listening. The stream cannot make
+ * that good on its own: a channel presenting no cursor has nothing to resume
+ * from, and one that did would still depend on the broker holding those
+ * events in memory. What the channel can do is say *that* there was a gap and
+ * leave what to re-read to whoever is reading — which is the whole of this
+ * seam.
+ *
+ * The distinction it turns on is a first connection against a reconnection. A
+ * first connection's silence is not a gap: the page was rendered by the server
+ * moments ago and already holds everything the stream would have said. A
+ * reconnection's silence is a gap, every time.
+ */
+describe('a channel saying it reconnected', () => {
+  function reconnecting(): {
+    readonly channel: ReconnectingChannel<string>;
+    readonly source: FakeSource;
+    readonly clock: FakeClock;
+    readonly visibility: FakeVisibility;
+    readonly reconnections: () => number;
+  } {
+    const source = new FakeSource();
+    const clock = new FakeClock();
+    const visibility = new FakeVisibility();
+    const held = { reconnections: 0 };
+    // The frame shape is beside the point here, so a frame is its own data:
+    // this is about when the channel speaks, not about what it carries.
+    const channel = new ReconnectingChannel<string>({
+      source,
+      address: () => '/api/stream/run-0003',
+      decode: (data) => (data === '' ? null : data),
+      onState: () => undefined,
+      onEvents: () => undefined,
+      onReconnect: () => {
+        held.reconnections += 1;
+      },
+      scheduler: clock,
+      visibility,
+    });
+    return {
+      channel,
+      source,
+      clock,
+      visibility,
+      reconnections: () => held.reconnections,
+    };
+  }
+
+  it('says nothing on a first connection, which the server has already answered', () => {
+    const test = reconnecting();
+    test.channel.open();
+
+    test.source.handlers.onOpen();
+
+    expect(test.reconnections()).toBe(0);
+  });
+
+  it('says it once when a dropped channel opens again', () => {
+    const test = reconnecting();
+    test.channel.open();
+    test.source.handlers.onOpen();
+
+    test.source.handlers.onError(0);
+    test.clock.advance();
+    test.source.handlers.onOpen();
+
+    expect(test.reconnections()).toBe(1);
+  });
+
+  it('says it for a reconnection that waited for the tab to come back', () => {
+    // A drop while nobody is looking is owed rather than scheduled, so the
+    // reopen happens on the return rather than on a timer -- and it is still
+    // a reopen, so the gap it left is still a gap.
+    const test = reconnecting();
+    test.channel.open();
+    test.source.handlers.onOpen();
+
+    test.visibility.set(true);
+    test.source.handlers.onError(0);
+    expect(test.clock.pending).toHaveLength(0);
+
+    test.visibility.set(false);
+    test.source.handlers.onOpen();
+
+    expect(test.reconnections()).toBe(1);
+  });
+
+  it('is silent again on the first connection of a channel that never dropped', () => {
+    // Events arriving reset the attempt count, and the count is what tells a
+    // reopen from a first open. A channel that has only ever delivered must
+    // not start calling every later open a reconnection.
+    const test = reconnecting();
+    test.channel.open();
+    test.source.handlers.onOpen();
+
+    test.source.deliver(0);
+    test.clock.advance();
+    test.source.handlers.onOpen();
+
+    expect(test.reconnections()).toBe(0);
   });
 });
 

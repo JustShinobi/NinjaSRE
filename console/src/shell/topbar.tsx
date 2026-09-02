@@ -114,7 +114,7 @@ export function Topbar({
         type="button"
         data-testid="open-palette"
         onClick={onOpenPalette}
-        className="flex min-w-0 flex-1 max-w-prose items-center gap-2 rounded-2 edge border-border bg-sunken px-3 py-1 text-small text-muted"
+        className="flex min-w-0 flex-1 max-w-search items-center gap-2 rounded-2 edge border-border bg-sunken px-3 py-1 text-small text-muted"
       >
         <SearchIcon />
         <span className="truncate">{message(locale, 'shell.search')}</span>

@@ -20,6 +20,7 @@ from gateway.http.security.agent_routes import AGENT_ROUTES
 from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.estate_routes import ESTATE_ROUTES
+from gateway.http.security.events_routes import EVENTS_ROUTES
 from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
 from gateway.http.security.gateway_routes import (
     GATEWAY_ROUTES,
@@ -43,6 +44,7 @@ from platform.identity.local_accounts import LocalSignIn
 from platform.identity.tokens import TokenService
 from platform.persistence.ports.transaction import PersistenceGateway
 from platform.remediation.autonomy.kill_switch import KillSwitch
+from platform.runs.deployment import DeploymentEventBroker
 from platform.runs.stream import RunEventBroker
 
 #: The table this deployment actually serves: feature 014's identity routes,
@@ -63,6 +65,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(FIRST_RUN_ROUTES)
     .extended_with(ONBOARDING_ROUTES)
     .extended_with(AGENT_ROUTES)
+    .extended_with(EVENTS_ROUTES)
 )
 
 
@@ -170,6 +173,14 @@ class GatewayState:
     protocol_catalogue_cache: ProtocolCatalogueCache = field(default_factory=ProtocolCatalogueCache)
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
+    #: The deployment-wide channel `GET /v1/events/stream` drains. A plain
+    #: `RunEventBroker` above does not publish to this on its own — the
+    #: composition root that wants the two connected hands `broker` a
+    #: `DeploymentPublishingRunEventBroker` built with this same instance,
+    #: which is exactly what `gateway.http.asgi.build_deployment` does. A
+    #: `GatewayState` built directly, as most tests do, gets a channel that
+    #: exists and answers reads correctly, with nothing ever tapped onto it.
+    deployment_events: DeploymentEventBroker = field(default_factory=DeploymentEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)
     #: The resource kinds this deployment models. Held on the state rather than
     #: built per request because an integration registers its own kinds at

@@ -286,9 +286,13 @@ topbar com `Main.dc.html` (largura, grupos, ordem de controles, ícones).
   desta spec: no tema dark, `on-info #062018`, `on-warning #17211d`,
   `on-danger #2a1616`, `on-neutral #0d1311`; no tema light, `on-info #ffffff`,
   `on-warning #ffffff`, `on-danger #ffffff`, `on-neutral #ffffff`.
-  `on-accent` permanece `#062018` no dark e `#ffffff` no light. A tabela
-  final completa (26 papéis × 2 temas) DEVE constar do controle e passar o
-  contrato de contraste.
+  `on-accent` permanece `#062018` no dark e `#ffffff` no light. Como o
+  FR-003 iguala `success` ao `accent` nos dois temas, `on-success` e
+  `success-bg` DEVEM ser o mesmo par do accent — dark `on-success #062018`
+  e `success-bg #12271f`, light `on-success #ffffff` e `success-bg #e2f2ec`
+  — e não uma decisão nova do implementador. A tabela final completa
+  (26 papéis × 2 temas) DEVE constar do controle e passar o contrato de
+  contraste.
 - **FR-005**: Todo par de `bodyPairs` DEVE alcançar 4.5:1 e todo par de
   `boundaryPairs` DEVE alcançar 3:1, nos dois temas, com a suíte de
   unidade existente verde.

@@ -150,8 +150,8 @@ describe('a node-scoped screen resolving which node to read', () => {
     // Availability came back, which it only can if the entries read was made
     // with a node in it.
     const availability = screen
-      .getAllByTestId('agent-tool')
-      .map((row) => row.textContent);
+      .getAllByTestId('capability-card')
+      .map((card) => card.textContent);
     expect(availability.length).toBeGreaterThan(0);
     expect(
       screen
@@ -192,16 +192,15 @@ describe('a node-scoped read that fails on its own', () => {
     await renderArea('agent', { tab: 'tools' });
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
-    // Every panel this tab draws from the same join — the capability browser
-    // and both risk groups — reads capabilities *and* the entries that say
-    // which of them are available here. Rendering the capability rows with a
-    // blank availability column would be the screen saying "nothing is
-    // configured" when what happened is that nobody answered, so all three
-    // fail alone together rather than one of them silently looking empty.
+    // The tab's one master-detail panel draws from the join of capabilities
+    // *and* the entries that say which of them are available here. Rendering
+    // the capability cards with a blank availability would be the screen
+    // saying "nothing is configured" when what happened is that nobody
+    // answered, so the panel fails whole rather than silently looking empty.
     const failed = screen
       .getAllByTestId('panel')
       .filter((panel) => panel.getAttribute('data-state') === 'error');
-    expect(failed.length).toBe(3);
+    expect(failed.length).toBe(1);
     for (const panel of failed) {
       expect(panel.textContent).toContain('/v1/config/{node_id}/catalogue');
     }

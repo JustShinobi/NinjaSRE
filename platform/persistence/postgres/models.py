@@ -25,11 +25,12 @@ organisation as an ordinary column and the dispatcher reads it without a scope.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKeyConstraint,
@@ -306,6 +307,10 @@ class AgentRun(Base):
     runtime: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     model_id: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: What the run was asked to investigate, redacted, verbatim, never
+    #: truncated. ``NOT NULL DEFAULT ''`` — a run from before this column
+    #: existed reads as having declared no subject.
+    objective: Mapped[str] = mapped_column(Text, nullable=False, default="")
     #: One sentence naming the run, apart from the document ``summary`` holds.
     #: ``NOT NULL DEFAULT ''`` — a run from before this column existed reads
     #: as an empty headline, which the read path synthesises one for rather
@@ -568,6 +573,22 @@ class Approval(Base):
         ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
         Index("ix_approvals_state", "org_id", "state", "requested_at"),
         Index("ix_approvals_run", "org_id", "run_id"),
+        # One expired decision may hold one live replacement. The rule is the
+        # database's rather than the route's because a lookup cannot see a row
+        # another transaction has not committed yet, so two reproposals landing
+        # together would both read "nothing yet" and both queue. Partial twice
+        # over: on `pending`, because a replacement that lapsed in its turn must
+        # leave its origin reproposable again; and on the marker being present,
+        # because an ordinary change writes none and belongs to no such rule.
+        Index(
+            "ix_approvals_pending_origin",
+            "org_id",
+            text("(arguments ->> 'origin_approval_id')"),
+            unique=True,
+            postgresql_where=text(
+                "state = 'pending' AND (arguments ->> 'origin_approval_id') IS NOT NULL"
+            ),
+        ),
     )
 
     org_id: Mapped[str] = _org()
@@ -849,6 +870,28 @@ class SignalRow(Base):
     state: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
     interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     labels: Mapped[dict[str, Any]] = _json()
+
+
+class EstateDailySnapshotRow(Base):
+    """One organisation's estate, counted on one day.
+
+    The primary key is the natural key, ``(org_id, snapshot_date)``, so an
+    upsert is ``ON CONFLICT DO NOTHING`` rather than a check-then-insert: two
+    sweeps racing to record the same day cannot produce two rows, and neither
+    has to look before it writes.
+    """
+
+    __tablename__ = "estate_daily"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    snapshot_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    counts_by_kind: Mapped[dict[str, Any]] = _json()
+    counts_by_health: Mapped[dict[str, Any]] = _json()
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class TransitDeliveryRow(Base):
@@ -1149,6 +1192,7 @@ __all__ = [
     "Credential",
     "DiscoverySweep",
     "Episode",
+    "EstateDailySnapshotRow",
     "EstateResource",
     "Evidence",
     "HealthTransitionRow",

@@ -64,10 +64,17 @@ missed, once. A client that falls more than `MAX_STREAM_BUFFER_EVENTS` (512)
 behind is disconnected rather than buffered — it reconnects with its cursor and
 still misses nothing.
 
-Across replicas, configure a stream bridge so a client attached to one replica
-sees events another recorded. Without one, a single-process deployment works
-completely and a multi-replica one serves live events only from the replica that
-happens to be recording.
+Across replicas, there is nothing to configure yet. `StreamBridge` is the seam a
+fan-out between replicas would be written against — a Postgres
+`LISTEN`/`NOTIFY` bridge, say — and **nothing in this repository implements it**:
+the port is declared, the broker's `bridge` defaults to `None`, and the serving
+composition root supplies none. So a deployment runs **one** application replica,
+which is what the chart sets and why (`app.replicas` in
+`deploy/helm/ninjasre/values.yaml`). A single-process deployment works
+completely; a second replica would not add capacity to the live console, it
+would halve what a session sees, because an SSE client is pinned to one replica
+and every event the other recorded never reaches it. Raising the replica count
+is a change that starts with writing a bridge.
 
 ## Retention
 

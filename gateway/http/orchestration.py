@@ -15,15 +15,46 @@ from datetime import UTC, datetime
 from config.constants.runs import RUN_METADATA_TEAM
 from gateway.http.services import InvestigationRunner, InvestigationStart
 from gateway.http.state import GatewayState
+from platform.guardrails.engine import GuardrailEngine
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.headline import headline_for, report_body, resource_from_labels
 from platform.runs.recorder import RunRecorder
+from platform.runs.stream import RunEventPublisher
 
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def redact_text(text: str, guardrails: GuardrailEngine) -> str:
+    """Return ``text`` with anything the ruleset matches already removed.
+
+    Computed once, here, and then used for **every** consumer of an
+    objective or a label this function reaches — the provisional headline,
+    the row ``start_run`` writes, the incident timeline (``attach_run``,
+    ``record_alert_received``), and the ``InvestigationStart`` the runtime
+    actually reasons over. A caller that sanitised only the value it passed
+    to ``start_run`` and then reused the raw parameter for anything else
+    would have redacted the row and leaked everywhere else the same text
+    goes — which is exactly the shape convergence found here: the runtime's
+    own prompt and the incident's timeline were both still reading the raw
+    parameter after this function had already computed a clean one.
+    Exported so ``gateway/webhooks/router.py`` — which builds its own
+    incident-timeline entry from the same untrusted alert data, in a
+    second, redundant ``attach_run`` call this module's docstring already
+    explains — redacts with the identical rule rather than a second
+    hand-rolled pass.
+    """
+    if not text:
+        return text
+    return guardrails.scan(text).text
+
+
+def redact_labels(labels: Mapping[str, str], guardrails: GuardrailEngine) -> dict[str, str]:
+    """Return ``labels`` with every value scanned, for the same reason as ``redact_text``."""
+    return {key: redact_text(value, guardrails) for key, value in labels.items()}
 
 
 async def start_investigation(
@@ -62,6 +93,8 @@ async def start_investigation(
     receipt at a time, or the entry would be recorded twice.
     """
     team_node_id = scope.team_node_id or ""
+    sanitized_objective = redact_text(objective, state.guardrails)
+    sanitized_labels = redact_labels(alert_labels or {}, state.guardrails)
     async with state.gateway.begin(scope) as uow:
         if not team_node_id:
             # A local sign-in issues a token that stands for the person across
@@ -85,13 +118,17 @@ async def start_investigation(
             # only ever reveals a run to the team it actually belongs to.
             team_node_id = (await uow.config.root()).node_id
         recorder = RunRecorder(
-            store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+            store=uow.run_traces,
+            guardrails=state.guardrails,
+            events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
         )
         run = await recorder.start_run(
             trigger=trigger,
             principal_id=principal_id,
             team_node_id=team_node_id,
             alert_id=alert_id,
+            objective=sanitized_objective,
+            alert_labels=sanitized_labels,
             metadata={RUN_METADATA_TEAM: team_node_id},
         )
         if incident_id:
@@ -108,11 +145,13 @@ async def start_investigation(
             # webhook router, which does it to record the objective on the
             # timeline — is not a second link.
             lifecycle = IncidentLifecycle(store=uow.incidents)
-            await lifecycle.attach_run(incident_id, run.run_id, objective=objective, now=_utc_now())
+            await lifecycle.attach_run(
+                incident_id, run.run_id, objective=sanitized_objective, now=_utc_now()
+            )
             if credential_name:
                 await lifecycle.record_alert_received(
                     incident_id,
-                    labels=alert_labels or {},
+                    labels=sanitized_labels,
                     credential_name=credential_name,
                     now=_utc_now(),
                 )
@@ -123,14 +162,14 @@ async def start_investigation(
             scope=scope,
             request=InvestigationStart(
                 run_id=run.run_id,
-                objective=objective,
+                objective=sanitized_objective,
                 team_node_id=team_node_id,
                 principal_id=principal_id,
                 org_id=scope.org_id,
                 alert_source=alert_source,
                 context=dict(context or {}),
                 incident_id=incident_id,
-                alert_labels=dict(alert_labels or {}),
+                alert_labels=dict(sanitized_labels),
                 credential_name=credential_name,
             ),
         ),
@@ -173,11 +212,13 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
         summary = report_body(summary)
         async with state.gateway.begin(scope) as uow:
             recorder = RunRecorder(
-                store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+                store=uow.run_traces,
+                guardrails=state.guardrails,
+                events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
             )
             await recorder.complete_run(
                 request.run_id, status=status, summary=summary, headline=headline
             )
 
 
-__all__ = ["start_investigation"]
+__all__ = ["redact_labels", "redact_text", "start_investigation"]

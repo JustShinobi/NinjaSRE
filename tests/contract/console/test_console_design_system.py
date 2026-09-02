@@ -54,9 +54,10 @@ CLAIMS = (
     ),
     Claim(
         "SC-001",
-        "and every boundary reaches 3:1",
+        "and every boundary reaches 3:1, bar the board's registered exemptions",
         "console/tests/unit/design/contrast.test.ts",
-        "reaches 3:1 on every boundary a viewer has to find, in both themes",
+        "reaches 3:1 on every boundary a viewer has to find, except the board's "
+        "own registered exemptions",
     ),
     Claim(
         "SC-002",

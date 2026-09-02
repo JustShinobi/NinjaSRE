@@ -20,6 +20,7 @@ import {
   dependencyOf,
   field,
   list,
+  number,
   panelRead,
   read,
   stateOf,
@@ -227,9 +228,9 @@ export const KNOWLEDGE_TABS = ['learned', 'documents', 'topology'] as const;
 
 export type KnowledgeAreaTab = (typeof KNOWLEDGE_TABS)[number];
 
-/** The tab the address names, and Documents when it names nothing known. */
+/** The tab the address names, and Learned when it names nothing known. */
 export function tabFrom(value: string): KnowledgeAreaTab {
-  return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'documents';
+  return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'learned';
 }
 
 /** The permission the gateway requires to change this deployment's configuration. */
@@ -319,13 +320,16 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
 
   // Only the selected tab reads anything of its own; the tree read below is
   // this page's, for the four advanced sections beneath every tab.
-  const [content, tree] = await Promise.all([
+  const [content, tree, memoryStats] = await Promise.all([
     tab === 'learned'
       ? LearnedTab(context)
       : tab === 'topology'
         ? TopologyTab(context)
         : DocumentsTab(context),
     panelRead('/v1/config', () => read('/v1/config', init)),
+    // One number for the memory card's own status line — the store's count,
+    // never one this page derived.
+    panelRead('/v1/memory/stats', () => read('/v1/memory/stats', init)),
   ]);
 
   // Deliberately not `search`'s own `node` — that parameter already names an
@@ -353,6 +357,50 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
         );
 
   const rawPolicyFields = dataOf(configFields);
+
+  // What each closed card says about itself — the field's effective value
+  // (the one a node set, else the schema's own default), read from the same
+  // answer the tables inside the cards render.
+  const effective = (path: string): unknown => {
+    const found = list(rawPolicyFields, 'fields').find(
+      (entry) => text(entry, 'path') === path,
+    );
+    if (found === undefined) return undefined;
+    const value: unknown = field(found, 'value');
+    return value ?? field(found, 'default');
+  };
+  const enabled = (path: string): boolean => effective(path) === true;
+
+  const vendorFound = effective('policies.changes.git_host.vendor');
+  const vendor = typeof vendorFound === 'string' ? vendorFound : '';
+  const changesStatus =
+    vendor === ''
+      ? message(locale, 'knowledge.advanced.status.none')
+      : message(locale, 'knowledge.advanced.status.changes', { vendor });
+  const consulted = [
+    ...(enabled('policies.knowledge.topology_enabled')
+      ? [message(locale, 'knowledge.advanced.status.topology')]
+      : []),
+    ...(enabled('policies.knowledge.knowledge_base_enabled')
+      ? [message(locale, 'knowledge.advanced.status.documents')]
+      : []),
+  ];
+  const accessStatus =
+    consulted.length === 0
+      ? message(locale, 'knowledge.advanced.status.nothing')
+      : message(locale, 'knowledge.advanced.status.consulting', {
+          parts: consulted.join(' · '),
+        });
+  const episodeCount = number(dataOf(memoryStats), 'episode_count');
+  const memoryStatus = enabled('policies.memory.write_enabled')
+    ? message(locale, 'knowledge.advanced.status.saving', { count: episodeCount })
+    : message(locale, 'knowledge.advanced.status.notSaving');
+  const strategyStatus = message(
+    locale,
+    enabled('policies.strategy.enabled')
+      ? 'knowledge.advanced.status.on'
+      : 'knowledge.advanced.status.off',
+  );
 
   return (
     <>
@@ -390,6 +438,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             label: message(locale, label),
           }))}
           rawFields={rawPolicyFields}
+          status={changesStatus}
         />
         <AdvancedConfigSection
           title={message(locale, 'knowledge.advanced.knowledge.title')}
@@ -402,6 +451,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             label: message(locale, label),
           }))}
           rawFields={rawPolicyFields}
+          status={accessStatus}
         />
         <AdvancedConfigSection
           title={message(locale, 'knowledge.advanced.memory.title')}
@@ -414,6 +464,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             label: message(locale, label),
           }))}
           rawFields={rawPolicyFields}
+          status={memoryStatus}
         />
         <AdvancedConfigSection
           title={message(locale, 'knowledge.advanced.strategy.title')}
@@ -426,6 +477,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             label: message(locale, label),
           }))}
           rawFields={rawPolicyFields}
+          status={strategyStatus}
         />
       </div>
     </>

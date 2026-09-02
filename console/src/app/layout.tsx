@@ -13,6 +13,22 @@ export const metadata: Metadata = {
 };
 
 /**
+ * The four woff2 files that paint above the fold on a cold cache: the
+ * display family at the weight a page's H1 and a KPI figure use, the body
+ * family at its two most common weights, and the mono family at its one
+ * ordinary weight. The other four weights this console ships (display-500,
+ * display-600, sans-600, mono-500) are asked for only where something on the
+ * page actually needs them, so they load when the browser meets that
+ * element rather than racing the four above for bandwidth on every load.
+ */
+const PRELOADED_FONTS = [
+  '/fonts/space-grotesk-700.woff2',
+  '/fonts/ibm-plex-sans-400.woff2',
+  '/fonts/ibm-plex-sans-500.woff2',
+  '/fonts/ibm-plex-mono-400.woff2',
+] as const;
+
+/**
  * The document every screen is rendered into.
  *
  * Two things happen here that cannot happen anywhere else. The token stylesheet
@@ -50,6 +66,16 @@ export default function RootLayout({
           // whatever the viewer was about to click.
           dangerouslySetInnerHTML={{ __html: NO_FLASH_DENSITY_SCRIPT }}
         />
+        {PRELOADED_FONTS.map((href) => (
+          <link
+            key={href}
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            href={href}
+            crossOrigin="anonymous"
+          />
+        ))}
       </head>
       <body>{children}</body>
     </html>

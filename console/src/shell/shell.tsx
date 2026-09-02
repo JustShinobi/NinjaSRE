@@ -12,7 +12,7 @@ import { signInHref } from '@/session/cookies';
 import { endSession } from '@/session/end';
 import { sessionLife } from '@/session/expiry';
 import { may, type Viewer } from '@/session/viewer';
-import { InvestigateDrawer } from '@/live/investigate';
+import { InvestigateLauncher } from '@/live/investigate';
 import { onResolved, withoutItem, type AttentionItem } from './attention';
 import { useNow } from './browser';
 import {
@@ -25,7 +25,7 @@ import {
 import { askDeployment } from './search-client';
 import type { Deployment } from './deployment';
 import { ImpersonationBanner } from './impersonation';
-import type { SetupState, Stoppage } from './load';
+import type { LauncherBriefing, SetupState, Stoppage } from './load';
 import { NotificationCentre } from './notifications';
 import { isPaletteShortcut, Palette } from './palette';
 import { GuardianFooter, Sidebar, SidebarNav, type Guardian } from './sidebar';
@@ -73,6 +73,8 @@ export interface ShellProps {
    * everything is stopped — and that is true of every screen, not one of them.
    */
   readonly stopped?: Stoppage;
+  /** What the investigate launcher offers before anything is typed. */
+  readonly launcher?: LauncherBriefing;
   /** When the session ends, as the server knows it. Absent means it does not say. */
   readonly expiresAt?: string | null;
   readonly children: ReactNode;
@@ -106,6 +108,7 @@ export function Shell({
     runtimeComposed: true,
   },
   stopped = { engaged: false, by: null, since: null },
+  launcher = { teamName: '', recurring: null, unhealthy: 0 },
   expiresAt = null,
   children,
   navigate = defaultNavigate,
@@ -290,11 +293,14 @@ export function Shell({
       {/* Reachable from every screen, because the thing somebody is looking at
           when they decide to investigate is the reason they are investigating,
           and a navigation to a form loses it. */}
-      <InvestigateDrawer
+      <InvestigateLauncher
         open={investigateOpen}
         locale={locale}
         integrationsConfigured={setup.integrationsConfigured}
         runtimeComposed={setup.runtimeComposed}
+        briefing={launcher}
+        deploymentName={deployment.name}
+        posture={guardian.posture}
         onClose={() => {
           setInvestigateOpen(false);
         }}

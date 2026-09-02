@@ -20,14 +20,13 @@ import type { ReactNode } from 'react';
 import type { IconProps } from '@/design/icons';
 import {
   ActivityIcon,
-  AlertCircleIcon,
   BookIcon,
-  CheckIcon,
+  ClockIcon,
   CompassIcon,
   DatabaseIcon,
   GridIcon,
-  ListIcon,
   LayersIcon,
+  SearchIcon,
   ServerIcon,
   SettingsIcon,
   ShieldIcon,
@@ -146,7 +145,9 @@ export const AREAS: readonly Area[] = [
     title: 'page.incidents.title',
     context: 'page.incidents.context',
     permission: 'investigation.read',
-    icon: AlertCircleIcon,
+    // The board draws a clock beside "Incidentes" — `ClockIcon` was unused
+    // in this navigation before this feature.
+    icon: ClockIcon,
   },
   {
     id: 'runs',
@@ -156,7 +157,9 @@ export const AREAS: readonly Area[] = [
     title: 'page.runs.title',
     context: 'page.runs.context',
     permission: 'investigation.read',
-    icon: ListIcon,
+    // The board draws a search lens beside "Investigações" — the same lens
+    // the topbar's own search box uses.
+    icon: SearchIcon,
   },
   // Fuses Approvals ("may the agent do this now") and Proposed changes
   // ("should the deployment be different from tomorrow") into one screen,
@@ -171,7 +174,12 @@ export const AREAS: readonly Area[] = [
     title: 'page.decisions.title',
     context: 'page.decisions.context',
     permission: 'approval.read',
-    icon: CheckIcon,
+    // The board draws a shield with a check inside beside "Decisões" —
+    // `ShieldIcon` was already exported, for `proposal.tsx` and the
+    // transcript/activity "guardrail"/"guardian" kinds, and fits this
+    // navigation entry too; `CheckIcon` stays the plain checkmark those two
+    // files use for "report"/"verification".
+    icon: ShieldIcon,
   },
   {
     id: 'resources',

@@ -67,12 +67,16 @@ class ResourceView:
     rollup_rule: RollupRule
     children: int = 0
     derivation: HealthDerivation | None = None
-    #: The parent's display name, when the same read produced it. Resolved from
-    #: what came back rather than by a lookup per row: a listing is what a table
-    #: pages through, and one round trip per row is how a hundred-row page
-    #: becomes a hundred queries. Empty when the parent is outside the page,
-    #: which a surface renders as "no parent shown" rather than as "no parent".
+    #: The parent's display name. Resolved by a second, batched read of
+    #: whichever parents the page's own rows did not already carry, so it is
+    #: reliable regardless of whether the parent happens to share the page —
+    #: one extra round trip per page, never one per row.
     parent_name: str = ""
+    #: For a resource whose reported health is unhealthy: when its present,
+    #: unbroken streak of being unhealthy began. ``None`` for anything else,
+    #: and for an unhealthy resource whose streak predates this build's stored
+    #: transition history — an honest absence rather than a guess.
+    unhealthy_since: datetime | None = None
 
     @property
     def explanation(self) -> str:
@@ -130,8 +134,37 @@ class EstateService:
         """Return the resources matching ``query``, with freshness applied."""
         async with self.gateway.begin(scope) as uow:
             found = await uow.estate.query(query)
-        names = {resource.resource_id: resource.display_name for resource in found}
-        return tuple([self._view(resource, now=now, parent_names=names) for resource in found])
+            names = {resource.resource_id: resource.display_name for resource in found}
+            # A parent off this page is common — a page filtered to `unhealthy`
+            # excludes this deployment's (healthy) nodes outright — so the
+            # names a page's own rows happened to carry are not enough. One
+            # batched read closes the gap rather than a lookup per row.
+            missing = {
+                resource.parent_id
+                for resource in found
+                if resource.parent_id is not None and resource.parent_id not in names
+            }
+            if missing:
+                parents = await uow.estate.get_many(tuple(sorted(missing)))
+                names.update(
+                    {parent_id: parent.display_name for parent_id, parent in parents.items()}
+                )
+
+            unhealthy_ids = tuple(
+                resource.resource_id
+                for resource in found
+                if resource.reported_health(
+                    now, freshness_seconds=self.kinds.freshness_for(resource.kind)
+                )
+                is ResourceHealth.UNHEALTHY
+            )
+            since = await uow.estate.unhealthy_since(unhealthy_ids) if unhealthy_ids else {}
+        return tuple(
+            [
+                self._view(resource, now=now, parent_names=names, unhealthy_since=since)
+                for resource in found
+            ]
+        )
 
     async def summarise(self, scope: TenantScope, *, now: datetime) -> EstateSummary:
         """Return the estate in the numbers a dashboard tile shows."""
@@ -278,6 +311,7 @@ class EstateService:
         now: datetime,
         children: Sequence[Resource] = (),
         parent_names: Mapping[str, str] | None = None,
+        unhealthy_since: Mapping[str, datetime] | None = None,
     ) -> ResourceView:
         """Return ``resource`` with this deployment's freshness and rules applied."""
         interval = self.kinds.freshness_for(resource.kind)
@@ -305,6 +339,11 @@ class EstateService:
             children=len(children),
             derivation=rolled if rolled is not None else resource.derivation,
             parent_name=(parent_names or {}).get(resource.parent_id or "", ""),
+            unhealthy_since=(
+                (unhealthy_since or {}).get(resource.resource_id)
+                if reported is ResourceHealth.UNHEALTHY
+                else None
+            ),
         )
 
 

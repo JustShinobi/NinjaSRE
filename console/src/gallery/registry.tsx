@@ -37,6 +37,7 @@ import {
   StatusDot,
   Switch,
   Table,
+  SegmentedLinks,
   TabLinks,
   Tabs,
   Textarea,
@@ -683,6 +684,27 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           >
             <p className="text-small">The transcript.</p>
           </Tabs>
+        ),
+      },
+    ],
+  },
+  {
+    name: 'SegmentedLinks',
+    summary:
+      'A row of mutually exclusive choices, as links, in place of a native select.',
+    entries: [
+      {
+        id: 'segmented-links-default',
+        label: 'default',
+        node: (
+          <SegmentedLinks
+            label="Severity"
+            selected="critical"
+            options={[
+              { id: '', label: 'Any', href: '?severity=' },
+              { id: 'critical', label: 'Critical', href: '?severity=critical' },
+            ]}
+          />
         ),
       },
     ],

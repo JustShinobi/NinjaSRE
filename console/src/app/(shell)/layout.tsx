@@ -9,6 +9,7 @@ import {
   countsFrom,
   loadAttention,
   loadGuardian,
+  loadLauncher,
   loadStopped,
   loadRecentRuns,
   loadSetup,
@@ -50,13 +51,14 @@ export default async function ShellLayout({
     redirect(signInHref(current, 'expired'));
   }
 
-  const [attention, recentRuns, guardian, setup, stopped, expiresAt] =
+  const [attention, recentRuns, guardian, setup, stopped, launcher, expiresAt] =
     await Promise.all([
       loadAttention(credential),
       loadRecentRuns(credential),
       loadGuardian(credential),
       loadSetup(credential),
       loadStopped(credential),
+      loadLauncher(credential, viewer.teamNodeId),
       requestExpiry(),
     ]);
 
@@ -71,6 +73,7 @@ export default async function ShellLayout({
       counts={countsFrom(attention)}
       setup={setup}
       stopped={stopped}
+      launcher={launcher}
       expiresAt={expiresAt}
     >
       {children}

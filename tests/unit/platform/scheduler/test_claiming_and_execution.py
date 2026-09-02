@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace as dataclasses_replace
 from datetime import timedelta
 
 import pytest
@@ -16,12 +17,14 @@ from conftest import (
     recorder_over,
 )
 
+from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.ports import (
     JobOutcome,
     PersistenceGateway,
     RunStatus,
     TenantScope,
 )
+from platform.runs.recorder import RunRecorder
 from platform.scheduler.claiming import ClaimLost, JobClaimer, fire_key, heartbeating
 from platform.scheduler.concurrency import ConcurrencyLimits
 from platform.scheduler.executor import JobExecutor
@@ -170,6 +173,39 @@ async def test_a_scheduled_run_is_an_ordinary_run_with_a_schedule_trigger(
     assert stored.trigger == "schedule"
     assert stored.status is RunStatus.COMPLETED
     assert stored.summary == "The standby took over cleanly."
+
+
+async def test_a_secret_in_the_scheduled_objective_never_reaches_the_prompt(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """T016 — ``JobExecutor._sanitized`` guards the prompt ``_investigate``
+    builds, a distinct surface from the row-level redaction
+    ``RunRecorder.start_run`` already applies. Every other scheduler test in
+    this file uses ``recorder_over``, which builds a ``RunRecorder`` with no
+    ``guardrails`` at all — correct for what those tests check, but it means
+    nothing here ever proved the executor's own redaction fires before this
+    test.
+    """
+    secret = "AKIAIOSFODNN7EXAMPLE"
+    pipeline = RecordingPipeline()
+    secret_schedule = dataclasses_replace(
+        schedule(), objective=f"Investigate the standby. Rotate the key {secret} first."
+    )
+    async with gateway.begin(scope) as uow:
+        recorder = RunRecorder(store=uow.run_traces, guardrails=GuardrailEngine())
+        executor = JobExecutor(recorder=recorder, pipeline=pipeline)
+
+        result = await executor.execute(secret_schedule, fire_time=at())
+
+        stored = await uow.run_traces.get_run(result.run.run_id if result.run else "")
+
+    assert pipeline.requests, "the pipeline was never asked to investigate"
+    assert secret not in pipeline.requests[-1].objective, (
+        f"the prompt still carries the secret: {pipeline.requests[-1].objective!r}"
+    )
+    assert stored is not None
+    assert secret not in stored.objective
+    assert secret not in stored.headline
 
 
 async def test_the_same_firing_cannot_produce_two_runs(

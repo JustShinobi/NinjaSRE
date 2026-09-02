@@ -168,3 +168,195 @@ describe('a run that failed before it started', () => {
     expect(within(links).queryByTestId('way-back')).toBeNull();
   });
 });
+
+/**
+ * A settled run whose own record carries the same evidence tally the run
+ * list's chip already reads — proof the findings panel's progress bar
+ * actually draws when the data is there, not just that it stays away when
+ * the data is not. None of the committed mock fixtures populate
+ * `evidence_assessed` for any run, so this is the only place in the suite
+ * that exercises the bar with real numbers.
+ */
+const ASSESSED_RUN = 'run-evidence-assessed';
+
+function serveAssessedRun(): void {
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    const bodies: Record<string, unknown> = {
+      '/auth/me': {
+        principal_id: 'user-operator',
+        display_name: 'Avery Lockhart',
+        kind: 'person',
+        roles: ['owner'],
+        permissions: ['investigation.read'],
+        team_node_id: 'org-northwind',
+        impersonating: false,
+        impersonated_by: null,
+      },
+      [`/v1/runs/${ASSESSED_RUN}`]: {
+        run_id: ASSESSED_RUN,
+        status: 'completed',
+        summary: 'The volume filled because a retained log grew unbounded.',
+        trigger: 'interactive',
+        started_at: '2026-08-07T13:52:00+00:00',
+        finished_at: '2026-08-07T13:52:03+00:00',
+        evidence_assessed: true,
+        evidence_backed: 3,
+        evidence_missing: 1,
+      },
+      [`/v1/runs/${ASSESSED_RUN}/replay`]: {
+        run_id: ASSESSED_RUN,
+        is_interrupted: false,
+        total_cost: 0,
+        total_tokens: 0,
+        turns: [],
+      },
+      '/v1/incidents': { incidents: [] },
+      [`/v1/investigations/${ASSESSED_RUN}/interactions`]: { interactions: [] },
+    };
+    const body = bodies[path];
+    return Promise.resolve(
+      new Response(JSON.stringify(body ?? {}), {
+        status: body === undefined ? 404 : 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+}
+
+/** A settled run served with exactly the fields each case below names. */
+function serveSettled(overrides: {
+  readonly run?: Readonly<Record<string, unknown>>;
+  readonly replay?: Readonly<Record<string, unknown>>;
+  readonly permissions?: readonly string[];
+}): void {
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    const bodies: Record<string, unknown> = {
+      '/auth/me': {
+        principal_id: 'user-operator',
+        display_name: 'Avery Lockhart',
+        kind: 'person',
+        roles: ['owner'],
+        permissions: overrides.permissions ?? ['investigation.read'],
+        team_node_id: 'org-northwind',
+        impersonating: false,
+        impersonated_by: null,
+      },
+      [`/v1/runs/${RUN}`]: {
+        run_id: RUN,
+        status: 'completed',
+        summary: '',
+        trigger: 'interactive',
+        started_at: '2026-08-07T13:52:00+00:00',
+        finished_at: '2026-08-07T13:55:03+00:00',
+        ...overrides.run,
+      },
+      [`/v1/runs/${RUN}/replay`]: {
+        run_id: RUN,
+        is_interrupted: false,
+        total_cost: 0,
+        total_tokens: 0,
+        turns: [
+          {
+            turn_id: 'turn-1',
+            index: 1,
+            model: 'a-model',
+            model_rationale: 'Look around.',
+            selection_rationale: '',
+            calls: [],
+          },
+        ],
+        ...overrides.replay,
+      },
+      '/v1/incidents': { incidents: [] },
+      [`/v1/investigations/${RUN}/interactions`]: { interactions: [] },
+    };
+    const body = bodies[path];
+    return Promise.resolve(
+      new Response(JSON.stringify(body ?? {}), {
+        status: body === undefined ? 404 : 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+}
+
+describe('the header echo, the cost honesty, and the touched legend', () => {
+  it('draws no summary panel while the run has no finding at all', async () => {
+    // No headline, no report, no recognised failure: the panel could only
+    // echo the title and metadata the page header already says.
+    serveSettled({});
+    await runScreen();
+
+    expect(screen.queryByText('What this investigation found')).toBeNull();
+  });
+
+  it('draws the panel again the moment there is a headline', async () => {
+    serveSettled({ run: { headline: 'The backup volume filled.' } });
+    await runScreen();
+
+    expect(screen.getByText('What this investigation found')).toBeInTheDocument();
+  });
+
+  it('says no cost was recorded rather than printing a confident zero', async () => {
+    // Zero tokens beside real turns, with the deployment's own unpriced
+    // count saying the recorder never composed a figure.
+    serveSettled({ replay: { unpriced_turns: 1 } });
+    await runScreen();
+
+    expect(screen.getByTestId('run-cost-unrecorded')).toBeInTheDocument();
+    expect(screen.queryByTestId('usage-tokens')).toBeNull();
+  });
+
+  it('keeps printing a genuine zero when every turn carried a price', async () => {
+    serveSettled({ replay: { unpriced_turns: 0 } });
+    await runScreen();
+
+    expect(screen.queryByTestId('run-cost-unrecorded')).toBeNull();
+    expect(screen.getByTestId('usage-tokens')).toHaveTextContent('0');
+  });
+
+  it('carries the read-only legend under the touched chips, and only with data', async () => {
+    serveSettled({ run: { touched_resources: ['node:pve01'] } });
+    await runScreen();
+
+    expect(screen.getByTestId('run-links-read-only')).toHaveTextContent(
+      'read-only so far',
+    );
+  });
+});
+
+describe('the controls of a run still being steered', () => {
+  it('puts take-over and stop beside the title, and the context box at the transcript’s foot', async () => {
+    serveSettled({
+      run: { status: 'running', finished_at: null },
+      permissions: ['investigation.read', 'investigation.run'],
+    });
+    await runScreen();
+
+    // Beside the title, as the board draws it — the side "Control" panel is
+    // gone, and saying something to the run lives under the transcript.
+    const header = screen.getByTestId('page-header');
+    expect(within(header).getByTestId('takeover')).toBeInTheDocument();
+    expect(screen.queryByText('Control')).toBeNull();
+    expect(screen.getByTestId('add-context')).toBeInTheDocument();
+  });
+});
+
+describe('a run whose own record says its evidence was assessed', () => {
+  it('draws the findings panel’s progress bar with the run’s own backed-of-claims count', async () => {
+    serveAssessedRun();
+    render(await RunDetailScreen(await surfaceContext({}), ASSESSED_RUN));
+
+    const bar = screen.getByTestId('findings-evidence-progress');
+    expect(within(bar).getByText('3 of 4 with evidence')).toBeInTheDocument();
+  });
+
+  it('never draws the bar for a run whose record never assessed anything', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    expect(screen.queryByTestId('findings-evidence-progress')).not.toBeInTheDocument();
+  });
+});

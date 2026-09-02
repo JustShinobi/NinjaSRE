@@ -48,6 +48,7 @@ from platform.persistence.ports.config_repository import ConfigRepository, OrgDi
 from platform.persistence.ports.credential_store import CredentialStore
 from platform.persistence.ports.episode_store import EpisodeStore
 from platform.persistence.ports.estate_repository import EstateRepository
+from platform.persistence.ports.estate_snapshot_store import EstateSnapshotStore
 from platform.persistence.ports.health import StoreHealth
 from platform.persistence.ports.identity_repository import IdentityRepository, TokenDirectory
 from platform.persistence.ports.incident_store import IncidentStore
@@ -91,10 +92,10 @@ class TenantScope:
 class UnitOfWork(Protocol):
     """Every tenant-scoped repository, inside one transaction.
 
-    Eighteen properties and one method. The properties are the ports; the method
-    is the escape hatch for a caller that decides mid-unit to abandon its work
-    without raising, which happens when "nothing to do after all" is a normal
-    outcome rather than an error.
+    Nineteen properties and one method. The properties are the ports; the
+    method is the escape hatch for a caller that decides mid-unit to abandon
+    its work without raising, which happens when "nothing to do after all" is
+    a normal outcome rather than an error.
     """
 
     @property
@@ -152,6 +153,10 @@ class UnitOfWork(Protocol):
     @property
     def estate(self) -> EstateRepository:
         """Return the discovered-resource inventory and its health history."""
+
+    @property
+    def estate_snapshots(self) -> EstateSnapshotStore:
+        """Return the estate's daily counts, written once a day by the sweeper."""
 
     @property
     def signals(self) -> SignalStore:

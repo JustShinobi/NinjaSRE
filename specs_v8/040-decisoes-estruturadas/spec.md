@@ -70,9 +70,20 @@ seção "Evidências de partida" do README da onda; fatos cravados abaixo.
    `surfaces/console/client.py:260-270`): `GET /v1/approvals` (não decididas,
    mais antiga primeiro; parâmetros `run_id`, `limit`),
    `GET /v1/approvals/{approval_id}` ("with its rollback plan and evidence"),
-   `POST /v1/approvals/{approval_id}/rollback`. A decisão em si é
-   `POST /v1/interactions/{interaction_id}/approve` e
-   `POST /v1/interactions/{interaction_id}/reject` (`client.py:250-256`).
+   `POST /v1/approvals/{approval_id}/rollback`. **A decisão em si tem hoje dois
+   caminhos, não um.** `console/src/surfaces/screens/approvals.tsx`
+   (`decisionFor`) prefere `POST /v1/interactions/{interaction_id}/approve`/
+   `/reject` (`client.py:250-256`, via `DecisionControls`/`/api/decision`)
+   quando a run da aprovação tem uma `Interaction` aberta — mas cai para
+   `POST /v1/approvals/{approval_id}/decision` (via `IncidentDecisionControls`/
+   `/api/approval`, `gateway/http/routes/approvals.py:279` `decide_approval`,
+   corpo `{verdict, reason}`) quando não tem, porque a maioria das aprovações de
+   remediação (originadas por `alert-router`, sem investigação parada
+   esperando) nunca tem uma interação aberta. **No staging de hoje, sem run
+   vivo nem run falho (§7 do CONFRONTO.md), o segundo caminho é o único que
+   qualquer decisão real percorre** — o primeiro existe e é exercitado por
+   `run-card.tsx` noutra tela, não por uma aprovação de remediação parada.
+   O cartão novo desta feature precisa continuar oferecendo os dois.
 7. **Histórico já existe no serviço de propostas**:
    `ProposalQueue.decided(limit=MAX_DECIDED_PROPOSAL_HISTORY)`
    (`platform/proposals/service.py:224`) — para a aba Changes. O vocabulário
@@ -345,7 +356,14 @@ sair dela no padrão, não metade.
 - **FR-011**: O payload bruto DEVE existir só atrás de um `<details>` fechado
   por padrão; nenhum JSON DEVE ser visível com os `<details>` fechados.
 - **FR-012**: Aprovar e Recusar DEVEM operar pelos endpoints de decisão
-  existentes, e só renderizar para quem tem a permissão de decidir.
+  existentes, e só renderizar para quem tem a permissão de decidir. **Os dois
+  caminhos de decisão hoje existentes DEVEM continuar operando** — por
+  interação aberta (`/v1/interactions/{id}/approve|reject`, via
+  `DecisionControls`) quando a run tem uma, e pela aprovação em si
+  (`/v1/approvals/{approval_id}/decision`, via `IncidentDecisionControls`)
+  quando não tem, que é o caso do staging hoje (fato 6). Uma reescrita do
+  cartão que preservasse só o primeiro deixaria Aprovar/Recusar inoperantes
+  em produção sem que nenhum teste rodado só contra o mock percebesse.
 - **FR-013**: O estado da decisão DEVE usar as formas de status do padrão
   (triângulo = atenção/aprovação; círculo = decidida-ok; quadrado =
   recusada/perigo), com o texto ao lado — nunca cor sozinha.
@@ -478,11 +496,20 @@ staging, parte do DoD:
 
 - **Depende da 000-fundacao-visual** (S0): tokens, chip com contorno, formas,
   fontes e shell novos — o cartão é desenhado com eles.
-- **Interseção nula com a par do slot (060-telas-de-area)**: esta é rotas de
-  decisão no gateway + `platform` de propostas/aprovações + as telas
-  `decisions.tsx`/`approvals.tsx`/`proposals.tsx`/`proposal.tsx`/
-  `decision.tsx`; aquela é `/incidents`, `/resources`, `/knowledge`,
-  `/agent`. Nenhum arquivo em comum; single-write é dela.
+- **Interseção nula nos arquivos que esta feature edita, não nos que ela
+  importa.** Esta é rotas de decisão no gateway + `platform` de
+  propostas/aprovações + as telas `decisions.tsx`/`approvals.tsx`/
+  `proposals.tsx`/`proposal.tsx`/`decision.tsx`; a par (060-telas-de-area) é
+  `/incidents`, `/resources`, `/knowledge`, `/agent`. **Uma dependência real
+  não editada por nenhuma das duas ainda existe**:
+  `console/src/surfaces/screens/incident-decision-controls.tsx`
+  (`IncidentDecisionControls`) é importado tanto por `approvals.tsx` (esta
+  feature, fato 6) quanto por `incident-detail.tsx` (a tela de incidente da
+  060). Esta feature **não edita** esse arquivo — o cartão novo compõe
+  `IncidentDecisionControls` como está, sem mudar sua interface ou seu
+  markup, exatamente como `decisionFor` já faz hoje. Se a 060 precisar
+  restilizá-lo para o próprio cartão de incidente, é decisão dela; nenhuma
+  tarefa desta feature toca o arquivo.
 - **A 050-painel-vivo consome esta**: a banda de aprovação inline do Painel
   usa o contrato por campo e os mesmos endpoints; o cartão completo fica a um
   clique. Esta feature não toca o Painel.

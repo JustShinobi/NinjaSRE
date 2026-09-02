@@ -59,7 +59,7 @@ from config.constants.transit import (
 )
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
 from gateway.http.errors import ApiProblem
-from gateway.http.orchestration import start_investigation
+from gateway.http.orchestration import redact_text, start_investigation
 from gateway.http.state import GatewayState
 from gateway.webhooks.dedup import fingerprint
 from gateway.webhooks.sources import (
@@ -94,6 +94,7 @@ from platform.persistence.ports.transaction import TenantScope
 from platform.persistence.ports.transit_ledger import PayloadSample, TransitOutcome
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RunRecorder
+from platform.runs.stream import RunEventPublisher
 
 logger = get_logger(__name__)
 
@@ -424,7 +425,11 @@ def _handler(
             await IncidentLifecycle(store=uow.incidents).attach_run(
                 incident.incident_id,
                 run_id,
-                objective=objective_for(incident),
+                # Redacted the same way ``start_investigation`` redacted its
+                # own copy of this same text — this call is a second,
+                # redundant write to the timeline (see the docstring this
+                # attaches after), not a second, unguarded one.
+                objective=redact_text(objective_for(incident), state.guardrails),
                 now=_utc_now(),
             )
         await recorded.accepted(match, resolution=resolution, run_id=run_id, incident=incident)
@@ -1066,7 +1071,9 @@ async def _handle_resolution(
 
         if linked_run is not None:
             recorder = RunRecorder(
-                store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+                store=uow.run_traces,
+                guardrails=state.guardrails,
+                events=RunEventPublisher(broker=state.broker, org_id=scope.org_id),
             )
             await recorder.record_event(
                 linked_run,

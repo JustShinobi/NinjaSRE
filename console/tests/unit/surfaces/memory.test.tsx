@@ -218,15 +218,12 @@ describe('a deployment that has investigated and written nothing down', () => {
 });
 
 describe('a corpus with episodes in it', () => {
-  it('keeps episodes and strategies as two panels', async () => {
+  it('draws one card per episode, never a Strategies panel the artboard does not show', async () => {
     serveScenario('populated');
     await renderMemory();
 
-    const panels = screen.getAllByTestId('panel');
-    expect(panels.length).toBe(2);
-    expect(screen.getByText('Episodes')).toBeInTheDocument();
-    expect(screen.getByText('Strategies')).toBeInTheDocument();
-    expect(screen.getAllByTestId('row').length).toBe(5);
+    expect(screen.getAllByTestId('episode-card').length).toBe(5);
+    expect(screen.queryByText('Strategies')).toBeNull();
   });
 
   it('carries no orphaned "Episodes: N" counter beside the header', async () => {
@@ -235,16 +232,74 @@ describe('a corpus with episodes in it', () => {
 
     expect(screen.queryByText(/Episodes:\s*\d/)).toBeNull();
   });
+});
 
-  it('still explains what a strategy is, in its own words, with no episode data', async () => {
-    serveScenario('populated');
+describe('an episode leads with its human phrase, never the machine key', () => {
+  const EPISODE = {
+    episode_id: 'ep-9',
+    title: 'workload_stopped: The runner guest stopped and stayed down',
+    summary: 'The guest was stopped administratively and nothing restarted it.',
+    outcome: 'resolved',
+    components: ['service:runner-orchestrator', 'node:pve02'],
+    occurred_at: '2026-08-07T09:00:00Z',
+    run_id: 'run-77',
+  };
+
+  it('moves a known machine prefix into the meta line, in mono', async () => {
+    serveMemory({ episodes: { episodes: [EPISODE] } });
     await renderMemory();
 
-    expect(
-      screen.getByText(
-        'A strategy is synthesised once enough episodes agree about what worked. Not enough have been recorded.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('episode-title')).toHaveTextContent(
+      'The runner guest stopped and stayed down',
+    );
+    expect(screen.getByTestId('episode-title')).not.toHaveTextContent(
+      'workload_stopped',
+    );
+    const meta = screen.getByTestId('episode-meta');
+    expect(meta).toHaveTextContent('workload_stopped');
+    expect(meta).toHaveTextContent('runner-orchestrator');
+  });
+
+  it('leaves a title whose prefix is not a machine word exactly as written', async () => {
+    serveMemory({
+      episodes: {
+        episodes: [{ ...EPISODE, title: 'Quorum: two of two votes, no margin' }],
+      },
+    });
+    await renderMemory();
+
+    expect(screen.getByTestId('episode-title')).toHaveTextContent(
+      'Quorum: two of two votes, no margin',
+    );
+  });
+
+  it('prints component chips by their short display name, raw spelling as tooltip', async () => {
+    serveMemory({ episodes: { episodes: [EPISODE] } });
+    await renderMemory();
+
+    const chips = screen.getAllByTestId('episode-component-chip');
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      'runner-orchestrator',
+      'pve02',
+    ]);
+    expect(chips[0]).toHaveAttribute('title', 'service:runner-orchestrator');
+  });
+
+  it('words the outcome filter with the same vocabulary the chip already uses', async () => {
+    serveMemory({
+      episodes: {
+        episodes: [
+          EPISODE,
+          { ...EPISODE, episode_id: 'ep-10', outcome: 'inconclusive' },
+        ],
+      },
+    });
+    await renderMemory();
+
+    // Never the raw store word in the filter: the chip says "Inconclusive"
+    // through the episode vocabulary, and the filter says the same.
+    const filter = screen.getByLabelText(/outcome/i);
+    expect(filter.textContent).toContain('Inconclusive');
   });
 });
 
@@ -274,12 +329,11 @@ describe('a filter with nothing behind it but "Any"', () => {
     });
     await renderMemory();
 
-    const filters = screen.getAllByTestId('filter');
-    expect(
-      filters.some((filter) => filter.getAttribute('data-filter') === 'outcome'),
-    ).toBe(true);
-    expect(
-      filters.some((filter) => filter.getAttribute('data-filter') === 'component'),
-    ).toBe(false);
+    // The outcome control renders (two real outcomes among the episodes);
+    // the component filter does not (every episode carries an empty
+    // components list) -- the same "furniture" rule the incidents screen's
+    // segmented controls follow.
+    expect(screen.getByLabelText('Outcome')).toBeInTheDocument();
+    expect(screen.queryByTestId('component-filter')).toBeNull();
   });
 });

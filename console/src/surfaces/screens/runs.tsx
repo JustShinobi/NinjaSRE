@@ -1,10 +1,14 @@
 import type { ReactNode } from 'react';
+import NextLink from 'next/link';
 
+import { statusLabel } from '@/components/status';
+import { cx } from '@/design/cx';
+import { isLiveRun } from '@/design/status';
+import { formatCount, formatDuration } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { FilterBar } from '../filters';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -31,8 +35,17 @@ import {
 } from '../run-card';
 import { evidenceOf } from '../run-evidence';
 import { subjectOf } from '../run-subject';
+import { StageBar } from '../stage-rail';
 import { triggerLabel } from '../run-trigger';
-import { hrefFor, readViewState, withSelection, type FilterName } from '../url-state';
+import {
+  hrefFor,
+  readViewState,
+  withFilter,
+  withPage,
+  withSelection,
+  type FilterName,
+  type ViewState,
+} from '../url-state';
 
 /**
  * Every run this deployment has recorded, and one of them open in place.
@@ -54,6 +67,88 @@ import { hrefFor, readViewState, withSelection, type FilterName } from '../url-s
 
 /** The filters this screen declares, in the order the address writes them. */
 export const RUN_FILTERS: readonly FilterName[] = ['status', 'trigger'];
+
+/** One filter's own choices, as chips instead of a dropdown — the board's own shape for this row. */
+interface FilterGroup {
+  readonly name: FilterName;
+  readonly label: string;
+  readonly options: readonly { readonly value: string; readonly label: string }[];
+}
+
+/**
+ * The filter row, as a chip per value rather than a `<Select>` per filter.
+ *
+ * Local to this screen rather than a change to the shared `FilterBar`
+ * (`console/src/surfaces/filters.tsx`, a dropdown, used by every other
+ * filtered list in the console): the board draws chips for this one screen,
+ * and a screen with no artboard of its own keeps the dropdown it already had
+ * — reforming the shared component would restyle every list this wave does
+ * not touch. Each chip is a plain link to the address with that one filter
+ * set or cleared, so the whole row works without a browser running
+ * JavaScript, the same property every other piece of state-in-the-URL here
+ * already has.
+ */
+function FilterChips({
+  state,
+  groups,
+  anyLabel,
+}: {
+  readonly state: ViewState;
+  readonly groups: readonly FilterGroup[];
+  readonly anyLabel: string;
+}): ReactNode {
+  return (
+    <div data-testid="run-filters" className="flex flex-wrap items-center gap-2">
+      {groups.map((group) => (
+        <div key={group.name} className="flex flex-wrap items-center gap-2">
+          <span className="text-micro text-muted font-sans uppercase tracking-wide">
+            {group.label}
+          </span>
+          {[{ value: '', label: anyLabel }, ...group.options].map((option) => {
+            const active = (state.filters[group.name] ?? '') === option.value;
+            return (
+              <NextLink
+                key={option.value === '' ? '__any__' : option.value}
+                data-testid="filter-chip"
+                data-filter={group.name}
+                data-active={active}
+                prefetch={false}
+                href={hrefFor(
+                  '/runs',
+                  withFilter(state, group.name, option.value),
+                  RUN_FILTERS,
+                )}
+                className={cx(
+                  'inline-flex items-center rounded-full edge px-3 py-1 text-meta motion-hover',
+                  active
+                    ? 'border-accent bg-accent-bg text-accent font-semibold'
+                    : 'border-border text-muted hover:text-text hover:bg-hover',
+                )}
+              >
+                {option.label}
+              </NextLink>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** How many settled runs one page holds. The 5,700px single page is dead. */
+const RUNS_PAGE_SIZE = 20;
+
+/**
+ * Which page numbers the bar offers: all of them up to seven, and a window
+ * around the current one — first and last always reachable — past that.
+ */
+export function pageNumbers(current: number, total: number): readonly number[] {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const around = [1, current - 1, current, current + 1, total]
+    .filter((page) => page >= 1 && page <= total)
+    .sort((left, right) => left - right);
+  return [...new Set(around)];
+}
 
 /** How long a run took, in seconds, or nought while it is still going. */
 function durationOf(record: unknown): number {
@@ -90,18 +185,97 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
       Date.parse(text(right, 'started_at')) - Date.parse(text(left, 'started_at')),
   );
 
+  // Live runs are their own band, at the top, as cards rather than rows in
+  // the accordion below — the board's own grouping (`Investigations.dc.html`)
+  // and the reason a run still writing is not the same list item as one
+  // that has settled: it has a stage to show moving, not a report to open.
+  const liveRecords = sorted.filter((record) => isLiveRun(text(record, 'status')));
+  const settledRecords = sorted.filter((record) => !isLiveRun(text(record, 'status')));
+
   // The open run, if the address names one that is actually on this page. A
   // selection that survived a filter change names a run the reader can no
-  // longer see, and reading it would render a body under no card.
+  // longer see, and reading it would render a body under no card. Only a
+  // settled run ever expands in place — a live one's own page is one line
+  // away and is where its stream actually lives.
+  // The page, from the address — the board's own '← Anteriores 1 2 3
+  // Próximas →', at twenty rows a page.
+  const pageCount = Math.max(1, Math.ceil(settledRecords.length / RUNS_PAGE_SIZE));
+  const page = Math.min(state.page, pageCount);
+  const pageRecords = settledRecords.slice(
+    (page - 1) * RUNS_PAGE_SIZE,
+    page * RUNS_PAGE_SIZE,
+  );
+
   const openId =
     state.selection !== null &&
-    sorted.some((record) => text(record, 'run_id') === state.selection)
+    pageRecords.some((record) => text(record, 'run_id') === state.selection)
       ? state.selection
       : null;
 
   const body = openId === null ? undefined : await openBody(openId, init);
 
-  const cards = sorted.map((record) => {
+  // One replay per live run, never per settled row — the list's own read
+  // stays the single request it always was for everything but the handful
+  // of runs actually in flight, which is what the pipeline bar on each of
+  // their cards needs and the list body does not otherwise carry.
+  const liveCards = await Promise.all(
+    liveRecords.map(async (record) => {
+      const id = text(record, 'run_id');
+      const subject = subjectOf(record, locale);
+      const replay = await panelRead('/v1/runs/{run_id}/replay', () =>
+        read('/v1/runs/{run_id}/replay', { ...init, params: { run_id: id } }),
+      );
+      const stages = stagesFrom(dataOf(replay));
+      const startedAt = text(record, 'started_at');
+      const startedMs = Date.parse(startedAt);
+      const elapsedSeconds = Number.isNaN(startedMs)
+        ? 0
+        : Math.max(0, (now.getTime() - startedMs) / 1000);
+      return (
+        <div
+          key={id}
+          data-testid="run-live-card"
+          className="flex items-center gap-3 rounded-2 edge border-accent bg-raised p-3"
+        >
+          <span aria-hidden="true" className="pulse-live shrink-0">
+            <span className="pulse-live-ring rotate-45 rounded-1" />
+            <span className="relative block size-2 rotate-45 rounded-1 bg-accent" />
+          </span>
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-body truncate" title={subject.full}>
+                {subject.text}
+              </span>
+              <span className="text-meta text-muted shrink-0">
+                {triggerLabel(locale, text(record, 'trigger'))}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div data-testid="run-live-stage-bar" className="flex-1 min-w-0">
+                <StageBar locale={locale} stages={stages} running />
+              </div>
+              <span
+                data-testid="run-live-elapsed"
+                className="font-mono text-meta text-accent shrink-0"
+              >
+                {formatDuration(locale, elapsedSeconds)}
+              </span>
+            </div>
+          </div>
+          <NextLink
+            href={`/runs/${id}`}
+            prefetch={false}
+            aria-label={message(locale, 'runs.row.openPage')}
+            className="shrink-0 text-muted hover:text-text motion-hover"
+          >
+            <span aria-hidden="true">&rsaquo;</span>
+          </NextLink>
+        </div>
+      );
+    }),
+  );
+
+  const cards = pageRecords.map((record) => {
     const id = text(record, 'run_id');
     const subject = subjectOf(record, locale);
     const open = id === openId;
@@ -143,16 +317,19 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
     <>
       <AreaHeader area={areaFor('runs')} locale={locale} />
 
-      <FilterBar
-        path="/runs"
+      <FilterChips
         state={state}
-        filters={RUN_FILTERS}
         anyLabel={message(locale, 'surface.filter.any')}
-        choices={[
+        groups={[
           {
             name: 'status',
             label: message(locale, 'runs.filter.status'),
-            options: statuses.map((status) => ({ value: status, label: status })),
+            options: statuses.map((status) => ({
+              value: status,
+              // The declared label for a state the product knows — the raw
+              // word only for one it does not, the same rule Badge holds.
+              label: statusLabel(locale, status) ?? status,
+            })),
           },
           {
             name: 'trigger',
@@ -164,6 +341,29 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           },
         ]}
       />
+
+      {liveCards.length === 0 ? null : (
+        <div className="bg-raised edge border-accent rounded-3 shadow-1 p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="pulse-live shrink-0">
+              <span className="pulse-live-ring rotate-45 rounded-1" />
+              <span className="relative block size-2 rotate-45 rounded-1 bg-accent" />
+            </span>
+            <span className="text-body font-semibold">
+              {message(locale, 'runs.live.title')}
+            </span>
+            <span className="text-meta text-muted">
+              {formatCount(
+                locale,
+                liveCards.length,
+                'runs.live.count.one',
+                'runs.live.count',
+              )}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">{liveCards}</div>
+        </div>
+      )}
 
       <Panel
         title={message(locale, 'runs.list.title')}
@@ -192,10 +392,55 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           <p className="text-meta text-muted">
             {message(locale, 'surface.showing', {
               shown: String(cards.length),
-              total: String(records.length),
+              total: String(settledRecords.length),
             })}
           </p>
           {cards}
+          {pageCount <= 1 ? null : (
+            <nav
+              aria-label={message(locale, 'runs.page.label')}
+              data-testid="runs-pagination"
+              className="flex flex-wrap items-center justify-center gap-2 pt-2"
+            >
+              {page <= 1 ? null : (
+                <NextLink
+                  prefetch={false}
+                  data-testid="runs-page-previous"
+                  href={hrefFor('/runs', withPage(state, page - 1), RUN_FILTERS)}
+                  className="text-small text-muted hover:text-text motion-hover"
+                >
+                  ← {message(locale, 'runs.page.previous')}
+                </NextLink>
+              )}
+              {pageNumbers(page, pageCount).map((offered) => (
+                <NextLink
+                  key={offered}
+                  prefetch={false}
+                  data-testid="runs-page-number"
+                  aria-current={offered === page ? 'page' : undefined}
+                  href={hrefFor('/runs', withPage(state, offered), RUN_FILTERS)}
+                  className={cx(
+                    'inline-flex items-center rounded-full px-3 py-1 font-mono text-small motion-hover',
+                    offered === page
+                      ? 'edge border-accent bg-accent-bg text-accent'
+                      : 'text-muted hover:text-text hover:bg-hover',
+                  )}
+                >
+                  {offered}
+                </NextLink>
+              ))}
+              {page >= pageCount ? null : (
+                <NextLink
+                  prefetch={false}
+                  data-testid="runs-page-next"
+                  href={hrefFor('/runs', withPage(state, page + 1), RUN_FILTERS)}
+                  className="text-small text-muted hover:text-text motion-hover"
+                >
+                  {message(locale, 'runs.page.next')} →
+                </NextLink>
+              )}
+            </nav>
+          )}
         </div>
       </Panel>
     </>

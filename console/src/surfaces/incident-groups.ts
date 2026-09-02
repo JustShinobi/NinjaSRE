@@ -175,3 +175,56 @@ export function groupBySubject(records: readonly unknown[]): readonly IncidentGr
     return instant(right.lastAt) - instant(left.lastAt);
   });
 }
+
+/**
+ * How far back "what insists in happening" looks, in hours.
+ *
+ * The Painel's own rule (the incidents screen's grouping is unwindowed by
+ * design — see this function's own callers): a subject that fired last month
+ * and nothing since is not something the estate insists on right now, and
+ * showing it beside a subject that fired an hour ago would put them in the
+ * same register.
+ */
+export const SUBJECT_WINDOW_HOURS = 48;
+
+/**
+ * `groups`, with every occurrence outside the trailing `windowHours` removed.
+ *
+ * `count`, `occurrences`, `lastAt` and `firstAt` are recomputed from what
+ * survives the cut, which is what lets "N×" on the Painel agree with a raw
+ * count of `/incidents` restricted to the same window. Everything else on a
+ * group — `state`, `severity`, `live`, `subjects`, `title` — is carried
+ * unchanged from `groupBySubject`'s own answer: whether a subject is
+ * currently being investigated is a fact about right now, not something a
+ * window over its past firings gets to re-derive, and an investigation that
+ * started outside the window is still happening.
+ *
+ * A subject the window reaches none of is dropped entirely, in the same
+ * relative order `groupBySubject` already sorted the rest by (live, then
+ * severity, then recency) — this never re-sorts, it only removes.
+ */
+export function subjectsInWindow(
+  groups: readonly IncidentGroup[],
+  now: Date,
+  windowHours: number,
+): readonly IncidentGroup[] {
+  const cutoff = now.getTime() - windowHours * 3_600_000;
+  const windowed: IncidentGroup[] = [];
+  for (const group of groups) {
+    const occurrences = group.occurrences.filter(
+      (occurrence) => instant(occurrence.at) >= cutoff,
+    );
+    if (occurrences.length === 0) continue;
+    windowed.push({
+      ...group,
+      count: occurrences.length,
+      occurrences,
+      // `occurrences` is already newest-first (groupBySubject's own order),
+      // and filtering preserves that order — so the ends of the surviving
+      // array are exactly the newest and oldest firings the window kept.
+      lastAt: occurrences[0]?.at ?? group.lastAt,
+      firstAt: occurrences[occurrences.length - 1]?.at ?? group.firstAt,
+    });
+  }
+  return windowed;
+}

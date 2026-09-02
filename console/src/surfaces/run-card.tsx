@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
-import { Badge, ResolvedChip } from '@/components/status';
-import { ListIcon } from '@/design/icons';
+import { Badge, ResolvedChip, StatusDot } from '@/components/status';
 import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { CopyReport } from './copy-report';
@@ -311,7 +310,7 @@ function Remembered({
   return (
     <div data-testid="run-episode" className="flex flex-col gap-2">
       <div className="flex items-start gap-2">
-        <Badge status={written.outcome} className="shrink-0" />
+        <Badge status={written.outcome} locale={locale} className="shrink-0" />
         <span className="text-small grow">{written.title}</span>
       </div>
       {written.summary === '' ? null : (
@@ -347,7 +346,7 @@ function CallRow({
       data-testid="run-call"
       className="flex items-center gap-3 px-3 py-2 edge border-border border-x-0 border-t-0 last:border-b-0"
     >
-      <Badge status={call.status} className="shrink-0" />
+      <Badge status={call.status} locale={locale} className="shrink-0" />
       <span className="font-mono text-meta grow min-w-0 break-all">{call.name}</span>
       {call.error === '' ? null : (
         <span className="text-meta text-danger min-w-0 break-words">{call.error}</span>
@@ -404,7 +403,9 @@ function StageRow({
             ? message(locale, 'run.stage.noFinding')
             : stage.finding}
         </p>
-        {stage.failed ? <Badge status="failed" className="shrink-0" /> : null}
+        {stage.failed ? (
+          <Badge status="failed" locale={locale} className="shrink-0" />
+        ) : null}
         {calls.length === 0 && stage.llmCalls > 0 ? (
           <span className="text-meta text-muted shrink-0">
             {message(locale, 'run.stage.modelCalls', { calls: String(stage.llmCalls) })}
@@ -468,8 +469,15 @@ export function unplacedTurns(body: RunCardBody): readonly RunCardTurn[] {
   return body.turns.filter((turn) => !placed.has(turn.index));
 }
 
-/** The six the pipeline runs, and the only names this console has a label for. */
-const STAGE_NAMES = [
+/**
+ * The six the pipeline runs, in order, and the only names this console has a
+ * label for.
+ *
+ * Exported for `stage-rail.tsx`, which draws the same six as boxes rather
+ * than as rows — one vocabulary, two presentations, so a stage renamed here
+ * cannot drift between the list's card and the run's own page.
+ */
+export const STAGE_NAMES = [
   'resolve_integrations',
   'intake',
   'plan_evidence',
@@ -522,6 +530,7 @@ export function RunCard({
       data-testid="run-card"
       data-run={head.runId}
       data-open={open}
+      data-status={head.status}
       className={`bg-raised edge rounded-3 shadow-1 ${open ? 'border-accent' : 'border-border'}`}
     >
       {/* The address still carries which card is open, so the expansion can be
@@ -543,8 +552,15 @@ export function RunCard({
         <span className="sr-only">
           {open ? message(locale, 'runs.row.close') : message(locale, 'runs.row.open')}
         </span>
-        <span className="shrink-0 rounded-2 edge border-border bg-sunken p-2 flex items-center justify-center">
-          <ListIcon size="nav" className="text-muted" />
+        {/* The outcome's own shape, not a document glyph repeated down the
+            column: a green dot for completed, a red square for failed, the
+            foundation's shape for anything else — forty-nine identical file
+            icons distinguished nothing. */}
+        <span
+          data-testid="run-card-outcome-mark"
+          className="shrink-0 flex items-center justify-center p-2"
+        >
+          <StatusDot status={head.status} />
         </span>
         <span className="min-w-0 grow flex flex-col gap-1">
           {/* One line, in one type, in both states. This row is the handle
@@ -559,17 +575,17 @@ export function RunCard({
               in full the moment it opens. */}
           <span
             data-testid="run-card-subject"
-            className="text-body truncate"
+            className="text-body line-clamp-2"
             title={head.subjectFull}
           >
-            {head.subject}
+            {head.subjectFull}
           </span>
           <span className="text-meta text-muted">
             {triggerLabel(locale, head.trigger)} ·{' '}
             <span className="font-mono">{`#${head.runId.slice(0, 8)}`}</span>
           </span>
         </span>
-        <Badge status={head.status} className="shrink-0" />
+        <Badge status={head.status} locale={locale} className="shrink-0" />
         <EvidenceChip locale={locale} evidence={head.evidence} className="shrink-0" />
         <span className="text-meta text-muted tabular-nums shrink-0 w-column-measure text-right">
           {head.seconds === 0 ? none : formatDuration(locale, head.seconds)}
@@ -582,6 +598,22 @@ export function RunCard({
           {started.relative}
         </time>
       </RunCardToggle>
+
+      {/* A failed run's transcript is the one thing worth reaching without
+          opening the card — the card's own expansion re-reads the replay and
+          draws the same grouped stages this links straight past; a reader
+          chasing why it stopped wants the narrated account, not another
+          summary of the summary. Visible on the closed row on purpose, and a
+          sibling of the toggle rather than nested inside it: the toggle is
+          itself a clickable control, and a link inside a button is invalid
+          HTML two controls deep. */}
+      {head.status === 'failed' ? (
+        <div className="px-4 pb-3 -mt-2">
+          <Link data-testid="run-card-transcript-link" href={`/runs/${head.runId}`}>
+            {message(locale, 'runs.row.openPage')}
+          </Link>
+        </div>
+      ) : null}
 
       {open && body !== undefined ? (
         <div
@@ -754,7 +786,7 @@ export function RunCard({
                       className="edge border-warning rounded-2 bg-warning-bg p-3 text-small flex flex-col gap-3"
                     >
                       <span className="flex items-start gap-2">
-                        <Badge status="waiting" className="shrink-0" />
+                        <Badge status="waiting" locale={locale} className="shrink-0" />
                         <span className="grow">{decision.text}</span>
                       </span>
                       <DecisionControls

@@ -43,7 +43,7 @@ from platform.persistence.ports.run_trace_store import ToolCallStatus
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.runs.headline import report_body
 from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
-from platform.runs.stream import RunEventBroker
+from platform.runs.stream import RunEventBroker, RunEventPublisher
 
 
 def _status_of(*, denied: bool, outcome: InvocationOutcome) -> ToolCallStatus:
@@ -125,6 +125,19 @@ class RunTraceRecordingHook:
     _stage: StageName | None = field(default=None, init=False)
     _stage_started_at: datetime | None = field(default=None, init=False)
 
+    def _events(self) -> RunEventPublisher | None:
+        """Return where this hook publishes, and whose runs those are.
+
+        ``None`` when nothing was composed to publish to — a hook that records
+        with nobody watching. The organisation is this hook's own scope, the
+        same one every unit of work it opens is opened for, because a run
+        broker is process-wide and an event handed to it without a tenant is
+        one the deployment-wide channel can only deliver to everybody.
+        """
+        if self.broker is None:
+            return None
+        return RunEventPublisher(broker=self.broker, org_id=self.scope.org_id)
+
     async def emit(self, event: PipelineEvent) -> None:
         """Follow the pipeline's stage boundaries, and write a record at each end.
 
@@ -155,7 +168,7 @@ class RunTraceRecordingHook:
         finding = detail.get(STAGE_DETAIL_FINDING, "") or (event.text if failed else "")
         async with self.gateway.begin(self.scope) as uow:
             await RunRecorder(
-                store=uow.run_traces, guardrails=self.guardrails, broker=self.broker
+                store=uow.run_traces, guardrails=self.guardrails, events=self._events()
             ).record_stage(
                 self.run_id,
                 stage=event.stage.value if event.stage is not None else "",
@@ -193,7 +206,7 @@ class RunTraceRecordingHook:
 
         async with self.gateway.begin(self.scope) as uow:
             recorder = RunRecorder(
-                store=uow.run_traces, guardrails=self.guardrails, broker=self.broker
+                store=uow.run_traces, guardrails=self.guardrails, events=self._events()
             )
             recorded_turn = await recorder.record_turn(self._recorded_turn(turn))
 

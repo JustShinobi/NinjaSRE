@@ -235,7 +235,17 @@ async def test_integration_forms_are_served_as_schemas_never_as_values(
 
 
 async def _seed_approval(deployment: Deployment) -> None:
-    """Store one pending approval with a rollback plan behind it."""
+    """Store one pending approval with a rollback plan behind it.
+
+    ``expires_at`` is anchored to the real clock rather than to ``EPOCH``:
+    ``GET /v1/approvals`` now sweeps genuinely lapsed requests to ``expired``
+    before it lists (the fix for the sidebar badge counting an approval
+    nobody could still decide), so an approval whose window closed months
+    before whatever day this suite happens to run on would be swept out of
+    the ``pending`` bucket this fixture exists to populate, and every test
+    reading it back as pending would fail for a reason that has nothing to
+    do with what it is testing.
+    """
     async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
         await uow.approvals.create_request(
             ApprovalRequest(
@@ -245,7 +255,7 @@ async def _seed_approval(deployment: Deployment) -> None:
                 side_effect_level="disruptive",
                 summary="restart checkout",
                 requested_at=EPOCH,
-                expires_at=EPOCH + timedelta(hours=1),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
                 arguments={"deployment": "checkout", "namespace": "prod"},
             )
         )

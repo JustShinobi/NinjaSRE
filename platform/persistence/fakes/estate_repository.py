@@ -53,6 +53,15 @@ class FakeEstateRepository:
         """Return the resource with ``resource_id``, or ``None``."""
         return self.state.resources.get(resource_id)
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> dict[str, Resource]:
+        """Return the resources with these ids, keyed by id."""
+        found: dict[str, Resource] = {}
+        for resource_id in resource_ids:
+            resource = self.state.resources.get(resource_id)
+            if resource is not None:
+                found[resource_id] = resource
+        return found
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the present resource ``source`` calls ``native_id``, or ``None``."""
         for resource in sorted(self.state.resources.values(), key=lambda found: found.resource_id):
@@ -241,6 +250,21 @@ class FakeEstateRepository:
             reverse=True,
         )
         return tuple(history[:limit])
+
+    async def unhealthy_since(
+        self,
+        resource_ids: tuple[str, ...],
+    ) -> dict[str, datetime]:
+        """Return, for each id currently on an unhealthy streak, when it began."""
+        wanted = set(resource_ids)
+        since: dict[str, datetime] = {}
+        for entry in self.state.health_transitions.values():
+            if entry.resource_id not in wanted or entry.state is not ResourceHealth.UNHEALTHY:
+                continue
+            found = since.get(entry.resource_id)
+            if found is None or entry.occurred_at > found:
+                since[entry.resource_id] = entry.occurred_at
+        return since
 
     async def set_maintenance(
         self,

@@ -6,21 +6,19 @@ import { surfaceContext } from '@/surfaces/context';
 import { ResourcesScreen } from '@/surfaces/screens/resources';
 
 /**
- * The list itself: columns that earn their place, one health vocabulary, and
- * a name a reader can actually search for.
+ * The list itself: a health bar that adds up, a name a reader can actually
+ * search for, and the two divergence findings the estate reports in either
+ * direction.
  *
- * Three defects lived here together. A column that read "Not recorded" on
- * every row taught the reader to stop looking at every column. A header that
- * called a number "degraded" when the endpoint's own breakdown said otherwise
- * was a second vocabulary for the same axis the badges already had one for.
- * And a suffix concatenated onto a resource's name was noise in the one cell
- * a reader actually reads — the name — rather than a fact with a column of
- * its own.
- *
- * A hand-built fetch stub rather than the committed dataset: each of these
- * needs a shape (an all-zero utilisation, a `by_health` that disagrees with
- * `problems`, a divergence) the committed capture does not carry, the same
- * way `resource-signals.test.tsx` stubs one for the pressure-key case.
+ * This file replaces one written against the flat sortable table this
+ * feature's own FR-007 retires — `columnheader`/`cell` roles, a utilisation
+ * column, a divergence mark of its own column, none of which the card grid
+ * has, by the artboard's own design. What is preserved is the underlying
+ * behaviour: filtering by name and by health, the setup-return banner, the
+ * absent/watched arithmetic, and the two panels a diverging resource still
+ * reaches (`departed`, and the new `undeclared` this feature adds so the
+ * "the provider reports it and the inventory does not" finding is not lost
+ * along with the column that used to mark it).
  */
 
 vi.mock('next/headers', () => ({
@@ -118,30 +116,16 @@ function serveWithChecklist(complete: boolean): void {
   });
 }
 
-function resourceRow(id: string): HTMLElement {
+/** The card whose name (case-sensitive, as displayed) is `name`. */
+function resourceCard(name: string): HTMLElement {
   const found = screen
-    .getAllByTestId('row')
-    .find((row) => row.getAttribute('data-row') === id);
-  if (found === undefined) throw new Error(`no row for ${id}`);
+    .getAllByTestId('resource-card')
+    .find(
+      (card) =>
+        card.querySelector('[data-testid="resource-card-name"]')?.textContent === name,
+    );
+  if (found === undefined) throw new Error(`no card named ${name}`);
   return found;
-}
-
-function columnIndex(header: string): number {
-  const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
-  const found = headers.findIndex((text) => text.includes(header));
-  if (found === -1) throw new Error(`no column headed ${header}`);
-  return found;
-}
-
-/** The cell at `column` in `row`, or a thrown error naming which one is missing. */
-function cellAt(row: HTMLElement, column: number): HTMLElement {
-  const found = within(row).getAllByRole('cell')[column];
-  if (found === undefined) throw new Error(`no cell at column ${String(column)}`);
-  return found;
-}
-
-function cellText(row: HTMLElement, column: number): string {
-  return cellAt(row, column).textContent;
 }
 
 const ALPHA = {
@@ -150,6 +134,8 @@ const ALPHA = {
   kind: 'container',
   health: 'healthy',
   correlation_key: 'ck-alpha',
+  parent_id: 'node-1',
+  parent_name: 'pve01',
   last_seen_at: '2026-08-07T12:00:00Z',
   attributes: { zone: 'dmz', criticality: 'critical' },
 };
@@ -160,6 +146,8 @@ const BRAVO = {
   kind: 'container',
   health: 'degraded',
   correlation_key: 'ck-bravo',
+  parent_id: 'node-1',
+  parent_name: 'pve01',
   last_seen_at: '2026-08-07T12:00:00Z',
   attributes: { zone: 'dmz', criticality: 'low' },
 };
@@ -170,258 +158,117 @@ const CHARLIE = {
   kind: 'container',
   health: 'unhealthy',
   correlation_key: 'ck-charlie',
+  parent_id: 'node-1',
+  parent_name: 'pve01',
   last_seen_at: '2026-08-07T12:00:00Z',
   attributes: { zone: 'core', criticality: 'critical' },
 };
 
-describe('resources: no column reads "Not recorded" on every row', () => {
-  it('draws no utilisation column when nothing in view has a reading', async () => {
-    serve({ resources: [ALPHA, BRAVO] });
+describe('resources: the card as the board draws it', () => {
+  const CARD = {
+    resource_id: 'res-1',
+    display_name: 'runner-orchestrator',
+    kind: 'container',
+    health: 'unhealthy',
+    last_seen_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+    unhealthy_since: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+    parent_id: 'node-pve01',
+    parent_name: 'pve01',
+  };
+
+  it('says the out-duration through the shared formatter, never a calendar adverb', async () => {
+    serve({ resources: [CARD] });
     await resources();
 
-    expect(screen.queryByRole('columnheader', { name: /Utilisation/i })).toBeNull();
+    const out = screen.getByTestId('resource-unhealthy-duration');
+    // "2d out", not "the day before yesterday out": the `X fora` pattern
+    // takes a duration, and only a duration.
+    expect(out.textContent).toMatch(/2\s?d/);
+    expect(out.textContent).not.toMatch(/yesterday|anteontem|ontem/i);
   });
 
-  it('draws the utilisation column, meter and all, once something has a reading', async () => {
-    serve({
-      resources: [
-        { ...ALPHA, attributes: { ...ALPHA.attributes, memory_percent: 40 } },
-        BRAVO,
-      ],
-    });
+  it('leads with the kind glyph and keeps the meta on one truncating line', async () => {
+    serve({ resources: [CARD] });
     await resources();
 
-    expect(
-      screen.getByRole('columnheader', { name: /Utilisation/i }),
-    ).toBeInTheDocument();
-    const column = columnIndex('Utilisation');
-
-    // Alpha has a reading: a meter, not a bar for a percentage of nothing.
-    const alphaCell = cellAt(resourceRow('r-alpha'), column);
-    expect(within(alphaCell).getByRole('progressbar')).toBeInTheDocument();
-
-    // Bravo has none: the column exists, and says so plainly rather than
-    // leaving the cell blank.
-    expect(cellText(resourceRow('r-bravo'), column)).toMatch(/not recorded/i);
-  });
-});
-
-describe('resources: one health vocabulary', () => {
-  it('counts the header’s "degraded" against the same breakdown the badges use, not the combined problem count', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      summary: {
-        total: 10,
-        by_health: { healthy: 6, degraded: 2, unhealthy: 2 },
-        problems: 4,
-        captured_at: '2026-08-07T12:00:00Z',
-      },
-    });
-    await resources();
-
-    const strip = screen.getByTestId('count-strip');
-    // "degraded" is the breakdown's own degraded, never `problems` — which
-    // folds degraded and unhealthy together and is what left this header
-    // unable to be added up against the badges below it.
-    const degraded = within(strip)
-      .getAllByTestId('count-part')
-      .find((part) => /degraded/i.test(part.textContent));
-    expect(degraded).toHaveTextContent('2');
-    expect(degraded).not.toHaveTextContent('4');
-  });
-
-  /**
-   * The parts reach the whole, whatever states the deployment is in.
-   *
-   * The header shipped "97 watched · 76 healthy · 0 degraded · 13 unhealthy"
-   * for a fortnight: three parts totalling 89, with the missing eight visible
-   * in the table two hundred pixels below. Generated from the breakdown rather
-   * than from a sentence with four holes, so a state nobody anticipated gets a
-   * cell instead of vanishing.
-   */
-  it('adds up, including the states the old sentence had no room for', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      summary: {
-        total: 97,
-        by_health: { healthy: 76, unhealthy: 13, unknown: 8 },
-        problems: 13,
-        captured_at: '2026-08-07T12:00:00Z',
-      },
-    });
-    await resources();
-
-    const strip = screen.getByTestId('count-strip');
-    expect(strip).toHaveAttribute('data-balanced', 'true');
-    expect(within(strip).getByTestId('count-total')).toHaveTextContent('97');
-    expect(strip).toHaveTextContent(/unknown/i);
-  });
-
-  it('says what it cannot account for rather than quietly dropping it', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      summary: {
-        total: 97,
-        by_health: { healthy: 76, unhealthy: 13 },
-        problems: 13,
-        captured_at: '2026-08-07T12:00:00Z',
-      },
-    });
-    await resources();
-
-    const strip = screen.getByTestId('count-strip');
-    expect(strip).toHaveAttribute('data-balanced', 'false');
-    expect(within(strip).getByTestId('count-shortfall')).toHaveTextContent('8');
+    const card = resourceCard('runner-orchestrator');
+    expect(card.querySelector('svg')).not.toBeNull();
+    const meta = card.querySelector('.truncate:not([data-testid])');
+    expect(meta?.textContent).toContain('Container');
   });
 });
 
-describe('resources: the divergence mark is its own column', () => {
-  it('leaves the name cell carrying only the name', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      divergences: [{ kind: 'only_in_provider', subject: 'ck-alpha' }],
-    });
-    await resources();
-
-    const nameText = cellText(resourceRow('r-alpha'), 0);
-    // The cell's link also carries a visually-hidden "Open" label for a
-    // reader who hears only the link — real content, just not the name.
-    expect(nameText.replace(/Open$/, '').trim()).toBe('alpha');
-    expect(nameText).not.toMatch(/inventory/i);
+describe('resources: worst first is a view, carried in the address', () => {
+  const cardOf = (id: string, health: string): unknown => ({
+    resource_id: id,
+    display_name: id,
+    kind: 'container',
+    health,
+    last_seen_at: new Date().toISOString(),
+    parent_id: 'node-pve01',
+    parent_name: 'pve01',
   });
 
-  it('marks the diverging resource in a column of its own, and says nothing for the rest', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      divergences: [{ kind: 'only_in_provider', subject: 'ck-alpha' }],
-    });
+  it('offers the chip beside the type filters, linking the ordering into the address', async () => {
+    serve({ resources: [cardOf('a-ok', 'healthy'), cardOf('b-bad', 'degraded')] });
     await resources();
 
-    const column = columnIndex('inventory');
-    expect(cellText(resourceRow('r-alpha'), column)).toMatch(/inventory/i);
-    expect(cellText(resourceRow('r-bravo'), column)).toMatch(/not recorded/i);
+    const chip = screen.getByTestId('order-worst-chip');
+    expect(chip.getAttribute('href')).toContain('order=worst');
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('draws no divergence column at all when the last sweep found none', async () => {
-    serve({ resources: [ALPHA, BRAVO] });
-    await resources();
-
-    expect(screen.queryByRole('columnheader', { name: /inventory/i })).toBeNull();
-  });
-});
-
-describe('resources: unexplained jargon gets a tooltip and a way to fix it', () => {
-  it('explains the divergence mark and what to do about it', async () => {
-    serve({
-      resources: [ALPHA, BRAVO],
-      divergences: [{ kind: 'only_in_provider', subject: 'ck-alpha' }],
-    });
-    await resources();
-
-    const column = columnIndex('inventory');
-    const cell = cellAt(resourceRow('r-alpha'), column);
-    expect(within(cell).getByTitle(/inventory/i)).toHaveTextContent(/inventory/i);
-  });
-
-  it('explains "Unplaced" and links to where a zone is declared', async () => {
-    // A mixed estate: bravo is in a zone, alpha is not. The odd one out is the
-    // finding, so it keeps its cell, its explanation and its way to fix it.
-    serve({
-      resources: [{ ...ALPHA, attributes: { criticality: 'critical' } }, BRAVO],
-    });
-    await resources();
-
-    const column = columnIndex('Zone');
-    const link = within(cellAt(resourceRow('r-alpha'), column)).getByRole('link');
-    expect(link).toHaveTextContent(/unplaced/i);
-    expect(link).toHaveAttribute('href', '/configuration');
-    expect(link).toHaveAttribute('title');
-  });
-
-  it('explains "Ungraded" and links to where a criticality is declared', async () => {
-    serve({ resources: [{ ...ALPHA, attributes: { zone: 'dmz' } }, BRAVO] });
-    await resources();
-
-    const column = columnIndex('Criticality');
-    const link = within(cellAt(resourceRow('r-alpha'), column)).getByRole('link');
-    expect(link).toHaveTextContent(/ungraded/i);
-    expect(link).toHaveAttribute('href', '/configuration');
-  });
-
-  /**
-   * When *nothing* is placed or graded, the column stops being a finding.
-   *
-   * Ninety-seven rows reading "Unplaced" and ninety-seven reading "Ungraded"
-   * were two columns and roughly six hundred pixels carrying one word each, on
-   * the screen that most needs to tell one row from another. That is a fact
-   * about the deployment rather than about ninety-seven resources: it is said
-   * once, above the table, with the same link the cells were carrying.
-   */
-  it('drops both columns when nothing in the estate is placed or graded', async () => {
+  it('orders the whole health scale worse-first when the address says so', async () => {
     serve({
       resources: [
-        { ...ALPHA, attributes: {} },
-        { ...BRAVO, attributes: {} },
+        cardOf('a-ok', 'healthy'),
+        cardOf('b-stale', 'stale'),
+        cardOf('c-degraded', 'degraded'),
       ],
     });
-    await resources();
+    await resources({ order: 'worst' });
 
-    expect(screen.queryByRole('columnheader', { name: /zone/i })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: /criticality/i })).toBeNull();
-
-    const note = screen.getByTestId('estate-ungraded');
-    expect(note).toHaveTextContent(/placed in a zone or graded/i);
-    expect(within(note).getByRole('link')).toHaveAttribute('href', '/configuration');
-  });
-
-  it('drops only the column that carries nothing', async () => {
-    serve({
-      resources: [
-        { ...ALPHA, attributes: { zone: 'dmz' } },
-        { ...BRAVO, attributes: { zone: 'dmz' } },
-      ],
-    });
-    await resources();
-
-    expect(screen.getByRole('columnheader', { name: /zone/i })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: /criticality/i })).toBeNull();
-    expect(screen.getByTestId('estate-ungraded')).toHaveTextContent(
-      /graded for criticality/i,
+    const names = screen
+      .getAllByTestId('resource-card-name')
+      .map((name) => name.textContent);
+    expect(names).toEqual(['c-degraded', 'b-stale', 'a-ok']);
+    expect(screen.getByTestId('order-worst-chip')).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
   });
+});
 
-  it('leaves a declared zone and criticality as plain values, with no link', async () => {
-    serve({ resources: [ALPHA] });
+describe('resources: the two divergence findings', () => {
+  it('surfaces what the provider reports and the inventory does not, in its own panel', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      divergences: [{ kind: 'only_in_provider', subject: 'ck-alpha' }],
+    });
     await resources();
 
-    const zoneColumn = columnIndex('Zone');
-    expect(
-      within(cellAt(resourceRow('r-alpha'), zoneColumn)).queryByRole('link'),
-    ).toBeNull();
-    const criticalityColumn = columnIndex('Criticality');
-    expect(
-      within(cellAt(resourceRow('r-alpha'), criticalityColumn)).queryByRole('link'),
-    ).toBeNull();
+    const panel = screen.getByTestId('undeclared');
+    expect(within(panel).getByTestId('undeclared-entry')).toHaveTextContent('ck-alpha');
+    // The card grid carries no per-card divergence mark any more -- the
+    // artboard's card has no room for one -- so the name cell stays plain.
+    expect(resourceCard('alpha')).not.toHaveTextContent(/inventory/i);
   });
 
-  it('tells the reader the default sort has an alternative', async () => {
+  it('draws no undeclared panel at all when the last sweep found none', async () => {
     serve({ resources: [ALPHA, BRAVO] });
     await resources();
 
-    expect(screen.getByText(/worst first/i)).toHaveAttribute(
-      'title',
-      expect.stringMatching(/column heading/i),
-    );
+    expect(screen.queryByTestId('undeclared')).toBeNull();
   });
 });
 
 describe('resources: a filter by name', () => {
-  it('narrows the table to resources whose name matches, case-insensitively', async () => {
+  it('narrows the grid to resources whose name matches, case-insensitively', async () => {
     serve({ resources: [ALPHA, BRAVO] });
     await resources({ q: 'BRA' });
 
-    expect(screen.queryByTestId('row-list')).toHaveTextContent('bravo');
-    expect(screen.getAllByTestId('row')).toHaveLength(1);
+    expect(screen.getAllByTestId('resource-card')).toHaveLength(1);
+    expect(resourceCard('bravo')).toBeInTheDocument();
   });
 
   it('carries the typed name back into the search field', async () => {
@@ -437,7 +284,6 @@ describe('resources: a filter by name', () => {
 
     const form = screen.getByTestId('resource-search');
     expect(form).toHaveAttribute('method', 'get');
-    expect(within(form).getByDisplayValue('critical')).toBeInTheDocument();
   });
 });
 
@@ -446,21 +292,20 @@ describe('resources: a filter by health', () => {
     serve({ resources: [ALPHA, BRAVO, CHARLIE] });
     await resources({ health: 'healthy' });
 
-    expect(screen.getAllByTestId('row')).toHaveLength(1);
-    expect(screen.getByTestId('row')).toHaveAttribute('data-row', 'r-alpha');
+    const cards = screen.getAllByTestId('resource-card');
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute('data-health', 'healthy');
   });
 
   it('groups degraded and unhealthy resources under the problem drill-down', async () => {
     serve({ resources: [ALPHA, BRAVO, CHARLIE] });
     await resources({ health: 'problem' });
 
-    const rows = screen.getAllByTestId('row');
-    expect(rows).toHaveLength(2);
-    const ids = rows.map((row) => row.getAttribute('data-row'));
-    expect(ids).toEqual(expect.arrayContaining(['r-bravo', 'r-charlie']));
-    expect(ids).not.toContain('r-alpha');
+    const cards = screen.getAllByTestId('resource-card');
+    expect(cards).toHaveLength(2);
     expect(screen.getByText('bravo')).toBeInTheDocument();
     expect(screen.getByText('charlie')).toBeInTheDocument();
+    expect(screen.queryByText('alpha')).toBeNull();
   });
 });
 
@@ -481,9 +326,6 @@ describe('resources: the way back to the wizard', () => {
   });
 
   it('says nothing once setup is already finished, even though the address asked', async () => {
-    // A banner promising to resume a wizard with nothing left to resume
-    // would be a control that lies, so it is absent rather than shown and
-    // pointless.
     serveWithChecklist(true);
     await resources({ return: 'setup' });
 
@@ -494,15 +336,12 @@ describe('resources: the way back to the wizard', () => {
 /**
  * The estate counts absent resources and then leaves them out of its total.
  *
- * `summarise` counts an absent resource into `by_health` and `continue`s before
- * adding it to `total`, deliberately: "watched" means what this estate
- * currently has rather than what it once had. Folded in with the rest, the parts
- * overshoot the whole by exactly the number of absent ones — 75 + 5 + 8 + 13
- * against a total of 96 on the staging estate — and a header that adds up to
- * more than itself is the same fault as one that adds up to less.
+ * `summarise` counts an absent resource into `by_health` and `continue`s
+ * before adding it to `total` -- "watched" means what this estate currently
+ * has rather than what it once had.
  */
 describe('resources: what is watched, and what is merely remembered', () => {
-  it('keeps absent beside the total rather than inside it', async () => {
+  it('names the watched total once, distinct from the absent segment', async () => {
     serve({
       resources: [ALPHA, BRAVO],
       summary: {
@@ -514,16 +353,10 @@ describe('resources: what is watched, and what is merely remembered', () => {
     });
     await resources();
 
-    const strip = screen.getByTestId('count-strip');
-    expect(strip).toHaveAttribute('data-balanced', 'true');
-
-    const parts = within(strip)
-      .getAllByTestId('count-part')
-      .map((part) => part.textContent);
-    expect(parts.some((part) => /absent/i.test(part))).toBe(false);
-
-    const aside = within(strip).getByTestId('count-aside');
-    expect(aside).toHaveTextContent('5');
-    expect(aside).toHaveTextContent(/absent/i);
+    expect(screen.getByTestId('health-watched')).toHaveTextContent('96');
+    const legend = screen.getAllByTestId('health-legend-item');
+    expect(
+      legend.find((item) => item.getAttribute('data-health') === 'absent'),
+    ).toHaveTextContent('5');
   });
 });

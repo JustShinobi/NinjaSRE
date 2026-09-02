@@ -1,29 +1,46 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import { Badge, Link, TabLinks } from '@/components';
+import { Input } from '@/components/form';
 import {
   BridgedServerStateChip,
+  CapabilityAvailabilityChip,
+  CHIP_SHAPE,
   ResolvedChip,
+  SideEffectChip,
   SpecialistStateChip,
 } from '@/components/status';
-import { statusPresentation } from '@/design/status';
+import { cx } from '@/design/cx';
+import {
+  ActivityIcon,
+  AlertCircleIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  ClipboardIcon,
+  SearchIcon,
+  SettingsIcon,
+} from '@/design/icons';
+import { statusPresentation, type Shape } from '@/design/status';
+import type { SemanticRole } from '@/design/tokens';
 import { humaniseIdentifier } from '@/i18n/format';
-import { message, type Locale, type MessageKey } from '@/i18n/messages';
+import { isMessageKey, message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
+import { loadGuardian } from '@/shell/load';
 import { areaFor } from '@/shell/routes';
 import {
   AdvancedConfigSection,
   advancedConfigSectionId,
 } from '../advanced-config-section';
 import {
-  CapabilityBrowser,
-  type BrowsableSkill,
-  type BrowsableTool,
-} from '../capability-browser';
-import { bridgedServers, capabilityRows, type CapabilityRow } from '../capability-rows';
+  bridgedServers,
+  capabilityRows,
+  readsOnly,
+  type CapabilityRow,
+} from '../capability-rows';
 import type { SurfaceContext } from '../context';
-import { HierarchyGraph, type HierarchyRank } from '../graph';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { postureName } from '../postures';
@@ -43,9 +60,23 @@ import {
   text,
   type PanelData,
 } from '../read';
-import { RiskLadder } from '../risk-ladder';
+import {
+  furthestCurrentStage,
+  STAGE_TREATMENT_CLASSES,
+  stageRegime,
+  stageTreatment,
+  toolSummary,
+  type StageRegime,
+} from './agent-pipeline-metro';
 import { placedTree } from '../tree';
-import { readViewState, resolveNode, type FilterName } from '../url-state';
+import {
+  hrefFor,
+  readViewState,
+  resolveNode,
+  withFilter,
+  type FilterName,
+  type ViewState,
+} from '../url-state';
 import { TeamTab } from './team-context';
 
 /**
@@ -84,22 +115,32 @@ import { TeamTab } from './team-context';
  * newest: what the team's own operating context says, absorbed whole from
  * the screen that used to carry it on its own address — see `team-context.tsx`'s
  * own note on why it moved rather than staying linked from here.
+ *
+ * `'topology'` is a stable internal slug, not what the first tab is called —
+ * it names the URL (`?tab=topology`), `data-tab`, and the branches below,
+ * and stays put so an existing deep link keeps landing on the same content.
+ * What a viewer reads is `agent.tab.topology`'s own translated value, which
+ * says "Pipeline" — the word the board uses for what this tab draws now
+ * that its hero is the six-stage metro line rather than the hierarchy graph
+ * the slug is named for.
  */
 export const AGENT_TABS = ['topology', 'tools', 'autonomy', 'team'] as const;
 
 export type AgentTab = (typeof AGENT_TABS)[number];
 
-export const AGENT_FILTERS: readonly FilterName[] = ['node', 'tab'];
+export const AGENT_FILTERS: readonly FilterName[] = [
+  'node',
+  'tab',
+  'domain',
+  'effect',
+  'q',
+  'all',
+];
 
 /** The tab the address names, and the first one when it names nothing known. */
 export function tabFrom(value: string): AgentTab {
   return AGENT_TABS.find((tab) => tab === value) ?? AGENT_TABS[0];
 }
-
-/** Where a rank of the hierarchy sits, and what it is called. */
-const ORCHESTRATOR = 'orchestrator';
-const STAGES = 'stages';
-const SPECIALISTS = 'specialists';
 
 /** The permission the policy editor needs, so the link is absent without it. */
 const WRITE = 'config.write';
@@ -165,6 +206,22 @@ const AGENT_ADVANCED_FIELD_LIST: readonly {
   { path: 'agents.tool_budget', label: 'agent.budgets.toolBudget' },
 ];
 
+/**
+ * The name the first run gives the root it creates when nobody names one —
+ * `DEFAULT_ORGANISATION_NAME`, `config/constants/first_run.py`. The one node
+ * name that is the product's own word rather than an operator's, which is
+ * what makes translating it honest where translating a chosen name would not
+ * be.
+ */
+const DEFAULT_ORGANISATION_NAME = 'Default organisation';
+
+/** `name`, in the viewer's language when it is the product's own default. */
+function crumbName(locale: Locale, name: string): string {
+  return name === DEFAULT_ORGANISATION_NAME
+    ? message(locale, 'organisation.defaultName')
+    : name;
+}
+
 function nothing(): PanelData<unknown> {
   return { status: 'ready', data: {} };
 }
@@ -209,43 +266,88 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
   const address = (wanted: AgentTab): string =>
     node === '' ? `?tab=${wanted}` : `?node=${encodeURIComponent(node)}&tab=${wanted}`;
 
-  const [pipeline, effective, fields, capabilities, entries, outlook] =
-    await Promise.all([
-      tab === 'topology'
-        ? panelRead<unknown>('/v1/agent/pipeline', () =>
-            read('/v1/agent/pipeline', init),
-          )
-        : nothing(),
-      node === '' || tab === 'autonomy' || tab === 'team'
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}', () =>
-            read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
-          ),
-      node === '' || (tab !== 'topology' && tab !== 'tools')
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}/fields', () =>
-            read('/v1/config/{node_id}/fields', { ...init, params: { node_id: node } }),
-          ),
-      tab === 'tools'
-        ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
-        : nothing(),
-      node === '' || tab !== 'tools'
-        ? nothing()
-        : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
-            read('/v1/config/{node_id}/catalogue', {
-              ...init,
-              params: { node_id: node },
-            }),
-          ),
-      node === '' || tab !== 'autonomy'
-        ? nothing()
-        : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
-            read('/v1/autonomy/policy/{node_id}/outlook', {
-              ...init,
-              params: { node_id: node },
-            }),
-          ),
-    ]);
+  // The Pipeline tab's own summary cards read what Tools, Autonomy and Team
+  // Context already read -- the same routes, one more time only on the tab
+  // that shows all three at once, never a new source of any of the three
+  // numbers.
+  const needsSummary = tab === 'topology';
+
+  const [
+    pipeline,
+    effective,
+    fields,
+    capabilities,
+    entries,
+    outlook,
+    runs,
+    summaryCapabilities,
+    summaryEntries,
+    summaryOutlook,
+    summaryContext,
+  ] = await Promise.all([
+    tab === 'topology'
+      ? panelRead<unknown>('/v1/agent/pipeline', () => read('/v1/agent/pipeline', init))
+      : nothing(),
+    node === '' || tab === 'autonomy' || tab === 'team'
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+        ),
+    node === '' || (tab !== 'topology' && tab !== 'tools')
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: node } }),
+        ),
+    tab === 'tools'
+      ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
+      : nothing(),
+    node === '' || tab !== 'tools'
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
+          read('/v1/config/{node_id}/catalogue', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || tab !== 'autonomy'
+      ? nothing()
+      : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
+          read('/v1/autonomy/policy/{node_id}/outlook', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    needsSummary
+      ? panelRead<unknown>('/v1/runs', () => read('/v1/runs', init))
+      : nothing(),
+    needsSummary
+      ? panelRead<unknown>('/v1/capabilities', () => read('/v1/capabilities', init))
+      : nothing(),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/catalogue', () =>
+          read('/v1/config/{node_id}/catalogue', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/autonomy/policy/{node_id}/outlook', () =>
+          read('/v1/autonomy/policy/{node_id}/outlook', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+    node === '' || !needsSummary
+      ? nothing()
+      : optionalRead<unknown>('/v1/config/{node_id}/operating-context', () =>
+          read('/v1/config/{node_id}/operating-context', {
+            ...init,
+            params: { node_id: node },
+          }),
+        ),
+  ]);
 
   // What the posture as it stands decided about what has actually happened.
   // Complements the representative set rather than replacing it: a deployment
@@ -259,6 +361,11 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
       : await optionalRead<unknown>('/v1/autonomy/policy/{node_id}/preview', () =>
           currentPolicyReplay(node, init),
         );
+
+  // The same datum the sidebar's own footer reads — "Guardião ativo · só
+  // propõe" — so the tab's policy chip and the frame can never disagree
+  // about what the deployment currently permits.
+  const guardian = tab === 'autonomy' ? await loadGuardian(credential) : null;
 
   // Self-contained rather than pre-fetched into a prop, like every other
   // tab this reorganisation folded in from its own former screen: `TeamTab`
@@ -281,7 +388,14 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
         nested={
           node === '' || placed.length < 2
             ? []
-            : [{ label: placed.find((each) => each.id === node)?.name ?? node }]
+            : [
+                {
+                  label: crumbName(
+                    locale,
+                    placed.find((each) => each.id === node)?.name ?? node,
+                  ),
+                },
+              ]
         }
       />
 
@@ -304,6 +418,12 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             fields={fields}
             nodeId={node}
             writable={may(viewer, WRITE)}
+            runs={runs}
+            summaryCapabilities={summaryCapabilities}
+            summaryEntries={summaryEntries}
+            summaryOutlook={summaryOutlook}
+            summaryContext={summaryContext}
+            address={address}
           />
         ) : null}
         {tab === 'tools' ? (
@@ -315,6 +435,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             fields={fields}
             node={node}
             writable={may(viewer, WRITE)}
+            state={state}
           />
         ) : null}
         {tab === 'autonomy' ? (
@@ -322,6 +443,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             locale={locale}
             outlook={outlook}
             replay={replay}
+            posture={guardian?.posture ?? 'propose'}
             node={node}
             viewer={viewer}
           />
@@ -356,6 +478,474 @@ function subAgentsOf(values: unknown): readonly SubAgent[] {
   }));
 }
 
+/** One icon per stage, in the order the pipeline serves them. */
+const STAGE_ICON: Readonly<
+  Record<string, (props: { className?: string }) => ReactNode>
+> = {
+  resolve_integrations: SettingsIcon,
+  intake: AlertCircleIcon,
+  plan_evidence: ClipboardIcon,
+  gather_evidence: SearchIcon,
+  diagnose: ActivityIcon,
+  deliver: CheckIcon,
+};
+
+/** A stage's own words, when this console has them; its identifier, humanised, otherwise. */
+function stageWord(locale: Locale, kind: 'name' | 'copy', stage: string): string {
+  const key = `agent.metro.${kind}.${stage}`;
+  if (isMessageKey(key)) return message(locale, key);
+  return kind === 'name' ? humaniseIdentifier(stage) : '';
+}
+
+/** The mono line under a station: its ordinal, then its regime — or "running now". */
+function regimeLine(
+  locale: Locale,
+  ordinal: number,
+  regime: StageRegime,
+  running: boolean,
+): string {
+  const label = running
+    ? message(locale, 'agent.metro.runningNow')
+    : regime.kind === 'model'
+      ? message(locale, 'agent.metro.regime.model', { role: regime.role })
+      : regime.kind === 'deterministic'
+        ? message(locale, 'agent.metro.regime.deterministic')
+        : message(locale, 'agent.metro.regime.none');
+  return `${String(ordinal)} · ${label}`;
+}
+
+/**
+ * The six-node line the Pipeline tab opens with — one look at what a run
+ * does, and the one place the per-stage prose lives: each station is a
+ * disclosure, and opening it shows that stage's description, what it
+ * consults, and the model role it runs under. The section that used to
+ * repeat all of that below the band is gone; this is where it went.
+ */
+function PipelineMetro({
+  locale,
+  pipeline,
+  stages,
+  runs,
+}: {
+  readonly locale: Locale;
+  readonly pipeline: PanelData<unknown>;
+  readonly stages: readonly unknown[];
+  readonly runs: PanelData<unknown>;
+}): ReactNode {
+  const running =
+    runs.status === 'ready'
+      ? list(dataOf(runs), 'runs').filter((run) => text(run, 'status') === 'running')
+      : [];
+  const inFlight = running.length;
+  const stageNames = stages.map((stage) => text(stage, 'name'));
+  // The listing's own `last_completed_stage` names where each run in flight
+  // is; the furthest one along is the station the band lights and the point
+  // the rail's fill reaches. With nothing in flight the band rests.
+  const currentStageName = furthestCurrentStage(
+    stageNames,
+    running.map((run) => text(run, 'last_completed_stage')),
+  );
+  const currentAt =
+    currentStageName === undefined ? -1 : stageNames.indexOf(currentStageName);
+  const fillPercent =
+    stageNames.length < 2 || currentAt < 0
+      ? 0
+      : (currentAt / (stageNames.length - 1)) * 100;
+  return (
+    <Panel
+      title={message(locale, 'agent.metro.title')}
+      state={stateOf(pipeline, stages.length === 0)}
+      dependency={dependencyOf(pipeline)}
+      labels={panelLabels(locale, message(locale, 'agent.metro.title'))}
+      empty={{
+        heading: message(locale, 'agent.empty.heading'),
+        body: message(locale, 'agent.empty.body'),
+        actionLabel: message(locale, 'agent.empty.action'),
+        // The body says outright that nothing here is configuration, so
+        // there is no owning page to send anyone to; the area's own
+        // address is the only honest destination left.
+        href: '/agent',
+      }}
+      action={
+        inFlight === 0 ? undefined : (
+          <span
+            data-testid="pipeline-in-flight"
+            className="flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
+          >
+            <span aria-hidden="true" className="icon-inline rotate-45 bg-accent" />
+            {message(locale, 'agent.metro.inFlight', { count: inFlight })}
+          </span>
+        )
+      }
+    >
+      <p className="text-meta text-muted pb-4">
+        {message(locale, 'agent.metro.subtitle')}
+      </p>
+      <div className="relative grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {/*
+         * The rail: what makes six stages read as the one sequence every run
+         * walks, rather than six unrelated cards. Drawn only once the grid is
+         * a single row (`lg`) -- at the narrower two/three-column layouts the
+         * stages wrap onto more than one line, and one line spanning the
+         * full width would cut across rows that are not actually adjacent.
+         *
+         * Insets are computed from the stage count rather than a literal
+         * "6", landing on the horizontal centre of the first and the last
+         * icon: half a column's own width, where a column's width already
+         * subtracts the gaps `gap-4` puts between columns (`--space-4`, the
+         * same token `gap-4` itself draws from) -- not an approximation.
+         * Positioned behind the row in DOM order, so each icon's own opaque
+         * fill paints over the segment directly behind it, and the rail only
+         * shows in the space between stages, the way the board draws it.
+         */}
+        <div
+          aria-hidden="true"
+          data-testid="pipeline-metro-rail"
+          className="absolute top-0 hidden h-7 items-center lg:flex"
+          style={{
+            insetInlineStart: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
+            insetInlineEnd: `calc((100% - ${String(stages.length - 1)} * var(--space-4)) / ${String(stages.length * 2)})`,
+          }}
+        >
+          <span className="relative flex h-0 w-full items-center edge border-border">
+            {/* The filled part of the line: how far the furthest run in
+                flight has walked. `motion-overlay` gives the width a
+                declared transition, so a stage boundary slides rather than
+                jumps — and the global reduced-motion rule zeroes it. */}
+            <span
+              data-testid="pipeline-metro-rail-fill"
+              className="motion-overlay absolute inset-y-0 left-0 my-auto h-1 rounded-full bg-accent"
+              style={{ width: `${String(fillPercent)}%` }}
+            />
+          </span>
+        </div>
+        {stages.map((stage, index) => {
+          const name = text(stage, 'name');
+          const Icon = STAGE_ICON[name] ?? SettingsIcon;
+          const regime = stageRegime(name, text(stage, 'model_role'));
+          const treatment = stageTreatment(stageNames, name, currentStageName);
+          return (
+            <details
+              key={name}
+              data-testid="pipeline-metro-node"
+              data-stage={name}
+              data-role={text(stage, 'model_role')}
+              className="min-w-0"
+            >
+              <summary
+                className="flex cursor-pointer select-none list-none flex-col items-center gap-2 text-center [&::-webkit-details-marker]:hidden"
+                data-testid="pipeline-metro-summary"
+              >
+                {/* An opaque backdrop under the tinted well, so the rail's
+                    fill reads as passing behind the station rather than
+                    through it — the tints are translucent by design. */}
+                <span className="rounded-full bg-raised">
+                  <span
+                    data-testid="pipeline-metro-station"
+                    data-treatment={treatment}
+                    className={cx(
+                      'flex size-7 items-center justify-center rounded-full edge-emphasis',
+                      STAGE_TREATMENT_CLASSES[treatment],
+                      treatment === 'running' && 'pulse-live',
+                    )}
+                  >
+                    {treatment === 'running' ? (
+                      <span
+                        aria-hidden="true"
+                        className="pulse-live-ring text-accent"
+                      />
+                    ) : null}
+                    <Icon className="icon-head" />
+                  </span>
+                </span>
+                <span
+                  data-testid="pipeline-metro-regime"
+                  data-running={treatment === 'running' ? 'true' : undefined}
+                  className={cx(
+                    'font-mono text-micro',
+                    treatment === 'running' ? 'text-accent' : 'text-muted',
+                  )}
+                >
+                  {regimeLine(locale, index + 1, regime, treatment === 'running')}
+                </span>
+                <span
+                  data-testid="pipeline-metro-name"
+                  className="text-small font-medium"
+                >
+                  {stageWord(locale, 'name', name)}
+                </span>
+                <span
+                  data-testid="pipeline-metro-copy"
+                  className="text-micro text-muted"
+                >
+                  {stageWord(locale, 'copy', name)}
+                </span>
+              </summary>
+              <div
+                data-testid="pipeline-metro-detail"
+                className="mt-2 flex flex-col gap-1 rounded-2 bg-sunken p-3 text-left"
+              >
+                {text(stage, 'summary') === '' ? null : (
+                  <span className="text-meta text-muted">{text(stage, 'summary')}</span>
+                )}
+                {list(stage, 'consults').length === 0 ? null : (
+                  <span className="text-meta text-muted">
+                    {message(locale, 'agent.stage.consults')}{' '}
+                    {list(stage, 'consults').map(String).join('; ')}
+                  </span>
+                )}
+                <span className="text-meta text-muted" data-testid="stage-role">
+                  {text(stage, 'model_role') === ''
+                    ? message(locale, 'agent.stage.noModel')
+                    : message(locale, 'agent.stage.role', {
+                        role: text(stage, 'model_role'),
+                      })}
+                </span>
+              </div>
+            </details>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+/** The Tools card: enabled ratio, top domains, and the three side-effect buckets. */
+function ToolsSummaryCard({
+  locale,
+  capabilities,
+  entries,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly capabilities: PanelData<unknown>;
+  readonly entries: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
+  const tools = rows.filter((row) => row.kind === 'tool');
+  const total = tools.length;
+  const summary = toolSummary(tools);
+  const byDomain = new Map<string, number>();
+  for (const row of tools) {
+    if (row.domain === '') continue;
+    byDomain.set(row.domain, (byDomain.get(row.domain) ?? 0) + 1);
+  }
+  const topDomains = [...byDomain.entries()]
+    .sort(([, left], [, right]) => right - left)
+    .slice(0, 6);
+  const max = topDomains[0]?.[1] ?? 1;
+  return (
+    <div
+      data-testid="pipeline-summary-tools"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('tools')}>{message(locale, 'agent.tab.tools')}</Link>
+      <p className="text-small text-muted">
+        {message(locale, 'agent.metro.tools.ratio', {
+          enabled: summary.enabled,
+          total,
+        })}
+      </p>
+      <div className="flex flex-col gap-2">
+        {topDomains.map(([domain, count]) => (
+          <div
+            key={domain}
+            data-testid="domain-bar"
+            className="flex items-center gap-2 text-micro"
+          >
+            <span className="w-1/4 min-w-0 shrink-0 truncate text-muted">
+              {domainLabel(locale, domain)}
+            </span>
+            <span className="h-1 flex-1 overflow-hidden rounded-full bg-sunken">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${String((count / max) * 100)}%` }}
+              />
+            </span>
+            <span className="font-mono text-muted">{count}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <span
+          data-testid="side-effect-chip"
+          data-role="success"
+          className="rounded-full bg-success-bg px-2 py-1 text-micro text-success"
+        >
+          {message(locale, 'agent.metro.tools.read', { count: summary.read })}
+        </span>
+        <span
+          data-testid="side-effect-chip"
+          data-role="warning"
+          className="rounded-full bg-warning-bg px-2 py-1 text-micro text-warning"
+        >
+          {message(locale, 'agent.metro.tools.writeReversible', {
+            count: summary.writeReversible,
+          })}
+        </span>
+        <span
+          data-testid="side-effect-chip"
+          data-role="danger"
+          className="rounded-full bg-danger-bg px-2 py-1 text-micro text-danger"
+        >
+          {message(locale, 'agent.metro.tools.destructive', {
+            count: summary.destructive,
+          })}
+        </span>
+      </div>
+      <p className="mt-auto text-small">
+        <Link href={address('tools')}>
+          {message(locale, 'agent.metro.tools.catalogue')}
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+/** The Autonomy card: the five-class ladder, no full "Why:" reasoning. */
+function AutonomySummaryCard({
+  locale,
+  outlook,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly outlook: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const classes = list(dataOf(outlook), 'classes');
+  return (
+    <div
+      data-testid="pipeline-summary-autonomy"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('autonomy')}>{message(locale, 'agent.tab.autonomy')}</Link>
+      <ul className="flex flex-col gap-2">
+        {classes.map((entry) => (
+          <li
+            key={text(entry, 'risk_class')}
+            data-testid="autonomy-summary-row"
+            className="flex items-center gap-2 rounded-2 edge border-border bg-sunken px-2 py-1 text-small"
+          >
+            <span className="min-w-0 shrink-0 truncate">
+              {autonomyClassName(locale, text(entry, 'risk_class'))}
+            </span>
+            {/* The board's thin connecting line: what makes five rows read
+                as one ladder rather than five labels and five chips. */}
+            <span aria-hidden="true" className="h-px min-w-4 flex-1 bg-border" />
+            <span data-testid="autonomy-summary-decision" className="shrink-0">
+              <Badge status={text(entry, 'decision')} locale={locale} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-micro text-muted">
+        {message(locale, 'agent.metro.autonomy.footer')}
+      </p>
+      <p className="mt-auto text-small">
+        <Link href="/settings/autonomy-guardrails">
+          {message(locale, 'agent.metro.autonomy.adjust')}
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+/** The Team Context card: prompt budget, or an honest empty state. */
+function TeamSummaryCard({
+  locale,
+  context,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly context: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  const tokensUsed = number(dataOf(context), 'tokens_used');
+  const tokenBudget = number(dataOf(context), 'token_budget');
+  const hasBudget = tokenBudget > 0;
+  return (
+    <div
+      data-testid="pipeline-summary-team"
+      className="flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4"
+    >
+      <Link href={address('team')}>{message(locale, 'agent.tab.team')}</Link>
+      {hasBudget ? (
+        <div className="flex flex-col gap-2">
+          <p data-testid="team-budget" className="text-small">
+            {message(locale, 'agent.metro.team.budget', {
+              used: tokensUsed,
+              budget: tokenBudget,
+            })}
+          </p>
+          {/* The budget as a bar, not a sentence alone — the board's own
+              treatment, and what makes "how full" readable at a glance. */}
+          <span
+            data-testid="team-budget-bar"
+            className="flex h-2 overflow-hidden rounded-full edge border-border bg-sunken"
+          >
+            <span
+              className="block h-full bg-accent"
+              style={{
+                width: `${String(Math.min(100, (tokensUsed / tokenBudget) * 100))}%`,
+              }}
+            />
+          </span>
+          <p className="text-micro text-muted">
+            {message(locale, 'agent.metro.team.note')}
+          </p>
+        </div>
+      ) : (
+        <div data-testid="team-empty" className="flex flex-col gap-2">
+          <p className="text-small text-muted">
+            {message(locale, 'agent.metro.team.empty')}
+          </p>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full edge border-border bg-sunken px-2 py-1 text-micro text-muted">
+          {message(locale, 'agent.metro.team.investigator')}
+        </span>
+        <span className="rounded-full edge border-border bg-sunken px-2 py-1 text-micro text-muted">
+          {message(locale, 'agent.metro.team.subagent')}
+        </span>
+      </div>
+      <p className="mt-auto text-small">
+        <Link href={address('team')}>{message(locale, 'agent.metro.team.write')}</Link>
+      </p>
+    </div>
+  );
+}
+
+function PipelineSummaryCards({
+  locale,
+  capabilities,
+  entries,
+  outlook,
+  context,
+  address,
+}: {
+  readonly locale: Locale;
+  readonly capabilities: PanelData<unknown>;
+  readonly entries: PanelData<unknown>;
+  readonly outlook: PanelData<unknown>;
+  readonly context: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
+}): ReactNode {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <ToolsSummaryCard
+        locale={locale}
+        capabilities={capabilities}
+        entries={entries}
+        address={address}
+      />
+      <AutonomySummaryCard locale={locale} outlook={outlook} address={address} />
+      <TeamSummaryCard locale={locale} context={context} address={address} />
+    </div>
+  );
+}
+
 function TopologyTab({
   locale,
   pipeline,
@@ -363,6 +953,12 @@ function TopologyTab({
   fields,
   nodeId,
   writable,
+  runs,
+  summaryCapabilities,
+  summaryEntries,
+  summaryOutlook,
+  summaryContext,
+  address,
 }: {
   readonly locale: Locale;
   readonly pipeline: PanelData<unknown>;
@@ -370,6 +966,12 @@ function TopologyTab({
   readonly fields: PanelData<unknown>;
   readonly nodeId: string;
   readonly writable: boolean;
+  readonly runs: PanelData<unknown>;
+  readonly summaryCapabilities: PanelData<unknown>;
+  readonly summaryEntries: PanelData<unknown>;
+  readonly summaryOutlook: PanelData<unknown>;
+  readonly summaryContext: PanelData<unknown>;
+  readonly address: (wanted: AgentTab) => string;
 }): ReactNode {
   const stages = list(dataOf(pipeline), 'stages');
   const roles = list(dataOf(pipeline), 'model_roles').map(String);
@@ -377,120 +979,17 @@ function TopologyTab({
   const specialists = subAgentsOf(values);
   const declared = list(dataOf(fields), 'fields');
 
-  const ranks: readonly HierarchyRank[] = [
-    {
-      id: ORCHESTRATOR,
-      label: message(locale, 'agent.rank.orchestrator'),
-      nodes: [
-        {
-          id: ORCHESTRATOR,
-          name: message(locale, 'agent.rank.orchestrator'),
-          kind: ORCHESTRATOR,
-          href: '#agent-stages',
-          entryPoint: true,
-        },
-      ],
-    },
-    {
-      id: STAGES,
-      label: message(locale, 'agent.rank.stages'),
-      // They run one after another — resolve, intake, plan, gather, diagnose,
-      // deliver — and drawn as a plain row fanning out of the orchestrator,
-      // nothing said which came first.
-      sequence: true,
-      nodes: stages.map((stage) => ({
-        id: text(stage, 'name'),
-        // The readable form in the box; the identifier keeps its place in the
-        // list below, where a reader matching a log line will look for it.
-        name: humaniseIdentifier(text(stage, 'name')),
-        kind: STAGES,
-        href: '#agent-stages',
-      })),
-    },
-    {
-      id: SPECIALISTS,
-      label: message(locale, 'agent.rank.specialists'),
-      nodes: specialists.map((specialist) => ({
-        id: specialist.name,
-        name: humaniseIdentifier(specialist.name),
-        kind: SPECIALISTS,
-        href: AGENT_ADVANCED_HREF,
-        disabled: !specialist.enabled,
-      })),
-    },
-  ];
-
   return (
     <>
-      <Panel
-        title={message(locale, 'agent.stages.title')}
-        state={stateOf(pipeline, stages.length === 0)}
-        dependency={dependencyOf(pipeline)}
-        labels={panelLabels(locale, message(locale, 'agent.stages.title'))}
-        empty={{
-          heading: message(locale, 'agent.empty.heading'),
-          body: message(locale, 'agent.empty.body'),
-          actionLabel: message(locale, 'agent.empty.action'),
-          // The body says outright that nothing here is configuration, so
-          // there is no owning page to send anyone to; the area's own
-          // address is the only honest destination left.
-          href: '/agent',
-        }}
-      >
-        <div className="flex flex-col gap-4" id="agent-stages">
-          <HierarchyGraph
-            ranks={ranks}
-            labels={{ title: message(locale, 'agent.graph.title') }}
-          />
-          <ol className="flex flex-col gap-3">
-            {stages.map((stage) => (
-              <li
-                key={text(stage, 'name')}
-                data-testid="agent-stage"
-                data-stage={text(stage, 'name')}
-                data-role={text(stage, 'model_role')}
-                className="flex flex-col gap-1"
-              >
-                <span className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-strong">
-                    {humaniseIdentifier(text(stage, 'name'))}
-                  </span>
-                  <span className="font-mono text-meta text-muted">
-                    {text(stage, 'name')}
-                  </span>
-                  {text(stage, 'model_role') === '' ? (
-                    <span className="text-meta text-muted">
-                      {message(locale, 'agent.stage.noModel')}
-                    </span>
-                  ) : (
-                    <span className="text-meta text-muted" data-testid="stage-role">
-                      {message(locale, 'agent.stage.role', {
-                        role: text(stage, 'model_role'),
-                      })}
-                    </span>
-                  )}
-                  {flag(stage, 'dispatches_subagents') ? (
-                    <Badge status="active" />
-                  ) : null}
-                </span>
-                {/* Capped at a reading measure. The page cap stops a screen at
-                    1360px, which is right for a table and still half again too
-                    wide for prose — the longest of these consults lines runs to
-                    two hundred characters, and a reader loses the start of the
-                    next line looking for it. */}
-                <span className="text-meta text-muted max-w-prose">
-                  {text(stage, 'summary')}
-                </span>
-                <span className="text-meta text-muted max-w-prose">
-                  {message(locale, 'agent.stage.consults')}{' '}
-                  {list(stage, 'consults').map(String).join('; ')}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Panel>
-
+      <PipelineMetro locale={locale} pipeline={pipeline} stages={stages} runs={runs} />
+      <PipelineSummaryCards
+        locale={locale}
+        capabilities={summaryCapabilities}
+        entries={summaryEntries}
+        outlook={summaryOutlook}
+        context={summaryContext}
+        address={address}
+      />
       <Panel
         title={message(locale, 'agent.specialists.title')}
         state={stateOf(effective, specialists.length === 0)}
@@ -681,44 +1180,64 @@ function ModelRolePanel({
       <p className="text-meta text-muted pb-3">
         {message(locale, 'agent.models.body')}
       </p>
-      <ul className="flex flex-col gap-2">
-        {roles.map((role) => {
-          const binding = roleBinding(declared, role);
-          return (
-            <li
-              key={role}
-              data-testid="model-role"
-              data-role={role}
-              data-bound={binding.bound ? 'true' : 'false'}
-              className="flex flex-wrap items-center gap-3 text-small"
-            >
-              <span className="font-mono min-w-0 truncate">{role}</span>
-              {binding.provider === '' ? null : (
-                <span className="text-meta" data-testid="model-role-binding">
-                  {binding.provider} / {binding.model}
-                </span>
-              )}
-              {binding.bound ? (
-                <span
-                  className="text-meta text-muted"
-                  data-testid="model-role-provenance"
-                >
-                  {message(locale, 'agent.models.from', { node: binding.provenance })}
-                </span>
-              ) : (
-                <span className="text-meta text-muted" data-testid="model-role-default">
-                  {message(
-                    locale,
-                    binding.inherited
-                      ? 'agent.models.inherited'
-                      : 'agent.models.default',
-                  )}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {(() => {
+        const bindings = roles.map(
+          (role) => [role, roleBinding(declared, role)] as const,
+        );
+        // Every role that made no choice of its own says the identical
+        // sentence — seven copies of "follows the investigator" told a
+        // reader nothing seven times. The ones with something of their own
+        // to say stay as rows; the followers collapse to one line, with
+        // the full list a disclosure away.
+        const own = bindings.filter(([, binding]) => !binding.inherited);
+        const followers = bindings.filter(([, binding]) => binding.inherited);
+        const row = ([role, binding]: (typeof bindings)[number]): ReactNode => (
+          <li
+            key={role}
+            data-testid="model-role"
+            data-role={role}
+            data-bound={binding.bound ? 'true' : 'false'}
+            className="flex flex-wrap items-center gap-3 text-small"
+          >
+            <span className="font-mono min-w-0 truncate">{role}</span>
+            {binding.provider === '' ? null : (
+              <span className="text-meta" data-testid="model-role-binding">
+                {binding.provider} / {binding.model}
+              </span>
+            )}
+            {binding.bound ? (
+              <span
+                className="text-meta text-muted"
+                data-testid="model-role-provenance"
+              >
+                {message(locale, 'agent.models.from', { node: binding.provenance })}
+              </span>
+            ) : (
+              <span className="text-meta text-muted" data-testid="model-role-default">
+                {message(
+                  locale,
+                  binding.inherited ? 'agent.models.inherited' : 'agent.models.default',
+                )}
+              </span>
+            )}
+          </li>
+        );
+        return (
+          <div className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2">{own.map(row)}</ul>
+            {followers.length === 0 ? null : (
+              <details data-testid="model-roles-followers">
+                <summary className="cursor-pointer select-none text-small text-muted">
+                  {message(locale, 'agent.models.followSummary', {
+                    count: followers.length,
+                  })}
+                </summary>
+                <ul className="flex flex-col gap-2 pt-2">{followers.map(row)}</ul>
+              </details>
+            )}
+          </div>
+        );
+      })()}
     </Panel>
   );
 }
@@ -950,12 +1469,21 @@ function DocumentPanel({
             {message(locale, 'agent.document.untouched')}
           </p>
         )}
-        <pre
-          data-testid="agent-document"
-          className="text-meta font-mono overflow-x-auto whitespace-pre"
-        >
-          {document}
-        </pre>
+        {/* Closed by default: the document is the second view of a topology
+            the rest of the tab already renders, kept for the operators who
+            read a tree faster than a picture — a disclosure away rather than
+            a page-length block everyone else scrolls past. */}
+        <details data-testid="agent-document-details">
+          <summary className="cursor-pointer select-none text-small text-muted">
+            {message(locale, 'agent.document.show')}
+          </summary>
+          <pre
+            data-testid="agent-document"
+            className="text-meta font-mono overflow-x-auto whitespace-pre pt-2"
+          >
+            {document}
+          </pre>
+        </details>
       </div>
     </Panel>
   );
@@ -963,46 +1491,137 @@ function DocumentPanel({
 
 // --- What it can do --------------------------------------------------------------
 
-/** `rows`, restricted to the tools this node has an opinion about and blocking, rendered once. */
-function browsableTools(
-  rows: readonly CapabilityRow[],
-  locale: Locale,
-  none: string,
-): readonly BrowsableTool[] {
-  return rows
-    .filter((row) => row.kind === 'tool')
-    .map((row) => {
-      if (!row.known || row.available) {
-        return {
-          name: row.name,
-          domain: row.domain,
-          sideEffect: row.sideEffect,
-          known: row.known,
-          available: row.available,
-          blockedText: '',
-          blockedLinked: false,
-        };
-      }
-      // Structured data leads: what the node actually declares this tool
-      // needs, not a parse of the deployment's own free-text reason.
-      const linked = row.requiredIntegrations.length > 0;
-      const blockedText = linked
-        ? message(locale, 'catalogue.blocked', {
-            integration: row.requiredIntegrations.join(', '),
-          })
-        : row.reason === ''
-          ? none
-          : row.reason;
-      return {
-        name: row.name,
-        domain: row.domain,
-        sideEffect: row.sideEffect,
-        known: row.known,
-        available: row.available,
-        blockedText,
-        blockedLinked: linked,
-      };
-    });
+/**
+ * The board's own set of domains, worded — the catalogue's closed vocabulary,
+ * not the open case §11 protects. A domain outside it (an anonymised dataset,
+ * a bridged server's own grouping) falls back to its humanised identifier.
+ */
+const TOOL_DOMAIN_LABEL: Readonly<Record<string, MessageKey>> = {
+  remediation: 'agent.tools.domain.remediation',
+  cloud_control_plane: 'agent.tools.domain.cloud_control_plane',
+  skills: 'agent.tools.domain.skills',
+  methodology: 'agent.tools.domain.methodology',
+  logstore: 'agent.tools.domain.logstore',
+  communication: 'agent.tools.domain.communication',
+  metrics: 'agent.tools.domain.metrics',
+  incident: 'agent.tools.domain.incident',
+  cicd: 'agent.tools.domain.cicd',
+  vcs: 'agent.tools.domain.vcs',
+  database: 'agent.tools.domain.database',
+  tracing: 'agent.tools.domain.tracing',
+  changes: 'agent.tools.domain.changes',
+  model_provider: 'agent.tools.domain.model_provider',
+  observability: 'agent.tools.domain.observability',
+  topology: 'agent.tools.domain.topology',
+  estate: 'agent.tools.domain.estate',
+  other: 'agent.tools.domain.other',
+};
+
+function domainLabel(locale: Locale, slug: string): string {
+  const key = TOOL_DOMAIN_LABEL[slug];
+  return key === undefined ? humaniseIdentifier(slug) : message(locale, key);
+}
+
+/** The rail's bucket for `row`: its own domain, skills, or the leftover bucket. */
+function domainOf(row: CapabilityRow): string {
+  if (row.kind === 'skill') return 'skills';
+  return row.domain === '' ? 'other' : row.domain;
+}
+
+/** The four effect filters the band offers, beyond "all". */
+const EFFECT_FILTERS = [
+  'read',
+  'write_reversible',
+  'write_irreversible',
+  'destructive',
+] as const;
+
+const EFFECT_LABEL: Readonly<Record<(typeof EFFECT_FILTERS)[number], MessageKey>> = {
+  read: 'agent.tools.effect.read',
+  write_reversible: 'agent.tools.effect.write_reversible',
+  write_irreversible: 'agent.tools.effect.write_irreversible',
+  destructive: 'agent.tools.effect.destructive',
+};
+
+/** Whether `row` falls under `effect` — "read" folds the sensitive read in. */
+function matchesEffect(row: CapabilityRow, effect: string): boolean {
+  if (effect === '') return true;
+  if (effect === 'read') return readsOnly(row.sideEffect);
+  return row.sideEffect === effect;
+}
+
+/** How many capability cards show before "see all" is the way to the rest. */
+const CAPABILITY_CARD_LIMIT = 8;
+
+/** One capability, as the board's card: face always, prose one disclosure away. */
+function CapabilityCard({
+  locale,
+  row,
+}: {
+  readonly locale: Locale;
+  readonly row: CapabilityRow;
+}): ReactNode {
+  const destructive = row.sideEffect === 'destructive';
+  const off = row.known && !row.available;
+  return (
+    <details
+      data-testid="capability-card"
+      data-capability={row.name}
+      data-available={!row.known ? 'unknown' : row.available ? 'true' : 'false'}
+      className={cx(
+        'rounded-3 edge bg-raised p-3',
+        destructive ? 'border-danger' : 'border-border',
+        off && 'opacity-60',
+      )}
+    >
+      <summary className="flex cursor-pointer select-none list-none flex-wrap items-center gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-mono text-small text-strong break-all">{row.name}</span>
+          {row.kind === 'skill' ? null : (
+            <span className="self-start">
+              <SideEffectChip locale={locale} level={row.sideEffect} />
+            </span>
+          )}
+        </span>
+        {row.known ? (
+          <CapabilityAvailabilityChip locale={locale} available={row.available} />
+        ) : null}
+      </summary>
+      {/* The prose that used to repeat in two page-length sections lives
+          here, on the card it describes. */}
+      <div className="flex flex-col gap-1 pt-2" data-testid="capability-card-detail">
+        {row.summary === '' ? null : (
+          <span className="text-meta text-muted">{row.summary}</span>
+        )}
+        {row.origin === '' ? null : (
+          <span className="text-meta text-muted" data-testid="tool-origin">
+            {message(locale, 'agent.tools.origin', { server: row.origin })}
+          </span>
+        )}
+        {!row.known ? (
+          <span className="text-meta text-muted">
+            {message(locale, 'agent.tools.unknown')}
+          </span>
+        ) : row.available ? null : row.requiredIntegrations.length > 0 ? (
+          // Structured data leads: what the node actually declares this tool
+          // needs, not a parse of the deployment's own free-text reason —
+          // and the integration is the thing somebody can go and connect.
+          <span className="text-meta text-muted" data-testid="tool-blocked">
+            {message(locale, 'catalogue.blocked', {
+              integration: row.requiredIntegrations.join(', '),
+            })}{' '}
+            <Link href="/integrations">
+              {message(locale, 'catalogue.blocked.action')}
+            </Link>
+          </span>
+        ) : (
+          <span className="text-meta text-muted" data-testid="tool-blocked">
+            {row.reason === '' ? message(locale, 'surface.none') : row.reason}
+          </span>
+        )}
+      </div>
+    </details>
+  );
 }
 
 function ToolsTab({
@@ -1013,6 +1632,7 @@ function ToolsTab({
   fields,
   node,
   writable,
+  state,
 }: {
   readonly locale: Locale;
   readonly capabilities: PanelData<unknown>;
@@ -1021,41 +1641,60 @@ function ToolsTab({
   readonly fields: PanelData<unknown>;
   readonly node: string;
   readonly writable: boolean;
+  readonly state: ViewState;
 }): ReactNode {
   const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
   const tools = rows.filter((row) => row.kind === 'tool');
-  const reads = tools.filter((row) => !row.writes);
-  const writes = tools.filter((row) => row.writes);
   const servers = bridgedServers(field(dataOf(effective), 'values'));
   // One panel, two reads: a failed capability read must not render as "no tool
   // is blocked" beside a list that is itself empty for another reason.
   const source = capabilities.status === 'error' ? capabilities : entries;
 
-  // The catalogue's own read half, absorbed whole: every tool and skill this
-  // deployment declares, searchable, grouped by domain — beside the risk
-  // grouping above rather than instead of it. The two answer different
-  // questions ("what exists, and where do I find it" versus "what could
-  // this actually do, and at what risk") and this screen is where both of
-  // them now live.
-  const none = message(locale, 'surface.none');
-  const skills: readonly BrowsableSkill[] = rows
-    .filter((row) => row.kind === 'skill')
-    .map((row) => ({ name: row.name, summary: row.summary }));
+  // Selection lives in the address, the way the tabs already do — a filtered
+  // view is a link somebody can send, never component state.
+  const linkFor = (changes: readonly (readonly [string, string])[]): string => {
+    let next = state;
+    for (const [name, value] of changes) next = withFilter(next, name, value);
+    return hrefFor('/agent', next, AGENT_FILTERS);
+  };
+  const effect = state.filters.effect ?? '';
+  const query = (state.filters.q ?? '').trim().toLowerCase();
+
+  // The rail: every bucket with its full count, most capabilities first, so
+  // the list reads as the shape of what this deployment can do.
+  const byDomain = new Map<string, CapabilityRow[]>();
+  for (const row of rows) {
+    const bucket = domainOf(row);
+    byDomain.set(bucket, [...(byDomain.get(bucket) ?? []), row]);
+  }
+  const rail = [...byDomain.entries()].sort(
+    ([, left], [, right]) => right.length - left.length,
+  );
+  const selectedDomain = state.filters.domain ?? rail[0]?.[0] ?? '';
+  const domainRows = byDomain.get(selectedDomain) ?? [];
+  const filtered = domainRows.filter(
+    (row) =>
+      matchesEffect(row, effect) &&
+      (query === '' ||
+        row.name.toLowerCase().includes(query) ||
+        row.domain.toLowerCase().includes(query) ||
+        row.summary.toLowerCase().includes(query)),
+  );
+  const showAll = state.filters.all === '1';
+  const shown = showAll ? filtered : filtered.slice(0, CAPABILITY_CARD_LIMIT);
+
   const enabledCount = tools.filter((row) => row.known && row.available).length;
-  const count = message(locale, 'catalogue.count', {
-    enabled: enabledCount,
-    total: tools.length,
-  });
-  // Named for what it actually does: a blocked tool's own reason names the
-  // integration that would unblock it, and connecting one has always been
-  // the catalogue's job, never the retired editor's.
-  const blockedIntegrationHref = '/integrations';
+  const destructiveCount = tools.filter(
+    (row) => row.sideEffect === 'destructive',
+  ).length;
+  const domainEnabled = domainRows.filter((row) => row.known && row.available).length;
+  const ratioPercent = tools.length === 0 ? 0 : (enabledCount / tools.length) * 100;
 
   return (
     <>
       <Panel
         title={message(locale, 'agent.tools.browse')}
-        state={stateOf(source, tools.length === 0 && skills.length === 0)}
+        state={stateOf(source, rows.length === 0)}
         dependency={dependencyOf(source)}
         labels={panelLabels(locale, message(locale, 'agent.tools.browse'))}
         empty={{
@@ -1065,43 +1704,166 @@ function ToolsTab({
           href: CAPABILITIES_ADVANCED_HREF,
         }}
       >
-        <CapabilityBrowser
-          tools={browsableTools(rows, locale, none)}
-          skills={skills}
-          count={count}
-          configurationHref={blockedIntegrationHref}
-          locale={locale}
-          labels={{
-            tableCaption: message(locale, 'agent.tools.browse'),
-            search: message(locale, 'catalogue.search'),
-            searchEmpty: message(locale, 'catalogue.search.empty'),
-            domainsNav: message(locale, 'catalogue.domains.nav'),
-            skillsHeading: message(locale, 'catalogue.skills'),
-            columnName: message(locale, 'catalogue.column.name'),
-            columnEffect: message(locale, 'catalogue.column.effect'),
-            columnEnabled: message(locale, 'catalogue.column.enabled'),
-            none,
-            blockedAction: message(locale, 'catalogue.blocked.action'),
-          }}
-        />
-      </Panel>
+        {/* The band: how much of the catalogue is on, the search, and the
+            effect filters — the one row that frames everything below it. */}
+        <div
+          data-testid="tools-band"
+          className="flex flex-wrap items-center gap-4 pb-4"
+        >
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-small" data-testid="tools-ratio">
+              {message(locale, 'catalogue.count', {
+                enabled: enabledCount,
+                total: tools.length,
+              })}
+            </span>
+            <span className="flex h-1 w-column-measure overflow-hidden rounded-full bg-sunken">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${String(ratioPercent)}%` }}
+              />
+            </span>
+          </div>
+          <form action="/agent" method="get" className="flex min-w-0 items-center">
+            <input type="hidden" name="tab" value="tools" />
+            {node === '' ? null : <input type="hidden" name="node" value={node} />}
+            {selectedDomain === '' ? null : (
+              <input type="hidden" name="domain" value={selectedDomain} />
+            )}
+            {effect === '' ? null : (
+              <input type="hidden" name="effect" value={effect} />
+            )}
+            <Input
+              type="search"
+              name="q"
+              label={message(locale, 'catalogue.search')}
+              defaultValue={state.filters.q ?? ''}
+            />
+          </form>
+          <nav
+            aria-label={message(locale, 'catalogue.column.effect')}
+            className="ml-auto flex flex-wrap items-center gap-2"
+          >
+            <NextLink
+              prefetch={false}
+              data-testid="tools-effect-chip"
+              data-effect=""
+              aria-current={effect === '' ? 'true' : undefined}
+              className={cx(
+                CHIP_SHAPE,
+                effect === ''
+                  ? 'bg-accent-bg text-accent edge border-accent'
+                  : 'bg-sunken text-muted edge border-border',
+              )}
+              href={linkFor([
+                ['effect', ''],
+                ['all', ''],
+              ])}
+            >
+              {message(locale, 'agent.tools.effect.all')}
+            </NextLink>
+            {EFFECT_FILTERS.map((each) => (
+              <NextLink
+                key={each}
+                prefetch={false}
+                data-testid="tools-effect-chip"
+                data-effect={each}
+                aria-current={effect === each ? 'true' : undefined}
+                className={cx(
+                  CHIP_SHAPE,
+                  effect === each
+                    ? 'bg-accent-bg text-accent edge border-accent'
+                    : 'bg-sunken text-muted edge border-border',
+                )}
+                href={linkFor([
+                  ['effect', each],
+                  ['all', ''],
+                ])}
+              >
+                {message(locale, EFFECT_LABEL[each])}
+                {each === 'destructive' ? (
+                  <span className="font-mono text-micro">{destructiveCount}</span>
+                ) : null}
+              </NextLink>
+            ))}
+          </nav>
+        </div>
 
-      <ToolGroup
-        locale={locale}
-        source={source}
-        title={message(locale, 'agent.tools.reads')}
-        body={message(locale, 'agent.tools.reads.body')}
-        group="read"
-        rows={reads}
-      />
-      <ToolGroup
-        locale={locale}
-        source={source}
-        title={message(locale, 'agent.tools.writes')}
-        body={message(locale, 'agent.tools.writes.body')}
-        group="write"
-        rows={writes}
-      />
+        {/* Master-detail: the domain rail, then the selected domain's cards. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <nav
+            aria-label={message(locale, 'catalogue.domains.nav')}
+            data-testid="tools-domain-rail"
+            className="flex flex-col gap-1 self-start rounded-3 edge border-border bg-raised p-2 lg:col-span-1"
+          >
+            {rail.map(([slug, bucket]) => (
+              <NextLink
+                key={slug}
+                prefetch={false}
+                data-testid="tools-domain"
+                data-domain={slug}
+                aria-current={slug === selectedDomain ? 'true' : undefined}
+                className={cx(
+                  'flex items-center gap-2 rounded-2 px-2 py-1 text-small',
+                  slug === selectedDomain
+                    ? 'bg-accent-bg text-accent'
+                    : 'text-muted hover:bg-hover motion-hover',
+                )}
+                href={linkFor([
+                  ['domain', slug],
+                  ['all', ''],
+                ])}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {domainLabel(locale, slug)}
+                </span>
+                <span className="font-mono text-micro">{bucket.length}</span>
+              </NextLink>
+            ))}
+          </nav>
+
+          <div className="flex min-w-0 flex-col gap-3 lg:col-span-3">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-strong" data-testid="tools-domain-title">
+                {domainLabel(locale, selectedDomain)}
+              </span>
+              <span className="text-meta text-muted">
+                {message(locale, 'agent.tools.domainMeta', {
+                  count: domainRows.length,
+                  enabled: domainEnabled,
+                })}
+              </span>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="text-small text-muted" data-testid="tools-none-match">
+                {message(locale, 'catalogue.search.empty')}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+                {shown.map((row) => (
+                  <CapabilityCard key={row.name} locale={locale} row={row} />
+                ))}
+              </div>
+            )}
+            {filtered.length <= shown.length ? null : (
+              <p className="text-meta text-muted" data-testid="tools-showing">
+                {message(locale, 'agent.tools.showing', {
+                  shown: shown.length,
+                  total: filtered.length,
+                })}{' '}
+                <Link href={linkFor([['all', '1']])}>
+                  {message(locale, 'agent.tools.showAll', {
+                    domain: domainLabel(locale, selectedDomain),
+                  })}
+                </Link>
+              </p>
+            )}
+            <p className="text-meta text-muted edge border-border border-x-0 border-b-0 pt-3">
+              {message(locale, 'agent.tools.footer')}
+            </p>
+          </div>
+        </div>
+      </Panel>
 
       <Panel
         title={message(locale, 'agent.bridged.title')}
@@ -1151,95 +1913,64 @@ function ToolsTab({
   );
 }
 
-function ToolGroup({
-  locale,
-  source,
-  title,
-  body,
-  group,
-  rows,
-}: {
-  readonly locale: Locale;
-  readonly source: PanelData<unknown>;
-  readonly title: string;
-  readonly body: string;
-  readonly group: 'read' | 'write';
-  readonly rows: readonly CapabilityRow[];
-}): ReactNode {
-  const none = message(locale, 'surface.none');
-  return (
-    <Panel
-      title={title}
-      state={stateOf(source, rows.length === 0)}
-      dependency={dependencyOf(source)}
-      labels={panelLabels(locale, title)}
-      empty={{
-        heading: message(locale, 'agent.tools.empty.heading'),
-        body: message(locale, 'agent.tools.empty.body'),
-        actionLabel: message(locale, 'agent.tools.empty.action'),
-        href: CAPABILITIES_ADVANCED_HREF,
-      }}
-    >
-      <p className="text-meta text-muted pb-3">{body}</p>
-      <ul className="flex flex-col gap-3" data-testid="tool-group" data-group={group}>
-        {rows.map((row) => (
-          <li
-            key={row.name}
-            data-testid="agent-tool"
-            data-tool={row.name}
-            data-group={group}
-            data-available={!row.known ? 'unknown' : row.available ? 'true' : 'false'}
-            data-origin={row.origin}
-            className={
-              row.known && !row.available
-                ? 'flex flex-col gap-1 opacity-60'
-                : 'flex flex-col gap-1'
-            }
-          >
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-small text-strong break-all">
-                {row.name}
-              </span>
-              <Badge status={row.sideEffect} />
-              {row.origin === '' ? null : (
-                <span className="text-meta text-muted" data-testid="tool-origin">
-                  {message(locale, 'agent.tools.origin', { server: row.origin })}
-                </span>
-              )}
-            </span>
-            <span className="text-meta text-muted">{row.summary}</span>
-            {!row.known ? (
-              <span className="text-meta text-muted">
-                {message(locale, 'agent.tools.unknown')}
-              </span>
-            ) : row.available ? null : (
-              <span className="text-meta text-muted" data-testid="tool-blocked">
-                {message(locale, 'agent.tools.blocked', {
-                  integration:
-                    row.requiredIntegrations.join(', ') ||
-                    (row.reason === '' ? none : row.reason),
-                })}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </Panel>
-  );
+// --- What it will do alone -------------------------------------------------------
+
+/** The words and dress of one rung of the board's ladder. */
+const AUTONOMY_CLASS_CHIP: Readonly<
+  Record<
+    string,
+    { readonly label: MessageKey; readonly role: SemanticRole; readonly shape: Shape }
+  >
+> = {
+  trivial: {
+    label: 'agent.autonomy.class.trivial',
+    role: 'neutral',
+    shape: 'hollow-circle',
+  },
+  low: { label: 'agent.autonomy.class.low', role: 'neutral', shape: 'filled-circle' },
+  moderate: {
+    label: 'agent.autonomy.class.moderate',
+    role: 'warning',
+    shape: 'rotated-square',
+  },
+  high: { label: 'agent.autonomy.class.high', role: 'warning', shape: 'triangle' },
+  critical: { label: 'agent.autonomy.class.critical', role: 'danger', shape: 'square' },
+};
+
+/** A risk class's own word, from the ladder's map — its identifier otherwise. */
+function autonomyClassName(locale: Locale, riskClass: string): string {
+  const chip = AUTONOMY_CLASS_CHIP[riskClass];
+  return chip === undefined
+    ? humaniseIdentifier(riskClass)
+    : message(locale, chip.label);
 }
 
-// --- What it will do alone -------------------------------------------------------
+/** The posture, in the same words the sidebar's own footer uses. */
+function postureWord(locale: Locale, posture: string): string {
+  const key = `shell.guardian.posture.${posture}`;
+  return isMessageKey(key) ? message(locale, key) : posture;
+}
+
+/** `sentence` split at its first full stop: the row's short line, and the rest. */
+export function firstSentence(sentence: string): readonly [string, string] {
+  const match = /^(.*?[.!?])\s+(\S.*)$/su.exec(sentence.trim());
+  if (match === null) return [sentence.trim(), ''];
+  return [match[1] ?? '', match[2] ?? ''];
+}
 
 function AutonomyTab({
   locale,
   outlook,
   replay,
+  posture,
   node,
   viewer,
 }: {
   readonly locale: Locale;
   readonly outlook: PanelData<unknown>;
   readonly replay: PanelData<unknown>;
+  /** What the deployment currently permits, the same datum the sidebar's footer reads. */
+  readonly posture: string;
   readonly node: string;
   readonly viewer: SurfaceContext['viewer'];
 }): ReactNode {
@@ -1247,6 +1978,7 @@ function AutonomyTab({
   const simulated = flag(dataOf(outlook), 'dry_run');
   const editable = may(viewer, WRITE);
   const recorded = list(dataOf(replay), 'actions');
+  const ruleHref = '/settings/autonomy-guardrails';
 
   return (
     <>
@@ -1261,6 +1993,22 @@ function AutonomyTab({
           actionLabel: message(locale, 'agent.outlook.empty.action'),
           href: '/autonomy',
         }}
+        action={
+          <span
+            data-testid="autonomy-policy-chip"
+            className="flex items-center gap-2 rounded-full bg-accent-bg px-3 py-1 text-small text-accent"
+          >
+            <span
+              aria-hidden="true"
+              className="pulse-live inline-block size-2 rounded-full bg-accent"
+            >
+              <span className="pulse-live-ring" />
+            </span>
+            {message(locale, 'agent.autonomy.policyChip', {
+              posture: postureWord(locale, posture),
+            })}
+          </span>
+        }
       >
         <p className="text-meta text-muted pb-3">
           {message(locale, 'agent.outlook.body')}
@@ -1270,61 +2018,126 @@ function AutonomyTab({
             {message(locale, 'agent.outlook.dryRun')}
           </p>
         ) : null}
-        <ul className="flex flex-col gap-3">
-          {classes.map((entry) => (
-            <li
-              key={text(entry, 'risk_class')}
-              data-testid="outlook-class"
-              data-risk={text(entry, 'risk_class')}
-              data-decision={text(entry, 'decision')}
-              className="flex flex-col gap-1"
-            >
-              <span className="flex flex-wrap items-center gap-3">
-                <RiskLadder
-                  riskClass={text(entry, 'risk_class')}
-                  label={humaniseIdentifier(text(entry, 'risk_class'))}
-                />
-                <Badge status={text(entry, 'decision')} />
-                {text(entry, 'refused_by') === '' ? null : (
-                  <span className="text-meta text-muted" data-testid="outlook-bound">
-                    {message(locale, 'agent.outlook.bound', {
-                      bound: text(entry, 'refused_by'),
-                    })}
-                  </span>
-                )}
-              </span>
-              <span className="text-small max-w-prose" data-testid="outlook-sentence">
-                {text(entry, 'sentence')}
-              </span>
-              {/* Labelled, because unlabelled it read as the sentence above it
-                  said a second time in grey. It is not: the sentence says what
-                  would happen, this says which rule decided — and the two
-                  necessarily share most of their words, so only the label
-                  tells a reader they are two different claims. It is the
-                  decision's own audit text, complete on purpose, because it is
-                  also read on a decision record with none of this around it. */}
-              <span className="text-meta text-muted max-w-prose">
-                <span className="text-strong">
-                  {message(locale, 'agent.outlook.reason')}
-                </span>{' '}
-                {text(entry, 'reason')}
-              </span>
-            </li>
-          ))}
+        <ul className="flex flex-col" data-testid="autonomy-ladder">
+          {classes.map((entry) => {
+            const riskClass = text(entry, 'risk_class');
+            const chip = AUTONOMY_CLASS_CHIP[riskClass];
+            const [lead, rest] = firstSentence(text(entry, 'sentence'));
+            return (
+              <li
+                key={riskClass}
+                data-testid="outlook-class"
+                data-risk={riskClass}
+                data-decision={text(entry, 'decision')}
+                className="edge border-border border-x-0 border-t-0 last:border-b-0"
+              >
+                <details>
+                  <summary className="flex cursor-pointer select-none list-none flex-wrap items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
+                    {chip === undefined ? (
+                      <Badge status={riskClass} locale={locale} />
+                    ) : (
+                      <ResolvedChip
+                        role={chip.role}
+                        shape={chip.shape}
+                        label={message(locale, chip.label)}
+                        testId="autonomy-class-chip"
+                      />
+                    )}
+                    <span
+                      className="min-w-0 flex-1 text-small"
+                      data-testid="outlook-sentence"
+                    >
+                      {lead}
+                    </span>
+                    <ArrowRightIcon
+                      aria-hidden="true"
+                      className="icon-inline text-muted"
+                    />
+                    <span data-testid="outlook-decision">
+                      <Badge status={text(entry, 'decision')} locale={locale} />
+                    </span>
+                    <span className="text-micro text-muted">
+                      {message(locale, 'agent.autonomy.nobodyAlone')}
+                    </span>
+                  </summary>
+                  {/* The "why" lives here, once per row and one disclosure
+                      away, instead of repeating below all five rows. It is
+                      the decision's own audit text, complete on purpose,
+                      because it is also read on a decision record with none
+                      of this around it. */}
+                  <div
+                    data-testid="outlook-why"
+                    className="mb-3 flex flex-col gap-2 edge border-accent border-y-0 border-r-0 pl-3"
+                  >
+                    {rest === '' ? null : (
+                      <span className="text-small max-w-prose">{rest}</span>
+                    )}
+                    {text(entry, 'refused_by') === '' ? null : (
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="outlook-bound"
+                      >
+                        {message(locale, 'agent.outlook.bound', {
+                          bound: text(entry, 'refused_by'),
+                        })}
+                      </span>
+                    )}
+                    <span className="text-meta text-muted max-w-prose">
+                      <span className="text-strong">
+                        {message(locale, 'agent.outlook.reason')}
+                      </span>{' '}
+                      {text(entry, 'reason')}
+                    </span>
+                    <span className="text-meta">
+                      <Link href={ruleHref}>
+                        {message(locale, 'agent.autonomy.seeRule')}
+                      </Link>
+                    </span>
+                  </div>
+                </details>
+              </li>
+            );
+          })}
         </ul>
-        {/* Linked, never embedded: the editor is the autonomy area's, and a
-          second copy of it here would be a second place a posture is changed. */}
-        {editable ? (
-          <p className="text-meta text-muted pt-4">
-            <Link
-              href={
-                node === '' ? '/autonomy' : `/autonomy?node=${encodeURIComponent(node)}`
-              }
-            >
-              {message(locale, 'agent.outlook.edit')}
-            </Link>
-          </p>
-        ) : null}
+        {/* The board's closing card: what changing the policy means, and that
+            doing so is itself a recorded decision. Linked, never embedded —
+            the editor is the settings area's, and a second copy of it here
+            would be a second place a posture is changed. */}
+        <div
+          data-testid="autonomy-change-card"
+          className="mt-4 flex flex-wrap items-center gap-4 rounded-3 edge border-border bg-sunken p-4"
+        >
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-2 bg-accent-bg text-accent edge border-accent"
+          >
+            <SettingsIcon className="icon-head" />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-strong">
+              {message(locale, 'agent.autonomy.change.title')}
+            </span>
+            <span className="text-meta text-muted max-w-prose">
+              {message(locale, 'agent.autonomy.change.body')}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-micro text-muted">
+              {message(locale, 'agent.autonomy.change.note')}
+            </span>
+            {editable ? (
+              <Link
+                href={
+                  node === ''
+                    ? '/autonomy'
+                    : `/autonomy?node=${encodeURIComponent(node)}`
+                }
+              >
+                {message(locale, 'agent.metro.autonomy.adjust')}
+              </Link>
+            ) : null}
+          </div>
+        </div>
       </Panel>
 
       {/* Beside the representative set rather than instead of it. The declared

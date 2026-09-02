@@ -448,6 +448,19 @@ class EstateRepository(Protocol):
     async def get(self, resource_id: str) -> Resource | None:
         """Return the resource with ``resource_id``, or ``None``."""
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> Mapping[str, Resource]:
+        """Return the resources with these ids, keyed by id.
+
+        Batched over every id a caller asks about in one read, because a
+        listing page resolving its rows' parents asks this question once, not
+        once per row. An id the estate does not hold is left out of the mapping
+        rather than mapped to ``None`` — the caller then reads what is there
+        instead of stepping around a sentinel for what is not. Absent
+        resources are returned, exactly as ``get`` returns them: a parent that
+        stopped being reported still has the name its children are displayed
+        under.
+        """
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the *present* resource ``source`` calls ``native_id``, or ``None``.
 
@@ -571,6 +584,24 @@ class EstateRepository(Protocol):
         limit: int = DEFAULT_TRANSITION_HISTORY,
     ) -> tuple[HealthTransition, ...]:
         """Return ``resource_id``'s state changes, most recent first."""
+
+    async def unhealthy_since(
+        self,
+        resource_ids: tuple[str, ...],
+    ) -> Mapping[str, datetime]:
+        """Return, for each id currently on an unhealthy streak, when it began.
+
+        The instant of the most recent transition *into* ``UNHEALTHY`` for
+        that resource — which is exactly "since when": a resource that
+        recovered and fell unhealthy again would have a newer entry, and this
+        returns that one. Batched over every id a caller asks about in one
+        read, because a listing page asks this question once, not once per
+        row. An id with no such transition (or one this build's stored
+        history predates) is left out of the mapping rather than guessed at,
+        and an id whose current health is not unhealthy may still appear here
+        with a stale answer — callers only consult this for resources they
+        already know are unhealthy right now.
+        """
 
     async def set_maintenance(
         self,

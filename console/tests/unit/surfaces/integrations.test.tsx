@@ -264,6 +264,23 @@ describe('the area header', () => {
   });
 });
 
+describe('the filters are the house’s chips, never a native select', () => {
+  it('offers each narrowing as a link carrying the address, and no dropdown', async () => {
+    serve({});
+    await integrations();
+
+    const chips = screen.queryAllByTestId('integration-filter-chip');
+    if (chips.length > 0) {
+      for (const chip of chips) {
+        expect(chip.tagName).toBe('A');
+        expect(chip.getAttribute('href')).toContain('/integrations');
+      }
+    }
+    // Whatever the dataset offers, the retired select-based bar is gone.
+    expect(document.querySelector('[data-testid="filters"] select')).toBeNull();
+  });
+});
+
 describe('Connected, first and never empty', () => {
   beforeEach(() => {
     serve({});

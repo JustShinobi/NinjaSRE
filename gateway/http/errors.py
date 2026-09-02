@@ -98,6 +98,17 @@ def conflict(message: str) -> ApiProblem:
     return ApiProblem(status_code=409, message=message, error_type="conflict")
 
 
+def unprocessable(message: str) -> ApiProblem:
+    """Return the problem a request that cannot be carried out raises.
+
+    Distinct from ``bad_request``: the request itself is well-formed, but
+    what it asks for cannot be done against the deployment as it stands now
+    — an origin that no longer resolves, a capability nothing here
+    registers any more. The client did nothing wrong; the world moved.
+    """
+    return ApiProblem(status_code=422, message=message, error_type="unprocessable")
+
+
 #: Persistence errors whose own message is written to be shown, mapped to the
 #: status a client acts on.
 _PERSISTENCE_STATUS: dict[type[PersistenceError], int] = {
@@ -264,4 +275,5 @@ __all__ = [
     "install_error_handlers",
     "not_found",
     "unauthorized",
+    "unprocessable",
 ]

@@ -615,7 +615,7 @@ async function content(
                           timestamp(locale, text(source, 'last_delivery_at'), now, zone)
                             .relative
                         }
-                        <Badge status={text(source, 'last_outcome')} />
+                        <Badge status={text(source, 'last_outcome')} locale={locale} />
                         {' · '}
                         {message(locale, 'data.ingress.week', {
                           count: number(source, 'week_count'),

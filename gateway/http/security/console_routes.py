@@ -79,6 +79,20 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/approvals/{approval_id}/rollback",
         permission=Permission.REMEDIATION_EXECUTE,
     ),
+    # Reproposing and discarding both manage the review queue rather than
+    # deciding or executing anything — the same ``approval.review`` right
+    # that already gates the decision itself, because both are part of the
+    # same act of working the queue an expired request sits in.
+    Route(
+        method="POST",
+        path="/v1/approvals/{approval_id}/repropose",
+        permission=Permission.APPROVAL_REVIEW,
+    ),
+    Route(
+        method="POST",
+        path="/v1/approvals/{approval_id}/discard",
+        permission=Permission.APPROVAL_REVIEW,
+    ),
     # --- What the agent has proposed, and the deciding of it -------------------
     # Read with ``approval.read`` because a proposal *is* an approval request:
     # the queue is the same store and the same right to see what is waiting.
@@ -95,6 +109,11 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/proposals/{proposal_id}/decision",
         permission=Permission.APPROVAL_REVIEW,
     ),
+    # --- The Painel's own overview ---------------------------------------------
+    # ``estate.read`` because the overview is the estate's own summary widened
+    # with a daily series — the same right ``/v1/estate/summary`` already
+    # takes, for a document that supersedes it as the dashboard's source.
+    Route(method="GET", path="/v1/overview", permission=Permission.ESTATE_READ),
     # --- Learned material ------------------------------------------------------
     Route(method="GET", path="/v1/topology/{node_id}", permission=Permission.MEMORY_READ),
     Route(method="GET", path="/v1/knowledge/documents", permission=Permission.KNOWLEDGE_READ),

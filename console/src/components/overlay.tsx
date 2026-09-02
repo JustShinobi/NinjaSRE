@@ -49,6 +49,8 @@ const FLOATING_DRAWER_CLASS_NAME =
 interface OverlayProps {
   readonly open: boolean;
   readonly title: string;
+  /** A small glyph well drawn before the title, when the caller has one. */
+  readonly icon?: ReactNode;
   readonly onClose: () => void;
   readonly children: ReactNode;
   /** Whether the rest of the page is inert while this is open. */
@@ -69,6 +71,7 @@ interface OverlayProps {
 function Overlay({
   open,
   title,
+  icon,
   onClose,
   children,
   modal,
@@ -139,6 +142,7 @@ function Overlay({
       )}
     >
       <header className="flex items-center gap-3">
+        {icon}
         <h2 id={headingId} className="text-section">
           {title}
         </h2>
@@ -154,6 +158,8 @@ function Overlay({
 export interface ModalProps {
   readonly open: boolean;
   readonly title: string;
+  /** A small glyph well drawn before the title, when the caller has one. */
+  readonly icon?: ReactNode;
   readonly onClose: () => void;
   readonly children: ReactNode;
   /** What the dismiss control is called, in the viewer's language. */
@@ -165,6 +171,7 @@ export interface ModalProps {
 export function Modal({
   open,
   title,
+  icon,
   onClose,
   closeLabel,
   children,
@@ -173,6 +180,7 @@ export function Modal({
     <Overlay
       open={open}
       title={title}
+      icon={icon}
       onClose={onClose}
       closeLabel={closeLabel}
       modal

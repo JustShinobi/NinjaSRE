@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import NextLink from 'next/link';
+
 import {
   AGENT_INCIDENT_STATES,
   HUMAN_INCIDENT_STATES,
@@ -8,19 +10,20 @@ import {
   needsAPerson,
   roleFor,
 } from '@/design/status';
-import { formatCount, formatDuration, formatNumber, timestamp } from '@/i18n/format';
+import { formatDuration, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import { ActivityFeed, type ActivityEntry } from '../activity';
-import { AttentionBlock, type AttentionRow } from '../attention';
+import { ActivityFeed, collapseFeed, type ActivityFeedEntry } from '../activity-feed';
+import { AttentionBlock, type DecisionCardData, type DecisionStep } from '../attention';
 import { readFailure } from '../failures';
-import { Figure } from '../figure';
+import { KpiTiles, type KpiData } from '../kpi-tiles';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
-import { DashboardQuickActions } from '../quick-actions';
 import { subjectOf } from '../run-subject';
+import { triggerLabel } from '../run-trigger';
 import { SetupHero } from '../setup-hero';
+import { SubjectStrip } from '../subject-strip';
 import {
   authorised,
   counts,
@@ -47,10 +50,14 @@ import {
   TUTORIAL_REPLAY_VALUE,
   tutorialDismissed,
 } from '../first-run/tutorial-setting';
-import { GuardianBand, type FlightRow } from '../guardian-band';
-import { IncidentGroupList } from '../incident-group-list';
-import { groupBySubject } from '../incident-groups';
+import { RunBand, inFlightRuns, runCardOf, type RunCardData } from '../run-band';
+import {
+  groupBySubject,
+  subjectsInWindow,
+  SUBJECT_WINDOW_HOURS,
+} from '../incident-groups';
 import { viewerNode } from '../tree';
+import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -79,6 +86,40 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 
 /** How many activity entries the feed shows before it is a list rather than a narrative. */
 const FEED_LENGTH = 8;
+
+/** The permission the gateway requires to decide a remediation.
+ *
+ * `approval.review` (`Permission.APPROVAL_REVIEW`) -- the same right
+ * `POST /v1/approvals/{id}/decision` itself checks
+ * (`gateway/http/security/console_routes.py`), and the identical constant
+ * `screens/approvals.tsx` already gates its own decision controls on.
+ */
+const DECIDE = 'approval.review';
+
+/** One numbered step of a plan or its reversal, as the approval record serves it. */
+function decisionStepsOf(record: unknown, key: string): readonly DecisionStep[] {
+  return list(record, key).map((entry) => ({
+    ordinal: number(entry, 'ordinal'),
+    summary: text(entry, 'summary'),
+  }));
+}
+
+/** `record` (one `ApprovalView`), as the inline decision band reads it. */
+function decisionCardOf(
+  record: unknown,
+  locale: import('@/i18n/messages').Locale,
+  now: Date,
+  zone: string,
+): DecisionCardData {
+  return {
+    id: text(record, 'approval_id'),
+    title: text(record, 'title'),
+    riskClass: text(field(record, 'risk'), 'class'),
+    since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
+    steps: decisionStepsOf(record, 'steps'),
+    rollback: decisionStepsOf(record, 'rollback'),
+  };
+}
 
 /**
  * The incidents this screen asks for by name, rather than by hoping.
@@ -124,7 +165,36 @@ function attentionWeight(kind: string): number {
   return ATTENTION_WEIGHT[kind] ?? 5;
 }
 
+/**
+ * How long a settled run took, already phrased -- empty when either instant
+ * is missing or the pair does not describe a span.
+ *
+ * Both instants are on the runs listing already; nothing here asks a second
+ * endpoint for a duration, and a run still working has no span to report
+ * rather than a zero.
+ */
+function runSpan(locale: import('@/i18n/messages').Locale, record: unknown): string {
+  const started = Date.parse(text(record, 'started_at'));
+  const finished = Date.parse(text(record, 'finished_at'));
+  if (Number.isNaN(started) || Number.isNaN(finished)) return '';
+  const seconds = (finished - started) / 1000;
+  if (seconds < 0) return '';
+  return formatDuration(locale, seconds);
+}
+
 /** Return the attention row whose source timestamp is the earliest valid instant. */
+/** One thing waiting on a person, for the header's own count -- never rendered
+ * as a row itself since the decision band narrowed to pending approvals. */
+export interface AttentionRow {
+  readonly id: string;
+  readonly kind: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly href: string;
+  readonly since: string;
+  readonly at?: string;
+}
+
 export function oldestAttention(
   rows: readonly AttentionRow[],
 ): AttentionRow | undefined {
@@ -150,10 +220,9 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     approvals,
     proposals,
     runs,
-    estate,
-    health,
-    detectors,
+    overview,
     incidents,
+    resources,
     blocked,
     held,
     checklist,
@@ -164,14 +233,25 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     // cannot disagree about how many are waiting.
     panelRead('/v1/proposals', () => read('/v1/proposals', init)),
     panelRead('/v1/runs', () => read('/v1/runs', init)),
-    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-    panelRead('/health/ready', () => read('/health/ready', init)),
-    panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+    // The five KPI tiles' one source (FR-019): a value, its breakdown and its
+    // daily series, never recomputed here from a second read of the estate,
+    // the runs or the incidents this screen used to query directly for the
+    // same numbers. `/v1/estate/summary` and `/v1/detectors` are no longer
+    // read on this screen either, for the identical reason `/health/ready`
+    // already isn't: the "watched" count and the "no detector enabled"
+    // legend are the overview's own fields, computed server-side.
+    panelRead('/v1/overview', () => read('/v1/overview', init)),
     // Two reads of one listing, because they are two questions. The narrative
     // below wants what happened lately, closures included; the attention band
     // wants everything still open however long ago it opened, and those are
     // not the same page.
     panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+    // The estate's own name for a recurring subject (FR-024/SC-007): a raw
+    // resource id must never stand alone as "O que insiste em acontecer"'s
+    // subtitle when the estate already has a name for it. The same read the
+    // Incidents screen already makes for the identical reason, not a second
+    // opinion computed here.
+    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
     panelRead('/v1/incidents', () =>
       read('/v1/incidents', { ...authorised(credential), query: HUMAN_INCIDENT_QUERY }),
     ),
@@ -203,12 +283,62 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       !needsAPerson(text(record, 'state')) &&
       !isTerminalIncident(text(record, 'state')),
   );
-  // What keeps happening, from the unfiltered read: a cause that fired four
-  // times and closed each time is exactly what this panel is for, so it must
-  // not be narrowed to what is still open.
-  const recurring = groupBySubject(incidentRecords).filter((group) => group.count > 1);
-  const detectorRecords = list(dataOf(detectors), 'detectors');
-  const summary = dataOf(estate);
+  // What keeps happening, from the unfiltered read, cut to the trailing 48h
+  // window "O que insiste em acontecer" draws (FR-022/FR-023): a cause that
+  // fired four times in the window and closed each time is exactly what this
+  // panel is for, so it must not be narrowed to what is still open, and must
+  // not count a firing from last month as part of what insists *now*.
+  const recurring = subjectsInWindow(
+    groupBySubject(incidentRecords),
+    now,
+    SUBJECT_WINDOW_HOURS,
+  ).filter((group) => group.count > 1);
+  // How many firings those subjects account for between them -- the sum of
+  // exactly the `N×` counts the rows themselves show, so the header and the
+  // rows can never disagree about how much is happening.
+  const firings = recurring.reduce((total, group) => total + group.count, 0);
+  // What the estate calls every resource it holds, resolved once for the
+  // whole page from the same read -- never a second request, and never per
+  // row. A subject the estate does not hold at all simply has no entry, and
+  // `SubjectStrip` renders that honestly, as the shortened id, rather than
+  // inventing one -- the same map and the same fallback the Incidents screen
+  // already builds from this endpoint (`screens/incidents.tsx`).
+  const subjectNames = new Map<string, string>();
+  if (resources.status === 'ready') {
+    for (const record of list(dataOf(resources), 'resources')) {
+      const id = text(record, 'resource_id');
+      const name = text(record, 'display_name');
+      if (id !== '' && name !== '') subjectNames.set(id, name);
+    }
+  }
+  const overviewData = dataOf(overview);
+  // Distinct from any one KPI's own `value` being `null` (nothing in the
+  // window can answer that KPI yet): this is the whole document failing to
+  // arrive, which every tile must say together rather than each guessing on
+  // its own from a `kpiOf` that degrades a missing document to five empty
+  // KPIs by construction.
+  const overviewFailed = overviewData === undefined;
+
+  /** `overviewData[name]`'s own `{value, breakdown, series, note}`, read
+   * defensively: a missing document (`overviewFailed`) degrades every field
+   * to its own honest absence rather than throwing, because `KpiTiles` is
+   * what decides whether to show that absence as "read failed" or as an
+   * unmeasured `null` value -- never this function. */
+  function kpiOf(name: string): KpiData {
+    const kpi = field(overviewData, name);
+    return {
+      value: (() => {
+        const found = field(kpi, 'value');
+        return typeof found === 'number' && Number.isFinite(found) ? found : null;
+      })(),
+      breakdown: Object.fromEntries(counts(kpi, 'breakdown')),
+      series: list(kpi, 'series').map((point) => ({
+        date: text(point, 'date'),
+        value: number(point, 'value'),
+      })),
+      note: text(kpi, 'note'),
+    };
+  }
 
   // --- What needs a person ---------------------------------------------------
   const attention: AttentionRow[] = [];
@@ -293,141 +423,165 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     return Date.parse(left.at ?? '') - Date.parse(right.at ?? '');
   });
 
-  const oldest = oldestAttention(attention);
+  // The pending remediations the inline decision band reads -- oldest
+  // requested first, sorted on the raw instant before it is phrased into
+  // "since", over the same listing (never a second read of /v1/approvals).
+  const pendingDecisions: DecisionCardData[] = approvalRecords
+    .filter((record) => text(record, 'state') === 'pending')
+    .sort(
+      (left, right) =>
+        Date.parse(text(left, 'requested_at')) -
+        Date.parse(text(right, 'requested_at')),
+    )
+    .map((record) => decisionCardOf(record, locale, now, zone));
 
-  // --- The narrative ---------------------------------------------------------
-  const feed: ActivityEntry[] = [];
-  for (const record of incidentRecords) {
-    const id = text(record, 'public_id');
-    feed.push({
-      id: `incident-${id}`,
-      kind: 'incident',
-      kindLabel: message(locale, 'incidents.list.title'),
-      // The same comparison a second time, and the same defect: because
-      // nothing ever equalled `closed`, this branch was unreachable and an
-      // incident that resolved itself was drawn in the red of a live outage.
-      // Only `resolved` earns the success well — an incident a person shut
-      // with nothing done did not go well, it stopped.
-      outcome:
-        text(record, 'state') === 'resolved'
-          ? 'success'
-          : isTerminalIncident(text(record, 'state'))
-            ? 'neutral'
-            : 'danger',
-      title: text(record, 'title'),
-      detail: text(record, 'detector'),
-      href: `/incidents/${id}`,
-      ...timestamp(locale, text(record, 'opened_at'), now, zone),
-    });
-  }
+  // --- The narrative -----------------------------------------------------
+  // Four kinds, the shapes `Main.dc.html` draws for each: an investigation
+  // starting or ending, an incident opening or closing on its own, a
+  // remediation proposed or decided. Built from the three listings this
+  // screen already reads -- never a fourth endpoint for the narrative alone
+  // -- then folded by `collapseFeed` before the cap, so a repeating cause
+  // costs one row rather than one per firing (the audit's own example:
+  // DNSResolverProbeFailed, five times over, with no shape or hierarchy).
+  const feed: ActivityFeedEntry[] = [];
   for (const record of runRecords) {
     const id = text(record, 'run_id');
     const status = text(record, 'status');
-    // Same translation as the band above, for the same reason: this was the
-    // fourth surface repeating the identical stack trace, and a narrative of
-    // what happened here reads worst of all as an exception message. The
-    // title itself comes from the one place that names a run — never the
-    // raw summary a plain sentence used to fall through to here, which for
-    // an ordinary investigation is its whole markdown report.
-    const said = readFailure(text(record, 'summary'), locale);
     feed.push({
-      id: `run-${id}`,
-      kind: 'run',
-      kindLabel: message(locale, 'runs.list.title'),
-      outcome: FAILED.has(status)
-        ? 'danger'
-        : roleFor(status) === 'success'
-          ? 'success'
-          : 'info',
-      title: subjectOf(record, locale).text,
-      detail: said.technical === '' ? status : said.action,
-      // Into the list rather than onto the run's own page: the run opens
-      // where it sits and the ones around it stay on screen, which is the
-      // comparison somebody following a recurring subject actually wants.
+      id: `run-started-${id}`,
+      kind: 'investigation',
+      outcome: 'info',
+      title: message(locale, 'dashboard.liveActivity.investigationStarted'),
+      detail: subjectOf(record, locale).text,
       href: `/runs?selected=${id}`,
+      subjectKey: '',
+      count: 1,
+      // What set it off, which is the run's own served `trigger` and the
+      // word the board writes here. A run has no duration yet.
+      kindLabel: triggerLabel(locale, text(record, 'trigger')),
+      duration: '',
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });
+    // A run still working has not resolved into anything yet -- only a
+    // settled one earns its own second entry in the narrative.
+    if (!isSettled(status)) continue;
+    const said = readFailure(text(record, 'summary'), locale);
+    const succeeded = roleFor(status) === 'success';
+    feed.push({
+      id: `run-ended-${id}`,
+      kind: 'resolution',
+      outcome: FAILED.has(status) ? 'danger' : succeeded ? 'success' : 'info',
+      title: message(
+        locale,
+        succeeded
+          ? 'dashboard.liveActivity.causeFound'
+          : 'dashboard.liveActivity.investigationEnded',
+      ),
+      detail: said.technical === '' ? subjectOf(record, locale).text : said.action,
+      href: `/runs?selected=${id}`,
+      subjectKey: '',
+      count: 1,
+      // The work this came out of, and how long it took -- the two facts the
+      // board's own `investigação · 1m 27s` carries, both from instants the
+      // listing already served.
+      kindLabel: message(locale, 'dashboard.liveActivity.by.investigation'),
+      duration: runSpan(locale, record),
+      ...timestamp(locale, text(record, 'finished_at'), now, zone),
+    });
+  }
+  for (const record of incidentRecords) {
+    const id = text(record, 'public_id');
+    feed.push({
+      id: `incident-opened-${id}`,
+      kind: 'incident',
+      outcome: 'danger',
+      title: message(locale, 'dashboard.liveActivity.incidentOpened'),
+      detail: text(record, 'title'),
+      href: `/incidents/${id}`,
+      // The key firings of the same cause collapse by -- FR-026 names only
+      // "aberto, fechado sozinho" for an incident's own entries, so the
+      // self-resolved closure below carries none: it never repeats the way
+      // a fresh firing does, and folding it would fold two different facts.
+      subjectKey: text(record, 'correlation_key'),
+      count: 1,
+      // Who opened it: the detector's own name, as the incident carries it.
+      // Empty when the deployment named none, which leaves the second line
+      // as the instant alone rather than a guess.
+      kindLabel: text(record, 'detector'),
+      duration: '',
+      ...timestamp(locale, text(record, 'opened_at'), now, zone),
+    });
+    const closedAt = text(record, 'closed_at');
+    if (flag(record, 'self_resolved') && closedAt !== '') {
+      feed.push({
+        id: `incident-closed-${id}`,
+        kind: 'resolution',
+        outcome: 'success',
+        title: message(locale, 'dashboard.liveActivity.incidentSelfResolved'),
+        detail: text(record, 'title'),
+        href: `/incidents/${id}`,
+        subjectKey: '',
+        count: 1,
+        // Reached only inside `flag(record, 'self_resolved')`, so the words
+        // are the flag's own meaning rather than a claim this line makes.
+        kindLabel: message(locale, 'dashboard.liveActivity.by.noHuman'),
+        duration: '',
+        ...timestamp(locale, closedAt, now, zone),
+      });
+    }
+  }
+  // Decisions: an approval this screen already reads for the band above,
+  // read a second time here for the narrative rather than a parallel store --
+  // proposals stay out of the feed the same way they stayed out of the
+  // decision band once it narrowed to what a person actually decides.
+  for (const record of approvalRecords) {
+    const id = text(record, 'approval_id');
+    if (id === '') continue;
+    feed.push({
+      id: `approval-proposed-${id}`,
+      kind: 'approval',
+      outcome: 'warning',
+      title: message(locale, 'dashboard.liveActivity.decisionProposed'),
+      detail: text(record, 'summary'),
+      href: `/decisions?tab=actions&selected=${id}`,
+      subjectKey: '',
+      count: 1,
+      // What it is waiting on, which is what makes a proposal different from
+      // every other entry in the feed.
+      kindLabel: message(locale, 'dashboard.liveActivity.by.awaitingApproval'),
+      duration: '',
+      ...timestamp(locale, text(record, 'requested_at'), now, zone),
+    });
+    const decidedAt = text(record, 'decided_at');
+    if (decidedAt !== '') {
+      feed.push({
+        id: `approval-decided-${id}`,
+        kind: 'approval',
+        outcome: text(record, 'state') === 'approved' ? 'success' : 'neutral',
+        title: message(locale, 'dashboard.liveActivity.decisionDecided'),
+        detail: text(record, 'summary'),
+        href: `/decisions?tab=actions&selected=${id}`,
+        subjectKey: '',
+        count: 1,
+        // The kind, in words. Who decided it is not on the listing, and this
+        // line will not name somebody the deployment never did.
+        kindLabel: message(locale, 'dashboard.liveActivity.by.decision'),
+        duration: '',
+        ...timestamp(locale, decidedAt, now, zone),
+      });
+    }
   }
   feed.sort((left, right) => right.iso.localeCompare(left.iso));
-  const recent = feed.slice(0, FEED_LENGTH);
+  const recent = collapseFeed(feed).slice(0, FEED_LENGTH);
 
-  // --- The estate ------------------------------------------------------------
-  const watched = number(summary, 'total');
-  // The persistence contract defines `problems` as degraded or unhealthy. Keep
-  // unknown and stale out: they are gaps in observation, not estate faults, and
-  // the problem drill-down must contain exactly what this number counts.
-  const degraded = number(summary, 'problems');
-  const kinds = counts(summary, 'by_kind')
-    .map(([kind, count]) => `${formatNumber(locale, count)} ${kind}`)
-    .join(' · ');
-
-  const liveDetectors = detectorRecords.filter((record) =>
-    flag(record, 'enabled'),
-  ).length;
-
-  // The runs the agent is working right now, named rather than counted. A
-  // run's own headline is the one sentence that names it; the listing always
-  // carries one, synthesised from the record when nothing was stored.
-  const flights: FlightRow[] = runRecords
-    .filter((record) => text(record, 'status') === 'running')
-    .map((record) => ({
-      id: text(record, 'run_id'),
-      headline: subjectOf(record, locale).text,
-      status: text(record, 'status'),
-      since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
-      href: `/runs?selected=${text(record, 'run_id')}`,
-    }));
-
-  // What the product exists to do, measured rather than asserted: of the
-  // incidents that ended, how many ended without anybody being involved. This
-  // is a different question from whether an investigation completed — a run
-  // can succeed at telling a person what to go and fix.
-  const endedIncidents = incidentRecords.filter((record) =>
-    isTerminalIncident(text(record, 'state')),
+  // The runs the agent is working right now, named rather than counted.
+  // `inFlightRuns` is `!isSettled` -- {running, suspended} -- deliberately
+  // narrower than the literal "status NOT IN (completed,failed,cancelled)"
+  // reading, which still admits `interrupted`: a run a reaper marked that
+  // way days ago, with no title, is settled and does not belong here.
+  const runsInFlight: RunCardData[] = inFlightRuns(runRecords).map((record) =>
+    runCardOf(record, now),
   );
-  const unattended = endedIncidents.filter((record) => flag(record, 'self_resolved'));
-  const unattendedRate =
-    endedIncidents.length === 0
-      ? null
-      : Math.round((unattended.length / endedIncidents.length) * 100);
-
-  // How long it takes to get an answer, which is the figure a console that
-  // counts investigations never prints. The median rather than the mean: one
-  // run that hit its wall clock drags an average somewhere nobody's Tuesday
-  // ever was, and this number exists to describe the ordinary case.
-  const finished = runRecords
-    .map((record) => {
-      const opened = Date.parse(text(record, 'started_at'));
-      const closed = Date.parse(text(record, 'finished_at'));
-      if (Number.isNaN(opened) || Number.isNaN(closed)) return 0;
-      return Math.max(0, (closed - opened) / 1000);
-    })
-    .filter((seconds) => seconds > 0)
-    .sort((left, right) => left - right);
-  const median =
-    finished.length === 0
-      ? null
-      : (finished[Math.floor((finished.length - 1) / 2)] ?? 0);
-  const slowest = finished.length === 0 ? 0 : (finished[finished.length - 1] ?? 0);
-
-  // --- The agent, rather than the estate --------------------------------------
-  // Every other figure on this page is about what is being watched. This one is
-  // about whether the product itself is doing its job — the fact the reference
-  // design leads with and this page, until now, never asked.
-  const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
-  // By role rather than by the literal word "completed": the persistence
-  // store is the only source of a run's status and it never writes
-  // "succeeded", but the shared presentation table still resolves that word
-  // to the same success role a tool call's own outcome needs it for — so a
-  // clean finish counts toward this figure under either spelling, rather
-  // than a future drift between the two silently dragging it down.
-  const succeededRuns = settledRuns.filter(
-    (record) => roleFor(text(record, 'status')) === 'success',
-  );
-  const successRate =
-    settledRuns.length === 0
-      ? null
-      : Math.round((succeededRuns.length / settledRuns.length) * 100);
 
   return (
     <>
@@ -452,197 +606,120 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       {/* Is it working, before does it need you. An operator opening this page
           is asking the first question, and the second is only frightening
           when the first has no answer. */}
-      <GuardianBand
-        locale={locale}
-        ready={flag(dataOf(health), 'ready')}
-        posture={message(locale, 'shell.guardian.posture.propose')}
-        detectorsLive={liveDetectors}
-        detectorsTotal={detectorRecords.length}
-        watched={watched}
-        blocked={attention.length}
-        held={heldRecords.length}
-        flights={flights}
-      />
+      <div className="mb-5">
+        <RunBand
+          locale={locale}
+          runs={runsInFlight}
+          followedCount={heldRecords.length}
+          blockedCount={attention.length}
+          moreHref="/runs"
+        />
+      </div>
 
-      <AttentionBlock
-        heading={formatCount(
-          locale,
-          attention.length,
-          'dashboard.attention.count.one',
-          'dashboard.attention.count',
-        )}
-        oldest={message(locale, 'dashboard.attention.oldest', {
-          age: oldest === undefined ? '' : oldest.since,
-        })}
-        rows={attention}
-        openLabel={message(locale, 'surface.open')}
-        moreLabel={(over) =>
-          message(locale, 'dashboard.attention.more', {
-            count: formatNumber(locale, over),
-          })
-        }
-        moreHref="/decisions"
-      />
-
-      {attention.length === 0 ? (
-        <div className="mb-5">
-          <Panel
-            title={message(locale, 'dashboard.attention.title')}
-            state={stateOf(approvals, true)}
-            dependency={dependencyOf(approvals)}
-            labels={panelLabels(locale, message(locale, 'dashboard.attention.title'))}
-            empty={{
-              heading: message(locale, 'dashboard.attention.empty.heading'),
-              body: message(locale, 'dashboard.attention.empty.body'),
-              actionLabel: message(locale, 'dashboard.attention.empty.action'),
-              href: '/runs',
-            }}
-          />
-        </div>
-      ) : null}
+      <div className="mb-5">
+        <AttentionBlock
+          locale={locale}
+          decisions={pendingDecisions}
+          canDecide={may(viewer, DECIDE)}
+        />
+      </div>
 
       {/* While anything remains, finishing setup dominates the page rather
           than sitting in a small side card beside an empty centre. It is
           absent, not shrunk, the moment nothing is left. */}
       <SetupHero locale={locale} setup={setup} source={checklist} />
 
-      {/* Every figure has context and a list behind it. A figure that had neither
-          would not compile — see `figure.tsx`. */}
-      <div
-        data-testid="main-figures"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
-      >
-        <Figure
-          label={message(locale, 'dashboard.stat.watched')}
-          value={formatNumber(locale, watched)}
-          context={message(locale, 'dashboard.stat.watched.context', {
-            kinds: kinds === '' ? message(locale, 'surface.none') : kinds,
-          })}
-          href="/resources"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-        />
-        <Figure
-          label={message(locale, 'dashboard.stat.degraded')}
-          value={formatNumber(locale, degraded)}
-          // A degraded count with nothing beside it is where "24 unhealthy"
-          // and "Incidents: none" stopped making sense together. Naming how
-          // many detectors are actually switched on is the bridge: a finding
-          // is not an incident until one of these turns it into one.
-          // ...and where there are none at all, said as the sentence it is
-          // rather than as "0 of 0", which the guardian band above was already
-          // saying in the same breath.
-          context={
-            detectorRecords.length === 0
-              ? message(locale, 'dashboard.stat.degraded.context.noDetectors', {
-                  count: formatNumber(locale, number(summary, 'problems')),
-                })
-              : message(locale, 'dashboard.stat.degraded.context', {
-                  count: formatNumber(locale, number(summary, 'problems')),
-                  live: formatNumber(locale, liveDetectors),
-                  total: formatNumber(locale, detectorRecords.length),
-                })
-          }
-          href="/resources?health=problem"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={degraded > 0 ? 'down' : 'flat'}
-        />
-        {/* The one figure about the product's own promise rather than about
-            the estate it watches. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.unattended')}
-          value={
-            unattendedRate === null ? '—' : `${formatNumber(locale, unattendedRate)}%`
-          }
-          context={
-            unattendedRate === null
-              ? message(locale, 'dashboard.stat.unattended.context.none')
-              : message(locale, 'dashboard.stat.unattended.context', {
-                  closed: formatNumber(locale, unattended.length),
-                  total: formatNumber(locale, endedIncidents.length),
-                })
-          }
-          href="/incidents"
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={
-            unattendedRate === null ? 'flat' : unattendedRate >= 80 ? 'up' : 'down'
-          }
-        />
-        {/* The one figure on this page about the agent rather than the
-            estate: whether the product itself is doing its job. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.successRate')}
-          value={successRate === null ? '—' : `${formatNumber(locale, successRate)}%`}
-          context={
-            successRate === null
-              ? message(locale, 'dashboard.stat.successRate.context.none')
-              : message(locale, 'dashboard.stat.successRate.context', {
-                  succeeded: formatNumber(locale, succeededRuns.length),
-                  settled: formatNumber(locale, settledRuns.length),
-                })
-          }
-          href={
-            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
-          }
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
-        />
-        {/* How long an answer takes, which every figure beside it leaves
-            unanswered: four of them count things, and none of them says
-            whether waiting for the agent is worth doing. The median rather
-            than the mean, because one run that hit its wall clock drags an
-            average somewhere nobody's Tuesday ever was. */}
-        <Figure
-          label={message(locale, 'dashboard.stat.timeToCause')}
-          value={median === null ? '—' : formatDuration(locale, median)}
-          context={
-            median === null
-              ? message(locale, 'dashboard.stat.timeToCause.context.none')
-              : message(locale, 'dashboard.stat.timeToCause.context', {
-                  settled: formatNumber(locale, finished.length),
-                  slowest: formatDuration(locale, slowest),
-                })
-          }
-          href={
-            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
-          }
-          drillLabel={message(locale, 'dashboard.stat.drill')}
-          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
-        />
-      </div>
+      {/* Every KPI reads only from the overview `GET /v1/overview` served --
+          no client recomputation of a number that endpoint already answers
+          (FR-019). `overviewFailed` is the whole document missing; a `null`
+          on one KPI's own `value` is narrower and handled inside the tile. */}
+      <KpiTiles
+        locale={locale}
+        failed={overviewFailed}
+        watched={kpiOf('watched')}
+        degraded={kpiOf('degraded')}
+        selfResolved={kpiOf('self_resolved')}
+        successRate={kpiOf('success_rate')}
+        timeToCause={kpiOf('time_to_cause')}
+      />
 
-      {/* What keeps happening, above the narrative rather than inside it. A
-          cause that fired nine times is one problem and the feed would tell
-          the reader it was nine — which is the whole defect this page was
-          reformulated around. */}
-      <div className="mb-5" data-testid="recurring-problems">
-        <Panel
-          title={message(locale, 'dashboard.recurring.title')}
-          state={stateOf(incidents, recurring.length === 0)}
-          dependency={dependencyOf(incidents)}
-          action={
-            <span className="text-meta text-muted">
-              {message(locale, 'dashboard.recurring.note')}
-            </span>
-          }
-          labels={panelLabels(locale, message(locale, 'dashboard.recurring.title'))}
-          empty={{
-            heading: message(locale, 'dashboard.recurring.empty.heading'),
-            body: message(locale, 'dashboard.recurring.empty.body'),
-            actionLabel: message(locale, 'dashboard.recurring.empty.action'),
-            href: '/incidents',
-          }}
-        >
-          <IncidentGroupList
-            groups={recurring}
-            locale={locale}
-            now={new Date(now)}
-            zone={zone}
-          />
-        </Panel>
-      </div>
+      {/* The last row of the page, and one row rather than two: what keeps
+          happening in the wider column, what the deployment has been doing in
+          the narrower one. A cause that fired nine times is one row on the
+          left — the defect this page was reformulated around — and the
+          narrative on the right is what those nine firings looked like as
+          they arrived. Stacking them put a third of a screen between two
+          readings of the same estate, and left the narrower column with
+          nothing to hold but a list of links.
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 min-w-0">
+          Three columns to two, which is the board's own one-and-a-half to
+          one. At two to one the narrative column was narrow enough that
+          every entry wrapped to four lines, and a timeline whose entries
+          each take four lines is a wall of text with shapes down the side. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-3 min-w-0" data-testid="recurring-problems">
+          <Panel
+            title={message(locale, 'dashboard.recurring.title')}
+            state={stateOf(incidents, recurring.length === 0)}
+            dependency={dependencyOf(incidents)}
+            // How many subjects, how many firings between them, and on which
+            // of the two the rows are grouped — the three facts a reader
+            // would otherwise add up by counting rows. Absent when there are
+            // no rows, because "0 subjects · 0 firings" is a claim about the
+            // estate that a failed read has no standing to make.
+            action={
+              recurring.length === 0 ? undefined : (
+                <span data-testid="recurring-tally" className="text-meta text-muted">
+                  {message(
+                    locale,
+                    recurring.length === 1
+                      ? 'dashboard.recurring.tally.one'
+                      : 'dashboard.recurring.tally',
+                    {
+                      subjects: formatNumber(locale, recurring.length),
+                      firings: formatNumber(locale, firings),
+                    },
+                  )}
+                </span>
+              )
+            }
+            labels={panelLabels(locale, message(locale, 'dashboard.recurring.title'))}
+            empty={{
+              heading: message(locale, 'dashboard.recurring.empty.heading'),
+              body: message(locale, 'dashboard.recurring.empty.body'),
+              actionLabel: message(locale, 'dashboard.recurring.empty.action'),
+              href: '/incidents',
+            }}
+          >
+            <div className="flex flex-col gap-3 min-w-0">
+              <SubjectStrip
+                locale={locale}
+                now={now}
+                groups={recurring}
+                subjectNames={subjectNames}
+              />
+              {/* The strip draws five; this names every one of them and
+                  opens the screen where they all live, grouped the same way.
+                  It is the panel's way out whether or not anything was cut,
+                  because a reader who wants the whole list should not have to
+                  wait for a sixth subject to be offered it. */}
+              <NextLink
+                href="/incidents"
+                data-testid="recurring-more"
+                className="text-meta text-accent hover:underline self-start"
+              >
+                {message(
+                  locale,
+                  recurring.length === 1
+                    ? 'dashboard.recurring.more.one'
+                    : 'dashboard.recurring.more',
+                  { count: formatNumber(locale, recurring.length) },
+                )}
+              </NextLink>
+            </div>
+          </Panel>
+        </div>
+        <div className="lg:col-span-2 min-w-0" data-testid="live-activity">
           <Panel
             title={message(locale, 'dashboard.activity.title')}
             state={stateOf(runs, recent.length === 0)}
@@ -657,14 +734,22 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               href: '/integrations',
             }}
           >
-            <ActivityFeed entries={recent} />
+            <div className="flex flex-col gap-3 min-w-0">
+              <ActivityFeed locale={locale} entries={recent} />
+              {/* Eight entries is a narrative; the rest of it is the run
+                  listing, which is where most of what this feed says
+                  happened — an investigation starting, a cause found —
+                  carries on in full. Incidents and decisions each reach their
+                  own area from their own entry. */}
+              <NextLink
+                href="/runs"
+                data-testid="activity-more"
+                className="text-meta text-accent hover:underline self-start"
+              >
+                {message(locale, 'dashboard.activity.more')}
+              </NextLink>
+            </div>
           </Panel>
-        </div>
-        <div className="flex flex-col gap-5 min-w-0">
-          {/* The remaining plan is the hero above, not a second copy of itself
-              down here. Two checklists on one page is the page disagreeing with
-              itself about where the operator should look. */}
-          <DashboardQuickActions locale={locale} />
         </div>
       </div>
     </>

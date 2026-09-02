@@ -42,8 +42,10 @@ from platform.identity.audit.recorder import AuditRecorder
 from platform.identity.local_accounts import LocalAccount, LocalSignIn
 from platform.identity.tokens import TokenService
 from platform.observability.logging import get_logger
+from platform.persistence.deployment_taps import with_deployment_events
 from platform.persistence.ports.transaction import PersistenceGateway
 from platform.persistence.postgres.gateway import PostgresPersistence
+from platform.runs.deployment import DeploymentEventBroker, DeploymentPublishingRunEventBroker
 from platform.runs.stream import RunEventBroker
 from platform.startup.errors import ConfigurationInvalid
 from platform.startup.profiles import resolve_topology
@@ -231,21 +233,33 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
 
     store = PostgresPersistence.from_url(source[NINJASRE_DATABASE_URL_ENV])
 
+    # The deployment-wide channel `GET /v1/events/stream` drains, and the one
+    # place its two write-path taps are composed: the run broker below is a
+    # `DeploymentPublishingRunEventBroker` rather than a plain one, and the
+    # persistence gateway everything but `Deployment.store` sees is decorated
+    # so an incident's or a decision's write also publishes here. No route and
+    # no store method changes to make that true; a call site that publishes a
+    # run event names the organisation it is publishing for, because this
+    # broker is one per process and the deployment channel decides who a frame
+    # reaches by exactly that.
+    deployment_events = DeploymentEventBroker()
+    gateway_store: PersistenceGateway = with_deployment_events(store, deployment_events)
+
     # Built once, here, and handed to both the investigator (so a runner that
     # can record writes through the same guardrails and publishes on the same
     # broker as everything else in this deployment) and to ``GatewayState``
     # itself below — never two separate instances that would quietly disagree.
     guardrails = GuardrailEngine()
-    broker = RunEventBroker()
+    broker = DeploymentPublishingRunEventBroker(deployment_events=deployment_events)
     investigator: InvestigationRunner = investigator_of(
-        source, store=store, guardrails=guardrails, broker=broker
+        source, store=gateway_store, guardrails=guardrails, broker=broker
     )
 
     # Without a recorder, `TokenService._audit` is a no-op — every issuance,
     # revocation and rejection stays out of the audit trail regardless of what
     # a caller asks it to record. `LocalSignIn` below already gets one; the
     # service issuing and revoking every machine token needs the same one.
-    tokens = TokenService(gateway=store, recorder=AuditRecorder(gateway=store))
+    tokens = TokenService(gateway=gateway_store, recorder=AuditRecorder(gateway=gateway_store))
 
     # Resolved here rather than per request, so a deployment that still carries
     # the shipped passphrase fails to come up instead of failing at the first
@@ -256,16 +270,17 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
 
     return Deployment(
         state=GatewayState(
-            gateway=store,
+            gateway=gateway_store,
             tokens=tokens,
             investigator=investigator,
             guardrails=guardrails,
             broker=broker,
+            deployment_events=deployment_events,
             local_sign_in=LocalSignIn(
-                gateway=store,
+                gateway=gateway_store,
                 tokens=tokens,
                 account=account,
-                recorder=AuditRecorder(gateway=store),
+                recorder=AuditRecorder(gateway=gateway_store),
             ),
         ),
         store=store,

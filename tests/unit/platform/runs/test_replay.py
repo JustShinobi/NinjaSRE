@@ -21,7 +21,11 @@ from platform.runs.cursor import Cursor
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
 from platform.runs.replay import ReplayedCall, bounded_result, replay_run
-from platform.runs.stream import RunEventBroker, RunStream
+from platform.runs.stream import RunEventBroker, RunEventPublisher, RunStream
+
+#: The organisation these fixtures record under. A recorder is only given
+#: somewhere to publish together with the tenant whose runs it publishes.
+ORG = "org-replay"
 
 
 class Catalogue:
@@ -44,7 +48,7 @@ async def investigate(
         store=uow.run_traces,
         clock=clock,
         ids=lambda: f"id-{next(counter):04d}",
-        broker=broker,
+        events=None if broker is None else RunEventPublisher(broker=broker, org_id=ORG),
     )
     run = await writer.start_run(
         trigger=TRIGGER_ALERT, principal_id=PRINCIPAL, team_node_id=TEAM, alert_id="alert-9"
@@ -137,7 +141,7 @@ async def investigate_with_id(
         store=uow.run_traces,
         clock=clock,
         ids=lambda: f"id-{next(counter):04d}",
-        broker=broker,
+        events=RunEventPublisher(broker=broker, org_id=ORG),
     )
     await writer.start_run(
         trigger=TRIGGER_ALERT, principal_id=PRINCIPAL, team_node_id=TEAM, run_id=run_id

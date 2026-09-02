@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FALLBACK_TOKEN,
   identifierAsName,
+  inventedRunTitle,
   liveControlOnTerminalRun,
   negativeAssertionAfterFailedRead,
   rawMarkdown,
@@ -10,7 +11,7 @@ import {
 } from '../../e2e/bans';
 
 /**
- * Determinism for the five detectors the "Now" transversal rules call.
+ * Determinism for the six detectors the "Now" transversal rules call.
  *
  * Every offending sample here is the literal text the staging diagnosis this
  * suite responds to recorded — not a paraphrase, not a synthetic string
@@ -79,6 +80,36 @@ describe('identifierAsName', () => {
     // neutralised entirely, which is the exact mistake a determinism test
     // exists to catch.
     expect(identifierAsName('alert:alertmanager:c046a1b2')).not.toBeNull();
+  });
+});
+
+describe('inventedRunTitle', () => {
+  it('accuses the exact hash-based sentence the staging audit recorded', () => {
+    // The literal shape a run-by-alert used to read as, from the wave's own
+    // partida audit: "investigation triggered by" followed by a hash.
+    expect(
+      inventedRunTitle('investigation triggered by bc7bdbd452fae8f1c9d3a0e5b7461203'),
+    ).not.toBeNull();
+  });
+
+  it('accuses the exact trigger-word sentence a manual run used to read as', () => {
+    expect(inventedRunTitle('interactive investigation')).not.toBeNull();
+    expect(inventedRunTitle('alert investigation')).not.toBeNull();
+    expect(inventedRunTitle('schedule investigation')).not.toBeNull();
+    expect(inventedRunTitle('subagent investigation')).not.toBeNull();
+    // Case is a rendering detail; the detector reads the underlying word.
+    expect(inventedRunTitle('Interactive investigation')).not.toBeNull();
+  });
+
+  it('absolves a real subject, even one that mentions the word "investigation"', () => {
+    expect(inventedRunTitle('Investigate checkout latency')).toBeNull();
+    expect(inventedRunTitle('RedisExporterDown on redis-1')).toBeNull();
+    expect(inventedRunTitle('Investigation with no declared subject')).toBeNull();
+  });
+
+  it('absolves the empty string', () => {
+    expect(inventedRunTitle('')).toBeNull();
+    expect(inventedRunTitle('   ')).toBeNull();
   });
 });
 

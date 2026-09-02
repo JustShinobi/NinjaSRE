@@ -1898,12 +1898,14 @@ describe('the dashboard of a deployment that is not set up', () => {
     render(await DashboardScreen(await surfaceContext({})));
   }
 
-  it('renders the figures at zero rather than hiding them', async () => {
+  it('renders the KPI tiles at zero rather than hiding them', async () => {
     await dashboard('first-run');
 
     // Honest numbers on a new deployment are information. The alternative —
     // hiding the product behind a form — is what this feature exists to undo.
-    expect(screen.getAllByTestId('figure').length).toBeGreaterThan(0);
+    // 050-painel-vivo moved these from client-computed <Figure>s to KpiTiles
+    // reading GET /v1/overview; the claim is unchanged, the testid is not.
+    expect(screen.getAllByTestId('kpi-tile').length).toBe(5);
     expect(screen.getByTestId('main-figures')).toHaveTextContent('0');
   });
 
@@ -1934,15 +1936,18 @@ describe('the dashboard of a deployment that is not set up', () => {
     );
   });
 
-  it('offers the two quick actions the checklist is asking for', async () => {
+  it('sends a reader on from the hero alone, not from a second list beside it', async () => {
     await dashboard('first-run');
 
-    const actions = screen.getAllByTestId('quick-action');
-    expect(actions).toHaveLength(2);
-    for (const action of actions) {
-      const href = action.getAttribute('href') ?? '';
-      expect(areaByPath(href), `${href} is not an area`).toBeDefined();
-    }
+    // The quick-action list that used to sit in the corner of this page is
+    // gone: it pointed at Knowledge and Autonomy, two areas the sidebar
+    // already carries, and the artboard the Painel now follows has a panel
+    // there instead. What remains asking for the next step is the hero.
+    expect(screen.queryAllByTestId('quick-action')).toHaveLength(0);
+    const hero = screen.getByTestId('setup-hero-cta');
+    expect(
+      areaByPath((hero.getAttribute('href') ?? '').split('?')[0] ?? ''),
+    ).toBeDefined();
   });
 
   it('drops the plan and the warning once the deployment is set up', async () => {

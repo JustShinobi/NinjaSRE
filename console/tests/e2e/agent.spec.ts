@@ -23,12 +23,14 @@ test('the first question: which stages run, and which specialists are enabled', 
 }) => {
   await page.goto('/agent');
 
-  const stages = page.getByTestId('agent-stage');
+  const stages = page.getByTestId('pipeline-metro-node');
   await expect(stages.first()).toBeVisible();
   expect(await stages.count()).toBeGreaterThan(1);
 
-  // Each stage says what it consults, which is the difference between "the AI
-  // investigated" and "these things were consulted, in this order".
+  // Each stage says what it consults — one disclosure away, inside its own
+  // station, which is the difference between "the AI investigated" and
+  // "these things were consulted, in this order".
+  await stages.first().getByTestId('pipeline-metro-summary').click();
   await expect(stages.first()).toContainText('Consults:');
 
   // And the model is a role. No provider identifier appears beside a stage.
@@ -42,13 +44,14 @@ test('the second question: which tools exist, split by risk, with blockers named
 }) => {
   await page.goto('/agent?tab=tools');
 
-  const groups = page.getByTestId('tool-group');
-  await expect(groups).toHaveCount(2);
-  await expect(groups.nth(0)).toHaveAttribute('data-group', 'read');
-  await expect(groups.nth(1)).toHaveAttribute('data-group', 'write');
+  // Master-detail: the domain rail on the left, the selected domain's cards
+  // on the right, and the band's effect filters framing both.
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
+  const chips = page.getByTestId('tools-effect-chip');
+  await expect(chips).toHaveCount(5);
 
-  const tools = page.getByTestId('agent-tool');
-  await expect(tools.first()).toBeVisible();
+  const cards = page.getByTestId('capability-card');
+  await expect(cards.first()).toBeVisible();
 });
 
 test('the third question: what each class of action would do under this policy', async ({
@@ -60,11 +63,14 @@ test('the third question: what each class of action would do under this policy',
   await expect(classes).toHaveCount(5);
 
   // A sentence per class, not a policy document. The word the whole tab exists
-  // for is "would" — this has not happened.
+  // for is "would" — this has not happened. The row leads with the short
+  // description; the "would" phrasing lives in the row's own disclosure.
   for (let index = 0; index < 5; index += 1) {
-    await expect(classes.nth(index).getByTestId('outlook-sentence')).toContainText(
-      'would',
-    );
+    const row = classes.nth(index);
+    await expect(row.getByTestId('outlook-sentence')).toBeVisible();
+    await row.locator('summary').click();
+    await expect(row).toContainText('would');
+    await row.locator('summary').click();
   }
 });
 
@@ -74,11 +80,11 @@ test('the three sections are addresses, so one can be sent to a colleague', asyn
   await page.goto('/agent');
 
   await page.getByTestId('tab-link').filter({ hasText: 'Tools' }).click();
-  await expect(page.getByTestId('tool-group').first()).toBeVisible();
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
   expect(new URL(page.url()).searchParams.get('tab')).toBe('tools');
 
   await page.reload();
-  await expect(page.getByTestId('tool-group').first()).toBeVisible();
+  await expect(page.getByTestId('tools-domain-rail')).toBeVisible();
 });
 
 test('no configuration document is shown outside the panel that is one', async ({
@@ -90,10 +96,12 @@ test('no configuration document is shown outside the panel that is one', async (
   await page.goto('/agent?tab=autonomy');
   await expect(page.getByTestId('agent-document')).toHaveCount(0);
 
-  // The one place a document appears is the structured-text view beside the
-  // picture, which is a choice an operator makes rather than the only way to
-  // read the topology.
+  // The one place a document appears is the structured-text view, closed by
+  // default behind its own disclosure — a choice an operator makes rather
+  // than the only way to read the topology.
   await page.goto('/agent?tab=topology');
+  const documentDetails = page.getByTestId('agent-document-details');
+  await expect(documentDetails).toBeVisible();
+  await documentDetails.locator('summary').click();
   await expect(page.getByTestId('agent-document')).toBeVisible();
-  await expect(page.getByTestId('hierarchy')).toBeVisible();
 });

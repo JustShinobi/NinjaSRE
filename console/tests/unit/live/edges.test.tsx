@@ -10,7 +10,7 @@ import { RunConnection } from '@/live/connection';
 import { cursorOf, positionIn } from '@/live/cursor';
 import { eventFrom, eventFromFrame, type StreamEvent } from '@/live/events';
 import { AnswerControls, TakeoverControls } from '@/live/controls';
-import { InvestigateDrawer } from '@/live/investigate';
+import { InvestigateLauncher } from '@/live/investigate';
 import { listOf, receive, settle, type ListRules } from '@/live/lists';
 import { attempt, refused, resting } from '@/live/optimism';
 import { applyEvent, openCount, openRun, waitingFor } from '@/live/reducer';
@@ -336,7 +336,7 @@ describe('the investigation drawer when the deployment refuses', () => {
     );
     const went: string[] = [];
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         onClose={() => undefined}
@@ -372,7 +372,7 @@ describe('the investigation drawer when the deployment refuses', () => {
     let closed = false;
 
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         onClose={() => {
@@ -399,7 +399,7 @@ describe('the investigation drawer when the deployment refuses', () => {
 describe('the investigation drawer when nothing here can run one', () => {
   it('says so before the click, and disables starting rather than letting it fail', async () => {
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         runtimeComposed={false}
@@ -425,7 +425,7 @@ describe('the investigation drawer when nothing here can run one', () => {
     // the one catalogue entry, so there is exactly one sentence to disagree
     // with itself.
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         runtimeComposed={false}
@@ -440,7 +440,7 @@ describe('the investigation drawer when nothing here can run one', () => {
 
   it('never names the setting a deployer would set', () => {
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         runtimeComposed={false}
@@ -453,7 +453,12 @@ describe('the investigation drawer when nothing here can run one', () => {
 
   it('starts normally, with nothing said, once this process actually holds a runtime', async () => {
     render(
-      <InvestigateDrawer open locale="en" runtimeComposed onClose={() => undefined} />,
+      <InvestigateLauncher
+        open
+        locale="en"
+        runtimeComposed
+        onClose={() => undefined}
+      />,
     );
 
     await userEvent.type(

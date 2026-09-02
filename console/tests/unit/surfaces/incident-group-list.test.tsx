@@ -39,7 +39,15 @@ function group(overrides: Partial<IncidentGroup> = {}): IncidentGroup {
 }
 
 function list(groups: readonly IncidentGroup[]): void {
-  render(<IncidentGroupList groups={groups} locale="en" now={NOW} zone="UTC" />);
+  render(
+    <IncidentGroupList
+      groups={groups}
+      locale="en"
+      now={NOW}
+      zone="UTC"
+      runHeadlines={new Map()}
+    />,
+  );
 }
 
 describe('severity yields to state once a cause is over', () => {
@@ -64,14 +72,16 @@ describe('severity yields to state once a cause is over', () => {
 });
 
 describe('the subject line carries something a person can read', () => {
-  it('shortens an opaque identifier and keeps the whole of it reachable', () => {
+  it('leaves an unresolved opaque identifier out of the line, reachable only as a tooltip', () => {
+    // FR-024/SC-007: an internal identifier is never text of the line, not
+    // even shortened. The full key is still what a reader finds by hovering
+    // the row, through its own `title`.
     list([group()]);
 
     const subjects = screen.getByTestId('incident-group-subjects');
-    expect(subjects).toHaveTextContent('res-7a73b8aa…');
+    expect(subjects).not.toHaveTextContent('res-7a73b8aa');
     expect(subjects).not.toHaveTextContent('1194c1ed14dd87f7e0e80b81');
-    // Shortened for reading, never lost: the full key is what somebody pastes
-    // into a query.
+    expect(subjects).toHaveTextContent('alertmanager');
     expect(subjects).toHaveAttribute('title', 'res-7a73b8aa1194c1ed14dd87f7e0e80b81');
   });
 
@@ -92,6 +102,90 @@ describe('the subject line carries something a person can read', () => {
   });
 });
 
+describe("the subject line prefers the estate's own name over the key that reaches it", () => {
+  it('shows the resolved name alone, with an opaque id kept out of the line entirely', () => {
+    // Staging showed this exact shape wrong: the name resolved ("pve01"),
+    // and the opaque id still trailed it as visible text
+    // ("pve01 · res-76ab1466…") -- FR-024 permits the id at most as a
+    // tooltip, never as text of the line, whether or not a name was found
+    // for it.
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['res-dde476d5aa11bb22cc33dd44ee55ff66'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={
+          new Map([['res-dde476d5aa11bb22cc33dd44ee55ff66', 'runner-orchestrator']])
+        }
+      />,
+    );
+
+    const subjects = screen.getByTestId('incident-group-subjects');
+    expect(subjects).toHaveTextContent('runner-orchestrator');
+    // The id is not lost -- it is exactly what a reader who hovers the row
+    // finds, and it is not repeated anywhere in the visible line.
+    expect(subjects).not.toHaveTextContent('res-dde476d5');
+    expect(subjects).toHaveAttribute('title', 'res-dde476d5aa11bb22cc33dd44ee55ff66');
+    const named = screen.getByTestId('incident-subject-name');
+    expect(named).toHaveTextContent('runner-orchestrator');
+    expect(named).not.toHaveTextContent('res-dde476d5');
+    expect(named).toHaveAttribute(
+      'data-resource-id',
+      'res-dde476d5aa11bb22cc33dd44ee55ff66',
+    );
+  });
+
+  it('keeps a resolved name trailed by its id when the id was never opaque to begin with', () => {
+    // `ct-102` -> `anchor`: short, already legible, and matching neither of
+    // SC-007's banned shapes -- the Incidents-by-subject screen relies on
+    // exactly this trailing detail surviving, and this pins that it does.
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['ct-102'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={new Map([['ct-102', 'anchor']])}
+      />,
+    );
+
+    const named = screen.getByTestId('incident-subject-name');
+    expect(named).toHaveTextContent('anchor');
+    expect(named).toHaveTextContent('ct-102');
+  });
+
+  it('names nothing rather than the plain id, honestly, when the estate does not hold the subject', () => {
+    // No `subjectNames` at all -- the same page that never fetched the
+    // estate must still render nothing SC-007 bans; it falls back to the
+    // detector, the same as a group naming no subject at all.
+    list([group()]);
+
+    const subjects = screen.getByTestId('incident-group-subjects');
+    expect(subjects).not.toHaveTextContent('res-7a73b8aa');
+    expect(subjects).toHaveTextContent('alertmanager');
+    expect(screen.queryByTestId('incident-subject-name')).toBeNull();
+  });
+
+  it('does not repeat the id as if it were a name when the estate only echoes the id back', () => {
+    // The gateway itself falls back to the id as `display_name` when a
+    // resource has none -- that is not a name gained, and must not render
+    // as one.
+    render(
+      <IncidentGroupList
+        groups={[group({ subjects: ['ct-102'] })]}
+        locale="en"
+        now={NOW}
+        zone="UTC"
+        subjectNames={new Map([['ct-102', 'ct-102']])}
+      />,
+    );
+
+    expect(screen.queryByTestId('incident-subject-name')).toBeNull();
+    expect(screen.getByTestId('incident-group-subjects')).toHaveTextContent('ct-102');
+  });
+});
+
 describe('the row still says everything it said before', () => {
   it('keeps the title, the state and the count', () => {
     list([group()]);
@@ -102,5 +196,35 @@ describe('the row still says everything it said before', () => {
     expect(within(row).getByTestId('incident-group-state')).toHaveTextContent(
       /resolved/i,
     );
+  });
+
+  it('says the count as the board does: the number and ×, never a sentence', () => {
+    list([group({ count: 1 }), group({ key: 'ck-2', count: 8 })]);
+
+    const counts = screen
+      .getAllByTestId('incident-group-count')
+      .map((cell) => cell.textContent.trim());
+    expect(counts).toEqual(['1×', '8×']);
+  });
+});
+
+describe('the first subject still critical is born expanded', () => {
+  it('opens exactly the first live critical row, and no other', () => {
+    list([
+      group({ key: 'ck-quiet', live: false }),
+      group({ key: 'ck-live-1', live: true, severity: 'critical', state: 'open' }),
+      group({ key: 'ck-live-2', live: true, severity: 'critical', state: 'open' }),
+    ]);
+
+    const rows = screen.getAllByTestId('incident-group');
+    expect(rows.map((row) => row.hasAttribute('open'))).toEqual([false, true, false]);
+  });
+
+  it('opens nothing when no live critical subject exists', () => {
+    list([group(), group({ key: 'ck-2', live: true, severity: 'medium' })]);
+
+    for (const row of screen.getAllByTestId('incident-group')) {
+      expect(row.hasAttribute('open')).toBe(false);
+    }
   });
 });

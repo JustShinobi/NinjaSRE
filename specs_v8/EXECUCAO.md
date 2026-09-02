@@ -41,6 +41,22 @@ estabelece o baseline; o dono efetivo de cada escrita é o slot abaixo:
 feature que precisar de um token ou ícone novo declara no relatório e o
 orquestrador aplica — a fundação não deriva por acréscimo silencioso.
 
+**Nomear três arquivos do console não basta.** O S3 provou o que faltava na
+lista: as duas features numeraram a migração **0020** a partir do mesmo pai
+`0019`, cada uma na sua worktree, sem nunca se verem — histórico bifurcado
+com duas cabeças, que numa onda anterior deixou o ambiente sem subir. Um
+**número de revisão de migração é recurso single-write**, e o
+`platform/persistence/postgres/models.py` também é, porque guarda o modelo de
+toda tabela e duas features que acrescentem coluna colidem nele.
+
+A regra de desempate, aplicada no S3: **vence quem declarou o número no
+`tasks.md` antes do despacho**; a outra renumera para o seguinte e mantém o
+`down_revision` no pai antigo, para que a worktree isolada continue verde — a
+revisão vizinha não existe lá e não pode existir antes do merge. **O
+orquestrador re-aponta o pai no merge**, e a feature que renumerou registra
+essa pendência no relatório final. `fixtures/scenarios/**` e a própria suíte
+transversal seguem a mesma disciplina.
+
 ## 3. O gate visual via Orca Browser (decisão 7 — sem desvio negativo)
 
 O que a onda anterior de design não teve: um portão que compara **o que o
@@ -123,3 +139,13 @@ LLM somente pelo Orca Browser; `make verify` nos checkpoints e no fim; evidênci
 antes de avançar; confronto final da onda com a coluna "quem constrói isso em
 produção?". Paralelizar muda quando as coisas rodam, nunca o que precisa
 passar.
+
+## 6. Retomada
+
+O que a execução de um slot ensina não cabe no `progress.json`, que guarda
+estado, nem no `controle.md`, que guarda prova. Fica em
+[RETOMADA-S1.md](RETOMADA-S1.md): as armadilhas de provisionar worktree
+isolada, o comportamento do teto de turnos, os achados ainda abertos com as
+hipóteses já formadas, e o que o orquestrador reteve por não caber numa
+worktree. Quem retomar o slot — outro agente, outro runtime — lê o
+`progress.json`, depois esse arquivo, depois o controle da feature.

@@ -11,7 +11,7 @@ import type {
   Visibility,
 } from '@/live/connection';
 import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
-import { InvestigateDrawer } from '@/live/investigate';
+import { InvestigateLauncher } from '@/live/investigate';
 import { LiveEventCount, LiveRun } from '@/live/live-run';
 import { applyEvents, openRun } from '@/live/reducer';
 import { eventFrom, type StreamEvent } from '@/live/events';
@@ -472,7 +472,7 @@ describe('starting an investigation from anywhere', () => {
     vi.stubGlobal('fetch', answering(true, { applied: true, runId: 'run-9' }));
     const went: string[] = [];
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         onClose={() => undefined}
@@ -491,7 +491,7 @@ describe('starting an investigation from anywhere', () => {
 
   it('refuses to start one with no objective', () => {
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open
         locale="en"
         onClose={() => undefined}
@@ -504,7 +504,7 @@ describe('starting an investigation from anywhere', () => {
 
   it('is not in the document at all while it is closed', () => {
     render(
-      <InvestigateDrawer
+      <InvestigateLauncher
         open={false}
         locale="en"
         onClose={() => undefined}

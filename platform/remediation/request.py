@@ -240,12 +240,20 @@ class RequestBuilder:
         action: RemediationAction,
         *,
         waiver: RollbackWaiver | None = None,
+        origin_approval_id: str | None = None,
     ) -> RemediationRequest:
         """Build the request, queue it for a human, and return it with its identifier.
 
         The rollback plan reaches the store in the same transaction as the
         request — the approval store refuses to record an approval for a request
         with no plan, so queueing writes both or neither.
+
+        ``origin_approval_id`` is the lapsed approval this proposal replaces,
+        set by the one caller that reproposes one. It travels down to the
+        insert rather than being written back afterwards, which is what lets
+        the store refuse a second live proposal for the same origin outright —
+        a marker stamped one transaction later leaves a committed proposal that
+        carries none, and nothing can constrain a value that is not there yet.
         """
         request = await self.build(action, waiver=waiver)
         if self.approvals is None:
@@ -270,6 +278,7 @@ class RequestBuilder:
             rationale=request.rationale(),
             side_effect_level=action.side_effect_level.value,
             expiry_hours=REMEDIATION_EXPIRY_HOURS,
+            origin_approval_id=origin_approval_id,
         )
         await self._store_plan(change, request.plan)
 

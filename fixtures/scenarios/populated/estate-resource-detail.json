@@ -721,7 +721,26 @@
           "stored_health": "healthy",
           "team_node_id": null
         },
-        "references": [],
+        "references": [
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:1",
+            "reference_kind": "incident",
+            "summary": ""
+          },
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:2",
+            "reference_kind": "incident",
+            "summary": ""
+          },
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:3",
+            "reference_kind": "incident",
+            "summary": ""
+          }
+        ],
         "resource": {
           "absent_since": null,
           "attributes": {
@@ -15976,6 +15995,24 @@
           {
             "recorded_at": "2026-08-07T12:00:00+00:00",
             "reference_id": "inc-0005",
+            "reference_kind": "incident",
+            "summary": ""
+          },
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:1",
+            "reference_kind": "incident",
+            "summary": ""
+          },
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:2",
+            "reference_kind": "incident",
+            "summary": ""
+          },
+          {
+            "recorded_at": "2026-08-07T12:00:00+00:00",
+            "reference_id": "alert:alertmanager:ct-104:redis-exporter-down:3",
             "reference_kind": "incident",
             "summary": ""
           }

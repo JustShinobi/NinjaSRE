@@ -78,7 +78,8 @@ from platform.persistence.ports.run_trace_store import (
     TurnRecord,
 )
 from platform.runs.events import RunEvent, TraceEventKind
-from platform.runs.stream import RunEventBroker
+from platform.runs.headline import resource_from_labels, synthesize_headline
+from platform.runs.stream import RunEventPublisher
 from platform.runs.truncation import truncate
 
 logger = get_logger(__name__)
@@ -153,11 +154,18 @@ class RunRecorder:
     Holds a store rather than a gateway: the store already came out of a unit of
     work, so a recorder is inside its caller's transaction and a run that failed
     to commit did not half-record itself.
+
+    ``events`` is a broker *and* the organisation this recorder is writing for,
+    never a bare broker. One broker serves the whole process, so an event handed
+    to it without a tenant is one the deployment-wide channel can only deliver
+    to everybody — and a recorder that publishes is by definition inside a
+    scoped unit of work, so the organisation is always in the caller's hand at
+    the moment it decides to publish at all.
     """
 
     store: RunTraceStore
     guardrails: GuardrailEngine | None = None
-    broker: RunEventBroker | None = None
+    events: RunEventPublisher | None = None
     clock: Callable[[], datetime] = _utc_now
     ids: Callable[[], str] = _identifier
 
@@ -175,6 +183,8 @@ class RunRecorder:
         model_id: str | None = None,
         job_id: str | None = None,
         parent_run_id: str | None = None,
+        objective: str = "",
+        alert_labels: Mapping[str, str] | None = None,
         metadata: Mapping[str, Any] | None = None,
     ) -> AgentRun:
         """Record an investigation beginning and return it.
@@ -183,8 +193,26 @@ class RunRecorder:
         person's when a human did. Recording it either way is what lets an
         approval later in the run attribute itself to somebody: a scheduled run
         is not an unattributed one.
+
+        ``objective`` and ``alert_labels`` are redacted before either is used
+        for anything, including the provisional headline computed below —
+        the same defence a caller composing the request is asked to have
+        already applied, repeated here because this is the one place every
+        run's row is actually written. The redacted objective is what lands
+        in the stored ``objective`` column, verbatim and untruncated; the
+        headline computed from it is what a list shows while the run is
+        still going, replaced by the delivery's own sentence when it
+        completes. The raw values never reach ``AgentRun``, the headline, or
+        the trace this call writes.
         """
         started = self.clock()
+        redacted_objective = self._redact(objective)
+        sanitized_labels = self._scrub(dict(alert_labels or {}))
+        headline = synthesize_headline(
+            alert_name=str(sanitized_labels.get("alertname", "")),
+            resource=resource_from_labels(sanitized_labels),
+            objective=redacted_objective,
+        )
         attributes: dict[str, Any] = {
             RUN_METADATA_TEAM: team_node_id,
             RUN_METADATA_PRINCIPAL: principal_id,
@@ -204,6 +232,8 @@ class RunRecorder:
                 alert_id=alert_id,
                 runtime=runtime,
                 model_id=model_id,
+                objective=redacted_objective,
+                headline=headline,
                 metadata=self._clean(attributes),
             )
         )
@@ -238,6 +268,7 @@ class RunRecorder:
             run_id=run_id,
             model_id=model_id,
             parent_run_id=parent_run_id,
+            objective=objective,
             metadata={RUN_METADATA_SUBAGENT: True},
         )
         await self.record_event(
@@ -520,8 +551,8 @@ class RunRecorder:
                 payload=body,
             )
         )
-        if self.broker is not None:
-            await self.broker.publish(RunEvent.of(record))
+        if self.events is not None:
+            await self.events.publish(RunEvent.of(record))
         return record
 
     async def record_guardrail_action(

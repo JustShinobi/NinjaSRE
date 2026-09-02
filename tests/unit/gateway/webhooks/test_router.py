@@ -9,6 +9,7 @@ parametrised across all three rather than spot-checking one.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -24,7 +25,9 @@ from gateway.webhooks.router import WebhookSourceConfig
 from gateway.webhooks.verification.hmac import HmacVerifier
 from gateway.webhooks.verification.shared_secret import SharedSecretVerifier
 from platform.identity.tokens import TokenService
+from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.fakes import FakePersistence
+from platform.persistence.ports.transaction import TenantScope
 from tests.unit.gateway.http.conftest import ORG, TEAM_PAYMENTS, FakeInvestigationRunner
 
 pytestmark = pytest.mark.asyncio
@@ -162,6 +165,85 @@ async def test_a_valid_signature_starts_an_investigation_for_every_source(
     )
     assert response.status_code == 202, response.text
     assert response.json()["run_id"]
+
+
+#: Present in an alert label, never in the webhook's own auth ``SECRET``
+#: above — the shape the default guardrail ruleset's ``aws-access-key-id``
+#: rule catches, reused verbatim from the recorder's own unit tests.
+LEAKED_CREDENTIAL = "AKIAIOSFODNN7EXAMPLE"
+
+
+async def test_a_secret_in_an_alert_label_never_reaches_the_incident_timeline_or_the_runtime() -> (
+    None
+):
+    """T015 — the webhook path shares ``start_investigation`` with the
+    operator-triggered one, and calls ``IncidentLifecycle.attach_run`` a
+    second, redundant time with its own freshly-built objective
+    (``gateway/webhooks/router.py``, the call right after
+    ``start_investigation`` returns). Both reads of the alert's own data —
+    the label value and the objective built from the incident — have to
+    reach neither the incident's timeline nor the runtime with the secret
+    still in them.
+    """
+    gateway = FakePersistence()
+    async with gateway.begin_system() as system:
+        await system.orgs.create_organisation(ORG, "Acme")
+    runner = FakeInvestigationRunner()
+    state = GatewayState(
+        gateway=gateway,
+        tokens=TokenService(gateway=gateway),
+        investigator=runner,
+    )
+    app = create_app(
+        state,
+        webhook_routes={
+            "alertmanager": (
+                WebhookSourceConfig(
+                    verifier=_shared_secret("Authorization")(SECRET),
+                    org_id=ORG,
+                    team_node_id=TEAM_PAYMENTS,
+                    # Truthy, so the router's own record_alert_received call
+                    # fires too — the third consumer T015 named, not just
+                    # the two start_investigation itself owns.
+                    credential_name="delivery-token-secret-test",
+                ),
+            )
+        },
+    )
+
+    payload = alertmanager_payload()
+    payload["alerts"][0]["labels"]["leaked_credential"] = LEAKED_CREDENTIAL  # type: ignore[index]
+    body = json.dumps(payload).encode("utf-8")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://gateway.test"
+    ) as client:
+        response = await client.post(
+            "/webhooks/alertmanager", content=body, headers=valid_headers("alertmanager", body)
+        )
+        assert response.status_code == 202, response.text
+        incident_id = response.json()["incident_id"]
+
+        # The response only means the row was written and the delivery's
+        # receipt recorded — the investigation itself, and the router's own
+        # redundant attach_run call, are scheduled as background tasks
+        # (acceptance scenario 1: the response comes back before either
+        # runs). Wait for them the way a graceful shutdown would.
+        await asyncio.gather(*state.background_runs)
+
+        scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
+        async with gateway.begin(scope) as uow:
+            timeline = await IncidentLifecycle(store=uow.incidents).timeline(incident_id)
+
+    rendered_timeline = " ".join(f"{entry.cause} {entry.detail}" for entry in timeline)
+    assert LEAKED_CREDENTIAL not in rendered_timeline, (
+        f"the incident timeline still carries the secret: {rendered_timeline!r}"
+    )
+
+    assert runner.started, "the webhook delivery never reached the runtime"
+    request = runner.started[-1]
+    assert LEAKED_CREDENTIAL not in request.objective
+    assert LEAKED_CREDENTIAL not in str(request.alert_labels)
 
 
 @pytest.mark.parametrize("source", sorted(PAYLOADS))

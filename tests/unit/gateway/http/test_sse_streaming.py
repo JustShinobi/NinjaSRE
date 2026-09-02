@@ -54,7 +54,7 @@ async def test_a_subscriber_receives_events_as_they_happen(
             record = await uow.run_traces.record_event(
                 TraceEventRecord(event_id="evt-1", run_id=run_id, kind="turn_completed")
             )
-        await deployment.state.broker.publish(RunEvent.of(record))
+        await deployment.state.broker.publish(RunEvent.of(record), org_id=ORG)
 
     publisher = asyncio.create_task(publish_soon())
     try:
@@ -146,6 +146,6 @@ async def test_a_stalled_consumer_is_disconnected_without_blocking_the_run(
                         event_id=f"flood-{index}", run_id=run_id, kind="turn_completed"
                     )
                 )
-                await deployment.state.broker.publish(RunEvent.of(record))
+                await deployment.state.broker.publish(RunEvent.of(record), org_id=ORG)
 
         assert deployment.state.broker.subscribers(run_id) <= 1

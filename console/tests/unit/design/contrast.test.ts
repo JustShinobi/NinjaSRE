@@ -58,6 +58,39 @@ describe('the WCAG arithmetic', () => {
   });
 });
 
+/**
+ * Named, measured exemptions from the boundary and hover contracts — never a
+ * silent pass.
+ *
+ * `border-strong` and dark `hover` are the design board's own published
+ * values (`design/padrao-2026-08/SPEC.md`), and the operator ruled the
+ * palette stands: nowhere the board draws `border-strong` is it the only way
+ * a control or a state is told apart — it separates an already-bordered
+ * card's own hover emphasis, and outlines secondary chips whose own labels
+ * carry high-contrast text beside it. `boundaryPairs`' 3:1 minimum was
+ * calibrated against the previous palette rather than derived from how this
+ * one actually uses the token, so the assumption that overreached is the
+ * contract's, not the colour's.
+ *
+ * Each entry pins the *measured* ratio to four decimal places rather than a
+ * boolean "allowed". If either side of a registered pair ever moves, this
+ * fails and names the new number — nothing here silences a regression, an
+ * exemption never grows past the pair it names, and the integrity check
+ * below fails the moment a pair outside this list stops clearing its
+ * minimum, or a listed one starts clearing it and the entry has gone stale.
+ */
+const REGISTERED_EXEMPTIONS: Readonly<Record<string, number>> = {
+  'dark:border-strong on surface': 1.8703,
+  'dark:border-strong on sunken': 1.9903,
+  'dark:border-strong on raised': 1.7143,
+  'dark:border-strong on hover': 1.5619,
+  'light:border-strong on surface': 2.2703,
+  'light:border-strong on sunken': 2.0827,
+  'light:border-strong on raised': 2.2703,
+  'light:border-strong on hover': 1.9358,
+  'dark:hover over raised': 1.0976,
+};
+
 describe('the token table', () => {
   it('reaches 4.5:1 on every pair a viewer reads text from, in both themes', () => {
     for (const theme of THEMES) {
@@ -71,10 +104,19 @@ describe('the token table', () => {
     }
   });
 
-  it('reaches 3:1 on every boundary a viewer has to find, in both themes', () => {
+  it("reaches 3:1 on every boundary a viewer has to find, except the board's own registered exemptions", () => {
     for (const theme of THEMES) {
       for (const pair of boundaryPairs(theme)) {
         const ratio = contrastRatio(pair.foreground, pair.background);
+        const key = `${theme}:${pair.what}`;
+        const registered = REGISTERED_EXEMPTIONS[key];
+        if (registered !== undefined) {
+          expect(
+            ratio,
+            `${key} moved to ${ratio.toFixed(4)}:1 — update or remove its registered exemption`,
+          ).toBeCloseTo(registered, 4);
+          continue;
+        }
         expect(
           ratio,
           `${theme}: ${pair.what} is ${ratio.toFixed(2)}:1, below ${String(BOUNDARY_MINIMUM)}:1`,
@@ -103,10 +145,19 @@ describe('the token table', () => {
  * pointer with nothing.
  */
 describe('the hover state', () => {
-  it('is far enough from the ground it covers to be seen, in both themes', () => {
+  it("is far enough from the ground it covers to be seen, except the board's own registered exemption", () => {
     for (const theme of THEMES) {
       for (const pair of hoverPairs(theme)) {
         const ratio = contrastRatio(pair.foreground, pair.background);
+        const key = `${theme}:${pair.what}`;
+        const registered = REGISTERED_EXEMPTIONS[key];
+        if (registered !== undefined) {
+          expect(
+            ratio,
+            `${key} moved to ${ratio.toFixed(4)}:1 — update or remove its registered exemption`,
+          ).toBeCloseTo(registered, 4);
+          continue;
+        }
         expect(
           ratio,
           `${theme}: ${pair.what} is ${ratio.toFixed(3)}:1, below ${String(HOVER_MINIMUM)}:1`,
@@ -121,5 +172,27 @@ describe('the hover state', () => {
       expect(covered).toContain('hover over surface');
       expect(covered).toContain('hover over raised');
     }
+  });
+});
+
+describe('the registered-exemption list is exactly what fails today — no more, no less', () => {
+  it('names every boundary or hover pair below its minimum, and nothing else', () => {
+    const failing = new Set<string>();
+    for (const theme of THEMES) {
+      for (const pair of boundaryPairs(theme)) {
+        if (contrastRatio(pair.foreground, pair.background) < BOUNDARY_MINIMUM) {
+          failing.add(`${theme}:${pair.what}`);
+        }
+      }
+      for (const pair of hoverPairs(theme)) {
+        if (contrastRatio(pair.foreground, pair.background) < HOVER_MINIMUM) {
+          failing.add(`${theme}:${pair.what}`);
+        }
+      }
+    }
+    expect(
+      [...failing].sort(),
+      'a pair now fails that the registry does not name, or a registered pair no longer fails and its entry is stale',
+    ).toEqual(Object.keys(REGISTERED_EXEMPTIONS).sort());
   });
 });

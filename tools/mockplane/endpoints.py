@@ -144,6 +144,15 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="a run's events, live",
         streaming=True,
     ),
+    # --- The deployment-wide event channel ---------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/events/stream",
+        slug="deployment-stream",
+        source=_GATEWAY,
+        summary="runs, incidents and decisions changing anywhere in the deployment, live",
+        streaming=True,
+    ),
     # --- Interactions -----------------------------------------------------------
     ConsoleEndpoint(
         method="GET",
@@ -180,9 +189,9 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         path="/v1/approvals",
         slug="approvals",
         source=_GATEWAY,
-        summary="undecided approvals, longest-waiting first",
+        summary="approvals in one state bucket, by field",
         records_key="approvals",
-        query=("run_id", "limit"),
+        query=("run_id", "limit", "state"),
     ),
     ConsoleEndpoint(
         method="GET",
@@ -197,6 +206,27 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         slug="approval-rollback",
         source=_GATEWAY,
         summary="recording that a stored rollback plan was executed",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/repropose",
+        slug="approval-repropose",
+        source=_GATEWAY,
+        summary="a fresh pending decision, queued from an expired one's origin",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/discard",
+        slug="approval-discard",
+        source=_GATEWAY,
+        summary="withdrawing a decision from the queue, marked rather than deleted",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/approvals/{approval_id}/decision",
+        slug="approval-decision",
+        source=_GATEWAY,
+        summary="approving or rejecting one approval directly, deciding it in place",
     ),
     # --- Changes the agent has proposed -----------------------------------------
     ConsoleEndpoint(
@@ -549,6 +579,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         slug="estate-summary",
         source=_GATEWAY,
         summary="the estate in one line per kind, with the counts a tile shows",
+    ),
+    # --- The Painel's overview ------------------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/overview",
+        slug="overview",
+        source=_GATEWAY,
+        summary="the five KPI tiles the Painel renders, each with a decomposition and a daily series",
     ),
     ConsoleEndpoint(
         method="GET",

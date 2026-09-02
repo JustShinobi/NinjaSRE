@@ -596,6 +596,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   >
                     <AutonomyEditor
                       nodeId={nodeId}
+                      locale={locale}
                       rules={editable}
                       levels={LEVELS}
                       levelLabels={postureLabels(locale, LEVELS)}

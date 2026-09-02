@@ -42,6 +42,13 @@ async function renderKnowledge(): Promise<void> {
   render(await Page({ searchParams: Promise.resolve({}) }));
 }
 
+/** The Documents tab, by its own address -- no longer the bare one now that
+ * FR-010 makes Learned the default. */
+async function renderDocuments(): Promise<void> {
+  const { default: Page } = await import('@/app/(shell)/knowledge/page');
+  render(await Page({ searchParams: Promise.resolve({ tab: 'documents' }) }));
+}
+
 /** `populated`, except the corpus itself answers empty. */
 function serveFinishedButEmpty(): void {
   vi.stubGlobal('fetch', (input: unknown) => {
@@ -71,7 +78,7 @@ describe('a deployment still being set up', () => {
   it('says the setup is unfinished rather than pointing at a control that is not there', async () => {
     serveScenario('empty');
 
-    await renderKnowledge();
+    await renderDocuments();
 
     expect(screen.getByText('Nothing has been ingested')).toBeInTheDocument();
     expect(screen.getByText(/still being set up/)).toBeInTheDocument();
@@ -94,7 +101,7 @@ describe('a finished deployment that has ingested nothing yet', () => {
   it('sends the action to a place a document can actually reach the corpus from', async () => {
     serveFinishedButEmpty();
 
-    await renderKnowledge();
+    await renderDocuments();
 
     expect(screen.getByText('Nothing has been ingested')).toBeInTheDocument();
     // The label is not fixed by this screen — but the destination must never
@@ -109,7 +116,7 @@ describe('what an investigation proposed to the knowledge base', () => {
   it('points at the one proposal queue instead of rendering a second copy of it', async () => {
     serveScenario('populated');
 
-    await renderKnowledge();
+    await renderDocuments();
 
     const link = screen.getByTestId('proposals-link');
     expect(link).toHaveAttribute('href', '/decisions?tab=changes');
@@ -125,7 +132,7 @@ describe('what an investigation proposed to the knowledge base', () => {
   it('says in words that this is the same queue Proposed changes shows, not a separate one', async () => {
     serveScenario('populated');
 
-    await renderKnowledge();
+    await renderDocuments();
 
     // The problem this pins: pointing at the queue and never rendering a
     // second copy of it proves there is no duplicate, but it does not by
@@ -143,6 +150,20 @@ describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
     const { default: Page } = await import('@/app/(shell)/knowledge/page');
     render(await Page({ searchParams: Promise.resolve({ tab }) }));
   }
+
+  it('says each advanced card’s own state on its closed face', async () => {
+    serveScenario('populated');
+    await renderTab('documents');
+
+    // The board's summary cards: title plus one status line, the accordion
+    // content a click away rather than stacked on the page. Four cards,
+    // four statuses — none of them blank.
+    const statuses = screen.getAllByTestId('advanced-section-status');
+    expect(statuses.length).toBe(4);
+    for (const status of statuses) {
+      expect(status.textContent.trim()).toBeTruthy();
+    }
+  });
 
   it('names the area Knowledge, whichever tab is open', async () => {
     serveScenario('populated');
@@ -164,20 +185,20 @@ describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
     ]);
   });
 
-  it('defaults to Documents for a bare address, so an existing bookmark still opens the same content', async () => {
+  it('defaults to Learned for a bare address, so it opens on what past investigations left behind', async () => {
     serveScenario('populated');
     await renderKnowledge();
 
-    expect(screen.getByTestId('row-list')).toBeInTheDocument();
+    expect(screen.getAllByTestId('episode-card').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('graph')).toBeNull();
   });
 
-  it('shows Learned — episodes and strategies — on its own tab', async () => {
+  it('shows Learned — episode cards, not the old Strategies panel — on its own tab', async () => {
     serveScenario('populated');
     await renderTab('learned');
 
-    expect(screen.getByText('Episodes')).toBeInTheDocument();
-    expect(screen.getByText('Strategies')).toBeInTheDocument();
+    expect(screen.getAllByTestId('episode-card').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Strategies')).toBeNull();
     expect(screen.queryByTestId('proposals-link')).toBeNull();
   });
 
@@ -329,7 +350,7 @@ describe('a filter with nothing behind it but "Any"', () => {
   it('is hidden when no document in the corpus has a kind', async () => {
     serveScenario('empty');
 
-    await renderKnowledge();
+    await renderDocuments();
 
     const filters = screen.queryAllByTestId('filter');
     expect(
@@ -340,7 +361,7 @@ describe('a filter with nothing behind it but "Any"', () => {
   it('is hidden on a finished deployment that has ingested nothing yet, too', async () => {
     serveFinishedButEmpty();
 
-    await renderKnowledge();
+    await renderDocuments();
 
     const filters = screen.queryAllByTestId('filter');
     expect(
@@ -351,7 +372,7 @@ describe('a filter with nothing behind it but "Any"', () => {
   it('stays once the corpus has more than one kind to choose between', async () => {
     serveScenario('populated');
 
-    await renderKnowledge();
+    await renderDocuments();
 
     const filters = screen.getAllByTestId('filter');
     expect(

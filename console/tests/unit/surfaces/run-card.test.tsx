@@ -124,7 +124,7 @@ describe('the evidence a run says it had', () => {
     );
 
     const chip = screen.getByTestId('run-evidence');
-    expect(chip).toHaveTextContent('2 of 3 claims backed');
+    expect(chip).toHaveTextContent('2 of 3 with evidence');
     expect(chip).toHaveAttribute('data-role', 'warning');
   });
 
@@ -666,9 +666,16 @@ describe('the header of a card', () => {
     expect(subjectClass(true)).toBe(subjectClass(false));
   });
 
-  it('never lets the subject take a second line, in either state', () => {
-    expect(subjectClass(true)).toContain('truncate');
-    expect(subjectClass(true)).not.toContain('line-clamp');
+  it('clips the subject at the same two lines, in either state', () => {
+    // The board's own list draws a headline that may wrap to two lines
+    // (`Investigations.dc.html`'s `.headline`) rather than clipping to one —
+    // the row grows to fit a genuinely long sentence instead of hiding the
+    // second half of it behind a tooltip nobody hovers on a touch device.
+    // What the describe block above still guards is untouched: both states
+    // clip at the same two lines, so nothing about the row's height depends
+    // on whether it happens to be the one under the pointer.
+    expect(subjectClass(true)).toContain('line-clamp-2');
+    expect(subjectClass(true)).not.toContain('truncate');
   });
 });
 

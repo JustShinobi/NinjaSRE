@@ -219,6 +219,14 @@ class PostgresEstateRepository(TenantBound):
         row = await self.session.get(models.EstateResource, (self.org_id, resource_id))
         return None if row is None else _to_resource(row)
 
+    async def get_many(self, resource_ids: tuple[str, ...]) -> Mapping[str, Resource]:
+        """Return the resources with these ids, keyed by id."""
+        if not resource_ids:
+            return {}
+        statement = self._resources().where(models.EstateResource.resource_id.in_(resource_ids))
+        rows = (await self.session.execute(statement)).scalars().all()
+        return {row.resource_id: _to_resource(row) for row in rows}
+
     async def by_native_id(self, *, source: str, native_id: str) -> Resource | None:
         """Return the present resource ``source`` calls ``native_id``, or ``None``."""
         statement = self._resources().where(
@@ -456,6 +464,32 @@ class PostgresEstateRepository(TenantBound):
         )
         rows = (await self.session.execute(statement)).scalars().all()
         return tuple(_to_transition(row) for row in rows)
+
+    async def unhealthy_since(
+        self,
+        resource_ids: tuple[str, ...],
+    ) -> Mapping[str, datetime]:
+        """Return, for each id currently on an unhealthy streak, when it began."""
+        if not resource_ids:
+            return {}
+        statement = (
+            select(
+                models.HealthTransitionRow.resource_id,
+                models.HealthTransitionRow.occurred_at,
+            )
+            .where(models.HealthTransitionRow.org_id == self.org_id)
+            .where(models.HealthTransitionRow.resource_id.in_(resource_ids))
+            .where(models.HealthTransitionRow.state == ResourceHealth.UNHEALTHY.value)
+            .distinct(models.HealthTransitionRow.resource_id)
+            .order_by(
+                models.HealthTransitionRow.resource_id,
+                models.HealthTransitionRow.occurred_at.desc(),
+            )
+        )
+        rows = (await self.session.execute(statement)).all()
+        return {
+            resource_id: as_utc(occurred_at) or occurred_at for resource_id, occurred_at in rows
+        }
 
     async def set_maintenance(
         self,

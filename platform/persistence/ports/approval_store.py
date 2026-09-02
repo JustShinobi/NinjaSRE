@@ -21,6 +21,22 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
+#: Where a request raised to replace an expired one records which one it came
+#: from — a key at the top level of ``arguments``, never a column of its own.
+#: Named here rather than where the value is written, because three things read
+#: it and each would otherwise spell it for itself: ``pending_for_origin``
+#: filters on it, ``create_request`` refuses a second live row carrying it, and
+#: PostgreSQL's ``ix_approvals_pending_origin`` indexes it. A writer and a
+#: filter that spell it two ways is a lookup answering ``None`` for ever, with
+#: nothing anywhere reporting an error.
+#:
+#: Top level, and written by the insert that creates the request, because a
+#: partial unique index can only be stated over a value already in the
+#: statement that writes the row. A marker applied by a later amendment leaves
+#: a committed proposal carrying none, which is precisely the window two
+#: concurrent reproposals used to both fit through.
+ORIGIN_APPROVAL_ID_KEY = "origin_approval_id"
+
 
 class ApprovalState(StrEnum):
     """Where an approval request got to."""
@@ -29,6 +45,11 @@ class ApprovalState(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
+    #: Withdrawn by a person rather than answered — today only reachable from
+    #: ``EXPIRED``, never from a request still within its own window. Distinct
+    #: from ``REJECTED``: nobody said no to the action, the window to say
+    #: anything at all closed first.
+    DISCARDED = "discarded"
 
     @property
     def is_decided(self) -> bool:
@@ -144,10 +165,34 @@ class ApprovalStore(Protocol):
     ) -> tuple[ApprovalRequest, ...]:
         """Return undecided requests, oldest first — longest-waiting first."""
 
+    async def pending_for_origin(self, approval_id: str) -> ApprovalRequest | None:
+        """Return the undecided request raised to replace ``approval_id``, or ``None``.
+
+        A lookup rather than something a caller filters out of ``list_pending``,
+        and the difference is correctness rather than speed. A replacement is
+        stamped with the instant it was raised, so it is the newest thing
+        waiting, while pending requests are read oldest first — any bounded page
+        of the queue stops containing it as soon as a page's worth of older
+        requests sits ahead of it. Asking "is one of these the replacement for
+        that origin" therefore answers "no" for a queue that is merely busy, at
+        every page size, and the caller then raises a second live proposal for
+        one expired decision.
+
+        Only an undecided one counts. Once the replacement has itself been
+        answered or has lapsed, its origin has nothing outstanding against it
+        and may be proposed again; a lookup that still returned the answered
+        one would make the second expiry unreproposable for ever.
+
+        The oldest wins when more than one exists — a state nothing should be
+        able to reach, and one an ordered answer at least makes the same on
+        every read rather than whichever row the database happened to return.
+        """
+
     async def list_decided(
         self,
         *,
         action: str | None = None,
+        states: Sequence[ApprovalState] | None = None,
         limit: int = 50,
     ) -> tuple[ApprovalRequest, ...]:
         """Return answered requests, most recently decided first.
@@ -160,6 +205,30 @@ class ApprovalStore(Protocol):
 
         Ordered by decision rather than by request, because "what was said most
         recently" is the question, and expired rows carry a decision instant too.
+
+        ``states`` narrows to exactly the states named — ``None`` keeps every
+        non-``PENDING`` row, the behaviour this had before the parameter
+        existed. A caller separating "expired, waiting on a repropose" from
+        "answered by a person" (``approved``/``rejected``/``discarded``) reads
+        two different pages of the same, otherwise-identical ordering rather
+        than one page it would have to split itself.
+        """
+
+    async def discard(
+        self,
+        approval_id: str,
+        *,
+        discarded_by: str,
+        discarded_at: datetime,
+    ) -> ApprovalRequest:
+        """Move ``approval_id`` to ``DISCARDED`` and return it as stored.
+
+        Reachable from ``PENDING`` or ``EXPIRED`` — never from a request a
+        person has already answered (``APPROVED``/``REJECTED``) or discarded
+        once already. Raises ``RecordNotFound`` for an unknown request and
+        ``AppendOnlyViolation`` for one already answered by a person. A
+        transition, exactly like ``decide`` and ``expire_due``: the row is
+        marked, never removed.
         """
 
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
@@ -193,6 +262,7 @@ class ApprovalStore(Protocol):
 
 
 __all__ = [
+    "ORIGIN_APPROVAL_ID_KEY",
     "ApprovalRequest",
     "ApprovalState",
     "ApprovalStore",

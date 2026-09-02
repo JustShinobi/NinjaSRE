@@ -1,75 +1,206 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  AttentionBlock,
-  ATTENTION_ROWS_SHOWN,
-  type AttentionRow,
-} from '@/surfaces/attention';
+import { AttentionBlock, type DecisionCardData } from '@/surfaces/attention';
 
 /**
- * The band is bounded, like every other list on this console.
- *
- * The pattern this design settles is that a list whose length nothing bounds
- * is grouped or paged, never dumped — and the band was the worst offender,
- * because the rows it dumps are the ones it most wants read. Sixteen of them
- * is a page nobody reads to the end of, which costs exactly the rows at the
- * bottom: the oldest, which is to say the ones that have been waiting longest.
+ * "Precisa de você": the plan is visible before either button is, the
+ * oldest pending decision is expanded, the rest are compact with a count,
+ * and an empty queue says so with a link to the history.
  */
-describe('how many rows the band shows', () => {
-  function rows(count: number): AttentionRow[] {
-    return Array.from({ length: count }, (_, index) => ({
-      id: `item-${String(index)}`,
-      kind: 'approval',
-      title: `Waiting item ${String(index)}`,
-      detail: 'awaiting decision',
-      href: `/decisions?selected=item-${String(index)}`,
-      since: '1h ago',
-    }));
-  }
 
-  function band(count: number): void {
+const REFRESH = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: REFRESH }),
+}));
+
+function decision(over: Partial<DecisionCardData> = {}): DecisionCardData {
+  return {
+    id: 'apr-1',
+    title: 'Reboot the guest lxc/122 on pve01',
+    riskClass: 'moderate',
+    since: '1h ago',
+    steps: [{ ordinal: 1, summary: 'Reboot the guest' }],
+    rollback: [{ ordinal: 1, summary: 'No rollback needed: rebooting is idempotent' }],
+    ...over,
+  };
+}
+
+describe('AttentionBlock', () => {
+  it('is a named empty state with a link to the decision history, not a blank band', () => {
+    render(<AttentionBlock locale="en" decisions={[]} canDecide />);
+
+    const empty = screen.getByTestId('attention-decision-empty');
+    expect(empty).toBeInTheDocument();
+    expect(empty.querySelector('a')).toHaveAttribute('href', '/decisions');
+  });
+
+  it('shows the plan and the reversal on the one pending card, expanded', () => {
+    render(<AttentionBlock locale="en" decisions={[decision()]} canDecide />);
+
+    const card = screen.getByTestId('attention-decision-card');
+    expect(card).toHaveAttribute('data-expanded', 'true');
+    expect(screen.getByTestId('attention-decision-plan')).toHaveTextContent(
+      'Reboot the guest',
+    );
+    expect(screen.getByTestId('attention-decision-rollback')).toHaveTextContent(
+      'No rollback needed',
+    );
+  });
+
+  it('expands only the oldest of several pending decisions, and counts the rest', () => {
     render(
       <AttentionBlock
-        heading={`${String(count)} items need you`}
-        oldest="Waiting longest: 2h"
-        rows={rows(count)}
-        openLabel="Open"
-        moreLabel={(over) => `and ${String(over)} more waiting`}
-        moreHref="/decisions"
+        locale="en"
+        decisions={[
+          decision({ id: 'apr-1' }),
+          decision({ id: 'apr-2' }),
+          decision({ id: 'apr-3' }),
+        ]}
+        canDecide
       />,
     );
+
+    const cards = screen.getAllByTestId('attention-decision-card');
+    expect(cards).toHaveLength(3);
+    expect(cards[0]).toHaveAttribute('data-expanded', 'true');
+    expect(cards[1]).toHaveAttribute('data-expanded', 'false');
+    expect(cards[2]).toHaveAttribute('data-expanded', 'false');
+    expect(screen.getByText('2 more waiting →')).toBeInTheDocument();
+  });
+
+  it('is informative rather than interactive without the permission to decide', () => {
+    render(<AttentionBlock locale="en" decisions={[decision()]} canDecide={false} />);
+
+    expect(screen.getByTestId('attention-decision-no-permission')).toBeInTheDocument();
+    expect(screen.queryByTestId('attention-approve')).toBeNull();
+    expect(screen.queryByTestId('attention-reject')).toBeNull();
+  });
+
+  it('always reaches the full decision in one click, whichever card it is', () => {
+    render(
+      <AttentionBlock
+        locale="en"
+        decisions={[decision({ id: 'apr-1' }), decision({ id: 'apr-2' })]}
+        canDecide
+      />,
+    );
+
+    const links = screen.getAllByTestId('attention-view-plan');
+    expect(links[0]).toHaveAttribute('href', '/decisions?tab=actions&selected=apr-1');
+    expect(links[1]).toHaveAttribute('href', '/decisions?tab=actions&selected=apr-2');
+  });
+});
+
+describe('AttentionBlock, deciding inline', () => {
+  beforeEach(() => {
+    REFRESH.mockClear();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true })),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function sentBody(): Record<string, unknown> {
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    return JSON.parse(init.body) as Record<string, unknown>;
   }
 
-  it('shows every row while they still fit', () => {
-    band(5);
-
-    expect(screen.getAllByTestId('attention-row')).toHaveLength(5);
-    expect(screen.queryByTestId('attention-more')).toBeNull();
-  });
-
-  it('stops at the cap and says how many it did not draw', () => {
-    band(16);
-
-    expect(screen.getAllByTestId('attention-row')).toHaveLength(ATTENTION_ROWS_SHOWN);
-    expect(screen.getByTestId('attention-more')).toHaveTextContent(
-      `and ${String(16 - ATTENTION_ROWS_SHOWN)} more waiting`,
+  it('shows the approve control enabled before any click, beside the plan already visible', () => {
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
     );
+
+    expect(screen.getByTestId('attention-decision-plan')).toBeVisible();
+    expect(screen.getByTestId('attention-decision-rollback')).toBeVisible();
+    expect(screen.getByTestId('attention-approve')).toBeEnabled();
   });
 
-  it('keeps the count in the heading honest about the whole queue', () => {
-    // The cap is a drawing decision. A band that also quietly reduced its own
-    // count would be hiding the backlog rather than bounding the page.
-    band(16);
-
-    expect(screen.getByText('16 items need you')).toBeInTheDocument();
-  });
-
-  it('reaches the rest in one click', () => {
-    band(16);
-
-    expect(screen.getByTestId('attention-more').getAttribute('href')).toBe(
-      '/decisions',
+  it('approves with no reason, and refreshes once the deployment records it', async () => {
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
     );
+
+    fireEvent.click(screen.getByTestId('attention-approve'));
+    await vi.waitFor(() => {
+      expect(REFRESH).toHaveBeenCalled();
+    });
+    expect(sentBody().payload).toEqual({ verdict: 'approve', reason: '' });
+  });
+
+  it('reveals the reason field only once Recusar is clicked, disables submit until it is filled', () => {
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
+
+    expect(screen.queryByTestId('attention-reject-reason')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('attention-reject'));
+    const reasonField = screen.getByTestId('attention-reject-reason');
+    expect(reasonField).toBeVisible();
+    const submit = screen.getByTestId('attention-reject-submit');
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(reasonField, { target: { value: 'not a real problem' } });
+    expect(submit).toBeEnabled();
+  });
+
+  it('sends the rejection and its reason once submitted, and refreshes', async () => {
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
+
+    fireEvent.click(screen.getByTestId('attention-reject'));
+    fireEvent.change(screen.getByTestId('attention-reject-reason'), {
+      target: { value: 'the workload recovered on its own' },
+    });
+    fireEvent.click(screen.getByTestId('attention-reject-submit'));
+
+    await vi.waitFor(() => {
+      expect(REFRESH).toHaveBeenCalled();
+    });
+    const body = sentBody();
+    expect(body.operation).toBe('decide');
+    expect(body.target).toBe('apr-1');
+    expect(body.payload).toEqual({
+      verdict: 'reject',
+      reason: 'the workload recovered on its own',
+    });
+  });
+
+  it('says so, rather than looking decided, when the deployment does not record the decision', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false })),
+    );
+    render(
+      <AttentionBlock locale="en" decisions={[decision({ id: 'apr-1' })]} canDecide />,
+    );
+
+    fireEvent.click(screen.getByTestId('attention-approve'));
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('attention-decision-failed')).toBeInTheDocument();
+    });
+    expect(REFRESH).not.toHaveBeenCalled();
+  });
+});
+
+describe('AttentionBlock mark', () => {
+  /**
+   * The warning triangle the board draws at the head of the band. Colour is
+   * never the only carrier of a state, and a card tinted `warning` with no
+   * shape on it is exactly that -- the same rule every status mark on this
+   * console already follows.
+   */
+  it('carries the warning shape on a pending decision, not colour alone', () => {
+    render(<AttentionBlock locale="en" decisions={[decision()]} canDecide />);
+    const mark = screen.getByTestId('attention-decision-mark');
+    expect(mark.className).toContain('clip-triangle');
   });
 });

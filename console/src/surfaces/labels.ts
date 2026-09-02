@@ -7,6 +7,7 @@ import type { PayloadLabels, Bound } from './payload';
 import type { RowListLabels } from './rows';
 import type { EventTime, TranscriptLabels } from './transcript-view';
 import {
+  narrate,
   TRANSCRIPT_KINDS,
   type TranscriptEvent,
   type TranscriptKind,
@@ -117,7 +118,13 @@ export function transcriptLabels(
   locale: Locale,
   events: readonly TranscriptEvent[],
 ): TranscriptLabels {
-  const first = Math.max(1, events.length - TRANSCRIPT_WINDOW + 1);
+  // The transcript now draws newest first (`Transcript`,
+  // `transcript-view.tsx`), so the default window — before either paging
+  // button has been pressed — is the *first* `TRANSCRIPT_WINDOW` of the
+  // reversed list, not the tail of the recorded one. This caption describes
+  // that default; it does not track the client's own paging state, the same
+  // limitation it already had before the order changed.
+  const last = Math.min(TRANSCRIPT_WINDOW, events.length);
   const kinds = Object.fromEntries(
     TRANSCRIPT_KINDS.map((kind) => [kind, message(locale, `transcript.kind.${kind}`)]),
   ) as Record<TranscriptKind, string>;
@@ -125,8 +132,8 @@ export function transcriptLabels(
   return {
     kinds,
     position: message(locale, 'transcript.position', {
-      first: formatNumber(locale, first),
-      last: formatNumber(locale, events.length),
+      first: formatNumber(locale, events.length === 0 ? 0 : 1),
+      last: formatNumber(locale, last),
       total: formatNumber(locale, events.length),
     }),
     earlier: message(locale, 'transcript.earlier'),
@@ -136,7 +143,30 @@ export function transcriptLabels(
     result: message(locale, 'transcript.result'),
     note: message(locale, 'transcript.note'),
     payload: payloadLabels(locale, { total: 0, shown: 0 }),
+    view: {
+      narrated: message(locale, 'transcript.view.narrated'),
+      raw: message(locale, 'transcript.view.raw'),
+      payload: message(locale, 'transcript.view.payload'),
+    },
   };
+}
+
+/**
+ * Every event's narrated sentence, composed once, keyed by event id.
+ *
+ * The same shape `eventTimes` already has, for the same reason: a live view
+ * recomputes this on every render as events arrive, a replayed view computes
+ * it once on the server, and `narrate` itself is a pure function of the
+ * event's own fields — so the two callers cannot end up narrating the same
+ * event two different ways.
+ */
+export function narrations(
+  locale: Locale,
+  events: readonly TranscriptEvent[],
+): Readonly<Record<string, string>> {
+  const composed: Record<string, string> = {};
+  for (const event of events) composed[event.id] = narrate(event, locale);
+  return composed;
 }
 
 /** Each event's instant and duration, formatted once on the server. */

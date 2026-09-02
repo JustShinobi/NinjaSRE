@@ -89,9 +89,16 @@ const LABELS = {
   addSectionDisabledReason: 'Type a name before adding a section.',
   sectionName: 'Section name',
   remove: 'Clear this section',
-  factNotInstruction: 'Write facts, not instructions.',
+  exampleFactLabel: 'Fact:',
+  exampleFactQuote: '"Container metrics come from the host, by vmid"',
+  exampleFactTail: '— changes how the agent reads what it sees.',
+  exampleInstructionLabel: 'Instruction:',
+  exampleInstructionQuote: '"always restart the service first"',
+  exampleInstructionTail: '— procedure does not live here.',
   runbooks: 'Runbooks live in Knowledge',
   policy: 'Procedures live in Autonomy',
+  rolesNote: 'Both roles read the same sections.',
+  savedNote: 'Saved per deployment — every new investigation is born reading this.',
   previewTitle: 'What the model will be sent',
   previewLead: 'The exact text the next investigation will carry.',
   submit: 'Show me the prompt',
@@ -138,6 +145,7 @@ function editor(
       tokensUsed={overrides.tokensUsed ?? 240}
       tokenBudget={overrides.tokenBudget ?? 1200}
       roles={['investigator', 'subagent']}
+      roleNames={{ investigator: 'Investigator', subagent: 'Sub-agent' }}
       labels={LABELS}
       writable={overrides.writable ?? true}
     />,
@@ -161,22 +169,25 @@ it('renders one editable section per name', () => {
 it('names the level that supplied each section', () => {
   editor();
 
-  const provenance = screen
-    .getAllByTestId('section-provenance')
-    .map((node) => [node.getAttribute('data-section'), node.textContent]);
-
-  expect(provenance).toEqual([
-    ['signals', `${LABELS.provenance}acme`],
-    ['network', `${LABELS.provenance}team-payments`],
+  // The header also carries the remove control's accessible name, so the
+  // claim is containment: the level's own word is there, per section.
+  const provenance = screen.getAllByTestId('section-provenance');
+  expect(provenance.map((node) => node.getAttribute('data-section'))).toEqual([
+    'signals',
+    'network',
   ]);
+  expect(provenance[0]?.textContent).toContain(`${LABELS.provenance}acme`);
+  expect(provenance[1]?.textContent).toContain(`${LABELS.provenance}team-payments`);
 });
 
-it('states that this field is for facts and points at where instructions go', () => {
+it('shows the fact/instruction example and points at where instructions go', () => {
   editor();
 
-  expect(screen.getByTestId('fact-not-instruction')).toHaveTextContent(
-    LABELS.factNotInstruction,
-  );
+  // The rule is shown, not told: one fact that earns its place, one
+  // instruction struck through.
+  const example = screen.getByTestId('fact-not-instruction');
+  expect(example).toHaveTextContent(LABELS.exampleFactQuote);
+  expect(example.querySelector('s')?.textContent).toBe(LABELS.exampleInstructionQuote);
   expect(screen.getByRole('link', { name: LABELS.runbooks })).toHaveAttribute(
     'href',
     '/knowledge',
@@ -194,6 +205,31 @@ it('states that this field is for facts and points at where instructions go', ()
   );
 });
 
+it('clears a served section from its own card, which is how an inherited one is silenced', async () => {
+  editor();
+
+  const network = screen
+    .getAllByTestId('context-section')
+    .find((section) => section.getAttribute('data-section') === 'network');
+  if (network === undefined) throw new Error('no network section');
+  const remove = network.querySelector('[data-testid="remove-section"]');
+  if (remove === null) throw new Error('no remove control');
+  await userEvent.click(remove);
+
+  // The card stays — a served section is silenced, never deleted — and the
+  // body it would send is now empty.
+  expect(screen.getByLabelText('network')).toHaveValue('');
+});
+
+it('carries the rail notes: what exceeds the budget, and where this is saved', () => {
+  editor();
+
+  expect(screen.getByTestId('context-budget-consequence')).toHaveTextContent(
+    LABELS.budgetConsequence,
+  );
+  expect(screen.getByTestId('context-saved-note')).toHaveTextContent(LABELS.savedNote);
+});
+
 it('says which roles this text is sent to, in words and not as statuses', () => {
   editor();
 
@@ -202,7 +238,7 @@ it('says which roles this text is sent to, in words and not as statuses', () => 
     'investigator',
     'subagent',
   ]);
-  expect(tags.map((tag) => tag.textContent)).toEqual(['Investigator', 'Subagent']);
+  expect(tags.map((tag) => tag.textContent)).toEqual(['Investigator', 'Sub-agent']);
   // Through the status badge an unrecognised word takes the hollow ring that
   // means "a status this console has never heard of", so a list of audiences
   // rendered as a row of unticked checkboxes. A role is not a state.
@@ -214,7 +250,8 @@ it('says which roles this text is sent to, in words and not as statuses', () => 
 it('shows what the context costs against the budget the deployment declares', () => {
   editor();
 
-  expect(screen.getByTestId('context-budget')).toHaveTextContent('240 of 1200 tokens');
+  expect(screen.getByTestId('context-budget')).toHaveTextContent('of 1200 tokens');
+  expect(screen.getByTestId('context-budget')).toHaveTextContent('240');
 });
 
 it('explains the consequence of the budget before anybody is anywhere near it', () => {
