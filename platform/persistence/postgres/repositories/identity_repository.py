@@ -306,6 +306,15 @@ class PostgresIdentityRepository(TenantBound):
         )
         return tuple(_to_binding(row) for row in rows)
 
+    async def list_role_bindings(self) -> tuple[RoleBinding, ...]:
+        """Return every role binding in this tenant, by role then binding id."""
+        rows = await self.session.scalars(
+            select(models.RoleBinding)
+            .where(models.RoleBinding.org_id == self.org_id)
+            .order_by(models.RoleBinding.role, models.RoleBinding.binding_id)
+        )
+        return tuple(_to_binding(row) for row in rows)
+
     async def remove_role_binding(self, binding_id: str) -> bool:
         """Remove ``binding_id`` and return whether it existed."""
         row = await self.session.get(models.RoleBinding, (self.org_id, binding_id))

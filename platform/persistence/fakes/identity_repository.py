@@ -180,6 +180,12 @@ class FakeIdentityRepository:
         held = [b for b in self.state.role_bindings.values() if b.user_id == user_id]
         return tuple(sorted(held, key=lambda b: (b.role, b.binding_id)))
 
+    async def list_role_bindings(self) -> tuple[RoleBinding, ...]:
+        """Return every role binding in this tenant, by role then binding id."""
+        return tuple(
+            sorted(self.state.role_bindings.values(), key=lambda b: (b.role, b.binding_id))
+        )
+
     async def remove_role_binding(self, binding_id: str) -> bool:
         """Remove ``binding_id`` and return whether it existed."""
         return self.state.role_bindings.pop(binding_id, None) is not None

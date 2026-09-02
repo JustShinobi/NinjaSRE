@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Final
 
 import yaml
@@ -154,17 +156,15 @@ class TemplateLibrary:
         that is missing. A template that quietly stopped loading would be a
         template that quietly stopped being offered, and the console renders
         this list.
+
+        Parsed once per process and shared. The files ship inside the
+        package and cannot change while it runs, and every request that
+        builds a configuration service asks for this library — reading and
+        parsing them again each time was a fixed 28 ms on every such route.
+        The library is frozen and its mapping read-only, which is what makes
+        sharing one instance safe.
         """
-        found: dict[str, ConfigTemplate] = {}
-        for name in GOLDEN_TEMPLATES:
-            path = GOLDEN_DIRECTORY / f"{name}{TEMPLATE_FILE_SUFFIX}"
-            template = load(path)
-            if template.name != name:
-                raise TemplateInvalid(
-                    str(path), f"is named {template.name!r} but is filed as {name!r}"
-                )
-            found[name] = template
-        return cls(templates=found)
+        return _shipped_library()
 
     @classmethod
     def of_directory(cls, directory: Path) -> TemplateLibrary:
@@ -204,6 +204,28 @@ class TemplateLibrary:
         return len(self.templates)
 
 
+@cache
+def _shipped_library() -> TemplateLibrary:
+    """Read and parse the shipped templates, the one time this process does."""
+    found: dict[str, ConfigTemplate] = {}
+    for name in GOLDEN_TEMPLATES:
+        path = GOLDEN_DIRECTORY / f"{name}{TEMPLATE_FILE_SUFFIX}"
+        template = load(path)
+        if template.name != name:
+            raise TemplateInvalid(str(path), f"is named {template.name!r} but is filed as {name!r}")
+        found[name] = template
+    return TemplateLibrary(templates=MappingProxyType(found))
+
+
+def forget_shipped_templates() -> None:
+    """Drop the parsed shipped templates, so the next ``golden`` reads them again.
+
+    For a test that wants to watch the read happen. Nothing in a running
+    deployment calls this: the files it would re-read are the ones it shipped with.
+    """
+    _shipped_library.cache_clear()
+
+
 def load(path: Path) -> ConfigTemplate:
     """Return the template stored at ``path``."""
     try:
@@ -237,6 +259,7 @@ def preview(template: ConfigTemplate, settings: Mapping[str, Any]) -> TemplateDi
 
 
 __all__ = [
+    "forget_shipped_templates",
     "GOLDEN_DIRECTORY",
     "TEMPLATE_FIELDS",
     "ConfigTemplate",

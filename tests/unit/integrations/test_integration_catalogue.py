@@ -19,7 +19,13 @@ import pytest
 
 from integrations._catalogue.entry import HealthStatus, IntegrationCategory, ParityStatus
 from integrations._catalogue.health import HealthLedger
-from integrations._catalogue.validation import Artefact, ParityError, parity_of, validate_parity
+from integrations._catalogue.validation import (
+    Artefact,
+    ParityError,
+    ParityReport,
+    parity_of,
+    validate_parity,
+)
 
 
 def complete(root: Path, vendor: str, *, skills: Path, scenarios: Path) -> None:
@@ -240,3 +246,37 @@ def test_every_domain_the_templates_cover_is_a_catalogue_category() -> None:
         "communication",
         "data_platform",
     }
+
+
+def test_the_installed_integrations_are_walked_once_and_health_is_applied_per_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The checklist and the integrations screen each walk the vendor packages on every render.
+
+    What the walk finds — which packages exist, their profiles, their parity,
+    their tools — cannot change while the process runs. What the ledger says
+    about each one can, and does, so health is applied to the remembered
+    shape on every call rather than remembered with it.
+    """
+    from integrations._catalogue import discovery
+    from integrations._catalogue.entry import HealthStatus
+    from integrations._catalogue.health import HealthLedger
+
+    discovery.forget_installed()
+    walks = {"parity": 0}
+    real_reports = discovery.parity_reports
+
+    def counted() -> tuple[ParityReport, ...]:
+        walks["parity"] += 1
+        return real_reports()
+
+    monkeypatch.setattr(discovery, "parity_reports", counted)
+
+    unknown = {entry.name: entry.health for entry in discovery.catalogue()}
+    ledger = HealthLedger()
+    ledger.record_failure("prometheus", detail="it did not answer")
+    checked = {entry.name: entry.health for entry in discovery.catalogue(health=ledger)}
+
+    assert walks["parity"] == 1
+    assert unknown["prometheus"] is HealthStatus.UNKNOWN
+    assert checked["prometheus"] is not HealthStatus.UNKNOWN

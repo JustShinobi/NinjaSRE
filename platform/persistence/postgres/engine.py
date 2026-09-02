@@ -20,8 +20,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Any
 
-from sqlalchemy import text
+from asyncpg.exceptions import PostgresError
+from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
@@ -64,9 +66,32 @@ def sync_url(url: str) -> str:
     return url
 
 
+def _load_graph_library(dbapi_connection: Any, connection_record: Any) -> None:
+    """Make Apache AGE usable on a connection the pool has just opened.
+
+    ``LOAD`` is per session, and a pooled connection *is* a session that
+    outlives every transaction run on it — so this is the one place the load
+    belongs. It used to run inside every unit of work instead, wrapped in a
+    savepoint so a refusal could be survived: three statements per
+    transaction, two or three transactions per request, to re-establish
+    something the connection already had.
+
+    A refusal is not an error here. ``LOAD`` is superuser-only unless the
+    library sits where PostgreSQL allows unprivileged loads, and a server that
+    carries AGE in ``shared_preload_libraries`` needs no load at all. Whether
+    Cypher actually runs is decided once at startup by ``graph.bootstrap``,
+    which asks the catalogue rather than trusting this call either way.
+    """
+    del connection_record
+    try:
+        dbapi_connection.run_async(lambda connection: connection.execute("LOAD 'age'"))
+    except PostgresError:
+        return
+
+
 def create_engine(url: str, *, echo: bool = False) -> AsyncEngine:
     """Return an engine with the pool sized from ``config.constants.persistence``."""
-    return create_async_engine(
+    engine = create_async_engine(
         async_url(url),
         echo=echo,
         pool_size=DATABASE_POOL_MAX_SIZE,
@@ -89,6 +114,8 @@ def create_engine(url: str, *, echo: bool = False) -> AsyncEngine:
             }
         },
     )
+    event.listen(engine.sync_engine, "connect", _load_graph_library)
+    return engine
 
 
 @asynccontextmanager

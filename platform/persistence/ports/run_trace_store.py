@@ -20,7 +20,7 @@ a trace table outgrows the database it was meant to fit inside.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -232,16 +232,21 @@ class RunTraceStore(Protocol):
     async def list_runs(
         self,
         *,
-        status: RunStatus | None = None,
+        status: RunStatus | Collection[RunStatus] | None = None,
         alert_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        run_ids: Collection[str] | None = None,
         limit: int = 50,
     ) -> tuple[AgentRun, ...]:
         """Return matching runs, most recently started first.
 
-        ``limit`` is capped by ``MAX_QUERY_PAGE_SIZE``; above it,
-        ``BoundExceeded``.
+        ``status`` is one status or any collection of them — "the runs that
+        ended badly" is one read, whichever of the three ways a run ends
+        badly each one did. ``run_ids`` narrows to the runs named, so a screen
+        that already knows which runs it cites reads those and not a page;
+        an empty collection names nothing and returns nothing. ``limit`` is
+        capped by ``MAX_QUERY_PAGE_SIZE``; above it, ``BoundExceeded``.
         """
 
     async def record_turn(self, turn: TurnRecord) -> TurnRecord:

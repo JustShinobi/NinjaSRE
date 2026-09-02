@@ -8,6 +8,7 @@ configure — which is what stops a template passing because it parsed.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -119,6 +120,34 @@ def validator() -> ConfigValidator:
         integrations=StaticIntegrationDirectory.of([IntegrationSchema(name="placeholder")]),
         guardrails=GuardrailEngine(),
     )
+
+
+def test_the_shipped_templates_are_parsed_once_per_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every request that builds a configuration service asked for the library.
+
+    Each ask read and parsed every shipped YAML file again — 28 ms on the
+    gateway, on `/v1/config`, `/v1/proposals`, `/v1/incidents` and every
+    other route that resolves a node — for files that cannot change while
+    the process runs. Parsed once, then the same library handed back.
+    """
+    from platform.config_service.templates import engine
+
+    engine.forget_shipped_templates()
+    parsed = {"files": 0}
+    real_load = engine.load
+
+    def counted(path: Path) -> ConfigTemplate:
+        parsed["files"] += 1
+        return real_load(path)
+
+    monkeypatch.setattr(engine, "load", counted)
+
+    first = TemplateLibrary.golden()
+    second = TemplateLibrary.golden()
+
+    assert parsed["files"] == len(GOLDEN_TEMPLATES)
+    assert second is first
+    assert first.names() == tuple(sorted(GOLDEN_TEMPLATES))
 
 
 @pytest.mark.parametrize("name", GOLDEN_TEMPLATES)

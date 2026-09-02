@@ -16,6 +16,7 @@ a driver error nobody can act on.
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
@@ -23,6 +24,10 @@ from dataclasses import dataclass, field, replace
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from config.constants.persistence import (
+    ORGANISATION_LOOKUP_CACHE_TTL_SECONDS,
+    STORE_HEALTH_FACTS_TTL_SECONDS,
+)
 from platform.persistence.errors import RecordNotFound
 from platform.persistence.health import summarise
 from platform.persistence.ports.health import StoreHealth
@@ -244,6 +249,11 @@ class PostgresPersistence:
         self._sessions = async_sessionmaker(engine, expire_on_commit=False)
         self._graph: bootstrap.GraphReadiness | None = None
         self._closed = False
+        #: Organisations a unit of work has been opened for, and until when
+        #: each may be trusted to still exist without asking again.
+        self._organisations: dict[str, float] = {}
+        #: The last health report, and until when its deploy-time facts hold.
+        self._health_facts: tuple[float, StoreHealth] | None = None
 
     @classmethod
     def from_url(cls, url: str, *, echo: bool = False) -> PostgresPersistence:
@@ -286,23 +296,36 @@ class PostgresPersistence:
         self.install_encryption_key()
         await migrations.upgrade_to_head(self._engine)
         await self._graph_readiness()
+        # Whatever was reported before the schema moved is about a different
+        # database from the one being reported on now.
+        self._health_facts = None
         return await self.health()
 
     @asynccontextmanager
     async def begin(self, scope: TenantScope) -> AsyncIterator[UnitOfWork]:
-        """Open a transaction bound to ``scope``."""
+        """Open a transaction bound to ``scope``.
+
+        Nothing is sent before the caller's first statement for a tenant this
+        gateway has already opened a unit of work for. The organisation is
+        looked up the first time and trusted for
+        ``ORGANISATION_LOOKUP_CACHE_TTL_SECONDS`` after; the graph library is
+        loaded by the pool, once per connection, rather than here. A scope
+        naming an organisation nobody created is still refused, on its first
+        open and on every open after the window closes.
+        """
         graph = await self._graph_readiness()
         async with self._sessions() as session:
             try:
                 async with session.begin():
-                    if graph.available:
-                        await bootstrap.load(await session.connection())
-
-                    organisation = await PostgresOrgDirectory(session).get_organisation(
-                        scope.org_id
-                    )
-                    if organisation is None:
-                        raise RecordNotFound(kind="organisation", identifier=scope.org_id)
+                    if not self._organisation_known(scope.org_id):
+                        organisation = await PostgresOrgDirectory(session).get_organisation(
+                            scope.org_id
+                        )
+                        if organisation is None:
+                            raise RecordNotFound(kind="organisation", identifier=scope.org_id)
+                        self._organisations[scope.org_id] = (
+                            time.monotonic() + ORGANISATION_LOOKUP_CACHE_TTL_SECONDS
+                        )
 
                     unit = PostgresUnitOfWork(scope=scope, session=session, graph=graph)
                     yield unit
@@ -313,16 +336,35 @@ class PostgresPersistence:
 
     @asynccontextmanager
     async def begin_system(self) -> AsyncIterator[SystemUnitOfWork]:
-        """Open a transaction for the operations that have no tenant yet."""
-        async with self._sessions() as session:
-            try:
-                async with session.begin():
-                    unit = PostgresSystemUnitOfWork(session=session)
-                    yield unit
-                    if unit.is_rollback_only:
-                        raise _RollbackOnly
-            except _RollbackOnly:
-                pass
+        """Open a transaction for the operations that have no tenant yet.
+
+        A system unit of work is the only kind that creates or deletes an
+        organisation, so whatever ``begin`` remembered about which ones exist
+        is forgotten when one ends — whether or not it changed anything,
+        because asking is cheaper than knowing.
+        """
+        try:
+            async with self._sessions() as session:
+                try:
+                    async with session.begin():
+                        unit = PostgresSystemUnitOfWork(session=session)
+                        yield unit
+                        if unit.is_rollback_only:
+                            raise _RollbackOnly
+                except _RollbackOnly:
+                    pass
+        finally:
+            self._organisations.clear()
+
+    def _organisation_known(self, org_id: str) -> bool:
+        """Return whether ``org_id`` was looked up recently enough to trust."""
+        until = self._organisations.get(org_id)
+        if until is None:
+            return False
+        if time.monotonic() >= until:
+            del self._organisations[org_id]
+            return False
+        return True
 
     async def _graph_readiness(self) -> bootstrap.GraphReadiness:
         """Return whether Cypher will run, creating the graph on first use.
@@ -336,13 +378,27 @@ class PostgresPersistence:
         return self._graph
 
     async def health(self) -> StoreHealth:
-        """Return connectivity, extension, and migration status (FR-023)."""
+        """Return connectivity, extension, and migration status (FR-023).
+
+        Connectivity is asked every time: a liveness probe that reported a
+        cached answer would keep a process alive whose database had gone.
+        The rest of the report — server version, extensions, applied
+        migration, whether Cypher runs, which credentials decrypt — changes
+        only at a deploy, and is reused for ``STORE_HEALTH_FACTS_TTL_SECONDS``
+        rather than re-probed for every liveness check, readiness check and
+        console render that reads it.
+        """
         if self._closed:
             return summarise(connected=False, failure="The gateway has been closed.")
 
         failure = await check_connectivity(self._engine)
         if failure is not None:
+            self._health_facts = None
             return summarise(connected=False, failure=failure)
+
+        remembered = self._health_facts
+        if remembered is not None and time.monotonic() < remembered[0]:
+            return remembered[1]
 
         try:
             async with connection(self._engine) as conn:
@@ -354,7 +410,7 @@ class PostgresPersistence:
 
         undecryptable = await self._undecryptable_credentials()
 
-        return summarise(
+        report = summarise(
             connected=True,
             server_version=facts.server_version,
             # AGE can be installed and still unusable — a graph that was never
@@ -369,11 +425,15 @@ class PostgresPersistence:
             undecryptable_credentials=undecryptable,
             failure=None if graph.available else graph.reason,
         )
+        self._health_facts = (time.monotonic() + STORE_HEALTH_FACTS_TTL_SECONDS, report)
+        return report
 
     async def close(self) -> None:
         """Release the connection pool. Idempotent."""
         if not self._closed:
             self._closed = True
+            self._organisations.clear()
+            self._health_facts = None
             await self._engine.dispose()
 
     async def _undecryptable_credentials(self) -> tuple[str, ...]:

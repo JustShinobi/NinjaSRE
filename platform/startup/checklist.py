@@ -59,11 +59,10 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
 )
 from config.constants.llm import SUPPORTED_PROVIDERS
-from platform.credentials.schemas import CredentialSchemaRegistry
-from platform.credentials.vault import Vault
+from platform.credentials.vault import active_versions
 from platform.persistence.ports.estate_repository import EstateQuery, Resource
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
-from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.persistence.ports.transaction import PersistenceGateway, TenantScope, UnitOfWork
 from platform.persistence.ports.verification_ledger import VerificationRecord
 
 #: How many resources are named in the guided objective before it stops listing.
@@ -206,22 +205,23 @@ async def build_checklist(
     first investigation the deployment cannot perform.
     """
     scope = TenantScope(org_id=organisation_id)
-    stored = await _stored_credentials(gateway, scope)
     checked_providers = provider_checks or {}
     checked_integrations = integration_checks or {}
 
     async with gateway.begin(scope) as uow:
+        stored = await _stored_credentials(uow)
         people = [
             user
             for user in await uow.identity.list_users()
             if user.user_id != BOOTSTRAP_PRINCIPAL_ID and user.is_active
         ]
-        claimed = False
-        for person in people:
-            tokens = await uow.identity.tokens_for_user(person.user_id)
-            if any(token.revoked_at is None for token in tokens):
-                claimed = True
-                break
+        # One read of the tenant's tokens, not one per person: the question is
+        # whether anybody signed in, and forty people were forty round trips.
+        holders = {person.user_id for person in people}
+        claimed = any(
+            token.revoked_at is None and token.user_id in holders
+            for token in await uow.identity.list_tokens()
+        )
 
         resources = await uow.estate.query(EstateQuery(limit=1))
         finished = await uow.run_traces.list_runs(status=RunStatus.COMPLETED, limit=1)
@@ -273,7 +273,7 @@ def readiness_of(*, configured: bool, checked: VerificationRecord | None) -> str
     return SETUP_READINESS_CONFIGURED if configured else SETUP_READINESS_ABSENT
 
 
-async def _stored_credentials(gateway: PersistenceGateway, scope: TenantScope) -> frozenset[str]:
+async def _stored_credentials(uow: UnitOfWork) -> frozenset[str]:
     """Return every integration this organisation holds a live credential for.
 
     Across teams, not only the organisation-wide handle. The question a first
@@ -282,11 +282,12 @@ async def _stored_credentials(gateway: PersistenceGateway, scope: TenantScope) -
     who set it up did so under theirs.
 
     Metadata only — the vault exposes no path that reads a value, which is what
-    lets a checklist ask this at all. The empty schema registry is the honest
-    argument for a read: nothing here validates anything.
+    lets a checklist ask this at all. Read inside the caller's own unit of
+    work, beside the other four tables the checklist reads, rather than in a
+    transaction of its own: a transaction is three round trips before its
+    first statement.
     """
-    vault = Vault(gateway=gateway, schemas=CredentialSchemaRegistry())
-    return frozenset(version.integration for version in await vault.list(scope))
+    return frozenset(version.integration for version in await active_versions(uow.credentials))
 
 
 def _state(done: bool, *, blocked: bool) -> str:

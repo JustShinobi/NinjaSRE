@@ -6965,6 +6965,19 @@
         "title": "RunReplayView",
         "type": "object"
       },
+      "RunStatus": {
+        "description": "Where a run got to.\n\nMirrors the runtime's own session status rather than inventing a second\nvocabulary: an operator reading a stored trace and an operator watching a\nlive run should not have to translate between two sets of words.\n\n``INTERRUPTED`` is the one word the runtime has no use for, because a\nprocess that vanished did not get to record anything. It is written *for* a\nrun by whoever noticed it stopped — a reaper finding an expired lease, a\nreplica finding a run still marked running at boot — and it says something\n``FAILED`` does not: nobody knows how far this got. Recording it as a\nfailure would put a conclusion in the history that nothing established.",
+        "enum": [
+          "running",
+          "suspended",
+          "completed",
+          "cancelled",
+          "failed",
+          "interrupted"
+        ],
+        "title": "RunStatus",
+        "type": "string"
+      },
       "SampleView": {
         "description": "The last payload a source sent, after masking, and which policy did it.",
         "properties": {
@@ -14798,7 +14811,7 @@
     },
     "/v1/overview": {
       "get": {
-        "description": "Return the five KPI tiles the Painel renders, from one read.",
+        "description": "Return the five KPI tiles the Painel renders, from one read.\n\nServed as computed for ``OVERVIEW_CACHE_TTL_SECONDS`` per scope. The\nfigures are a fortnight's, and computing them drains every incident and\nrun in that fortnight on a screen every session opens first; the\n``captured_at`` on the view says which instant they describe, so a reader\nis never told a remembered figure is a fresh one.",
         "operationId": "overview_v1_overview_get",
         "parameters": [
           {
@@ -15870,7 +15883,7 @@
     },
     "/v1/runs": {
       "get": {
-        "description": "Return recent runs visible to the caller, newest first.\n\nEach carries how sure it was, because the list is where somebody decides\nwhich run to open and \"did it actually back this\" is the question that\ndecides it. Read in one batched query over the whole page rather than one\nper row — the per-row version works on a demo and is a fifty-query page in\na deployment that has been running a while.",
+        "description": "Return recent runs visible to the caller, newest first.\n\nEach carries how sure it was, because the list is where somebody decides\nwhich run to open and \"did it actually back this\" is the question that\ndecides it. Read in one batched query over the whole page rather than one\nper row — the per-row version works on a demo and is a fifty-query page in\na deployment that has been running a while.\n\n``status`` may be repeated, and the page is then the runs in any of them\n— the console's attention band asks for the failed, the cancelled and the\ninterrupted runs in one read, where it used to read the whole page and\nkeep three rows of it. A word this deployment has no status for is\nrefused as a validation error, like any other malformed query.\n\n``run_id`` may be repeated too, for a screen that already knows which\nruns it cites — the incidents screen names the run behind each settled\nfiring — and would otherwise read a page of fifty to find them.",
         "operationId": "list_runs_v1_runs_get",
         "parameters": [
           {
@@ -15881,6 +15894,44 @@
               "default": 50,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/RunStatus"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
             }
           },
           {

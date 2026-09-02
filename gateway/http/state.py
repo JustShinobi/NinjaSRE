@@ -161,6 +161,12 @@ class GatewayState:
     #: "nothing changed": an absence from a source nobody configured is not
     #: evidence of anything.
     change_sources: Sequence[Any] = field(default_factory=tuple)
+    #: Each scope's last computed overview, and until when it is served as
+    #: is. Held here rather than in the route module: the memo belongs to one
+    #: running deployment, and a test builds one of these per deployment.
+    remembered_overviews: dict[tuple[str, str | None], tuple[float, Any]] = field(
+        default_factory=dict
+    )
     #: How this deployment reaches the MCP and ACP servers its teams registered.
     #: ``None`` in a deployment that composed none — reaching one needs a
     #: transport and the credential proxy — and then the bridged catalogue says

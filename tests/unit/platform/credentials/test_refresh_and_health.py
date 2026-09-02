@@ -203,6 +203,46 @@ async def test_health_reports_a_configured_integration(harness: Harness) -> None
     assert report.entries[0].version == 1
 
 
+async def test_health_reads_the_vault_once_however_many_integrations_it_reports(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The providers screen reports five vendors; that was eleven transactions.
+
+    One per vendor to find its live version, one more for the fallback of
+    each that had none, and one to learn which handles decrypt. The listing
+    already holds every live version, so the report is that read plus the
+    decryptability check, whatever the number of vendors.
+    """
+    from platform.credentials.vault import Vault
+
+    await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
+    await harness.vault.store(harness.scope(), harness.handle().fallback(), {"api_key": FIRST_KEY})
+    opened = {"units": 0}
+    real_begin = harness.gateway.begin
+
+    def counted(scope):  # type: ignore[no-untyped-def]
+        opened["units"] += 1
+        return real_begin(scope)
+
+    monkeypatch.setattr(harness.gateway, "begin", counted)
+
+    async def per_handle(self: Vault, *args: object, **kwargs: object) -> object:
+        raise AssertionError("the report asked for one handle's version on its own")
+
+    monkeypatch.setattr(Vault, "active", per_handle)
+
+    report = await CredentialHealth(vault=harness.vault).report(
+        harness.scope(),
+        integrations=(INTEGRATION, "never-configured", "nor-this-one"),
+        team_id=OTHER_TEAM_ID,
+    )
+
+    by_name = {entry.integration: entry.state for entry in report.entries}
+    assert by_name[INTEGRATION] is CredentialHealthState.CONFIGURED
+    assert by_name["never-configured"] is CredentialHealthState.MISSING
+    assert opened["units"] <= 2
+
+
 async def test_health_tells_missing_apart_from_expired(harness: Harness) -> None:
     """Two different operator actions, so two different states."""
     await harness.vault.store(

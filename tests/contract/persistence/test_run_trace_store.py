@@ -57,6 +57,50 @@ async def test_completing_a_run_records_its_terminal_status(
     assert closed.summary is not None
 
 
+async def test_runs_are_listed_by_any_of_several_statuses_at_once(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """One read for "the runs that ended badly", whichever way they ended.
+
+    The console's attention band needs the failed, the cancelled and the
+    interrupted runs together. Reading the whole recent page and filtering
+    it client-side made every render of every screen fetch fifty full runs
+    to find the two that mattered.
+    """
+    async with gateway.begin(scope) as uow:
+        for run_id, status in (
+            ("run-ok", RunStatus.COMPLETED),
+            ("run-failed", RunStatus.FAILED),
+            ("run-cancelled", RunStatus.CANCELLED),
+        ):
+            await uow.run_traces.start_run(run(run_id))
+            await uow.run_traces.complete_run(run_id, status=status, finished_at=at(5))
+        await uow.run_traces.start_run(run("run-live", minutes=1))
+
+        badly = await uow.run_traces.list_runs(
+            status=(RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.INTERRUPTED)
+        )
+        one = await uow.run_traces.list_runs(status=RunStatus.FAILED)
+
+    assert {each.run_id for each in badly} == {"run-failed", "run-cancelled"}
+    assert [each.run_id for each in one] == ["run-failed"]
+
+
+async def test_runs_are_listed_by_identifier_so_a_screen_reads_only_the_ones_it_names(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The incidents screen names the runs its settled firings cite; it read fifty to find them."""
+    async with gateway.begin(scope) as uow:
+        for run_id in ("run-a", "run-b", "run-c"):
+            await uow.run_traces.start_run(run(run_id))
+
+        named = await uow.run_traces.list_runs(run_ids=("run-c", "run-a", "run-never"))
+        none = await uow.run_traces.list_runs(run_ids=())
+
+    assert {each.run_id for each in named} == {"run-a", "run-c"}
+    assert none == ()
+
+
 async def test_a_turn_for_an_unknown_run_is_refused(
     gateway: PersistenceGateway, scope: TenantScope
 ) -> None:

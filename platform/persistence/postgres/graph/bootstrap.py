@@ -83,9 +83,11 @@ class GraphReadiness:
 async def load(conn: AsyncConnection) -> bool:
     """Make AGE usable on this connection, and report whether it is.
 
-    Idempotent and cheap on a connection that already has it, which is what
-    makes calling it per unit of work acceptable rather than something to cache
-    and get wrong after the pool recycles a connection.
+    Called once, by ``ensure`` at startup, on the connection that decides
+    whether Cypher runs at all. Every other connection gets its load from the
+    pool's own connect hook (``engine._load_graph_library``), once per
+    connection rather than once per unit of work — a pooled connection is a
+    session, and a session keeps what it loaded.
 
     **A refused ``LOAD`` is not the same fact as AGE being unavailable.**
     ``LOAD`` is superuser-only unless the library sits in ``$libdir/plugins``,

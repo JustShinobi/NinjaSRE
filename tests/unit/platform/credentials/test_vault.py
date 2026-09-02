@@ -240,6 +240,42 @@ async def test_listing_returns_the_live_version_of_each_handle(harness: Harness)
     assert [entry.version for entry in listed] == [2, 1]
 
 
+async def test_listing_reads_the_store_once_however_many_credentials_it_holds(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The listing is what the checklist and the integrations screen read on every render.
+
+    It fetched every row, then asked the store twice more per handle for rows
+    it already had — one plus two-per-credential round trips on a page whose
+    whole cost should be the one read.
+    """
+    from platform.persistence.fakes.credential_store import FakeCredentialStore
+
+    await harness.vault.store(harness.scope(), harness.handle(), GOOD)
+    await harness.vault.store(harness.scope(), harness.handle(OTHER_TEAM_ID), GOOD)
+    await harness.vault.rotate(
+        harness.scope(), harness.handle(), {"api_key": "333333333333333333333333"}
+    )
+    reads = {"by_handle": 0, "listings": 0}
+    real_get, real_list = FakeCredentialStore.get_metadata, FakeCredentialStore.list_metadata
+
+    async def counted_get(self: FakeCredentialStore, handle: str) -> object:
+        reads["by_handle"] += 1
+        return await real_get(self, handle)
+
+    async def counted_list(self: FakeCredentialStore, *args: object, **kwargs: object) -> object:
+        reads["listings"] += 1
+        return await real_list(self, *args, **kwargs)
+
+    monkeypatch.setattr(FakeCredentialStore, "get_metadata", counted_get)
+    monkeypatch.setattr(FakeCredentialStore, "list_metadata", counted_list)
+
+    listed = await harness.vault.list(harness.scope())
+
+    assert [entry.version for entry in listed] == [2, 1]
+    assert reads == {"by_handle": 0, "listings": 1}
+
+
 async def test_an_unconfigured_handle_reads_as_none(harness: Harness) -> None:
     assert await harness.vault.active(harness.scope(), harness.handle()) is None
 

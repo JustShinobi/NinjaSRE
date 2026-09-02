@@ -25,7 +25,7 @@ from enum import StrEnum
 
 from platform.credentials.errors import VaultKeyMismatch
 from platform.credentials.handles import CredentialHandle
-from platform.credentials.vault import Vault
+from platform.credentials.vault import CredentialVersion, Vault
 from platform.persistence.ports import TenantScope
 
 
@@ -118,53 +118,58 @@ class CredentialHealth:
         at = now if now is not None else datetime.now(UTC)
         undecryptable = await self._vault.undecryptable(scope)
         unreadable = set(undecryptable)
+        # Two reads for any number of integrations: the live versions, all at
+        # once, and the handles that do not decrypt. Asking the vault for
+        # each integration's version in turn — and again for its fallback —
+        # was two transactions per vendor on a screen that lists them all.
+        live = {version.handle.qualified: version for version in await self._vault.list(scope)}
 
         entries: list[IntegrationCredentialHealth] = []
         for integration in sorted(integrations):
             handle = CredentialHandle(integration=integration, team_id=team_id)
-            entries.append(await self._entry(scope, handle, unreadable=unreadable, now=at))
+            entries.append(_entry(handle, live=live, unreadable=unreadable, now=at))
         return CredentialHealthReport(
             entries=tuple(entries), undecryptable_handles=tuple(sorted(undecryptable))
         )
 
-    async def _entry(
-        self,
-        scope: TenantScope,
-        handle: CredentialHandle,
-        *,
-        unreadable: set[str],
-        now: datetime,
-    ) -> IntegrationCredentialHealth:
-        """Return one integration's health, following the same fallback the proxy does."""
-        version = await self._vault.active(scope, handle)
-        resolved_handle = handle
-        if version is None:
-            fallback = handle.fallback()
-            if fallback is not None:
-                version = await self._vault.active(scope, fallback)
-                resolved_handle = fallback
 
-        if version is None:
-            return IntegrationCredentialHealth(
-                integration=handle.integration,
-                handle=handle.qualified,
-                state=CredentialHealthState.MISSING,
-            )
+def _entry(
+    handle: CredentialHandle,
+    *,
+    live: dict[str, CredentialVersion],
+    unreadable: set[str],
+    now: datetime,
+) -> IntegrationCredentialHealth:
+    """Return one integration's health, following the same fallback the proxy does."""
+    version = live.get(handle.qualified)
+    resolved_handle = handle
+    if version is None:
+        fallback = handle.fallback()
+        if fallback is not None:
+            version = live.get(fallback.qualified)
+            resolved_handle = fallback
 
-        state = CredentialHealthState.CONFIGURED
-        if version.stored_handle in unreadable:
-            state = CredentialHealthState.UNDECRYPTABLE
-        elif version.is_expired(now):
-            state = CredentialHealthState.EXPIRED
-
+    if version is None:
         return IntegrationCredentialHealth(
             integration=handle.integration,
-            handle=resolved_handle.qualified,
-            state=state,
-            version=version.version,
-            rotated_at=version.rotated_at,
-            expires_at=version.expires_at,
+            handle=handle.qualified,
+            state=CredentialHealthState.MISSING,
         )
+
+    state = CredentialHealthState.CONFIGURED
+    if version.stored_handle in unreadable:
+        state = CredentialHealthState.UNDECRYPTABLE
+    elif version.is_expired(now):
+        state = CredentialHealthState.EXPIRED
+
+    return IntegrationCredentialHealth(
+        integration=handle.integration,
+        handle=resolved_handle.qualified,
+        state=state,
+        version=version.version,
+        rotated_at=version.rotated_at,
+        expires_at=version.expires_at,
+    )
 
 
 async def verify_startup(vault: Vault, scope: TenantScope) -> None:

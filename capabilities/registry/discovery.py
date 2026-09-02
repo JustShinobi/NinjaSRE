@@ -29,11 +29,13 @@ import pkgutil
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from types import ModuleType
 
 from capabilities.registry.disclosure import DiscoveredSkill, SkillManifestError, load_skill
 from config.constants.capabilities import (
     CAPABILITY_TOOLS_PACKAGE,
+    INSTALLED_CATALOGUE_CACHE_TTL_SECONDS,
     INTEGRATION_TOOLS_SUBPACKAGE,
     SKILL_MANIFEST_FILENAME,
     SKILL_TEMPLATE_DIRECTORY,
@@ -190,6 +192,15 @@ def discover(
     Left out, they are the real ones — which is what makes "adding a capability
     edits no existing file" true rather than aspirational.
     """
+    # The real tree is walked once and reused for a short window. The walk is
+    # sixteen thousand modules through ``pkgutil`` plus every skill manifest
+    # parsed from disk, and a console render asks for it more than once. A
+    # caller naming its own roots is asking about a different tree and is
+    # always answered from that tree.
+    real_tree = tool_packages is None and skill_roots is None and counter is estimate_tokens
+    if real_tree and _remembered is not None and monotonic() < _remembered[0]:
+        return _remembered[1]
+
     packages = (
         tuple(tool_packages)
         if tool_packages is not None
@@ -205,15 +216,38 @@ def discover(
     for package in packages:
         tools.extend(_walk_package(package))
 
-    return DiscoveredCatalogue(
+    found = DiscoveredCatalogue(
         tools=tuple(sorted(tools, key=lambda found: (found.name, found.source))),
         skills=tuple(discover_skills(roots, counter=counter)),
         scanned_packages=packages,
         scanned_skill_roots=roots,
     )
+    if real_tree:
+        _remember(found)
+    return found
+
+
+#: The last walk of the real tree, and until when it may be reused.
+_remembered: tuple[float, DiscoveredCatalogue] | None = None
+
+
+def _remember(found: DiscoveredCatalogue) -> None:
+    global _remembered  # noqa: PLW0603 — one process-wide memo, by design
+    _remembered = (monotonic() + INSTALLED_CATALOGUE_CACHE_TTL_SECONDS, found)
+
+
+def forget_discovered() -> None:
+    """Drop the remembered walk, so the next ``discover()`` walks the real tree again.
+
+    For a test that installs a capability and wants it seen at once. A running
+    deployment never needs this: the window is a few seconds.
+    """
+    global _remembered  # noqa: PLW0603 — the same memo, being emptied
+    _remembered = None
 
 
 __all__ = [
+    "forget_discovered",
     "DiscoveredCatalogue",
     "DiscoveryError",
     "default_skill_root",

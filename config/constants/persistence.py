@@ -60,6 +60,25 @@ DATABASE_POOL_TIMEOUT_SECONDS: Final[float] = 30.0
 #: Seconds a connection may sit idle before the pool recycles it.
 DATABASE_POOL_MAX_IDLE_SECONDS: Final[float] = 300.0
 
+#: How long a unit of work may trust that an organisation it was opened for
+#: still exists, without asking the database again. Every unit of work used
+#: to look its organisation up before the caller's first statement — one round
+#: trip per transaction, two or three per request — to refuse a scope naming
+#: a tenant that was never created. The refusal still happens, on the first
+#: open and on every open after the window; a tenant deleted inside the
+#: window is a tenant whose next transaction finds its rows gone anyway.
+#: Cleared outright whenever a system unit of work ends, because those are
+#: the only transactions that create or delete an organisation.
+ORGANISATION_LOOKUP_CACHE_TTL_SECONDS: Final[float] = 60.0
+
+#: How long the health report may reuse the facts that change only at a
+#: deploy — the server version, the installed extensions, the applied
+#: migration, whether Cypher runs, and which stored credentials decrypt.
+#: Connectivity is never reused: every report still asks the database whether
+#: it answers. The rest cost five statements per report, and the report is
+#: read by the liveness probe, the readiness probe and every console render.
+STORE_HEALTH_FACTS_TTL_SECONDS: Final[float] = 15.0
+
 #: How long an identifier column is, and therefore the longest identifier
 #: anything may derive.
 #:
@@ -216,6 +235,8 @@ __all__ = [
     "DEFAULT_GRAPH_DEPTH",
     "DEFAULT_VECTOR_TOP_K",
     "DEGRADABLE_POSTGRES_EXTENSIONS",
+    "ORGANISATION_LOOKUP_CACHE_TTL_SECONDS",
+    "STORE_HEALTH_FACTS_TTL_SECONDS",
     "EPISODE_VECTOR_NAMESPACE",
     "GRAPH_TRAVERSAL_LATENCY_BUDGET_MS",
     "HNSW_EF_CONSTRUCTION",

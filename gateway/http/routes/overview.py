@@ -15,12 +15,13 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from statistics import median as _median
+from time import monotonic
 from typing import Final
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from config.constants.estate import MAX_OVERVIEW_DAILY_BUCKETS
+from config.constants.estate import MAX_OVERVIEW_DAILY_BUCKETS, OVERVIEW_CACHE_TTL_SECONDS
 from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
 from config.constants.persistence import MAX_QUERY_PAGE_SIZE
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
@@ -255,12 +256,36 @@ async def _detector_service(state: GatewayState, auth: AuthenticatedRequest) -> 
     return DetectorService(gateway=state.gateway, settings=effective.config.policies.observation)
 
 
+def forget_overviews(state: GatewayState) -> None:
+    """Drop every remembered overview, so the next read computes a fresh one."""
+    state.remembered_overviews.clear()
+
+
 @router.get("/v1/overview", response_model=OverviewView)
 async def overview(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> OverviewView:
-    """Return the five KPI tiles the Painel renders, from one read."""
+    """Return the five KPI tiles the Painel renders, from one read.
+
+    Served as computed for ``OVERVIEW_CACHE_TTL_SECONDS`` per scope. The
+    figures are a fortnight's, and computing them drains every incident and
+    run in that fortnight on a screen every session opens first; the
+    ``captured_at`` on the view says which instant they describe, so a reader
+    is never told a remembered figure is a fresh one.
+    """
+    key = (auth.scope.org_id, auth.team_node_id or None)
+    remembered = state.remembered_overviews.get(key)
+    if remembered is not None and monotonic() < remembered[0]:
+        view: OverviewView = remembered[1]
+        return view
+    view = await _compute(state, auth)
+    state.remembered_overviews[key] = (monotonic() + OVERVIEW_CACHE_TTL_SECONDS, view)
+    return view
+
+
+async def _compute(state: GatewayState, auth: AuthenticatedRequest) -> OverviewView:
+    """Compute the five tiles from the stores, as of now."""
     now = datetime.now(UTC)
     since, until, window_start = _window(now)
 

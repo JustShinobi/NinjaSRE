@@ -23,6 +23,8 @@ from capabilities.registry.discovery import (
     discover,
     discover_skills,
 )
+from config.constants.capabilities import CAPABILITY_TOOLS_PACKAGE
+from core.capability.registered import RegisteredTool
 
 pytestmark = pytest.mark.unit
 
@@ -203,3 +205,40 @@ def test_the_real_repository_discovers_without_error() -> None:
 
     assert catalogue.scanned_packages
     assert catalogue.scanned_skill_roots
+
+
+def test_discovery_of_the_real_packages_is_walked_once_within_the_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A render asks for the catalogue several times; the packages are walked once.
+
+    The walk is sixteen thousand modules through ``pkgutil`` and every skill
+    manifest parsed from disk, and it happened on every request that needed
+    the catalogue. A caller naming its own roots — every test above — is
+    never served from the cache: it asked about a different tree.
+    """
+    from capabilities.registry import discovery
+
+    discovery.forget_discovered()
+    walks = {"packages": 0}
+    real_walk = discovery._walk_package
+
+    def counted(package: str) -> list[RegisteredTool]:
+        walks["packages"] += 1
+        return real_walk(package)
+
+    monkeypatch.setattr(discovery, "_walk_package", counted)
+
+    first = discovery.discover()
+    walked = walks["packages"]
+    second = discovery.discover()
+    assert walked > 0
+    assert walks["packages"] == walked
+    assert second is first
+
+    discovery.discover(tool_packages=(CAPABILITY_TOOLS_PACKAGE,), skill_roots=())
+    assert walks["packages"] == walked + 1, "explicit roots are walked, never cached"
+
+    discovery.forget_discovered()
+    discovery.discover()
+    assert walks["packages"] == 2 * walked + 1

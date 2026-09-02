@@ -99,6 +99,41 @@ def active_version_from(metadata: CredentialMetadata) -> int | None:
     return None
 
 
+async def active_versions(
+    credentials: CredentialStore,
+    *,
+    integration: str | None = None,
+) -> tuple[CredentialVersion, ...]:
+    """Return the live version of every configured credential, in one read of ``credentials``.
+
+    The body of ``Vault.list``, as a module function for the same reason
+    ``stored_versions`` is one: a caller that already holds a unit of work —
+    the setup checklist, which reads this beside four other tables — should
+    not have to open a second transaction to ask it.
+    """
+    stored = await credentials.list_metadata(integration=integration)
+    by_handle = {metadata.handle: metadata for metadata in stored}
+    handles = sorted(
+        {
+            CredentialHandle.parse(metadata.handle)
+            for metadata in stored
+            if version_of(metadata.handle) is not None
+        },
+        key=lambda handle: handle.qualified,
+    )
+    found: list[CredentialVersion] = []
+    for handle in handles:
+        pointer = by_handle.get(handle.qualified)
+        version = None if pointer is None else active_version_from(pointer)
+        if version is None:
+            continue
+        metadata = by_handle.get(handle.version_handle(version))
+        if metadata is None:
+            raise CredentialVersionNotFound(handle.qualified, version)
+        found.append(_version_from(handle, metadata, active=True))
+    return tuple(found)
+
+
 async def stored_versions(
     credentials: CredentialStore,
     handle: CredentialHandle,
@@ -296,19 +331,15 @@ class Vault:
 
         The metadata-only read API FR-003 asks for. A console renders this; a
         health check reads it; neither is on the credential path.
+
+        One read. The listing already holds every row — each handle's pointer
+        and each of its versions — so the live version is resolved from what
+        came back rather than by asking the store twice more per handle. The
+        checklist and the integrations screen read this on every render, and
+        two round trips per credential was most of what they cost.
         """
         async with self._gateway.begin(scope) as uow:
-            stored = await uow.credentials.list_metadata(integration=integration)
-            handles = sorted(
-                {
-                    CredentialHandle.parse(metadata.handle)
-                    for metadata in stored
-                    if version_of(metadata.handle) is not None
-                },
-                key=lambda handle: handle.qualified,
-            )
-            found = [await active_version(uow.credentials, handle) for handle in handles]
-        return tuple(version for version in found if version is not None)
+            return await active_versions(uow.credentials, integration=integration)
 
     async def delete(self, scope: TenantScope, handle: CredentialHandle) -> int:
         """Delete every version of ``handle`` and its pointer, and return how many."""
@@ -413,6 +444,7 @@ def _version_from(
 
 
 __all__ = [
+    "active_versions",
     "CredentialVersion",
     "Vault",
     "active_version_from",

@@ -8,6 +8,8 @@ and asserts it is.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
@@ -40,7 +42,7 @@ from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
-from platform.persistence.ports.transaction import TenantScope
+from platform.persistence.ports.transaction import TenantScope, UnitOfWork
 from platform.persistence.ports.verification_ledger import (
     VerificationOutcome,
     VerificationRecord,
@@ -171,6 +173,35 @@ async def test_the_credential_step_is_done_when_a_person_holds_a_live_token(
         password="a very long passphrase",
         environ=environ,
     )
+
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert _step(checklist, SETUP_STEP_DURABLE_CREDENTIAL).state == SETUP_STATE_DONE
+
+
+async def test_the_credential_step_reads_the_tokens_once_not_once_per_person(
+    store: FakePersistence, environ: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A deployment with forty people is not forty round trips to learn one of them signed in."""
+    from platform.persistence.fakes.identity_repository import FakeIdentityRepository
+
+    tokens = TokenService(gateway=store)
+    result = await bring_up(store, tokens, environ=environ)
+    await establish_durable_credential(
+        store,
+        tokens,
+        bootstrap=result.credential,
+        user_id="ada",
+        email="ada@example.test",
+        display_name="Ada",
+        password="a very long passphrase",
+        environ=environ,
+    )
+
+    async def per_person(self: object, user_id: str) -> object:
+        raise AssertionError(f"the checklist read {user_id!r}'s tokens on their own")
+
+    monkeypatch.setattr(FakeIdentityRepository, "tokens_for_user", per_person)
 
     checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
 
@@ -661,3 +692,34 @@ async def test_the_first_investigation_waits_on_the_runtime_rather_than_on_the_e
     checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
 
     assert _step(checklist, SETUP_STEP_FIRST_INVESTIGATION).state == SETUP_STATE_BLOCKED
+
+
+class CountingPersistence(FakePersistence):
+    """The in-memory store, counting the units of work it opens."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.opened = 0
+
+    @asynccontextmanager
+    async def begin(self, scope: TenantScope) -> AsyncIterator[UnitOfWork]:
+        self.opened += 1
+        async with super().begin(scope) as uow:
+            yield uow
+
+
+async def test_the_checklist_is_built_inside_one_unit_of_work(environ: dict[str, str]) -> None:
+    """Every transaction is three round trips before its first statement.
+
+    The checklist opened one for the vault's listing and another for
+    everything else; the shell reads this on every full render.
+    """
+    gateway = CountingPersistence()
+    await bring_up(gateway, TokenService(gateway=gateway), environ=environ)
+    await _store_credential(gateway, "prometheus")
+
+    opened = gateway.opened
+    checklist = await build_checklist(gateway, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert gateway.opened - opened == 1
+    assert _step(checklist, SETUP_STEP_INFRASTRUCTURE_SOURCE) is not None

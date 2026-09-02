@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from typing import Final
 
 import integrations
+from config.constants.capabilities import INSTALLED_CATALOGUE_CACHE_TTL_SECONDS
 from core.capability.registered import capability_marker
 from integrations._catalogue.entry import (
     CatalogueEntry,
@@ -178,12 +181,9 @@ def catalogue(
     been checked, so there is nothing the ledger could hold that would be
     worth showing ahead of "nothing is connected here yet".
     """
-    declared = descriptors()
-    described = profiles()
-    reports = {report.integration: report for report in parity_reports()}
-
     entries: list[CatalogueEntry] = []
-    for name in vendor_packages():
+    for installed in _installed():
+        name = installed.name
         if configured is not None and name not in configured:
             resolved_health = HealthStatus.UNCONFIGURED
             resolved_detail = _UNCONFIGURED_DETAIL
@@ -194,15 +194,64 @@ def catalogue(
         entries.append(
             CatalogueEntry(
                 name=name,
-                profile=described[name],
-                descriptor=_descriptor_for(name, declared),
-                parity=reports[name],
-                capabilities=capabilities_of(name),
+                profile=installed.profile,
+                descriptor=installed.descriptor,
+                parity=installed.parity,
+                capabilities=installed.capabilities,
                 health=resolved_health,
                 health_detail=resolved_detail,
             )
         )
     return tuple(entries)
+
+
+@dataclass(frozen=True, slots=True)
+class _Installed:
+    """What the walk finds about one vendor: everything but its health."""
+
+    name: str
+    profile: IntegrationProfile
+    descriptor: IntegrationDescriptor
+    parity: ParityReport
+    capabilities: tuple[str, ...]
+
+
+#: The last walk of the vendor packages, and until when it may be reused.
+_remembered: tuple[float, tuple[_Installed, ...]] | None = None
+
+
+def _installed() -> tuple[_Installed, ...]:
+    """Return every installed vendor's shape, walking the packages once per window.
+
+    The shape — which packages exist, their profiles, their parity, the tools
+    they declare — cannot change while the process runs. The ledger's view of
+    each one can, which is why health is applied by ``catalogue`` on every
+    call and never remembered here.
+    """
+    global _remembered  # noqa: PLW0603 — one process-wide memo, by design
+    if _remembered is not None and monotonic() < _remembered[0]:
+        return _remembered[1]
+    declared = descriptors()
+    described = profiles()
+    reports = {report.integration: report for report in parity_reports()}
+    found = tuple(
+        _Installed(
+            name=name,
+            profile=described[name],
+            descriptor=_descriptor_for(name, declared),
+            parity=reports[name],
+            capabilities=capabilities_of(name),
+        )
+        for name in vendor_packages()
+    )
+    _remembered = (monotonic() + INSTALLED_CATALOGUE_CACHE_TTL_SECONDS, found)
+    return found
+
+
+def forget_installed() -> None:
+    """Drop the remembered walk, so the next ``catalogue()`` walks the packages again."""
+    global _remembered  # noqa: PLW0603 — the same memo, being emptied
+    _remembered = None
 
 
 def entry(
@@ -257,6 +306,7 @@ __all__ = [
     "capabilities_of",
     "catalogue",
     "entry",
+    "forget_installed",
     "package_root",
     "parity_reports",
     "profiles",

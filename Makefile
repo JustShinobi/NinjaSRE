@@ -623,6 +623,8 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 deploy-stg: ## Build here, publish, and point staging at it (COMPONENTS=web to narrow)
 	scripts/deploy/stg $(COMPONENTS)
 
+stg-deploy: deploy-stg ## Alias for deploy-stg
+
 # What a local run leaves behind, and why this has its own target.
 #
 # `make ci` builds four images for the scan and three more for the browser

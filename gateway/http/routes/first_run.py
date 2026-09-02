@@ -26,7 +26,7 @@ from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.runtime import runtime_composed
 from gateway.http.state import GatewayState
-from gateway.http.verifications import integration_health, recorded_checks
+from gateway.http.verifications import integration_health, recorded_checks_by_kind
 from integrations._catalogue.discovery import catalogue
 from platform.identity.enrolment import identity_provider_is_active, local_sign_in_is_open
 from platform.identity.errors import LocalEnrolmentBlockedBySso, LocalSignInAlreadyOpen
@@ -151,12 +151,9 @@ async def checklist(
     fix for the checklist and the listing disagreeing about the same
     provider: one document, read twice rather than derived twice.
     """
-    integration_checks = await recorded_checks(
-        state.gateway, auth.scope, kind=VerificationSubject.INTEGRATION
-    )
-    provider_checks = await recorded_checks(
-        state.gateway, auth.scope, kind=VerificationSubject.MODEL_PROVIDER
-    )
+    checks = await recorded_checks_by_kind(state.gateway, auth.scope)
+    integration_checks = checks[VerificationSubject.INTEGRATION]
+    provider_checks = checks[VerificationSubject.MODEL_PROVIDER]
     ledger = await integration_health(state.gateway, auth.scope, held=integration_checks)
     entries = catalogue(health=ledger)
     declared = tuple(entry.name for entry in entries)

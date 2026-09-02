@@ -203,6 +203,15 @@ RETENTION_DAYS_ESTATE_HISTORY: Final[int] = 180
 #: than a full history — the same window the reference dashboard draws.
 MAX_OVERVIEW_DAILY_BUCKETS: Final[int] = 14
 
+#: How long one organisation's overview is served as computed before it is
+#: computed again. The five tiles are figures over a fourteen-day window —
+#: draining every incident and every run in it, the estate's summary and the
+#: daily snapshots — and the dashboard is the first screen every session
+#: opens. The view carries ``captured_at``, so a reader is told which instant
+#: the figures describe; fifteen seconds is well inside how often the window
+#: itself changes shape.
+OVERVIEW_CACHE_TTL_SECONDS: Final[float] = 15.0
+
 __all__ = [
     "ALERT_DOMAIN_LABEL",
     "ALERT_RANKING_TAG_LABELS",
@@ -224,6 +233,7 @@ __all__ = [
     "MAX_HEALTH_SIGNALS",
     "MAX_MAINTENANCE_SECONDS",
     "MAX_OVERVIEW_DAILY_BUCKETS",
+    "OVERVIEW_CACHE_TTL_SECONDS",
     "MAX_SWEEP_PROVIDER_CALLS",
     "MAX_SWEEP_RESOURCES",
     "MAX_SWEEP_SECONDS",

@@ -77,6 +77,15 @@ CAPABILITY_TOOLS_PACKAGE: Final = "capabilities.tools"
 CAPABILITY_SKILLS_PACKAGE: Final = "capabilities.skills"
 INTEGRATION_TOOLS_SUBPACKAGE: Final = "tools"
 
+#: How long a discovery walk over the real packages is reused before it is
+#: walked again. The walk imports sixteen thousand modules through ``pkgutil``
+#: and parses every skill manifest; a request that needs the catalogue paid
+#: for the whole of it — the capability catalogue, the integration catalogue,
+#: the checklist and the integrations screen each once, on every render.
+#: Thirty seconds keeps "adding a capability edits no existing file" true at
+#: runtime to within one console refresh, which is what it was ever true to.
+INSTALLED_CATALOGUE_CACHE_TTL_SECONDS: Final[float] = 30.0
+
 #: Skipped by the skill walk. Templates are text for a scaffold to copy; they
 #: are deliberately incomplete and must never enter the catalogue.
 SKILL_TEMPLATE_DIRECTORY: Final = "_templates"
@@ -185,6 +194,7 @@ __all__ = [
     "CAPABILITY_MARKER_ATTRIBUTE",
     "CAPABILITY_SKILLS_PACKAGE",
     "CAPABILITY_TOOLS_PACKAGE",
+    "INSTALLED_CATALOGUE_CACHE_TTL_SECONDS",
     "INTEGRATION_TOOLS_SUBPACKAGE",
     "MAX_CAPABILITY_ERROR_MESSAGE_CHARS",
     "MAX_CATALOGUE_METADATA_TOKENS",

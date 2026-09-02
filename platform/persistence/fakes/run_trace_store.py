@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
@@ -80,18 +80,22 @@ class FakeRunTraceStore:
     async def list_runs(
         self,
         *,
-        status: RunStatus | None = None,
+        status: RunStatus | Collection[RunStatus] | None = None,
         alert_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        run_ids: Collection[str] | None = None,
         limit: int = 50,
     ) -> tuple[AgentRun, ...]:
         """Return matching runs, most recently started first."""
         check_limit(limit)
+        wanted = _statuses(status)
+        named = None if run_ids is None else frozenset(run_ids)
         matches = [
             run
             for run in self.state.runs.values()
-            if (status is None or run.status is status)
+            if (wanted is None or run.status in wanted)
+            and (named is None or run.run_id in named)
             and (alert_id is None or run.alert_id == alert_id)
             and _within(run.started_at, since, until)
         ]
@@ -250,3 +254,12 @@ def _within(
 
 
 __all__ = ["FakeRunTraceStore"]
+
+
+def _statuses(status: RunStatus | Collection[RunStatus] | None) -> frozenset[RunStatus] | None:
+    """Return the statuses a listing asked for, or ``None`` for all of them."""
+    if status is None:
+        return None
+    if isinstance(status, RunStatus):
+        return frozenset({status})
+    return frozenset(status)

@@ -224,3 +224,39 @@ async def test_the_kpis_are_computed_over_the_whole_window_not_its_first_page(
     # The slowest run is one of the oldest, so a first-page read reports the
     # ordinary minute as the worst case the fortnight held.
     assert body["time_to_cause"]["breakdown"]["worst_seconds"] == _SLOWEST_RUN_SECONDS
+
+
+async def test_the_overview_is_served_as_computed_for_a_short_window(
+    client: AsyncClient, deployment: Deployment, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The dashboard is the first screen of every session, and its figures are a fortnight's.
+
+    Computing them drains every incident and run in the window on every
+    render. Served as computed for ``OVERVIEW_CACHE_TTL_SECONDS``, with the
+    ``captured_at`` the view already carries saying which instant the figures
+    describe; forgetting them is what a test — or a deploy — does to see a
+    fresh set.
+    """
+    from gateway.http.routes import overview as overview_route
+
+    headers = await _headers(deployment)
+    overview_route.forget_overviews(deployment.state)
+    first = await client.get("/v1/overview", headers=headers)
+    assert first.status_code == 200
+
+    opened = {"units": 0}
+    real_begin = deployment.gateway.begin
+
+    def counted(scope):  # type: ignore[no-untyped-def]
+        opened["units"] += 1
+        return real_begin(scope)
+
+    monkeypatch.setattr(deployment.gateway, "begin", counted)
+    second = await client.get("/v1/overview", headers=headers)
+
+    assert second.json()["captured_at"] == first.json()["captured_at"]
+    assert opened["units"] == 0, "the remembered overview was recomputed"
+
+    overview_route.forget_overviews(deployment.state)
+    third = await client.get("/v1/overview", headers=headers)
+    assert third.json()["captured_at"] != first.json()["captured_at"]

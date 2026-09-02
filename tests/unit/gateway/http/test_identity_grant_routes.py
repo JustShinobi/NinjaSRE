@@ -202,3 +202,65 @@ async def test_a_viewer_may_not_grant_a_role(
         headers=bearer(viewer),
     )
     assert refused.status_code == 403
+
+
+async def test_a_grant_is_held_on_the_principals_very_next_request(
+    deployment: tuple[AsyncClient, FakePersistence, str],
+) -> None:
+    """The authentication cache is not allowed to delay a grant.
+
+    Authentications are cached for a few seconds. A grant that waited for
+    that window would be a permission an operator has given and the console
+    still refuses, with nothing on screen to say why — so the grant route
+    announces itself to the token service, the way a revocation does.
+    """
+    client, store, owner = deployment
+    # Issued through a service of its own: the cache under test is the one the
+    # running application authenticates with, not the one that minted this.
+    grace = await issue_token(
+        store, TokenService(gateway=store), user_id="grace", role=Role.VIEWER, node_id=None
+    )
+    refused = await client.post(
+        GRANTS,
+        json={"principal_id": "ada", "role": Role.OPERATOR.value},
+        headers={"authorization": f"Bearer {grace}"},
+    )
+    assert refused.status_code == 403
+
+    granted = await client.post(
+        GRANTS,
+        json={"principal_id": "grace", "role": Role.OWNER.value},
+        headers={"authorization": f"Bearer {owner}"},
+    )
+    assert granted.status_code == 201
+
+    allowed = await client.post(
+        GRANTS,
+        json={"principal_id": "ada", "role": Role.OPERATOR.value},
+        headers={"authorization": f"Bearer {grace}"},
+    )
+    assert allowed.status_code == 201
+
+
+async def test_listing_grants_reads_the_bindings_once_not_once_per_principal(
+    deployment: tuple[AsyncClient, FakePersistence, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Forty principals were forty round trips to draw one table."""
+    from platform.persistence.fakes.identity_repository import FakeIdentityRepository
+
+    client, _store, owner = deployment
+    # Authenticating the caller resolves their own bindings once and caches
+    # them; that read is the token service's, not the listing's, so it is
+    # made before the per-person read is forbidden.
+    warmed = await client.get(GRANTS, headers={"authorization": f"Bearer {owner}"})
+    assert warmed.status_code == 200
+
+    async def per_person(self: object, user_id: str) -> object:
+        raise AssertionError(f"the grant listing read {user_id!r}'s bindings on their own")
+
+    monkeypatch.setattr(FakeIdentityRepository, "role_bindings_for_user", per_person)
+
+    response = await client.get(GRANTS, headers={"authorization": f"Bearer {owner}"})
+
+    assert response.status_code == 200
+    assert any(grant["principal_id"] == "ada" for grant in response.json()["grants"])

@@ -128,6 +128,30 @@ async def recorded_checks(
     return {row.subject: row for row in rows}
 
 
+async def recorded_checks_by_kind(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> dict[VerificationSubject, dict[str, VerificationRecord]]:
+    """Return what has been checked, of every kind, in one read of the ledger.
+
+    For the screen that wants two kinds at once — the checklist reads the
+    provider's verdict and the integrations' — so it opens one transaction
+    rather than one per kind. Absent kinds are empty, as ``recorded_checks``
+    would answer for them.
+    """
+    try:
+        async with gateway.begin(scope) as uow:
+            rows = await uow.verifications.records()
+    except Exception:  # noqa: BLE001 — an unreadable ledger is "nobody has checked"
+        logger.warning("verification.not_read", extra={"kind": "all"}, exc_info=True)
+        return {kind: {} for kind in VerificationSubject}
+    held: dict[VerificationSubject, dict[str, VerificationRecord]] = {
+        kind: {} for kind in VerificationSubject
+    }
+    for row in rows:
+        held[row.kind][row.subject] = row
+    return held
+
+
 async def integration_health(
     gateway: PersistenceGateway,
     scope: TenantScope,
@@ -171,4 +195,5 @@ __all__ = [
     "integration_health",
     "record_check",
     "recorded_checks",
+    "recorded_checks_by_kind",
 ]

@@ -13,15 +13,28 @@ to be a single indexed read of one hash, and a per-row salt turns that into a
 scan of every token in the deployment. The deployment-wide pepper keeps the
 lookup and still means a stolen database is not a set of working credentials.
 
-**Revocation is immediate, and that is a claim about the cache.** Resolutions are
-cached for a few seconds because every authenticated request pays for one;
+**Revocation is immediate, and that is a claim about the cache.** Authentications
+are cached for a few seconds because every authenticated request pays for one;
 ``revoke`` invalidates the entry before it returns, so the short TTL is the
 backstop for a replica that missed the invalidation, never the mechanism, and
 the security suite asserts the difference.
+
+**What is cached is the whole answer, not the token row.** Resolving a token
+is one indexed read; turning it into an ``AuthenticatedToken`` is five more —
+the owner, every token the owner holds, the team node, the role bindings and
+the hierarchy above them. Caching only the first and repeating the other five
+on every request cost a single-process gateway six round trips per request to
+re-prove what it had proved seconds before, and a page render is a dozen such
+requests in one instant. So the cache holds the finished ``AuthenticatedToken``,
+and every write that changes what a token may do announces itself the way
+``revoke`` does: ``forget_user`` after a grant or a deactivation, ``forget_team``
+after a team is deleted. A burst of requests that all miss at once shares one
+resolution rather than making twelve.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import secrets
@@ -62,7 +75,6 @@ from platform.persistence.ports import (
     AuditOutcome,
     PersistenceGateway,
     TenantScope,
-    TokenResolution,
 )
 
 #: How stale ``last_used_at`` may get before a use is written back. A day,
@@ -102,39 +114,54 @@ class TokenHasher:
         return f"{API_TOKEN_PREFIX}{secrets.token_urlsafe(API_TOKEN_SECRET_BYTES)}"
 
 
+@dataclass(frozen=True, slots=True)
+class AuthenticatedToken:
+    """What a valid bearer token resolves to: a principal and what it may do."""
+
+    principal: Principal
+    permissions: PermissionSet
+    scope: TenantScope
+    token: ApiToken
+
+
 @dataclass(slots=True)
 class ResolutionCache:
-    """Caches token resolutions for a few seconds, and forgets one on demand.
+    """Caches finished authentications for a few seconds, and forgets on demand.
 
     Bounded, and the bound matters: an unbounded cache keyed by presented hash
     is a memory leak an attacker drives by presenting garbage. Eviction is
     oldest-first, which is right for a cache whose entries all expire in the
     same handful of seconds anyway.
+
+    Three ways to forget, for the three facts an entry depends on: the token
+    (``revoke``), its owner (a grant, a deactivation) and its team (a
+    deletion). Each is a scan of at most ``max_entries`` items, which is the
+    bound above, on operations that happen a few times a day.
     """
 
     ttl: timedelta = timedelta(seconds=TOKEN_RESOLUTION_CACHE_TTL_SECONDS)
     max_entries: int = MAX_CACHED_TOKEN_RESOLUTIONS
-    _entries: dict[str, tuple[datetime, TokenResolution]] = field(default_factory=dict)
+    _entries: dict[str, tuple[datetime, AuthenticatedToken]] = field(default_factory=dict)
     _by_token: dict[str, str] = field(default_factory=dict)
 
-    def get(self, token_hash: str, *, now: datetime) -> TokenResolution | None:
-        """Return the cached resolution if it is still fresh."""
+    def get(self, token_hash: str, *, now: datetime) -> AuthenticatedToken | None:
+        """Return the cached authentication if it is still fresh."""
         found = self._entries.get(token_hash)
         if found is None:
             return None
-        cached_at, resolution = found
+        cached_at, authenticated = found
         if now - cached_at >= self.ttl:
-            self.forget(resolution.token_id)
+            self.forget(authenticated.token.token_id)
             return None
-        return resolution
+        return authenticated
 
-    def put(self, token_hash: str, resolution: TokenResolution, *, now: datetime) -> None:
-        """Cache ``resolution``, evicting the oldest entry if the bound is reached."""
+    def put(self, token_hash: str, authenticated: AuthenticatedToken, *, now: datetime) -> None:
+        """Cache ``authenticated``, evicting the oldest entry if the bound is reached."""
         if token_hash not in self._entries and len(self._entries) >= self.max_entries:
             oldest = next(iter(self._entries))
             self._drop(oldest)
-        self._entries[token_hash] = (now, resolution)
-        self._by_token[resolution.token_id] = token_hash
+        self._entries[token_hash] = (now, authenticated)
+        self._by_token[authenticated.token.token_id] = token_hash
 
     def forget(self, token_id: str) -> None:
         """Drop the entry for ``token_id``, so the next request re-resolves it."""
@@ -147,21 +174,31 @@ class ResolutionCache:
         for token_id in token_ids:
             self.forget(token_id)
 
+    def forget_user(self, user_id: str) -> None:
+        """Drop every entry held by ``user_id``: what they may do has changed."""
+        self.forget_all(
+            [
+                authenticated.token.token_id
+                for _, authenticated in tuple(self._entries.values())
+                if authenticated.token.user_id == user_id
+            ]
+        )
+
+    def forget_team(self, node_id: str) -> None:
+        """Drop every entry scoped to ``node_id``: the team it names has changed."""
+        self.forget_all(
+            [
+                authenticated.token.token_id
+                for _, authenticated in tuple(self._entries.values())
+                if authenticated.token.team_node_id == node_id
+            ]
+        )
+
     def _drop(self, token_hash: str) -> None:
         """Remove one entry and its reverse index."""
         entry = self._entries.pop(token_hash, None)
         if entry is not None:
-            self._by_token.pop(entry[1].token_id, None)
-
-
-@dataclass(frozen=True, slots=True)
-class AuthenticatedToken:
-    """What a valid bearer token resolves to: a principal and what it may do."""
-
-    principal: Principal
-    permissions: PermissionSet
-    scope: TenantScope
-    token: ApiToken
+            self._by_token.pop(entry[1].token.token_id, None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +219,12 @@ class TokenService:
     recorder: AuditRecorder | None = None
     cache: ResolutionCache = field(default_factory=ResolutionCache)
     clock: Callable[[], datetime] = _utc_now
+    #: The resolutions in flight, by presented hash, so that a dozen requests
+    #: arriving in the same instant with the same cold token wait on one
+    #: resolution instead of each making its own.
+    _in_flight: dict[str, asyncio.Task[AuthenticatedToken]] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     # --- Issuing --------------------------------------------------------------
 
@@ -332,18 +375,49 @@ class TokenService:
         now = self.clock()
         token_hash = self.hasher.hash(secret)
 
-        resolution = self.cache.get(token_hash, now=now)
-        if resolution is None:
-            # Expiry is compared against a clock pushed back by the skew
-            # tolerance, so a token that expired moments ago on another host's
-            # clock still resolves. Revocation gets no such tolerance: the store
-            # rejects a revoked token outright whatever instant it is handed.
-            async with self.gateway.begin_system() as system:
-                found = await system.tokens.resolve_token(token_hash, now=now - CLOCK_SKEW)
-            if found is None:
-                await self._reject(token_hash)
-            resolution = found
-            self.cache.put(token_hash, resolution, now=now)
+        cached = self.cache.get(token_hash, now=now)
+        if cached is not None:
+            return cached
+
+        pending = self._in_flight.get(token_hash)
+        if pending is not None:
+            # Shielded: the first requester cancelling must not fail the rest,
+            # who are waiting on the same answer.
+            return await asyncio.shield(pending)
+
+        task = asyncio.ensure_future(self._resolve(token_hash, now=now))
+        self._in_flight[token_hash] = task
+        try:
+            authenticated = await asyncio.shield(task)
+        finally:
+            if self._in_flight.get(token_hash) is task:
+                del self._in_flight[token_hash]
+        return authenticated
+
+    def forget_user(self, user_id: str) -> None:
+        """Make the next request from any of ``user_id``'s tokens re-prove itself.
+
+        What the identity routes call after a grant, a revocation of one, or a
+        deactivation: the same door ``revoke`` uses, so the write is seen on
+        the next request and the cache TTL stays a backstop.
+        """
+        self.cache.forget_user(user_id)
+
+    def forget_team(self, node_id: str) -> None:
+        """Make the next request from any token scoped to ``node_id`` re-prove itself."""
+        self.cache.forget_team(node_id)
+
+    async def _resolve(self, token_hash: str, *, now: datetime) -> AuthenticatedToken:
+        """Turn a presented hash into a finished authentication, and cache it."""
+        # Expiry is compared against a clock pushed back by the skew
+        # tolerance, so a token that expired moments ago on another host's
+        # clock still resolves. Revocation gets no such tolerance: the store
+        # rejects a revoked token outright whatever instant it is handed.
+        async with self.gateway.begin_system() as system:
+            found = await system.tokens.resolve_token(token_hash, now=now - CLOCK_SKEW)
+        if found is None:
+            await self._reject(token_hash)
+        resolution = found
 
         scope = TenantScope(org_id=resolution.org_id, team_node_id=resolution.team_node_id)
         async with self.gateway.begin(scope) as uow:
@@ -374,12 +448,14 @@ class TokenService:
             await self._reject(token_hash, scope=scope, reason=_TEAM_GONE)
 
         await self._record_use(scope, record, now=now)
-        return AuthenticatedToken(
+        authenticated = AuthenticatedToken(
             principal=Principal.of_token(record, org_id=resolution.org_id, owner=owner),
             permissions=_scoped(record, permissions),
             scope=scope,
             token=record,
         )
+        self.cache.put(token_hash, authenticated, now=now)
+        return authenticated
 
     # --- Revoking -------------------------------------------------------------
 

@@ -7,9 +7,9 @@ reviews one after the fact.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from config.constants.investigation import EVIDENCE_ASSESSMENT_CAPABILITY
@@ -25,7 +25,7 @@ from gateway.http.routes.investigations import (
 from gateway.http.routes.tenancy import visible
 from gateway.http.routes.threads import ThreadCallView, thread_turn_view
 from gateway.http.state import GatewayState
-from platform.persistence.ports.run_trace_store import ToolCallRecord
+from platform.persistence.ports.run_trace_store import RunStatus, ToolCallRecord
 from platform.runs.evidence import assessment_from_calls
 from platform.runs.replay import ReplayedStage, ReplayedTurn, bounded_result, replay_trace
 
@@ -175,6 +175,8 @@ async def list_runs(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
     limit: int = 50,
+    status: Annotated[list[RunStatus] | None, Query()] = None,
+    run_id: Annotated[list[str] | None, Query()] = None,
 ) -> RunList:
     """Return recent runs visible to the caller, newest first.
 
@@ -183,9 +185,19 @@ async def list_runs(
     decides it. Read in one batched query over the whole page rather than one
     per row — the per-row version works on a demo and is a fifty-query page in
     a deployment that has been running a while.
+
+    ``status`` may be repeated, and the page is then the runs in any of them
+    — the console's attention band asks for the failed, the cancelled and the
+    interrupted runs in one read, where it used to read the whole page and
+    keep three rows of it. A word this deployment has no status for is
+    refused as a validation error, like any other malformed query.
+
+    ``run_id`` may be repeated too, for a screen that already knows which
+    runs it cites — the incidents screen names the run behind each settled
+    firing — and would otherwise read a page of fifty to find them.
     """
     async with state.gateway.begin(auth.scope) as uow:
-        runs = await uow.run_traces.list_runs(limit=limit)
+        runs = await uow.run_traces.list_runs(limit=limit, status=status, run_ids=run_id)
         shown = [run for run in runs if visible(run, auth)]
         run_ids = [run.run_id for run in shown]
         assessments = await uow.run_traces.named_tool_calls_for_runs(

@@ -456,3 +456,24 @@ async def test_concurrent_first_administrators_leave_exactly_one_opening(
     # The row a fresh read finds is the one the winner wrote, not a phantom
     # the race window left behind.
     assert stored.opened_via == winning_marker
+
+
+async def test_every_role_binding_in_the_tenant_is_listed_in_one_read(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The grants screen wants every binding; asking per person was one read per row."""
+    async with gateway.begin(scope) as uow:
+        for user_id in ("u-ada", "u-bob"):
+            await uow.identity.upsert_user(
+                User(user_id=user_id, email=f"{user_id}@acme.test", display_name=user_id)
+            )
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="b-ada", user_id="u-ada", role="owner")
+        )
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="b-bob", user_id="u-bob", role="viewer", node_id="payments")
+        )
+        held = await uow.identity.list_role_bindings()
+
+    assert {binding.binding_id for binding in held} == {"b-ada", "b-bob"}
+    assert {binding.user_id for binding in held} == {"u-ada", "u-bob"}

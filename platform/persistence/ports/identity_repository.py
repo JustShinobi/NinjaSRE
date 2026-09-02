@@ -232,6 +232,13 @@ class IdentityRepository(Protocol):
     async def role_bindings_for_user(self, user_id: str) -> tuple[RoleBinding, ...]:
         """Return every role binding held by ``user_id``."""
 
+    async def list_role_bindings(self) -> tuple[RoleBinding, ...]:
+        """Return every role binding in this tenant, by role then binding id.
+
+        What a listing of grants reads: one read for the whole table, where
+        asking each principal in turn was one read per principal.
+        """
+
     async def remove_role_binding(self, binding_id: str) -> bool:
         """Remove ``binding_id`` and return whether it existed."""
 

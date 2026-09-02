@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -202,22 +202,29 @@ class PostgresRunTraceStore(TenantBound):
     async def list_runs(
         self,
         *,
-        status: RunStatus | None = None,
+        status: RunStatus | Collection[RunStatus] | None = None,
         alert_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        run_ids: Collection[str] | None = None,
         limit: int = 50,
     ) -> tuple[AgentRun, ...]:
         """Return matching runs, most recently started first."""
         check_limit(limit)
+        if run_ids is not None and not run_ids:
+            return ()
         statement = (
             select(models.AgentRun)
             .where(models.AgentRun.org_id == self.org_id)
             .order_by(models.AgentRun.started_at.desc(), models.AgentRun.run_id.desc())
             .limit(limit)
         )
-        if status is not None:
+        if isinstance(status, RunStatus):
             statement = statement.where(models.AgentRun.status == status.value)
+        elif status is not None:
+            statement = statement.where(models.AgentRun.status.in_([each.value for each in status]))
+        if run_ids is not None:
+            statement = statement.where(models.AgentRun.run_id.in_(list(run_ids)))
         if alert_id is not None:
             statement = statement.where(models.AgentRun.alert_id == alert_id)
         if since is not None:

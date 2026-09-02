@@ -9,6 +9,9 @@ noticing, which is the one property a caching layer makes easy to lose.
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -21,6 +24,7 @@ from config.constants.security import (
     TOKEN_CLOCK_SKEW_SECONDS,
     TOKEN_EXPIRY_WARNING_DAYS,
     TOKEN_INACTIVITY_REVOCATION_DAYS,
+    TOKEN_RESOLUTION_CACHE_TTL_SECONDS,
 )
 from platform.identity.audit.recorder import AuditContext, AuditRecorder
 from platform.identity.errors import TokenLifetimeTooLong, TokenRejected, TooManyRevocations
@@ -34,6 +38,7 @@ from platform.persistence.ports import (
     PrincipalKind,
     RoleBinding,
     TenantScope,
+    UnitOfWork,
     User,
 )
 
@@ -56,9 +61,33 @@ class Clock:
         self.now += delta
 
 
-async def build(clock: Clock) -> tuple[TokenService, FakePersistence, TenantScope]:
+class CountingPersistence(FakePersistence):
+    """The in-memory store, counting every unit of work it opens.
+
+    What an authentication costs is measured in transactions, because on a
+    real deployment every one of them is a round trip to another host.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.opened = 0
+
+    @asynccontextmanager
+    async def begin(self, scope: TenantScope) -> AsyncIterator[UnitOfWork]:
+        self.opened += 1
+        async with super().begin(scope) as uow:
+            yield uow
+
+    @asynccontextmanager
+    async def begin_system(self):  # type: ignore[no-untyped-def]
+        self.opened += 1
+        async with super().begin_system() as uow:
+            yield uow
+
+
+async def build(clock: Clock) -> tuple[TokenService, CountingPersistence, TenantScope]:
     """Return a token service over a tenant with one user and one team."""
-    gateway = FakePersistence()
+    gateway = CountingPersistence()
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG, "Acme")
 
@@ -347,17 +376,138 @@ async def test_a_token_whose_owner_was_deactivated_is_rejected() -> None:
         await service.authenticate(issued.secret)
 
 
+async def test_a_deactivation_announced_to_the_service_takes_effect_on_the_next_request() -> None:
+    """The write that deactivates a person tells the service, and the cache is not consulted.
+
+    The whole authentication is cached for a few seconds, so a write the
+    service is not told about is seen once the window closes. A write that
+    announces itself — the way every identity route does — is seen at once,
+    which is the ordering ``revoke`` already guarantees for a token.
+    """
+    clock = Clock()
+    service, gateway, scope = await build(clock)
+    issued = await service.issue(scope, context(), user_id=OWNER, name="bot")
+    await service.authenticate(issued.secret)
+
+    async with gateway.begin(scope) as uow:
+        user = await uow.identity.get_user(OWNER)
+        assert user is not None
+        await uow.identity.upsert_user(
+            User(
+                user_id=user.user_id,
+                email=user.email,
+                display_name=user.display_name,
+                kind=user.kind,
+                is_active=False,
+                created_at=user.created_at,
+            )
+        )
+    service.forget_user(OWNER)
+
+    with pytest.raises(TokenRejected):
+        await service.authenticate(issued.secret)
+
+
+async def test_a_deactivation_nobody_announced_is_seen_once_the_window_closes() -> None:
+    """The TTL is the backstop for a write made behind the service's back."""
+    clock = Clock()
+    service, gateway, scope = await build(clock)
+    issued = await service.issue(scope, context(), user_id=OWNER, name="bot")
+    await service.authenticate(issued.secret)
+
+    async with gateway.begin(scope) as uow:
+        user = await uow.identity.get_user(OWNER)
+        assert user is not None
+        await uow.identity.upsert_user(
+            User(
+                user_id=user.user_id,
+                email=user.email,
+                display_name=user.display_name,
+                kind=user.kind,
+                is_active=False,
+                created_at=user.created_at,
+            )
+        )
+
+    clock.advance(timedelta(seconds=TOKEN_RESOLUTION_CACHE_TTL_SECONDS))
+    with pytest.raises(TokenRejected):
+        await service.authenticate(issued.secret)
+
+
 async def test_a_token_whose_team_was_deleted_is_rejected_with_a_clear_reason() -> None:
     """The edge case the specification names, and the reason an operator needs."""
     service, gateway, scope = await build(Clock())
     issued = await service.issue(scope, context(), user_id=OWNER, name="bot", node_id=TEAM)
+    await service.authenticate(issued.secret)
 
     async with gateway.begin(scope) as uow:
         await uow.config.delete(TEAM)
+    service.forget_team(TEAM)
 
     with pytest.raises(TokenRejected) as raised:
         await service.authenticate(issued.secret)
     assert "team" in raised.value.reason
+
+
+# --- The cost of authenticating --------------------------
+
+
+async def test_a_second_authentication_within_the_window_opens_no_transaction() -> None:
+    """The first request pays for the resolution; the next few seconds do not.
+
+    Every authenticated request on a deployment opened a unit of work and
+    re-read the owner, every token the owner holds, the team node and the
+    role bindings — six statements to re-prove what had been proved moments
+    before, on a single-process gateway where those statements queue behind
+    each other. The cache holds the whole answer now, not just the token row.
+    """
+    service, gateway, scope = await build(Clock())
+    issued = await service.issue(scope, context(), user_id=OWNER, name="bot")
+
+    first = await service.authenticate(issued.secret)
+    opened = gateway.opened
+    second = await service.authenticate(issued.secret)
+
+    assert gateway.opened == opened
+    assert second.principal == first.principal
+    assert second.permissions.grants == first.permissions.grants
+
+
+async def test_a_grant_announced_to_the_service_is_held_on_the_next_request() -> None:
+    """Permissions change through the same door revocation uses: tell the service."""
+    service, gateway, scope = await build(Clock())
+    issued = await service.issue(scope, context(), user_id=OWNER, name="bot", unscoped=True)
+    before = await service.authenticate(issued.secret)
+    assert not before.permissions.allows(Permission.CONFIG_WRITE)
+
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="ada-operator", user_id=OWNER, role=Role.OPERATOR.value)
+        )
+    service.forget_user(OWNER)
+
+    after = await service.authenticate(issued.secret)
+    assert after.permissions.allows(Permission.CONFIG_WRITE)
+
+
+async def test_concurrent_first_requests_resolve_the_token_once() -> None:
+    """A page render is a dozen requests in the same instant, all missing the cache.
+
+    Without single-flight each of them resolved the token in full, so the
+    burst cost twelve times what one request costs and the cache saved
+    nothing on exactly the pattern it exists for.
+    """
+    service, gateway, scope = await build(Clock())
+    issued = await service.issue(scope, context(), user_id=OWNER, name="bot")
+
+    await service.authenticate(issued.secret)
+    service.forget_user(OWNER)
+
+    before = gateway.opened
+    resolved = await asyncio.gather(*(service.authenticate(issued.secret) for _ in range(12)))
+
+    assert len({token.token.token_id for token in resolved}) == 1
+    assert gateway.opened - before <= 3, "twelve concurrent requests must share one resolution"
 
 
 # --- Revocation ---------------------------------------------

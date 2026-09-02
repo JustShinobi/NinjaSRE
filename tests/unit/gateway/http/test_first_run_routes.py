@@ -455,3 +455,24 @@ async def test_an_environment_configured_account_also_reads_administered(
         response = await http.get("/v1/setup/local-administrator")
 
     assert response.json()["state"] == "administered"
+
+
+async def test_the_checklist_reads_the_verification_ledger_once(
+    client: AsyncClient, owner_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One read of the ledger serves both the provider's and the integrations' verdicts."""
+    from platform.persistence.fakes.verification_ledger import FakeVerificationLedger
+
+    reads = {"ledger": 0}
+    real_records = FakeVerificationLedger.records
+
+    async def counted(self: FakeVerificationLedger, *args: object, **kwargs: object) -> object:
+        reads["ledger"] += 1
+        return await real_records(self, *args, **kwargs)
+
+    monkeypatch.setattr(FakeVerificationLedger, "records", counted)
+
+    response = await client.get("/v1/setup/checklist", headers=_headers(owner_token))
+
+    assert response.status_code == 200
+    assert reads["ledger"] == 1

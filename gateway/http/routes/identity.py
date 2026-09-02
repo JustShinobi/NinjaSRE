@@ -409,16 +409,13 @@ async def list_grants(
 ) -> GrantList:
     """Return the role grants held in this organisation."""
     async with state.gateway.begin(auth.scope) as uow:
-        if principal_id:
-            bindings = await uow.identity.role_bindings_for_user(principal_id)
-        else:
-            # An explicit loop rather than a comprehension: an ``await`` inside a
-            # generator expression makes it an *async* generator, which is not
-            # iterable and fails at the point somebody tries to use it.
-            collected: list[RoleBinding] = []
-            for user in await uow.identity.list_users():
-                collected.extend(await uow.identity.role_bindings_for_user(user.user_id))
-            bindings = tuple(collected)
+        bindings = (
+            await uow.identity.role_bindings_for_user(principal_id)
+            if principal_id
+            # One read of the table: asking each principal in turn was one
+            # read per principal, and the members screen draws the whole table.
+            else await uow.identity.list_role_bindings()
+        )
     return GrantList(grants=[_grant_view(binding) for binding in bindings])
 
 
@@ -446,12 +443,9 @@ def _role(name: str) -> Role:
 
 async def _all_grants(state: GatewayState, auth: AuthenticatedRequest) -> tuple[Grant, ...]:
     """Return every role grant in this organisation."""
-    collected: list[Grant] = []
     async with state.gateway.begin(auth.scope) as uow:
-        for user in await uow.identity.list_users():
-            for binding in await uow.identity.role_bindings_for_user(user.user_id):
-                collected.append(Grant.of_binding(binding))
-    return tuple(collected)
+        bindings = await uow.identity.list_role_bindings()
+    return tuple(Grant.of_binding(binding) for binding in bindings)
 
 
 @identity_router.get("/roles", response_model=RoleList)
@@ -504,6 +498,10 @@ async def add_grant(
                 node_id=body.node_id,
             )
         )
+    # Announced to the token service the way a revocation is, so the grant is
+    # held on the principal's very next request rather than once the
+    # authentication cache's window closes.
+    state.tokens.forget_user(stored.user_id)
     await AuditRecorder(gateway=state.gateway).record(
         auth.scope,
         _audit_context(auth),
@@ -544,6 +542,9 @@ async def remove_grant(
 
     async with state.gateway.begin(auth.scope) as uow:
         await uow.identity.remove_role_binding(grant_id)
+    # The same announcement a grant makes: what this principal may do has
+    # narrowed, and the narrowing must not wait for the cache window.
+    state.tokens.forget_user(held.principal_id)
     await AuditRecorder(gateway=state.gateway).record(
         auth.scope,
         _audit_context(auth),
