@@ -10024,7 +10024,7 @@
     },
     "/v1/approvals": {
       "get": {
-        "description": "Return approvals in one state bucket, per FR-006.\n\n``state=pending`` (the default) is only requests genuinely within their\nown window; ``state=expired`` is only the ones that have lapsed;\n``state=decided`` is ``approved``/``rejected``/``discarded``, most\nrecently decided first. Every call sweeps lapsed requests to ``expired``\nfirst (`ApprovalStore.expire_due`), in the same transaction — the\nmechanism already existed with its own test coverage and nothing in\nproduction called it, so a request answered an hour after its own window\nclosed still read as `pending` and the sidebar counted it. This is the\none place that composes it into a path something actually serves.\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
+        "description": "Return approvals in one state bucket, per FR-006.\n\n``state=pending`` (the default) is only requests genuinely within their\nown window; ``state=expired`` is only the ones that have lapsed;\n``state=decided`` is ``approved``/``rejected``/``discarded``, most\nrecently decided first. Every call sweeps lapsed requests to ``expired``\nfirst (`ApprovalStore.expire_due`), in the same transaction — the\nmechanism already existed with its own test coverage and nothing in\nproduction called it, so a request answered an hour after its own window\nclosed still read as `pending` and the sidebar counted it. This is the\none place that composes it into a path something actually serves.\n\nThe three are the whole of what the parameter accepts, and they are typed\nrather than matched, so a fourth word is refused with ``422`` and named in\nthe schema. It used to fall through to the pending queue with a ``200``: a\nclient asking for the expired ones got the live ones, with nothing in the\nresponse saying it had been given a different question's answer.\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
         "operationId": "list_approvals_v1_approvals_get",
         "parameters": [
           {
@@ -10053,6 +10053,11 @@
             "required": false,
             "schema": {
               "default": "pending",
+              "enum": [
+                "pending",
+                "expired",
+                "decided"
+              ],
               "title": "State",
               "type": "string"
             }
@@ -10291,7 +10296,7 @@
     },
     "/v1/approvals/{approval_id}/repropose": {
       "post": {
-        "description": "Propose a fresh reading against an expired decision's origin (FR-015).\n\nQueues through ``RequestBuilder.queue()`` — the exact mechanism that\nproduced the original, reached the same way `RemediationGate` reaches it\n— never `RemediationGate.decide()`/`.execute_approved()`, which can\nsuspend waiting on a decision or, under an autonomy policy, execute the\naction outright. Neither is acceptable for a handler whose only contract\nis \"always exactly one new pending proposal, never a write\": calling\n`queue()` directly is what makes propose-only structural here rather than\na convention a policy could override.\n\nOnly an expired decision may be reproposed (FR-015: \"Só aceita\nstate=expired\"). Idempotent by origin while the new pending exists\n(FR-017): a second call returns `409` naming the same pending rather than\na second one. An origin that no longer resolves — the capability retired,\nthe plan undeliverable — is refused by name with `422` (FR-016), never a\nserver error.",
+        "description": "Propose a fresh reading against an expired decision's origin (FR-015).\n\nQueues through ``RequestBuilder.queue()`` — the exact mechanism that\nproduced the original, reached the same way `RemediationGate` reaches it\n— never `RemediationGate.decide()`/`.execute_approved()`, which can\nsuspend waiting on a decision or, under an autonomy policy, execute the\naction outright. Neither is acceptable for a handler whose only contract\nis \"always exactly one new pending proposal, never a write\": calling\n`queue()` directly is what makes propose-only structural here rather than\na convention a policy could override.\n\nOnly an expired decision may be reproposed (FR-015: \"Só aceita\nstate=expired\"). Idempotent by origin while the new pending exists\n(FR-017): a later call returns `409` naming the same pending rather than\na second one, however deep the queue that pending one is waiting in, and\nwhether the two calls arrive one after another or together. A lookup by\norigin answers the sequential case with the better message; the store\nrefusing a second *live* proposal for one origin is what answers the\nconcurrent one, where both callers read \"nothing reproposed yet\" before\neither has committed. Both end in the same `409`.\n\nAn origin that no longer resolves — the capability retired,\nthe plan undeliverable — is refused by name with `422` (FR-016), never a\nserver error.",
         "operationId": "repropose_approval_v1_approvals__approval_id__repropose_post",
         "parameters": [
           {
@@ -12661,7 +12666,7 @@
     },
     "/v1/events/stream": {
       "get": {
-        "description": "Stream the deployment's runs, incidents and decisions changing, live.\n\n``auth`` is required and checked against the route table (the same\npermission `GET /v1/runs` needs) but otherwise unused: this channel is not\nscoped to a tenant, a run, or anything else the caller names — it is one\nprocess-wide feed, and what each viewer may read of any given id is still\ndecided, as always, by the read route they ask for it with.",
+        "description": "Stream this organisation's runs, incidents and decisions changing, live.\n\n``auth`` does two things, not one. It carries the permission check against\nthe route table — the same permission `GET /v1/runs` needs — and it names\nthe organisation the connection is served, which is the token's own scope\nand nothing a request can influence.",
         "operationId": "stream_deployment_events_v1_events_stream_get",
         "parameters": [
           {

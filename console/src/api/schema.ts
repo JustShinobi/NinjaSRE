@@ -450,6 +450,12 @@ export interface paths {
          *     closed still read as `pending` and the sidebar counted it. This is the
          *     one place that composes it into a path something actually serves.
          *
+         *     The three are the whole of what the parameter accepts, and they are typed
+         *     rather than matched, so a fourth word is refused with ``422`` and named in
+         *     the schema. It used to fall through to the pending queue with a ``200``: a
+         *     client asking for the expired ones got the live ones, with nothing in the
+         *     response saying it had been given a different question's answer.
+         *
          *     Each carries its rollback plan, because the queue is where a reviewer
          *     decides which one to open — and "this one has no undo" is exactly the fact
          *     that decides it.
@@ -562,8 +568,15 @@ export interface paths {
          *
          *     Only an expired decision may be reproposed (FR-015: "Só aceita
          *     state=expired"). Idempotent by origin while the new pending exists
-         *     (FR-017): a second call returns `409` naming the same pending rather than
-         *     a second one. An origin that no longer resolves — the capability retired,
+         *     (FR-017): a later call returns `409` naming the same pending rather than
+         *     a second one, however deep the queue that pending one is waiting in, and
+         *     whether the two calls arrive one after another or together. A lookup by
+         *     origin answers the sequential case with the better message; the store
+         *     refusing a second *live* proposal for one origin is what answers the
+         *     concurrent one, where both callers read "nothing reproposed yet" before
+         *     either has committed. Both end in the same `409`.
+         *
+         *     An origin that no longer resolves — the capability retired,
          *     the plan undeliverable — is refused by name with `422` (FR-016), never a
          *     server error.
          */
@@ -1411,13 +1424,12 @@ export interface paths {
         };
         /**
          * Stream Deployment Events
-         * @description Stream the deployment's runs, incidents and decisions changing, live.
+         * @description Stream this organisation's runs, incidents and decisions changing, live.
          *
-         *     ``auth`` is required and checked against the route table (the same
-         *     permission `GET /v1/runs` needs) but otherwise unused: this channel is not
-         *     scoped to a tenant, a run, or anything else the caller names — it is one
-         *     process-wide feed, and what each viewer may read of any given id is still
-         *     decided, as always, by the read route they ask for it with.
+         *     ``auth`` does two things, not one. It carries the permission check against
+         *     the route table — the same permission `GET /v1/runs` needs — and it names
+         *     the organisation the connection is served, which is the token's own scope
+         *     and nothing a request can influence.
          */
         get: operations["stream_deployment_events_v1_events_stream_get"];
         put?: never;
@@ -8416,7 +8428,7 @@ export interface operations {
             query?: {
                 run_id?: string;
                 limit?: number;
-                state?: string;
+                state?: "pending" | "expired" | "decided";
             };
             header?: {
                 authorization?: string | null;
