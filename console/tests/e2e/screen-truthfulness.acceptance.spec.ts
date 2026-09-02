@@ -178,6 +178,24 @@ function stepOfTotal(
  * still real: whichever of the three surfaces *did* render must agree with
  * every other one that rendered, in the same page load.
  */
+/**
+ * Opens the wizard, and says whether this deployment still has one to show.
+ *
+ * A finished checklist sends `/first-run` to the dashboard, and the redirect
+ * arrives in one of two forms: as the response itself, or — when the shell
+ * has streamed ahead of the page's own checklist read — as a client-side
+ * navigation that lands after `goto` has returned. Which one it is depends on
+ * which of two concurrent renders finished first, so the address right after
+ * `goto` is not an answer. A page on screen is: the wizard's own header names
+ * `first-run`, and the dashboard's names `dashboard`.
+ */
+async function openFirstRun(page: Page): Promise<boolean> {
+  await page.goto('/first-run');
+  const header = page.getByTestId('page-header').first();
+  await header.waitFor({ state: 'visible' });
+  return (await header.getAttribute('data-area')) === 'first-run';
+}
+
 async function progressClaims(page: Page): Promise<readonly ProgressClaim[]> {
   const claims: ProgressClaim[] = [];
 
@@ -195,8 +213,7 @@ async function progressClaims(page: Page): Promise<readonly ProgressClaim[]> {
     }
   }
 
-  await page.goto('/first-run');
-  if (new URL(page.url()).pathname.endsWith('/first-run')) {
+  if (await openFirstRun(page)) {
     const positionText = await page.getByTestId('wizard-position').innerText();
     const step = stepOfTotal(positionText);
     if (step !== null) {
@@ -264,8 +281,7 @@ test.describe('one number, everywhere setup progress is shown', () => {
     // one describing what the other draws. This is the missing comparison —
     // a stated number against what a person could actually count — on both
     // surfaces that draw the deployment's own checklist as rows.
-    await page.goto('/first-run');
-    if (new URL(page.url()).pathname.endsWith('/first-run')) {
+    if (await openFirstRun(page)) {
       const rows = await page.getByTestId('checklist-step').all();
       const attributes = await Promise.all(
         rows.map((row) => row.getAttribute('data-done')),
@@ -309,8 +325,7 @@ test.describe('one number, everywhere setup progress is shown', () => {
   test('the wizard header states position, step and what is left on one line', async ({
     page,
   }) => {
-    await page.goto('/first-run');
-    if (!new URL(page.url()).pathname.endsWith('/first-run')) {
+    if (!(await openFirstRun(page))) {
       // This deployment has nothing left to set up, so there is no header
       // line to read — the redirect itself is the honest answer.
       return;

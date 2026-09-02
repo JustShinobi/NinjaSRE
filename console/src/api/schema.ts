@@ -2182,6 +2182,12 @@ export interface paths {
         /**
          * Overview
          * @description Return the five KPI tiles the Painel renders, from one read.
+         *
+         *     Served as computed for ``OVERVIEW_CACHE_TTL_SECONDS`` per scope. The
+         *     figures are a fortnight's, and computing them drains every incident and
+         *     run in that fortnight on a screen every session opens first; the
+         *     ``captured_at`` on the view says which instant they describe, so a reader
+         *     is never told a remembered figure is a fresh one.
          */
         get: operations["overview_v1_overview_get"];
         put?: never;
@@ -2568,6 +2574,16 @@ export interface paths {
          *     decides it. Read in one batched query over the whole page rather than one
          *     per row — the per-row version works on a demo and is a fifty-query page in
          *     a deployment that has been running a while.
+         *
+         *     ``status`` may be repeated, and the page is then the runs in any of them
+         *     — the console's attention band asks for the failed, the cancelled and the
+         *     interrupted runs in one read, where it used to read the whole page and
+         *     keep three rows of it. A word this deployment has no status for is
+         *     refused as a validation error, like any other malformed query.
+         *
+         *     ``run_id`` may be repeated too, for a screen that already knows which
+         *     runs it cites — the incidents screen names the run behind each settled
+         *     firing — and would otherwise read a page of fifty to find them.
          */
         get: operations["list_runs_v1_runs_get"];
         put?: never;
@@ -6787,6 +6803,23 @@ export interface components {
             /** Unpriced Turns */
             unpriced_turns: number;
         };
+        /**
+         * RunStatus
+         * @description Where a run got to.
+         *
+         *     Mirrors the runtime's own session status rather than inventing a second
+         *     vocabulary: an operator reading a stored trace and an operator watching a
+         *     live run should not have to translate between two sets of words.
+         *
+         *     ``INTERRUPTED`` is the one word the runtime has no use for, because a
+         *     process that vanished did not get to record anything. It is written *for* a
+         *     run by whoever noticed it stopped — a reaper finding an expired lease, a
+         *     replica finding a run still marked running at boot — and it says something
+         *     ``FAILED`` does not: nobody knows how far this got. Recording it as a
+         *     failure would put a conclusion in the history that nothing established.
+         * @enum {string}
+         */
+        RunStatus: "running" | "suspended" | "completed" | "cancelled" | "failed" | "interrupted";
         /**
          * SampleView
          * @description The last payload a source sent, after masking, and which policy did it.
@@ -11576,6 +11609,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                status?: components["schemas"]["RunStatus"][] | null;
+                run_id?: string[] | null;
             };
             header?: {
                 authorization?: string | null;

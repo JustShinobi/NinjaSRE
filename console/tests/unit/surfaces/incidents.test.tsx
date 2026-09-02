@@ -100,18 +100,25 @@ function enabledDetector(id: string): unknown {
   };
 }
 
+/** Every address the screen asked for, in order, query included. */
+let asked: URL[] = [];
+
 function serve(bodies: {
   readonly detectors: readonly unknown[];
   readonly detectorsStatus?: number;
   readonly incidents: readonly unknown[];
+  readonly runs?: readonly unknown[];
   readonly setup: unknown;
 }): void {
   vi.stubGlobal('fetch', (input: unknown) => {
-    const path = new URL(String(input), BASE).pathname;
+    const address = new URL(String(input), BASE);
+    asked.push(address);
+    const path = address.pathname;
     const byPath: Record<string, unknown> = {
       '/auth/me': PRINCIPAL,
       '/v1/incidents': { incidents: bodies.incidents },
       '/v1/detectors': { detectors: bodies.detectors },
+      '/v1/runs': { runs: bodies.runs ?? [] },
       '/v1/setup/checklist': bodies.setup,
     };
     const body = byPath[path];
@@ -130,6 +137,7 @@ function serve(bodies: {
 }
 
 beforeEach(() => {
+  asked = [];
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
 
@@ -311,5 +319,100 @@ describe('view selector in address', () => {
     await incidents({ view: 'flat' });
 
     expect(screen.getByText('Backup job disabled')).toBeInTheDocument();
+  });
+});
+
+describe('the runs read behind the settled firings’ headlines', () => {
+  // `/incidents` was the one route still over a hundred milliseconds at the
+  // ingress, and the reason was this screen reading the whole first page of
+  // runs — fifty full records — to look up a headline for the two or three a
+  // settled firing cites. The incidents are read first, and the runs read asks
+  // for exactly the ones cited, or is not made at all.
+
+  const RESOLVED_WITH_RUN = {
+    ...OPEN_INCIDENT,
+    incident_id: 'inc-0002',
+    public_id: 'inc-0002',
+    state: 'resolved',
+    closed_at: '2026-08-07T11:00:00+00:00',
+    run_id: 'run-0005',
+  };
+  const OPEN_WITH_RUN = {
+    ...OPEN_INCIDENT,
+    incident_id: 'inc-0003',
+    public_id: 'inc-0003',
+    subjects: ['pg-primary'],
+    run_id: 'run-0009',
+  };
+
+  function runsAsked(): URL[] {
+    return asked.filter((address) => address.pathname === '/v1/runs');
+  }
+
+  it('asks for exactly the cited runs, each once, and nothing else', async () => {
+    serve({
+      detectors: [enabledDetector('backup-job-disabled')],
+      incidents: [
+        RESOLVED_WITH_RUN,
+        OPEN_WITH_RUN,
+        { ...RESOLVED_WITH_RUN, incident_id: 'inc-0004', public_id: 'inc-0004' },
+      ],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    expect(runsAsked()).toHaveLength(1);
+    const query = runsAsked()[0]?.searchParams;
+    expect(query?.getAll('run_id')).toEqual(['run-0005', 'run-0009']);
+    expect(query?.get('limit')).toBe('2');
+    expect([...new Set(query?.keys())].sort()).toEqual(['limit', 'run_id']);
+  });
+
+  it('reads the incidents before it knows which runs to ask for', async () => {
+    serve({
+      detectors: [enabledDetector('backup-job-disabled')],
+      incidents: [RESOLVED_WITH_RUN],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    const order = asked.map((address) => address.pathname);
+    expect(order.indexOf('/v1/incidents')).toBeLessThan(order.indexOf('/v1/runs'));
+  });
+
+  it('does not read the runs at all when no incident cites one', async () => {
+    serve({
+      detectors: [enabledDetector('backup-job-disabled')],
+      incidents: [
+        OPEN_INCIDENT,
+        { ...OPEN_INCIDENT, incident_id: 'inc-0005', run_id: null },
+      ],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    expect(runsAsked()).toEqual([]);
+    expect(screen.getAllByText('Backup job disabled').length).toBeGreaterThan(0);
+  });
+
+  it('still shows the headline of the run a settled firing cites', async () => {
+    serve({
+      detectors: [enabledDetector('backup-job-disabled')],
+      incidents: [RESOLVED_WITH_RUN],
+      runs: [
+        {
+          run_id: 'run-0005',
+          status: 'completed',
+          headline: 'Backup job re-enabled after a failed rotation',
+          summary: '',
+        },
+      ],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    expect(
+      screen.getByText(/Backup job re-enabled after a failed rotation/),
+    ).toBeInTheDocument();
   });
 });

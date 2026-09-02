@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { InvestigateLauncher } from '@/live/investigate';
+import {
+  EMPTY_BRIEFING,
+  LAUNCHER_ENDPOINT,
+  type LauncherBriefing,
+} from '@/shell/launcher';
 
 /**
  * The launcher, as the board draws it: a centred modal whose suggestions come
@@ -12,6 +17,11 @@ import { InvestigateLauncher } from '@/live/investigate';
  * The degradation is the claim worth holding: with no recurring subject and
  * no unhealthy band, only the always-true audit offer appears. A launcher
  * that fabricated a suggestion would be this console inventing an incident.
+ *
+ * The briefing is asked for when the drawer opens, not carried by the frame:
+ * three gateway reads for a drawer most page views never open were three
+ * reads on every render of every screen. Until it arrives the drawer is the
+ * same drawer with the empty briefing, which it already renders honestly.
  */
 
 vi.mock('next/navigation', () => ({
@@ -21,6 +31,11 @@ vi.mock('next/navigation', () => ({
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** A courier that answers `briefing` at once. */
+function briefed(briefing: LauncherBriefing): () => Promise<LauncherBriefing> {
+  return () => Promise.resolve(briefing);
+}
 
 function launcher(
   overrides: Partial<Parameters<typeof InvestigateLauncher>[0]> = {},
@@ -32,26 +47,27 @@ function launcher(
       onClose={() => undefined}
       deploymentName="HAL9000"
       posture="propose"
+      askBriefing={briefed(EMPTY_BRIEFING)}
       {...overrides}
     />,
   );
 }
 
 describe('the suggestions block', () => {
-  it('offers all three when the environment supports all three', () => {
+  it('offers all three when the environment supports all three', async () => {
     launcher({
-      briefing: {
+      askBriefing: briefed({
         teamName: 'Platform',
         recurring: { subject: 'RedisExporterDown', count: 8 },
         unhealthy: 14,
-      },
+      }),
     });
 
+    expect(await screen.findByText(/RedisExporterDown/)).toBeInTheDocument();
     const offered = screen
       .getAllByTestId('investigate-suggestion')
       .map((each) => each.getAttribute('data-suggestion'));
     expect(offered).toEqual(['recurring', 'unhealthy', 'audit']);
-    expect(screen.getByText(/RedisExporterDown/)).toBeInTheDocument();
     expect(screen.getByText(/8 disparos/)).toBeInTheDocument();
     expect(screen.getByText(/14 recursos/)).toBeInTheDocument();
   });
@@ -99,11 +115,14 @@ describe('the shortcut and the footer', () => {
     expect(went).toEqual(['/runs/run-7']);
   });
 
-  it('says what will run, with the team and the posture, above the two controls', () => {
+  it('says what will run, with the team and the posture, above the two controls', async () => {
     launcher({
-      briefing: { teamName: 'Platform', recurring: null, unhealthy: 0 },
+      askBriefing: briefed({ teamName: 'Platform', recurring: null, unhealthy: 0 }),
     });
 
+    expect(
+      await screen.findByText(/Vai rodar com o time Platform/),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('investigate-team')).toHaveTextContent(
       'Vai rodar com o time Platform',
     );
@@ -118,5 +137,96 @@ describe('the shortcut and the footer', () => {
 
     expect(screen.getByTestId('investigate-team')).toHaveTextContent('apenas propõe');
     expect(screen.getByTestId('investigate-team')).not.toHaveTextContent('o time');
+  });
+});
+
+describe('where the briefing comes from', () => {
+  it('asks the courier once when it opens, and shows the answer when it arrives', async () => {
+    let answer: (briefing: LauncherBriefing) => void = () => undefined;
+    const fetching = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = (briefing) => {
+            resolve(new Response(JSON.stringify(briefing), { status: 200 }));
+          };
+        }),
+    );
+    vi.stubGlobal('fetch', fetching);
+    render(
+      <InvestigateLauncher
+        open
+        locale="pt-BR"
+        onClose={() => undefined}
+        deploymentName="HAL9000"
+        posture="propose"
+      />,
+    );
+
+    // Asked once, at the courier, uncached — and the drawer is already on
+    // screen with the honest floor while the answer is in flight.
+    expect(fetching).toHaveBeenCalledTimes(1);
+    const [address, init] = fetching.mock.calls[0] as unknown as [string, RequestInit];
+    expect(address).toBe(LAUNCHER_ENDPOINT);
+    expect(init.cache).toBe('no-store');
+    expect(
+      screen
+        .getAllByTestId('investigate-suggestion')
+        .map((each) => each.getAttribute('data-suggestion')),
+    ).toEqual(['audit']);
+    expect(screen.getByTestId('investigate-team')).not.toHaveTextContent('o time');
+
+    answer({
+      teamName: 'Platform',
+      recurring: { subject: 'RedisExporterDown', count: 8 },
+      unhealthy: 14,
+    });
+
+    expect(await screen.findByText(/RedisExporterDown/)).toBeInTheDocument();
+    expect(screen.getByTestId('investigate-team')).toHaveTextContent(
+      'Vai rodar com o time Platform',
+    );
+    expect(fetching).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks nothing while closed', () => {
+    const fetching = vi.fn(() => Promise.reject(new Error('should not be asked')));
+    vi.stubGlobal('fetch', fetching);
+    render(
+      <InvestigateLauncher
+        open={false}
+        locale="pt-BR"
+        onClose={() => undefined}
+        deploymentName="HAL9000"
+      />,
+    );
+
+    expect(fetching).not.toHaveBeenCalled();
+  });
+
+  it('keeps the empty briefing when the courier refuses', async () => {
+    const fetching = vi.fn(() => Promise.resolve(new Response('{}', { status: 401 })));
+    vi.stubGlobal('fetch', fetching);
+    render(
+      <InvestigateLauncher
+        open
+        locale="pt-BR"
+        onClose={() => undefined}
+        deploymentName="HAL9000"
+        posture="propose"
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(fetching.mock.results.length).toBe(1);
+    });
+    await Promise.resolve();
+
+    expect(
+      screen
+        .getAllByTestId('investigate-suggestion')
+        .map((each) => each.getAttribute('data-suggestion')),
+    ).toEqual(['audit']);
+    expect(screen.getByTestId('investigate-team')).toHaveTextContent('apenas propõe');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

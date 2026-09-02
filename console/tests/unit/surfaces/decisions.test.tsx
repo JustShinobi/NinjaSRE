@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +10,30 @@ import { contextFor, datasetViewer, serveScenario } from '../support/dataset';
  * two tabs, so a reader of either sees the other exists without a
  * cross-link paragraph doing the work the tab bar now does.
  */
+
+/**
+ * `next/link` stood in by an anchor that records it was the router's link,
+ * and with which prefetch setting. The DOM cannot tell a router link from a
+ * plain `<a href>`, and the difference is what the tab bar is for: a plain
+ * anchor is a document navigation that tears the shell down and repeats its
+ * reads for a change of tab.
+ */
+vi.mock('next/link', () => ({
+  default: ({
+    href,
+    prefetch,
+    children,
+    ...rest
+  }: {
+    readonly href: string;
+    readonly prefetch?: boolean;
+    readonly children: ReactNode;
+  }) => (
+    <a {...rest} href={href} data-router-link={String(prefetch)}>
+      {children}
+    </a>
+  ),
+}));
 
 vi.mock('next/headers', () => ({
   cookies: () =>
@@ -48,6 +74,16 @@ describe('the tab bar', () => {
     ]);
     expect(tabs[0]).toHaveAttribute('href', '?tab=actions');
     expect(tabs[1]).toHaveAttribute('href', '?tab=changes');
+  });
+
+  it('follows a tab through the router, with prefetching off', async () => {
+    await render_();
+
+    // A change of tab keeps the shell and its reads; a plain anchor would
+    // throw both away. Prefetch stays off: each tab is a full server render.
+    for (const tab of screen.getAllByTestId('tab-link')) {
+      expect(tab).toHaveAttribute('data-router-link', 'false');
+    }
   });
 
   it('defaults to Actions — what the agent wants to do now', async () => {

@@ -3,10 +3,11 @@ import { parseViewer, type Viewer } from '@/session/viewer';
 import { RUNTIME_STEP } from '@/surfaces/first-run/plan';
 import type { AttentionItem } from './attention';
 import type { RecentRun } from './commands';
+import { EMPTY_BRIEFING, type LauncherBriefing } from './launcher';
 import type { Guardian } from './sidebar';
 import { NOT_STOPPED, stoppageFrom, type Stoppage } from './stoppage';
 
-export { stoppageFrom, type Stoppage };
+export { stoppageFrom, type LauncherBriefing, type Stoppage };
 
 /**
  * What the shell needs before it can draw itself, read once per request.
@@ -83,7 +84,24 @@ function text(record: unknown, key: string): string {
   return typeof found === 'string' ? found : '';
 }
 
-/** The runs the palette offers by identifier, newest first as the API orders them. */
+/**
+ * How many runs either of the frame's two runs reads asks for.
+ *
+ * The palette offers recent runs by identifier, and twenty is a page of
+ * "recent". The attention list asks for the same page size of runs that ended
+ * badly. Neither is the whole first page the gateway would otherwise send —
+ * the largest payload of every render, read for two small needs.
+ */
+const RECENT_RUNS_LIMIT = 20;
+
+/**
+ * The runs the palette offers by identifier, newest first as the API orders them.
+ *
+ * A different address from the attention list's read of the same endpoint,
+ * on purpose: this wants the newest runs whatever their state, that wants
+ * only the ones that ended badly. One address for both would be deduplicated
+ * into one read of everything again.
+ */
 export async function loadRecentRuns(
   credential: string,
 ): Promise<readonly RecentRun[]> {
@@ -92,7 +110,10 @@ export async function loadRecentRuns(
 
 async function readRecentRuns(credential: string): Promise<readonly RecentRun[]> {
   try {
-    const body = await read('/v1/runs', authorised(credential));
+    const body = await read('/v1/runs', {
+      ...authorised(credential),
+      query: `?limit=${String(RECENT_RUNS_LIMIT)}`,
+    });
     return records(body, 'runs')
       .map((record) => ({
         id: text(record, 'run_id'),
@@ -108,8 +129,25 @@ async function readRecentRuns(credential: string): Promise<readonly RecentRun[]>
   }
 }
 
-/** The statuses that mean a run needs somebody rather than that it is working. */
-const FAILED_STATUSES: ReadonlySet<string> = new Set(['failed', 'error', 'cancelled']);
+/**
+ * The statuses that mean a run needs somebody rather than that it is working.
+ *
+ * The gateway's own terminal words, and the one definition of "ended badly":
+ * the query the attention read sends is built from this set, and the same set
+ * checks what comes back. `interrupted` is here because it means nobody knows
+ * how far the run got, which is exactly a run that needs a person.
+ */
+const FAILED_STATUSES: ReadonlySet<string> = new Set([
+  'failed',
+  'cancelled',
+  'interrupted',
+]);
+
+/** The query that asks the gateway for only the runs that ended badly. */
+function failedRunsQuery(): string {
+  const statuses = [...FAILED_STATUSES].map((status) => `status=${status}`);
+  return `?${[...statuses, `limit=${String(RECENT_RUNS_LIMIT)}`].join('&')}`;
+}
 
 /**
  * Everything waiting on a person, from every source that has one today.
@@ -126,63 +164,87 @@ export async function loadAttention(
   return withDeadline(readAttention(credential), []);
 }
 
+/**
+ * The body a settled read answered with, or nothing when it failed in one of
+ * the two ways the frame degrades on.
+ *
+ * A refusal and an unreachable deployment are a missing count; anything else
+ * is a defect and is surfaced, exactly as it was when the reads were made one
+ * after the other.
+ */
+function answered(outcome: PromiseSettledResult<unknown>): unknown {
+  if (outcome.status === 'fulfilled') return outcome.value;
+  if (outcome.reason instanceof ApiError || outcome.reason instanceof TypeError) {
+    return null;
+  }
+  throw outcome.reason;
+}
+
 async function readAttention(credential: string): Promise<readonly AttentionItem[]> {
+  const init = authorised(credential);
+  // Issued together rather than one after the other: each is a round trip to
+  // the deployment on the critical path of every full-page render, and three
+  // in sequence was three times the latency for the same three answers. The
+  // results are still processed in the order the sources are listed, so the
+  // list reads the same whichever endpoint answered first.
+  //
+  // The proposals list rather than its count, because the band needs a row and
+  // not a number — and reading two endpoints for one fact is how the badge and
+  // the band come to disagree about how many are waiting.
+  //
+  // Runs are filtered by the gateway, not here: only the ones that ended badly,
+  // and a page of them. That gives this read a different address from the
+  // palette's read of the same endpoint, which is intended — the two used to
+  // share one address and one fifty-run page, the largest payload of every
+  // render, for two small needs.
+  const [approvals, proposals, runs] = (
+    await Promise.allSettled([
+      read('/v1/approvals', init),
+      read('/v1/proposals', init),
+      read('/v1/runs', { ...init, query: failedRunsQuery() }),
+    ])
+  ).map(answered);
+
   const items: AttentionItem[] = [];
-  try {
-    const body = await read('/v1/approvals', authorised(credential));
-    for (const record of records(body, 'approvals')) {
-      if (text(record, 'state') !== 'pending') continue;
-      const id = text(record, 'approval_id');
-      if (id === '') continue;
-      items.push({
-        id,
-        kind: 'approval',
-        title: text(record, 'summary'),
-        detail: text(record, 'action'),
-        href: `/decisions?tab=actions&selected=${id}`,
-        since: text(record, 'requested_at'),
-      });
-    }
-  } catch (error) {
-    if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
+  for (const record of records(approvals, 'approvals')) {
+    if (text(record, 'state') !== 'pending') continue;
+    const id = text(record, 'approval_id');
+    if (id === '') continue;
+    items.push({
+      id,
+      kind: 'approval',
+      title: text(record, 'summary'),
+      detail: text(record, 'action'),
+      href: `/decisions?tab=actions&selected=${id}`,
+      since: text(record, 'requested_at'),
+    });
   }
-  try {
-    // The list rather than the count, because the band needs a row and not a
-    // number — and reading two endpoints for one fact is how the badge and the
-    // band come to disagree about how many are waiting.
-    const body = await read('/v1/proposals', authorised(credential));
-    for (const record of records(body, 'proposals')) {
-      const id = text(record, 'proposal_id');
-      if (id === '') continue;
-      items.push({
-        id,
-        kind: 'proposal',
-        title: text(record, 'summary'),
-        detail: text(record, 'proposal_type'),
-        href: `/decisions?tab=changes&selected=${id}`,
-        since: text(record, 'proposed_at'),
-      });
-    }
-  } catch (error) {
-    if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
+  for (const record of records(proposals, 'proposals')) {
+    const id = text(record, 'proposal_id');
+    if (id === '') continue;
+    items.push({
+      id,
+      kind: 'proposal',
+      title: text(record, 'summary'),
+      detail: text(record, 'proposal_type'),
+      href: `/decisions?tab=changes&selected=${id}`,
+      since: text(record, 'proposed_at'),
+    });
   }
-  try {
-    const body = await read('/v1/runs', authorised(credential));
-    for (const record of records(body, 'runs')) {
-      if (!FAILED_STATUSES.has(text(record, 'status'))) continue;
-      const id = text(record, 'run_id');
-      if (id === '') continue;
-      items.push({
-        id,
-        kind: 'failure',
-        title: text(record, 'summary'),
-        detail: text(record, 'status'),
-        href: `/runs/${id}`,
-        since: text(record, 'started_at'),
-      });
-    }
-  } catch (error) {
-    if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
+  for (const record of records(runs, 'runs')) {
+    // Checked again on the way in: a gateway that does not know the `status`
+    // filter answers with every run, and this is what keeps that honest.
+    if (!FAILED_STATUSES.has(text(record, 'status'))) continue;
+    const id = text(record, 'run_id');
+    if (id === '') continue;
+    items.push({
+      id,
+      kind: 'failure',
+      title: text(record, 'summary'),
+      detail: text(record, 'status'),
+      href: `/runs/${id}`,
+      since: text(record, 'started_at'),
+    });
   }
   return items;
 }
@@ -303,33 +365,19 @@ async function readSetupState(credential: string): Promise<SetupState> {
   }
 }
 
-/**
- * What the investigate launcher offers before anything is typed: where the
- * environment already is.
- *
- * Derived from what the console already carries — the incident listing and
- * the estate's own summary — never invented. A deployment where neither read
- * answers offers only the always-true audit suggestion, which is the honest
- * floor rather than a failure.
- */
-export interface LauncherBriefing {
-  /** The viewer's own team, named by the organisation tree. Empty when unnamed. */
-  readonly teamName: string;
-  /** The open subject that keeps firing, when one does. */
-  readonly recurring: { readonly subject: string; readonly count: number } | null;
-  /** The estate's own count of unhealthy resources right now. */
-  readonly unhealthy: number;
-}
-
-const EMPTY_BRIEFING: LauncherBriefing = {
-  teamName: '',
-  recurring: null,
-  unhealthy: 0,
-};
-
 /** How many rows one subject needs before "keeps coming back" is a fact. */
 const RECURRING_FLOOR = 2;
 
+/**
+ * What the investigate launcher offers before anything is typed — the
+ * `LauncherBriefing` that `./launcher` declares, built from three reads.
+ *
+ * Read by the launcher courier when the drawer opens, and no longer by the
+ * frame: an incident listing, an estate summary and an organisation tree on
+ * every render of every screen was the price of a drawer most page views
+ * never open. The deadline is the frame's, kept so that a slow read still
+ * degrades to the empty briefing rather than holding the drawer's answer.
+ */
 export async function loadLauncher(
   credential: string,
   teamNodeId: string,

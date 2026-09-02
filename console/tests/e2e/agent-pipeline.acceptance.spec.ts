@@ -341,9 +341,10 @@ test.describe('AN-A8 — Tools, Autonomy and Team Context still serve their full
   }) => {
     await page.goto('/agent?tab=tools');
     await page.getByTestId('page-header').first().waitFor({ state: 'visible' });
-    const tools = page.getByTestId('agent-tool');
-    const skills = page.getByTestId('catalogue-skill');
-    expect((await tools.count()) + (await skills.count())).toBeGreaterThan(0);
+    // The tab draws one card per capability, each saying whether it is
+    // available here; the summary card above them is not a capability.
+    await expect(page.getByTestId('capability-card').first()).toBeVisible();
+    expect(await page.getByTestId('capability-card').count()).toBeGreaterThan(0);
   });
 
   test('the Autonomy tab still shows the full outlook, "Why:" included', async ({

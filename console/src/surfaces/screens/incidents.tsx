@@ -25,6 +25,7 @@ import {
   list,
   panelRead,
   read,
+  type PanelData,
   stateOf,
   text,
 } from '../read';
@@ -163,31 +164,60 @@ function FilterSegment({
   );
 }
 
+/**
+ * The most runs one read may ask for: the gateway's own page bound. A page
+ * that cites more settled firings than this shows the first fifty headlines
+ * and renders the rest without one, honestly, rather than asking for a page
+ * the gateway would refuse.
+ */
+const RUNS_PAGE = 50;
+
 export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, INCIDENT_ADDRESS);
   const grouped = state.filters[VIEW_PARAM] !== FLAT_VIEW;
   const init = authorised(credential);
 
-  const [incidents, detectors, resources, observations, runs, setup] =
-    await Promise.all([
-      panelRead('/v1/incidents', () => read('/v1/incidents', init)),
-      // Read for the same reason the Detectors screen reads it — to say how
-      // many are live — not to drive this panel's own state. A detector read
-      // that fails answers "unknown" rather than "none", so a gateway hiccup
-      // here cannot make this screen say nothing is watching when it might be.
-      panelRead('/v1/detectors', () => read('/v1/detectors', init)),
-      // The two reads the footer's detector-coverage card needs — the estate's
-      // own degraded/unhealthy resources, and what enabled detectors currently
-      // conclude — each one read for the whole page, never per row.
-      panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
-      panelRead('/v1/observations', () => read('/v1/observations', init)),
-      // The headline of whatever run investigated a settled firing — one read
-      // for the page, looked up per group rather than fetched per group.
-      panelRead('/v1/runs', () => read('/v1/runs', init)),
-      readSetupState(credential),
-    ]);
+  const [incidents, detectors, resources, observations, setup] = await Promise.all([
+    panelRead('/v1/incidents', () => read('/v1/incidents', init)),
+    // Read for the same reason the Detectors screen reads it — to say how
+    // many are live — not to drive this panel's own state. A detector read
+    // that fails answers "unknown" rather than "none", so a gateway hiccup
+    // here cannot make this screen say nothing is watching when it might be.
+    panelRead('/v1/detectors', () => read('/v1/detectors', init)),
+    // The two reads the footer's detector-coverage card needs — the estate's
+    // own degraded/unhealthy resources, and what enabled detectors currently
+    // conclude — each one read for the whole page, never per row.
+    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
+    panelRead('/v1/observations', () => read('/v1/observations', init)),
+    readSetupState(credential),
+  ]);
   const records = list(dataOf(incidents), 'incidents');
+
+  // The headline of whatever run investigated a settled firing — one read for
+  // the page, looked up per group rather than fetched per group. It is second
+  // rather than in the batch above because it depends on the incidents: the
+  // read asks for exactly the runs they cite, by `run_id`, and is not made at
+  // all when none does. Reading the whole first page instead — fifty full
+  // runs, the largest payload on this route — to look up two or three
+  // headlines was what kept `/incidents` over a hundred milliseconds.
+  const citedRuns = [
+    ...new Set(
+      records.map((record) => text(record, 'run_id')).filter((id) => id !== ''),
+    ),
+  ].slice(0, RUNS_PAGE);
+  const runs: PanelData<unknown> =
+    citedRuns.length === 0
+      ? { status: 'ready', data: { runs: [] } }
+      : await panelRead('/v1/runs', () =>
+          read('/v1/runs', {
+            ...init,
+            query: `?${[
+              ...citedRuns.map((id) => `run_id=${encodeURIComponent(id)}`),
+              `limit=${String(citedRuns.length)}`,
+            ].join('&')}`,
+          }),
+        );
 
   const states = [
     ...new Set(

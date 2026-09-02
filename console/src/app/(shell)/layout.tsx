@@ -9,7 +9,6 @@ import {
   countsFrom,
   loadAttention,
   loadGuardian,
-  loadLauncher,
   loadStopped,
   loadRecentRuns,
   loadSetup,
@@ -28,6 +27,13 @@ import { Shell } from '@/shell/shell';
  *
  * The page arrives as `children`, rendered on the server independently of this.
  * A slow API delays the page and never the frame.
+ *
+ * What is read here is read on every full-page render of every screen, so
+ * only what the frame itself draws belongs in the list: the viewer, what is
+ * waiting on them, the recent runs the palette offers, the guardian line,
+ * the setup state and the kill switch. The investigate drawer's briefing is
+ * not among them — three reads to fill a drawer most page views never open
+ * are fetched by the drawer, from `/api/launcher`, when it opens.
  */
 export const dynamic = 'force-dynamic';
 
@@ -51,14 +57,13 @@ export default async function ShellLayout({
     redirect(signInHref(current, 'expired'));
   }
 
-  const [attention, recentRuns, guardian, setup, stopped, launcher, expiresAt] =
+  const [attention, recentRuns, guardian, setup, stopped, expiresAt] =
     await Promise.all([
       loadAttention(credential),
       loadRecentRuns(credential),
       loadGuardian(credential),
       loadSetup(credential),
       loadStopped(credential),
-      loadLauncher(credential, viewer.teamNodeId),
       requestExpiry(),
     ]);
 
@@ -73,7 +78,6 @@ export default async function ShellLayout({
       counts={countsFrom(attention)}
       setup={setup}
       stopped={stopped}
-      launcher={launcher}
       expiresAt={expiresAt}
     >
       {children}

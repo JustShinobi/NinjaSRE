@@ -87,6 +87,24 @@ async function modelsProvidersWord(page: Page): Promise<string> {
 }
 
 /**
+ * Opens the wizard, and says whether this deployment still has one to show.
+ *
+ * A finished checklist sends `/first-run` to the dashboard, and the redirect
+ * arrives in one of two forms: as the response itself, or — when the shell
+ * has streamed ahead of the page's own checklist read — as a client-side
+ * navigation that lands after `goto` has returned. Which one it is depends on
+ * which of two concurrent renders finished first, so the address right after
+ * `goto` is not an answer. A page on screen is: the wizard's own header names
+ * `first-run`, and the dashboard's names `dashboard`.
+ */
+async function openFirstRun(page: Page): Promise<boolean> {
+  await page.goto('/first-run');
+  const header = page.getByTestId('page-header').first();
+  await header.waitFor({ state: 'visible' });
+  return (await header.getAttribute('data-area')) === 'first-run';
+}
+
+/**
  * The credential-vocabulary word `/first-run` shows for one named provider's own row.
  *
  * `/first-run` redirects away once the checklist is complete — true of the
@@ -94,9 +112,8 @@ async function modelsProvidersWord(page: Page): Promise<string> {
  * all, and this skips rather than asserting nothing found is a defect.
  */
 async function firstRunWord(page: Page, providerId: string): Promise<string> {
-  await page.goto('/first-run');
   test.skip(
-    !page.url().endsWith('/first-run'),
+    !(await openFirstRun(page)),
     '/first-run redirects away once the checklist is complete against this dataset',
   );
   const row = page.locator(`[data-testid="verify-row"][data-thing="${providerId}"]`);

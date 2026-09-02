@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/action';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/form';
 import { Modal } from '@/components/overlay';
 import { ArrowRightIcon, PlayIcon, SearchIcon } from '@/design/icons';
 import { isMessageKey, message, type Locale } from '@/i18n/messages';
-import type { LauncherBriefing } from '@/shell/load';
+import { askLauncher, EMPTY_BRIEFING, type LauncherBriefing } from '@/shell/launcher';
 import { act, RUN_ENDPOINT } from './act';
 import { Announcer } from './announcer';
 import { announce, dismiss, type Outcome } from './outcomes';
@@ -23,6 +23,12 @@ import { announce, dismiss, type Outcome } from './outcomes';
  * are derived from what the console already carries (the incident listing,
  * the estate's own summary), never invented: with no data for the first two,
  * only the always-true audit offer appears.
+ *
+ * That briefing is asked for when the drawer opens, once per opening, rather
+ * than carried by the frame: the three reads behind it were being paid on
+ * every render of every screen for a drawer most page views never open.
+ * Until it arrives — and if it never does — this is the same drawer with the
+ * empty briefing, which is the honest floor and not an error.
  *
  * The footer says what will actually happen — which team it runs with, that
  * it only proposes, and that the six stages are followed live — because the
@@ -53,8 +59,15 @@ export interface InvestigateLauncherProps {
    * instead of after.
    */
   readonly runtimeComposed?: boolean;
-  /** Where the environment already is, for the suggestions and the footer. */
-  readonly briefing?: LauncherBriefing;
+  /**
+   * How the courier is asked where the environment already is, for the
+   * suggestions and the footer.
+   *
+   * Injected so the suite can drive the drawer without a network. The default
+   * is the courier, because the session credential is an HTTP-only cookie the
+   * browser cannot read and a `fetch` from here could not carry it.
+   */
+  readonly askBriefing?: typeof askLauncher;
   /** The deployment's own name — the cluster the audit suggestion names. */
   readonly deploymentName?: string;
   /** What the guardian currently permits, the sidebar footer's own datum. */
@@ -75,7 +88,7 @@ export function InvestigateLauncher({
   onClose,
   integrationsConfigured = true,
   runtimeComposed = true,
-  briefing = { teamName: '', recurring: null, unhealthy: 0 },
+  askBriefing = askLauncher,
   deploymentName = '',
   posture = 'propose',
   navigate,
@@ -84,6 +97,22 @@ export function InvestigateLauncher({
   const [objective, setObjective] = useState('');
   const [sending, setSending] = useState(false);
   const [outcomes, setOutcomes] = useState<readonly Outcome[]>([]);
+  const [briefing, setBriefing] = useState<LauncherBriefing>(EMPTY_BRIEFING);
+
+  // Once per opening, and abandoned on closing: an answer that arrives for a
+  // drawer that has since closed is dropped, and the next opening asks again
+  // rather than showing what was true the last time somebody looked.
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    void askBriefing(controller.signal).then((found) => {
+      if (!controller.signal.aborted) setBriefing(found);
+    });
+    return () => {
+      controller.abort();
+      setBriefing(EMPTY_BRIEFING);
+    };
+  }, [open, askBriefing]);
 
   const objectiveGiven = objective.trim() !== '';
   // An objective alone does not make this startable: without a runtime the

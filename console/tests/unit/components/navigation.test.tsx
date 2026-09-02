@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +8,7 @@ import {
   Avatar,
   Breadcrumb,
   Pagination,
+  SegmentedLinks,
   TabLinks,
   Tabs,
 } from '@/components/navigation';
@@ -17,6 +20,31 @@ import {
  * typed. Pressing the right arrow and finding the next tab focused proves the
  * pattern works, which is what a keyboard user has.
  */
+
+/**
+ * `next/link` stood in by an anchor that records it was the router's link,
+ * and with which prefetch setting. A real `<a href>` and a router link render
+ * the same element, so nothing in the DOM says which one a component used —
+ * and the difference is the whole point of `TabLinks` using the router: a
+ * plain anchor is a document navigation, which throws the shell away and
+ * shows nothing at all while the next screen renders.
+ */
+vi.mock('next/link', () => ({
+  default: ({
+    href,
+    prefetch,
+    children,
+    ...rest
+  }: {
+    readonly href: string;
+    readonly prefetch?: boolean;
+    readonly children: ReactNode;
+  }) => (
+    <a {...rest} href={href} data-router-link={String(prefetch)}>
+      {children}
+    </a>
+  ),
+}));
 
 const TABS = [
   { id: 'transcript', label: 'Transcript' },
@@ -74,6 +102,71 @@ describe('Tabs', () => {
     expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveAttribute(
       'tabindex',
       '-1',
+    );
+  });
+});
+
+describe('TabLinks', () => {
+  const LINKS = TABS.map((tab) => ({ ...tab, href: `?section=${tab.id}` }));
+
+  it('follows a tab through the router, with prefetching off', () => {
+    render(<TabLinks tabs={LINKS} selected="evidence" label="Investigation" />);
+
+    // A router transition keeps the shell and shows the route's loading
+    // state while the section renders; a plain anchor does neither. Prefetch
+    // stays off, as it is on every link here: each tab is a full server
+    // render against the deployment, and the tabs nobody opens must not
+    // cost one.
+    for (const tab of TABS) {
+      const link = screen.getByRole('link', { name: tab.label });
+      expect(link).toHaveAttribute('href', `?section=${tab.id}`);
+      expect(link).toHaveAttribute('data-router-link', 'false');
+    }
+  });
+
+  it('marks the selected tab as the current page', () => {
+    render(<TabLinks tabs={LINKS} selected="evidence" label="Investigation" />);
+
+    expect(screen.getByRole('link', { name: 'Evidence' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Transcript' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+});
+
+describe('SegmentedLinks', () => {
+  const OPTIONS = [
+    { id: 'open', label: 'Open', href: '?state=open' },
+    { id: 'resolved', label: 'Resolved', href: '?state=resolved' },
+    { id: 'all', label: 'All', href: '?state=all' },
+  ];
+
+  it('follows a choice through the router, with prefetching off', () => {
+    render(<SegmentedLinks options={OPTIONS} selected="open" label="State" />);
+
+    // Same reasoning as the tab row: the address is the same either way, but
+    // a plain anchor is a document navigation that throws the shell away and
+    // repeats its reads for a change of filter. Prefetch stays off, because
+    // every choice is a full server render against the deployment.
+    for (const option of OPTIONS) {
+      const link = screen.getByRole('link', { name: option.label });
+      expect(link).toHaveAttribute('href', option.href);
+      expect(link).toHaveAttribute('data-router-link', 'false');
+    }
+  });
+
+  it('marks the selected choice as current', () => {
+    render(<SegmentedLinks options={OPTIONS} selected="open" label="State" />);
+
+    expect(screen.getByRole('link', { name: 'Open' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    expect(screen.getByRole('link', { name: 'All' })).not.toHaveAttribute(
+      'aria-current',
     );
   });
 });

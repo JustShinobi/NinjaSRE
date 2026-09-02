@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useId } from 'react';
+import NextLink from 'next/link';
 
 import { Button } from '@/components/action';
 import { cx } from '@/design/cx';
@@ -148,6 +149,19 @@ export interface TabLinksProps {
  * is in its address, so that a section can be sent to somebody. A tab holding
  * its selection in component state passes every test about tabs and fails the
  * one that matters at three in the morning.
+ *
+ * Each tab is the router's link, not a plain anchor. The address is the same
+ * either way — copyable, and followed with JavaScript off — but a plain
+ * anchor is a document navigation: the shell is torn down and rebuilt, and
+ * every read it makes is made again. The router's link keeps the shell and
+ * repeats none of its reads; what it fetches is the section alone, and on
+ * staging that transition measures a few hundred milliseconds. What it does
+ * *not* do is show a loading state: a change of `?tab=` re-renders the same
+ * segment inside a transition, and `loading.tsx` appears only for a segment
+ * that had nothing rendered yet, so the previous section stays on screen,
+ * unchanged, until the next one commits. Prefetching is off, as it is on
+ * every link here: a section is a full server render against the
+ * deployment, and the tabs nobody opens must not cost one.
  */
 export function TabLinks({ tabs, selected, label }: TabLinksProps): ReactNode {
   return (
@@ -155,15 +169,16 @@ export function TabLinks({ tabs, selected, label }: TabLinksProps): ReactNode {
       <ul className="flex gap-1 edge border-border border-t-0 border-x-0">
         {tabs.map((tab) => (
           <li key={tab.id}>
-            <a
+            <NextLink
               href={tab.href}
+              prefetch={false}
               data-testid="tab-link"
               data-tab={tab.id}
               aria-current={tab.id === selected ? 'page' : undefined}
               className={cx('block', TAB_SHAPE, tabSkin(tab.id === selected))}
             >
               {tab.label}
-            </a>
+            </NextLink>
           </li>
         ))}
       </ul>
@@ -195,6 +210,10 @@ export interface SegmentedLinksProps {
  * single-purpose landmark — a screen may show more than one segmented group
  * side by side (state, severity, view) — so it carries its own accessible
  * name rather than assuming `nav` is unique on the page.
+ *
+ * Each choice is the router's link with prefetching off, for the reason
+ * `TabLinks` gives: a plain anchor is a document navigation, and a change of
+ * filter must not tear the shell down and repeat its reads.
  */
 export function SegmentedLinks({
   options,
@@ -208,9 +227,10 @@ export function SegmentedLinks({
       className="inline-flex items-center rounded-2 bg-sunken edge border-border p-1"
     >
       {options.map((option) => (
-        <a
+        <NextLink
           key={option.id}
           href={option.href}
+          prefetch={false}
           data-testid="segmented-option"
           data-option={option.id}
           aria-current={option.id === selected ? 'true' : undefined}
@@ -223,7 +243,7 @@ export function SegmentedLinks({
         >
           {option.icon}
           {option.label}
-        </a>
+        </NextLink>
       ))}
     </nav>
   );

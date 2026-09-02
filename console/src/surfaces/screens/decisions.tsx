@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import NextLink from 'next/link';
 
 import { CHIP_SHAPE } from '@/components/status';
 import { cx } from '@/design/cx';
@@ -47,7 +48,10 @@ export function tabFrom(value: string): DecisionsTab {
  * a tab *is*. Kept to the same contract `TabLinks` already gave this screen
  * — `tab-links`/`tab-link` test ids, `data-tab`, `aria-current="page"` on
  * the selected one, an address-driven `href` — so nothing downstream of the
- * tab bar's own markup had to change.
+ * tab bar's own markup had to change. Each chip is the router's link with
+ * prefetching off, for the reason `TabLinks` gives: a plain anchor is a
+ * document navigation that tears the shell down and repeats its reads for a
+ * change of tab.
  *
  * No live count on the "Ações" chip the artboard draws one on: that number
  * is the same one the sidebar badge already carries, and getting it here
@@ -71,8 +75,9 @@ function DecisionsTabBar({
           const selected = each === tab;
           return (
             <li key={each}>
-              <a
+              <NextLink
                 href={`?tab=${each}`}
+                prefetch={false}
                 data-testid="tab-link"
                 data-tab={each}
                 aria-current={selected ? 'page' : undefined}
@@ -85,7 +90,7 @@ function DecisionsTabBar({
                 )}
               >
                 {message(locale, `decisions.tab.${each}`)}
-              </a>
+              </NextLink>
             </li>
           );
         })}

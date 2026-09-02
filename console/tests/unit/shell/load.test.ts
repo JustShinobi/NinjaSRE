@@ -9,6 +9,7 @@ import {
   countsFrom,
   loadAttention,
   loadGuardian,
+  loadLauncher,
   loadRecentRuns,
   loadSetup,
   loadStopped,
@@ -51,9 +52,19 @@ const BY_PATH: Readonly<Record<string, string>> = {
   '/health/ready': 'health',
 };
 
+/** The address a stub was asked for, as a string, whatever shape it arrived in. */
+function addressOf(input: RequestInfo | URL): string {
+  return input instanceof Request ? input.url : String(input);
+}
+
+/** The path alone — a query string is the read's business, not the dataset's. */
+function pathOf(input: RequestInfo | URL): string {
+  return addressOf(input).split('?')[0] ?? '';
+}
+
 function servingFixtures(): typeof fetch {
   return vi.fn((input: RequestInfo | URL) => {
-    const path = input instanceof Request ? input.url : String(input);
+    const path = pathOf(input);
     const slug = Object.entries(BY_PATH).find(([known]) => path.endsWith(known))?.[1];
     if (slug === undefined) {
       return Promise.resolve(new Response('{}', { status: 404 }));
@@ -220,6 +231,223 @@ describe('resolving what the shell needs', () => {
   });
 });
 
+describe('the three attention reads', () => {
+  /**
+   * One item from each source, so the order the items come back in says which
+   * source each one was read from.
+   */
+  const BODIES: Readonly<Record<string, unknown>> = {
+    '/v1/approvals': {
+      approvals: [
+        {
+          approval_id: 'apr-1',
+          state: 'pending',
+          summary: 'restart the collector',
+          action: 'restart',
+          requested_at: '2026-08-07T09:00:00Z',
+        },
+      ],
+    },
+    '/v1/proposals': {
+      proposals: [
+        {
+          proposal_id: 'prp-1',
+          summary: 'raise the threshold',
+          proposal_type: 'detector',
+          proposed_at: '2026-08-07T09:10:00Z',
+        },
+      ],
+    },
+    '/v1/runs': {
+      runs: [
+        {
+          run_id: 'run-1',
+          status: 'failed',
+          summary: 'disk pressure',
+          started_at: '2026-08-07T09:20:00Z',
+        },
+      ],
+    },
+  };
+
+  function known(input: RequestInfo | URL): string | undefined {
+    const path = pathOf(input);
+    return Object.keys(BODIES).find((known) => path.endsWith(known));
+  }
+
+  function json(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  it('are all in flight before any of them has answered', async () => {
+    // Nobody answers until every read has been issued. Three reads made one
+    // after the other never get past the first; three made together are all
+    // on the wire by the time the first macrotask runs.
+    const started: string[] = [];
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = known(input);
+        started.push(path ?? 'unknown');
+        await gate;
+        return path === undefined ? json({}, 404) : json(BODIES[path]);
+      }),
+    );
+
+    const pending = loadAttention('opaque');
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(started).toEqual(['/v1/approvals', '/v1/proposals', '/v1/runs']);
+    } finally {
+      release?.();
+    }
+
+    // Issued together, still processed in the order the sources are listed —
+    // approvals first, failures last — whichever one answered first.
+    expect((await pending).map((item) => item.kind)).toEqual([
+      'approval',
+      'proposal',
+      'failure',
+    ]);
+  });
+
+  it('keep the other two when one of them is refused', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const path = known(input);
+        if (path === '/v1/proposals') return Promise.resolve(json({}, 500));
+        return Promise.resolve(path === undefined ? json({}, 404) : json(BODIES[path]));
+      }),
+    );
+
+    expect((await loadAttention('opaque')).map((item) => item.kind)).toEqual([
+      'approval',
+      'failure',
+    ]);
+  });
+
+  it('keep the other two when one of them cannot reach the deployment', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const path = known(input);
+        if (path === '/v1/approvals') return Promise.reject(new TypeError('network'));
+        return Promise.resolve(path === undefined ? json({}, 404) : json(BODIES[path]));
+      }),
+    );
+
+    expect((await loadAttention('opaque')).map((item) => item.kind)).toEqual([
+      'proposal',
+      'failure',
+    ]);
+  });
+
+  it('still surface a failure that is neither a refusal nor the network', async () => {
+    // A refusal and an unreachable deployment are the two ways a read is
+    // allowed to come back empty. Anything else is a defect, and swallowing
+    // it would be a notification centre that is silently, permanently empty.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const path = known(input);
+        if (path === '/v1/runs') return Promise.reject(new Error('unexpected'));
+        return Promise.resolve(path === undefined ? json({}, 404) : json(BODIES[path]));
+      }),
+    );
+
+    await expect(loadAttention('opaque')).rejects.toThrow('unexpected');
+  });
+});
+
+describe('what the two runs reads ask the gateway for', () => {
+  /**
+   * The runs list is the largest payload of every render, and the frame used
+   * to read the whole first page of it twice for two small needs. Each read
+   * now asks for exactly what it is for: the palette for a page of recent
+   * runs, the attention list for the runs that ended badly. Two small reads
+   * at two addresses, on purpose — a shared address would be deduplicated
+   * into one large read again.
+   */
+  function recording(): { fetching: typeof fetch; addresses: string[] } {
+    const addresses: string[] = [];
+    const fetching = vi.fn((input: RequestInfo | URL) => {
+      addresses.push(addressOf(input));
+      return Promise.resolve(
+        new Response(JSON.stringify({ runs: [], approvals: [], proposals: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    return { fetching, addresses };
+  }
+
+  it('asks for a page of twenty recent runs for the palette', async () => {
+    const { fetching, addresses } = recording();
+    vi.stubGlobal('fetch', fetching);
+
+    await loadRecentRuns('opaque');
+
+    expect(addresses).toEqual(['/v1/runs?limit=20']);
+  });
+
+  it('asks only for the runs that ended badly for the attention list', async () => {
+    const { fetching, addresses } = recording();
+    vi.stubGlobal('fetch', fetching);
+
+    await loadAttention('opaque');
+
+    expect(addresses.filter((address) => address.includes('/v1/runs'))).toEqual([
+      '/v1/runs?status=failed&status=cancelled&status=interrupted&limit=20',
+    ]);
+  });
+
+  it('reports an interrupted run as needing a person, and knows no "error" status', async () => {
+    // `interrupted` means nobody knows how far the run got, which is exactly
+    // a run that needs a person. `error` is not a status this gateway has; a
+    // row claiming it is not one of the terminal words and is not counted.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (!pathOf(input).endsWith('/v1/runs')) {
+          return Promise.resolve(new Response('{}', { status: 404 }));
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              runs: [
+                { run_id: 'run-interrupted', status: 'interrupted', summary: 's' },
+                { run_id: 'run-error', status: 'error', summary: 's' },
+                { run_id: 'run-failed', status: 'failed', summary: 's' },
+                { run_id: 'run-cancelled', status: 'cancelled', summary: 's' },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }),
+    );
+
+    const failures = (await loadAttention('opaque')).filter(
+      (item) => item.kind === 'failure',
+    );
+
+    expect(failures.map((item) => item.id)).toEqual([
+      'run-interrupted',
+      'run-failed',
+      'run-cancelled',
+    ]);
+  });
+});
+
 describe('what the frame knows about setup', () => {
   it('reads runtimeComposed true from the checklist a finished deployment reports', async () => {
     vi.stubGlobal('fetch', servingFixtures());
@@ -380,6 +608,17 @@ describe('a deployment that cannot be reached', () => {
     // The one direction this must never be wrong in: a deployment that has not
     // said anything is not a deployment that is allowed to act.
     expect(await loadGuardian('opaque')).toEqual({ live: false, posture: 'propose' });
+  });
+
+  it('offers the investigate drawer only the audit, rather than an invented suggestion', async () => {
+    // Read by the launcher courier now rather than by the frame, and the
+    // degradation is the same either way: no team name, no recurring subject,
+    // nothing unhealthy — the honest floor, never a fabricated incident.
+    expect(await loadLauncher('opaque', 'org-northwind')).toEqual({
+      teamName: '',
+      recurring: null,
+      unhealthy: 0,
+    });
   });
 });
 
