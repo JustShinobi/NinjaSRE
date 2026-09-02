@@ -36,8 +36,10 @@ import { fetchStreamSource } from './transport';
  * **The deployment channel is now the trigger; the timer is the fallback.**
  * While `DeploymentConnection` reports `connected`, the timer below is
  * suspended — every event (or batch, inside `DEPLOYMENT_REFRESH_BATCH_MS`)
- * calls the same `refresh()` the timer used to call on its own schedule, and
- * a `resync` calls it immediately, unbatched. The instant the channel is
+ * calls the same `refresh()` the timer used to call on its own schedule, a
+ * `resync` calls it immediately, unbatched, and so does the channel coming
+ * back from a drop, which is a gap in what it saw rather than a delivery.
+ * The instant the channel is
  * anything other than `connected` — attempting to open, backed off and
  * retrying, or given up — the timer resumes exactly as it always has,
  * `delayAfter(failures)` and all: SC-002's thirty-second bound is met by the
@@ -248,6 +250,17 @@ export function AutoRefresh({
         refreshRef.current();
       },
       onResync: () => {
+        refreshRef.current();
+      },
+      // A drop is a gap, and this is the only notice of one there is. The
+      // fallback timer below does not cover it: the timer is scheduled the
+      // instant the channel drops and cleared again the instant it reaches
+      // `connected`, so a drop shorter than `delayAfter(0)` — fifteen
+      // seconds, against a first backoff step of half of one — used to fire
+      // no timer, refresh nothing, and leave the chip reading `live` over a
+      // screen missing every event published in between, with no upper
+      // bound on how long it stayed wrong.
+      onReconnect: () => {
         refreshRef.current();
       },
     });

@@ -17,9 +17,11 @@ import { eventFromFrame, type StreamEvent } from './events';
  * The engine underneath (`ReconnectingChannel`, below) is shared with
  * `deployment.ts`'s `DeploymentConnection`: a run's stream and the
  * deployment-wide channel differ only in where they open, how they read one
- * frame, how long they may batch before handing a delivery over, and one
- * event a run's stream has no equivalent of (the deployment channel's
- * `resync`). Everything else — state, teardown, the backoff table, the
+ * frame, how long they may batch before handing a delivery over, and the two
+ * things a run's stream has no need of — the deployment channel's `resync`,
+ * and the notice a channel owes its reader when it *re*-opens (`onReconnect`;
+ * a stream that presents a cursor resumes on its own and has no gap to
+ * confess). Everything else — state, teardown, the backoff table, the
  * ten-attempt bound, pausing for a hidden tab and resuming into whatever it
  * was doing before — is written once, so a fix applied here is a fix applied
  * to both.
@@ -146,6 +148,29 @@ export interface ChannelOptions<E> {
   readonly onState: (state: ConnectionState) => void;
   readonly onEvents: (events: readonly E[]) => void;
   /**
+   * Called when a stream opens that is a *re*-open — the channel had dropped,
+   * and whatever the deployment published between the drop and this moment
+   * reached a connection that was no longer listening.
+   *
+   * It reports only that there was a gap, never what was in it, because this
+   * channel has no way to know: it presents no cursor, and one that did would
+   * still be bounded by however much the broker still holds in memory. Saying
+   * *that* something was missed is the whole of what a reader needs when its
+   * answer to everything is one re-read.
+   *
+   * A first connection never raises it. The page a channel opens from was
+   * rendered by the server moments before, so its silence is not a gap, and a
+   * re-read there would buy nothing and cost a round trip on every
+   * navigation. Reaching `connected` is therefore not the signal — *reaching
+   * it a second time* is.
+   *
+   * `RunConnection` leaves it unset, and that is an answer rather than an
+   * omission: a run's stream presents the cursor it actually reached, so its
+   * reconnection resumes at the event after the last one applied. There is no
+   * gap for it to confess.
+   */
+  readonly onReconnect?: () => void;
+  /**
    * Called on every failed attempt, with the running count — including a
    * second, third, ... consecutive failure that leaves the state as
    * `reconnecting` both before and after. `onState` is not that signal: it
@@ -263,10 +288,21 @@ export class ReconnectingChannel<E> {
     this.#handle?.close();
 
     this.#setState(this.#attempts === 0 ? 'connecting' : 'reconnecting');
+    // Whether this attempt is a reopen is decided here rather than inside
+    // `onOpen`, because `#flush` puts the attempt count back to nought the
+    // moment anything arrives — a frame delivered before the transport
+    // reports the open would otherwise turn a reconnection into a first
+    // connection and swallow the gap it left.
+    const reopening = this.#attempts > 0;
     const address = this.#options.address();
     this.#handle = this.#options.source.open(address, {
       onOpen: () => {
-        if (!this.#closed && !this.#visibility.hidden()) this.#setState('connected');
+        if (this.#closed || this.#visibility.hidden()) return;
+        this.#setState('connected');
+        // A tab that went to the background between the attempt and the open
+        // is left to the caller's own fallback, which is running precisely
+        // because the state never reached `connected`.
+        if (reopening) this.#options.onReconnect?.();
       },
       onFrame: (data) => {
         this.#received(data);

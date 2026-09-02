@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AutoRefresh } from '@/live/auto-refresh';
 import { CHIP_SHAPE } from '@/components/status';
-import type { StreamHandle, StreamHandlers, StreamSource } from '@/live/connection';
+import {
+  BACKOFF_MS,
+  type StreamHandle,
+  type StreamHandlers,
+  type StreamSource,
+} from '@/live/connection';
 import {
   FRESHNESS_STATES,
   REFRESH_INTERVAL_MS,
@@ -286,6 +291,75 @@ describe('the frame’s freshness chip', () => {
       // run the connection's own, unrelated backoff retry.
       await vi.advanceTimersByTimeAsync(REFRESH_INTERVAL_MS);
       expect(fetchSpy).toHaveBeenCalled();
+
+      fetchSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('refreshes once when the channel comes back, because the drop was a gap', async () => {
+      // The hole this pins shut. A drop shorter than `REFRESH_INTERVAL_MS`
+      // used to cost nothing and lose everything: the fallback timer was
+      // scheduled on the drop and cleared again the moment the channel
+      // reached `connected`, so it never fired, and reaching `connected`
+      // refreshed nothing on its own. Whatever the deployment published in
+      // between reached a connection that had gone, the chip read `live`,
+      // and the screen stayed stale with no upper bound at all -- past this
+      // feature's own thirty-second freshness claim.
+      vi.useFakeTimers();
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
+      const source = new FakeDeploymentSource();
+
+      render(<AutoRefresh locale="en" deploymentSource={source} />);
+      // Wrapped, unlike the fetch-counting tests around it, because this one
+      // also reads the chip: a state update raised from outside `act` is
+      // applied a flush later than the assertion would see it.
+      act(() => {
+        source.handlers.onOpen();
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      fetchSpy.mockClear();
+
+      act(() => {
+        source.handlers.onError(0);
+      });
+      // The first backoff step, which is well under the fallback interval --
+      // so the timer is provably not what produces the refresh below.
+      await vi.advanceTimersByTimeAsync(BACKOFF_MS[0] ?? 0);
+      act(() => {
+        source.handlers.onOpen();
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('freshness').getAttribute('data-state')).toBe('live');
+
+      // Exactly one: the channel is delivering again, so the fallback stays
+      // suspended and nothing re-reads a second time.
+      await vi.advanceTimersByTimeAsync(REFRESH_INTERVAL_MS);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      fetchSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('does not refresh on a first connection, which the server has already answered', async () => {
+      // The other half of the same seam, and the reason it is not simply
+      // "refresh whenever the channel opens": this component mounts inside a
+      // page the server rendered moments ago. A re-read there would buy
+      // nothing and cost one round trip on every navigation in the console.
+      vi.useFakeTimers();
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
+      const source = new FakeDeploymentSource();
+
+      render(<AutoRefresh locale="en" deploymentSource={source} />);
+      source.handlers.onOpen();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
 
       fetchSpy.mockRestore();
       vi.useRealTimers();

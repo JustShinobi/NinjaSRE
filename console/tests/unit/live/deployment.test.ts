@@ -118,6 +118,7 @@ interface Harness {
   readonly batches: DeploymentEvent[][];
   readonly attempts: number[];
   resyncs: number;
+  reconnections: number;
 }
 
 function harness(): Harness {
@@ -127,7 +128,7 @@ function harness(): Harness {
   const states: ConnectionState[] = [];
   const batches: DeploymentEvent[][] = [];
   const attempts: number[] = [];
-  const held = { resyncs: 0 };
+  const held = { resyncs: 0, reconnections: 0 };
 
   const connection = new DeploymentConnection({
     source,
@@ -142,6 +143,9 @@ function harness(): Harness {
     onResync: () => {
       held.resyncs += 1;
     },
+    onReconnect: () => {
+      held.reconnections += 1;
+    },
     onAttempt: (count) => attempts.push(count),
   });
 
@@ -155,6 +159,9 @@ function harness(): Harness {
     attempts,
     get resyncs(): number {
       return held.resyncs;
+    },
+    get reconnections(): number {
+      return held.reconnections;
     },
   };
 }
@@ -285,6 +292,25 @@ describe('DeploymentConnection', () => {
     visibility.set(false);
     // Resting state before hiding was 'connecting'; returning to it, not to 'idle'.
     expect(states.at(-1)).toBe('connecting');
+  });
+
+  it('reports a reopen after a drop, and stays quiet about the first open', () => {
+    // The channel presents no cursor, so the events published during the drop
+    // are gone from its point of view. What it can still do is say the drop
+    // happened -- and `auto-refresh.tsx` turns that into the one
+    // `router.refresh()` that reads the truth back from the routes that own
+    // it. The first open is not that: the page was server-rendered moments
+    // before, so there is nothing to catch up on.
+    const held = harness();
+    held.connection.open();
+    held.source.handlers.onOpen();
+    expect(held.reconnections).toBe(0);
+
+    held.source.handlers.onError(0);
+    held.clock.advance();
+    held.source.handlers.onOpen();
+
+    expect(held.reconnections).toBe(1);
   });
 
   it('close releases the stream, the retry, the flush and the visibility listener', () => {

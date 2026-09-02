@@ -27,14 +27,32 @@ import {
  * either — the two classes below are the whole of what is left over once
  * that is factored out.
  *
- * **No cursor is presented on reconnect.** `RunConnection` remembers a
- * position so a reconnection resumes; this connection does not, because
- * every one of this channel's three deliveries — a batch of ids, a `resync`,
- * and a first connection's silence — already ends in the same client action,
- * a single `router.refresh()`. A cursor would only save the occasional extra
- * refresh after a brief drop, never change correctness: FR-004's guarantee
- * that a *presented* cursor never double-delivers is proven at the contract
- * level (`tests/contract/gateway/test_deployment_stream.py`), not here.
+ * **No cursor is presented on reconnect, and the reopen is announced
+ * instead.** `RunConnection` remembers a position so a reconnection resumes
+ * at the event after the last one applied; this connection remembers
+ * nothing, so a drop is a hole in what it saw. The hole is closed by
+ * `onReconnect`: the channel says it re-opened, and this channel's reader
+ * answers that the way it answers everything else, with a single
+ * `router.refresh()` that reads the truth back from the routes that own it.
+ *
+ * That is deliberately cheaper than a cursor and strictly wider. A cursor
+ * would depend on the broker still holding the events in memory and would
+ * have to be carried through the courier route on every attempt; announcing
+ * the reopen depends on nothing and covers a drop of any length. What it
+ * costs is one extra re-read after a drop that happened to carry nothing —
+ * which is the same re-read the fallback timer would have made anyway.
+ *
+ * The claim this paragraph used to make — that a first connection's silence
+ * already ends in a `router.refresh()`, so a reconnection needs no signal —
+ * was false, and false in the direction that loses events. A first
+ * connection's silence ends in *no* action at all, correctly: the page was
+ * server-rendered moments before. A reconnection's silence is a gap, and
+ * before `onReconnect` existed it ended in no action either, so anything
+ * published during a drop shorter than the fallback interval was lost
+ * permanently while the chip still read `live`. FR-004's guarantee that a
+ * *presented* cursor never double-delivers remains a contract-level property
+ * (`tests/contract/gateway/test_deployment_stream.py`), unaffected either
+ * way.
  */
 
 /** Where the deployment channel is read from, through the console's own courier route. */
@@ -110,6 +128,14 @@ export interface DeploymentConnectionOptions {
   readonly onEvents: (events: readonly DeploymentEvent[]) => void;
   readonly onResync: () => void;
   /**
+   * The channel dropped and is back, so whatever was published in between
+   * was missed. Required rather than optional — like `onResync`, and unlike
+   * `ChannelOptions.onReconnect`, which a run's stream rightly leaves unset:
+   * this channel presents no cursor, so every reader of it has to answer
+   * what it does about a gap, and the type is what asks.
+   */
+  readonly onReconnect: () => void;
+  /**
    * See `ChannelOptions.onAttempt`. This channel's own chip reads it, to
    * decide when a retry has gone on long enough to call it `stale` rather
    * than `refreshing`.
@@ -137,6 +163,7 @@ export class DeploymentConnection extends ReconnectingChannel<DeploymentEvent> {
       },
       onState: options.onState,
       onEvents: options.onEvents,
+      onReconnect: options.onReconnect,
       ...(options.onAttempt === undefined ? {} : { onAttempt: options.onAttempt }),
       ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
       ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
